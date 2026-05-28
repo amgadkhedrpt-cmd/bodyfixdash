@@ -2,8 +2,8 @@ name: Medicolize Sync
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # كل ربع ساعة
-  workflow_dispatch:           # تشغيل يدوي من GitHub
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -33,20 +33,13 @@ jobs:
           MEDICOLIZE_URL:  ${{ secrets.MEDICOLIZE_URL }}
           MEDICOLIZE_USER: ${{ secrets.MEDICOLIZE_USER }}
           MEDICOLIZE_PASS: ${{ secrets.MEDICOLIZE_PASS }}
-        - name: Commit & push data
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
-          git add data/
-          git diff --staged --quiet || git commit -m "🔄 sync appointments $(date -u '+%Y-%m-%d %H:%M') UTC"
-          git push
+        run: python scraper.py
 
       - name: Commit & push data
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          Git pull --rebase origin main
+          git pull --rebase origin main
           git add data/
           git diff --staged --quiet || git commit -m "🔄 sync appointments $(date -u '+%Y-%m-%d %H:%M') UTC"
           git push

@@ -164,7 +164,7 @@ def analyze(appointments):
             continue
         doc    = (a.get("doctor")  or {}).get("name", "Unknown") if isinstance(a.get("doctor"), dict) else "Unknown"
         branch = (a.get("branch")  or {}).get("name", "Unknown") if isinstance(a.get("branch"), dict) else "Unknown"
-        start  = (a.get("start")   or "")[:10]
+        start  = str(a.get("start") or "")[:10]
         atype  = a.get("type")     or a.get("other") or "Unknown"
         status = a.get("status")   or "Unknown"
         pat    = a.get("patient")  or {}

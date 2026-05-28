@@ -29,7 +29,15 @@ APPOINTMENT_TYPES = {
     "Enum8":  "تحليل",
     "Enum9":  "طوارئ",
     "Enum10": "مراجعة",
+    "Enum11": "كشف",
+    "Enum12": "حجز",
+    "Enum23": "علاج طبيعي",
     "Enum33": "متابعة",
+    "Enum34": "إعادة جلسة",
+    "Enum40": "استشارة أونلاين",
+    "Enum41": "فحص",
+    "Enum42": "تقييم",
+    "Enum50": "طوارئ",
 }
 
 STATUS_NAMES = {
@@ -192,7 +200,7 @@ async def fetch_all_appointments(cookie_str, page):
     while True:
         payload = {
             "operationName": "CREATED_APPOINTMENTS",
-            "variables": {"skip": skip, "take": take, "orderBy": "createdAt-desc",
+            "variables": {"skip": skip, "take": take, "orderBy": "start-desc",
                           "searchTerm": "", "rangeDate": range_date,
                           "filters": {"rangeDateKey": "start"}},
             "query": GQL_QUERY,

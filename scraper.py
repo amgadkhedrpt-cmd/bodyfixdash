@@ -368,12 +368,12 @@ async def main():
                     "doctor_totals": {d: v["total"] for d, v in analysis["by_doctor"].items()},
                 }, f, ensure_ascii=False, indent=2)
 
-            # Also save in data/ folder
-import shutil, os
-os.makedirs("data", exist_ok=True)
-shutil.copy("appointments.json", "data/appointments.json")
-shutil.copy("summary.json", "data/summary.json")
-print(f"\n✅ Done! {len(appointments)} appointments")
+            # Also copy to root for Vercel
+            import shutil
+            shutil.copy("appointments.json", "data/appointments.json") if os.path.exists("appointments.json") else None
+            shutil.copy("summary.json", "data/summary.json") if os.path.exists("summary.json") else None
+
+            print(f"\n✅ Done! {len(appointments)} appointments")
             print(f"   Doctors:  {list(analysis['by_doctor'].keys())[:8]}")
             print(f"   Branches: {list(analysis['by_branch'].keys())}")
             print(f"   Types:    {list(analysis['by_type'].keys())[:6]}")

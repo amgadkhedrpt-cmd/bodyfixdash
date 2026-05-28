@@ -4346,8 +4346,23 @@ var MED_DATA    = null;
 var MED_SUMMARY = null;
 var MED_LOADED  = false;
 
-var MED_DATA_URL    = './data/appointments.json';
-var MED_SUMMARY_URL = './data/summary.json';
+var MED_DATA_URL    = null;
+var MED_SUMMARY_URL = null;
+
+var MED_URLS = [
+  {
+    summary: '/summary.json',
+    data:    '/appointments.json'
+  },
+  {
+    summary: '/data/summary.json',
+    data:    '/data/appointments.json'
+  },
+  {
+    summary: 'https://corsproxy.io/?https://raw.githubusercontent.com/amgadkhedrpt-cmd/bodyfixdash/main/data/summary.json',
+    data:    'https://corsproxy.io/?https://raw.githubusercontent.com/amgadkhedrpt-cmd/bodyfixdash/main/data/appointments.json'
+  }
+];
 
 function medLoad(force) {
   if (MED_LOADED && !force) return;
@@ -4356,32 +4371,47 @@ function medLoad(force) {
   var statusEl = document.getElementById('med-status');
   if (statusEl) statusEl.innerHTML = '<div style="color:var(--acc);font-size:.68rem;padding:8px">⏳ جاري تحميل البيانات...</div>';
 
-  fetch(MED_SUMMARY_URL + '?t=' + Date.now())
-    .then(function(r){ return r.json(); })
-    .then(function(summary){
-      MED_SUMMARY = summary;
-      medRenderSummary(summary);
-      if (dot) dot.style.background = 'var(--g)';
-      MED_LOADED = true;
-      if (statusEl) statusEl.innerHTML = '';
-      return fetch(MED_DATA_URL + '?t=' + Date.now());
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      MED_DATA = data;
-      medRenderDoctors(data);
-      medRenderCharts(data);
-    })
-    .catch(function(e){
-      console.error('Medicolize load error:', e);
+  function tryLoad(urlIndex) {
+    if (urlIndex >= MED_URLS.length) {
       if (dot) dot.style.background = 'var(--r)';
       if (statusEl) statusEl.innerHTML = '<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:14px;font-size:.7rem;line-height:1.9">' +
-        '<div style="color:var(--r);font-weight:700;margin-bottom:6px">❌ لم يتم تحميل البيانات بعد</div>' +
-        '<div style="color:var(--txt)">• تأكد إن ملفات <code style="color:var(--acc)">data/appointments.json</code> موجودة في الـ repo</div>' +
-        '<div style="color:var(--txt)">• تأكد إن GitHub Actions اشتغل على الأقل مرة واحدة</div>' +
-        '<div style="color:var(--txt)">• لو على localhost، افتح الملف مباشرة من الـ repo</div>' +
+        '<div style="color:var(--r);font-weight:700;margin-bottom:6px">❌ لم يتم تحميل البيانات</div>' +
+        '<div style="color:var(--txt)">تأكد إن GitHub Actions اشتغل على الأقل مرة واحدة</div>' +
         '</div>';
-    });
+      return;
+    }
+
+    var urls = MED_URLS[urlIndex];
+    console.log('Trying URL set ' + urlIndex + ':', urls.summary);
+
+    fetch(urls.summary + (urlIndex === 0 ? '?t=' + Date.now() : ''))
+      .then(function(r){
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(summary){
+        MED_SUMMARY = summary;
+        if (!summary || !summary.total) throw new Error('Empty data');
+        medRenderSummary(summary);
+        if (dot) dot.style.background = 'var(--g)';
+        MED_LOADED = true;
+        if (statusEl) statusEl.innerHTML = '';
+        return fetch(urls.data + (urlIndex === 0 ? '?t=' + Date.now() : ''));
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        MED_DATA = data;
+        medRenderDoctors(data);
+        medRenderCharts(data);
+        setTimeout(function(){ manaBuildAll(); }, 200);
+      })
+      .catch(function(e){
+        console.warn('URL set ' + urlIndex + ' failed:', e.message);
+        tryLoad(urlIndex + 1);
+      });
+  }
+
+  tryLoad(0);
 }
 
 function medRenderSummary(s) {
@@ -4726,8 +4756,419 @@ window.addEventListener('load',function(){
     </div>
   </div>
 
+  <!-- ══ تحليلات Medicolize ══ -->
+  <div style="margin-top:18px">
+    <div style="font-size:.8rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      <span>📊 تحليلات متقدمة</span>
+      <div style="flex:1;height:1px;background:var(--brd)"></div>
+    </div>
+
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="fbtn on" id="mana-tab-daily"   onclick="manaShow('daily',this)">📅 جدول</button>
+      <button class="fbtn"    id="mana-tab-perf"    onclick="manaShow('perf',this)">📊 الأداء</button>
+      <button class="fbtn"    id="mana-tab-compare" onclick="manaShow('compare',this)">📈 مقارنة</button>
+      <button class="fbtn"    id="mana-tab-cancel"  onclick="manaShow('cancel',this)">❌ الإلغاء</button>
+      <button class="fbtn"    id="mana-tab-noshow"  onclick="manaShow('noshow',this)">🚫 No Show</button>
+      <button class="fbtn"    id="mana-tab-top"     onclick="manaShow('top',this)">🏆 الأكثر</button>
+    </div>
+
+    <div id="mana-daily">   <div id="mana-daily-content">  <div style="color:var(--mute);font-size:.7rem">جاري التحميل...</div></div></div>
+    <div id="mana-perf"    style="display:none"><div id="mana-perf-content">   <div style="color:var(--mute);font-size:.7rem">جاري التحميل...</div></div></div>
+    <div id="mana-compare" style="display:none"><div id="mana-compare-content"><div style="color:var(--mute);font-size:.7rem">جاري التحميل...</div></div></div>
+    <div id="mana-cancel"  style="display:none"><div id="mana-cancel-content"> <div style="color:var(--mute);font-size:.7rem">جاري التحميل...</div></div></div>
+    <div id="mana-noshow"  style="display:none"><div id="mana-noshow-content"> <div style="color:var(--mute);font-size:.7rem">جاري التحميل...</div></div></div>
+    <div id="mana-top"     style="display:none"><div id="mana-top-content">    <div style="color:var(--mute);font-size:.7rem">جاري التحميل...</div></div></div>
+  </div>
+
 </div>
 <!-- ══════════════════════════════════════════════════════════════ -->
+
+<script>
+// ── MEDICOLIZE ANALYSIS ───────────────────────────────────────────
+
+function manaShow(name, btn) {
+  ['daily','perf','compare','cancel','noshow','top'].forEach(function(t){
+    var el = document.getElementById('mana-'+t);
+    var b  = document.getElementById('mana-tab-'+t);
+    if (el) el.style.display = t === name ? 'block' : 'none';
+    if (b)  b.classList.toggle('on', t === name);
+  });
+}
+
+function manaGetData() {
+  if (!MED_DATA) return [];
+  var appts = (MED_DATA.analysis || {});
+  // Flatten all appointments from by_doctor
+  var all = [];
+  Object.values(appts.by_doctor || {}).forEach(function(d) {
+    (d.appointments || []).forEach(function(a) { all.push(a); });
+  });
+  return all;
+}
+
+function manaBuildAll() {
+  if (!MED_DATA) return;
+  manaDaily(null);
+  manaPerf();
+  manaCompare();
+  manaCancel();
+  manaNoShow();
+  manaTop();
+}
+
+var MANA_ACTIVE = ['مكتمل','مؤكد','CHECKEDIN','INPROGRESS','مفتوح','Confirmed','Completed','In Progress','Checked In','Open'];
+var MANA_STATUS_COLOR = {
+  'مكتمل':'#059669','مؤكد':'#3b82f6','مفتوح':'#67e8f9','قائمة انتظار':'#fbbf24',
+  'ملغي':'#f472b6','CANCELED':'#f472b6','NOSHOW':'#ef4444','CHECKEDIN':'#34d399',
+  'INPROGRESS':'#a78bfa','DELAYED':'#fb923c','NOTE':'#94a3b8'
+};
+var DAY_AR_M = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+
+// ── جدول ──────────────────────────────────────────────────────────
+function manaDaily(filterDate) {
+  var el = document.getElementById('mana-daily-content');
+  if (!el) return;
+  var all = manaGetData();
+  if (!all.length) { el.innerHTML = '<p style="color:var(--mute);font-size:.74rem">لا توجد بيانات</p>'; return; }
+
+  // Group by date
+  var byDate = {};
+  all.forEach(function(a) {
+    var dk = (a.start || '').slice(0,10);
+    if (!dk) return;
+    if (!byDate[dk]) byDate[dk] = [];
+    byDate[dk].push(a);
+  });
+
+  var dates = Object.keys(byDate).sort();
+
+  // Date picker
+  var pickerHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">';
+  pickerHtml += '<button onclick="manaDaily(null)" class="fbtn'+(!filterDate?' on':'')+'" style="font-size:.64rem">كل الأيام</button>';
+  dates.slice(-30).forEach(function(dk) {
+    var d = new Date(dk);
+    var lbl = DAY_AR_M[d.getDay()] + ' ' + dk.slice(8) + '/' + dk.slice(5,7);
+    pickerHtml += '<button onclick="manaDaily(\''+dk+'\')" class="fbtn'+(filterDate===dk?' on':'')+'" style="font-size:.6rem">'+lbl+'</button>';
+  });
+  pickerHtml += '</div>';
+
+  var showDates = filterDate ? [filterDate] : dates.slice(-14);
+  var html = pickerHtml;
+
+  showDates.forEach(function(dk) {
+    var appts = byDate[dk] || [];
+    var d = new Date(dk);
+    var dayLabel = DAY_AR_M[d.getDay()] + ' ' + dk;
+    var active = appts.filter(function(a){ return MANA_ACTIVE.indexOf(a.status) >= 0; }).length;
+
+    html += '<div style="background:var(--card);border:1px solid var(--brd);border-radius:10px;margin-bottom:12px;overflow:hidden">';
+    html += '<div style="padding:10px 14px;background:rgba(0,0,0,.2);display:flex;align-items:center;gap:10px">';
+    html += '<span style="font-weight:700;font-size:.78rem">'+dayLabel+'</span>';
+    html += '<span style="font-size:.62rem;color:var(--acc)">'+active+' نشط</span>';
+    html += '<span style="font-size:.62rem;color:var(--mute)">/ '+appts.length+' إجمالي</span>';
+    html += '</div>';
+
+    // Group by doctor
+    var byDoc = {};
+    appts.forEach(function(a){
+      if (!byDoc[a.doctor]) byDoc[a.doctor] = [];
+      byDoc[a.doctor].push(a);
+    });
+
+    html += '<div style="padding:10px 14px">';
+    Object.entries(byDoc).sort(function(a,b){return b[1].length-a[1].length;}).forEach(function(e){
+      var doc = e[0], docAppts = e[1];
+      html += '<div style="margin-bottom:10px">';
+      html += '<div style="font-size:.72rem;font-weight:700;margin-bottom:6px;color:var(--acc)">'+doc+' <span style="color:var(--mute);font-weight:400">('+docAppts.length+')</span></div>';
+      html += '<div style="display:flex;flex-direction:column;gap:3px">';
+      docAppts.sort(function(a,b){return (a.start||'') > (b.start||'') ? 1 : -1;}).forEach(function(a){
+        var time = a.start ? new Date(a.start).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}) : '';
+        var sc = MANA_STATUS_COLOR[a.status] || 'var(--mute)';
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:rgba(255,255,255,.02);border-radius:6px">';
+        html += '<div style="width:7px;height:7px;border-radius:50%;background:'+sc+';flex-shrink:0"></div>';
+        html += '<span style="font-size:.6rem;color:var(--mute);min-width:42px">'+time+'</span>';
+        html += '<span style="font-size:.68rem;flex:1">'+a.patient+'</span>';
+        html += '<span style="font-size:.58rem;color:'+sc+'">'+a.status+'</span>';
+        html += '<span style="font-size:.58rem;color:var(--mute)">'+a.type+'</span>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+    html += '</div></div>';
+  });
+
+  el.innerHTML = html;
+}
+
+// ── الأداء ────────────────────────────────────────────────────────
+function manaPerf() {
+  var el = document.getElementById('mana-perf-content');
+  if (!el) return;
+  var analysis = (MED_DATA && MED_DATA.analysis) || {};
+  var byDoc = analysis.by_doctor || {};
+  if (!Object.keys(byDoc).length) { el.innerHTML = '<p style="color:var(--mute);font-size:.74rem">لا توجد بيانات</p>'; return; }
+
+  var docStats = Object.entries(byDoc).map(function(e) {
+    var doc = e[0], info = e[1];
+    var appts = info.appointments || [];
+    var completed = appts.filter(function(a){ return a.status === 'مكتمل' || a.status === 'Completed' || a.status === 'CHECKEDIN'; }).length;
+    var cancelled = appts.filter(function(a){ return a.status === 'ملغي' || a.status === 'CANCELED'; }).length;
+    var noshow    = appts.filter(function(a){ return a.status === 'NOSHOW'; }).length;
+    var total     = info.total || 0;
+    var compRate  = total ? Math.round(completed / total * 100) : 0;
+    var cancelRate= total ? Math.round(cancelled / total * 100) : 0;
+    // Count by type
+    var types = {};
+    appts.forEach(function(a){ types[a.type] = (types[a.type]||0)+1; });
+    var topType = Object.entries(types).sort(function(a,b){return b[1]-a[1];})[0];
+    return { doc:doc, total:total, completed:completed, cancelled:cancelled, noshow:noshow, compRate:compRate, cancelRate:cancelRate, topType:topType };
+  }).sort(function(a,b){ return b.total - a.total; });
+
+  var colors = ['var(--acc)','var(--male)','var(--fem)','var(--g)','var(--am)','#a78bfa','#06b6d4','#f472b6'];
+  var html = '';
+
+  docStats.forEach(function(s, i) {
+    var col = colors[i % colors.length];
+    html += '<div style="background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:13px;margin-bottom:10px">';
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+    html += '<div style="width:38px;height:38px;border-radius:9px;background:rgba(0,198,255,.1);color:'+col+';display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.8rem">'+s.doc.replace(/د\.|Dr\./gi,'').trim()[0].toUpperCase()+'</div>';
+    html += '<div style="flex:1"><div style="font-weight:700;font-size:.78rem">'+s.doc+'</div>';
+    html += '<div style="font-size:.6rem;color:var(--mute)">'+s.total+' موعد إجمالي</div></div>';
+    html += '<div style="text-align:center"><div style="font-size:1.2rem;font-weight:900;color:'+col+'">'+s.compRate+'%</div><div style="font-size:.56rem;color:var(--mute)">إكمال</div></div>';
+    html += '</div>';
+
+    // Progress bars
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">';
+    [
+      {lbl:'✅ مكتمل', val:s.completed, col:'#059669'},
+      {lbl:'❌ ملغي',  val:s.cancelled, col:'#f472b6'},
+      {lbl:'🚫 No Show',val:s.noshow,   col:'#ef4444'},
+    ].forEach(function(stat){
+      html += '<div style="background:rgba(0,0,0,.2);border-radius:7px;padding:7px;text-align:center">';
+      html += '<div style="font-size:.9rem;font-weight:900;color:'+stat.col+'">'+stat.val+'</div>';
+      html += '<div style="font-size:.56rem;color:var(--mute)">'+stat.lbl+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    // Completion bar
+    html += '<div style="height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden">';
+    html += '<div style="height:100%;background:'+col+';width:'+s.compRate+'%;border-radius:3px;transition:width .4s"></div>';
+    html += '</div>';
+    if (s.topType) {
+      html += '<div style="font-size:.6rem;color:var(--mute);margin-top:5px">الأكثر: <span style="color:var(--txt)">'+s.topType[0]+'</span> ('+s.topType[1]+')</div>';
+    }
+    html += '</div>';
+  });
+
+  el.innerHTML = html;
+}
+
+// ── مقارنة ────────────────────────────────────────────────────────
+function manaCompare() {
+  var el = document.getElementById('mana-compare-content');
+  if (!el) return;
+  var analysis = (MED_DATA && MED_DATA.analysis) || {};
+  var byDate = analysis.by_date || {};
+  if (!Object.keys(byDate).length) { el.innerHTML = '<p style="color:var(--mute);font-size:.74rem">لا توجد بيانات</p>'; return; }
+
+  var entries = Object.entries(byDate).sort(function(a,b){return a[0]>b[0]?1:-1;}).slice(-30);
+  var max = Math.max.apply(null, entries.map(function(e){ return typeof e[1]==='object'?e[1].total:e[1]; })) || 1;
+
+  var html = '<div style="background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:13px;margin-bottom:12px">';
+  html += '<div style="font-weight:700;font-size:.74rem;margin-bottom:12px">مقارنة المواعيد اليومية — آخر 30 يوم</div>';
+
+  entries.forEach(function(e) {
+    var dk = e[0];
+    var val = typeof e[1]==='object' ? e[1].total : e[1];
+    var doctors = typeof e[1]==='object' ? e[1].doctors : null;
+    var d = new Date(dk);
+    var isToday = dk === new Date().toISOString().slice(0,10);
+    var dayLabel = DAY_AR_M[d.getDay()] + ' ' + dk.slice(8)+'/'+dk.slice(5,7);
+    var pct = Math.round(val/max*100);
+    var col = isToday ? 'var(--g)' : 'rgba(0,198,255,.7)';
+
+    html += '<div style="margin-bottom:8px">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">';
+    html += '<span style="font-size:.64rem;'+(isToday?'color:var(--g);font-weight:700':'color:var(--mute)')+';min-width:110px">'+dayLabel+'</span>';
+    html += '<div style="flex:1;height:16px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">';
+    html += '<div style="height:100%;background:'+col+';width:'+pct+'%;border-radius:4px;display:flex;align-items:center;padding-right:5px">';
+    html += '<span style="font-size:.58rem;color:#fff;font-weight:700">'+val+'</span>';
+    html += '</div></div></div>';
+
+    if (doctors && Object.keys(doctors).length) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:5px;padding-right:118px;margin-bottom:2px">';
+      Object.entries(doctors).sort(function(a,b){return b[1]-a[1];}).slice(0,6).forEach(function(de){
+        html += '<span style="font-size:.56rem;background:rgba(0,198,255,.08);border:1px solid rgba(0,198,255,.2);border-radius:5px;padding:1px 6px;color:var(--acc)">'+de[0].split(' ')[0]+' '+de[1]+'</span>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ── الإلغاء ───────────────────────────────────────────────────────
+function manaCancel() {
+  var el = document.getElementById('mana-cancel-content');
+  if (!el) return;
+  var all = manaGetData();
+  var cancelled = all.filter(function(a){ return a.status==='ملغي'||a.status==='CANCELED'; });
+  if (!cancelled.length) { el.innerHTML = '<div style="color:var(--g);font-size:.74rem;padding:12px">✅ لا توجد مواعيد ملغية</div>'; return; }
+
+  // Group by doctor
+  var byDoc = {};
+  cancelled.forEach(function(a){
+    if (!byDoc[a.doctor]) byDoc[a.doctor] = [];
+    byDoc[a.doctor].push(a);
+  });
+
+  var html = '<div style="font-size:.7rem;color:var(--mute);margin-bottom:10px">إجمالي الإلغاءات: <b style="color:var(--r)">'+cancelled.length+'</b></div>';
+
+  Object.entries(byDoc).sort(function(a,b){return b[1].length-a[1].length;}).forEach(function(e){
+    var doc = e[0], appts = e[1];
+    html += '<div style="background:var(--card);border:1px solid rgba(244,114,182,.2);border-right:3px solid var(--r);border-radius:10px;overflow:hidden;margin-bottom:10px">';
+    html += '<div style="padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="this.nextSibling.style.display=this.nextSibling.style.display===\'none\'?\'block\':\'none\'">';
+    html += '<span style="font-weight:700;font-size:.75rem;flex:1">'+doc+'</span>';
+    html += '<span style="font-size:.62rem;background:rgba(239,68,68,.1);color:var(--r);padding:2px 8px;border-radius:6px">'+appts.length+' إلغاء</span>';
+    html += '<span style="color:var(--mute)">▼</span></div>';
+    html += '<div style="display:none;padding:0 12px 10px">';
+    appts.slice(0,20).forEach(function(a){
+      var date = a.start ? new Date(a.start).toLocaleDateString('ar-EG',{day:'numeric',month:'short'}) : '—';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.66rem">';
+      html += '<span style="color:var(--r)">✕</span>';
+      html += '<span style="flex:1">'+a.patient+'</span>';
+      html += '<span style="color:var(--mute)">'+date+'</span>';
+      html += '<span style="color:var(--mute)">'+a.type+'</span>';
+      html += '</div>';
+    });
+    if (appts.length > 20) html += '<div style="font-size:.6rem;color:var(--mute);padding:5px 0">+ '+(appts.length-20)+' آخر</div>';
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+}
+
+// ── No Show ───────────────────────────────────────────────────────
+function manaNoShow() {
+  var el = document.getElementById('mana-noshow-content');
+  if (!el) return;
+  var all = manaGetData();
+  var noshows = all.filter(function(a){ return a.status==='NOSHOW'; });
+  if (!noshows.length) { el.innerHTML = '<div style="color:var(--g);font-size:.74rem;padding:12px">✅ لا توجد حالات No Show</div>'; return; }
+
+  var byDoc = {};
+  noshows.forEach(function(a){
+    if (!byDoc[a.doctor]) byDoc[a.doctor] = [];
+    byDoc[a.doctor].push(a);
+  });
+
+  // Count patient repeats
+  var patCount = {};
+  noshows.forEach(function(a){ patCount[a.patient] = (patCount[a.patient]||0)+1; });
+  var repeatPats = Object.entries(patCount).filter(function(e){return e[1]>1;}).sort(function(a,b){return b[1]-a[1];});
+
+  var html = '<div style="font-size:.7rem;color:var(--mute);margin-bottom:12px">إجمالي No Show: <b style="color:var(--r)">'+noshows.length+'</b></div>';
+
+  if (repeatPats.length) {
+    html += '<div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px;margin-bottom:14px">';
+    html += '<div style="font-weight:700;font-size:.72rem;color:var(--r);margin-bottom:8px">⚠️ مرضى متكررون</div>';
+    repeatPats.slice(0,10).forEach(function(e){
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.68rem">';
+      html += '<span style="flex:1">'+e[0]+'</span>';
+      html += '<span style="color:var(--r);font-weight:700">'+e[1]+' مرة</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  Object.entries(byDoc).sort(function(a,b){return b[1].length-a[1].length;}).forEach(function(e){
+    var doc = e[0], appts = e[1];
+    html += '<div style="background:var(--card);border:1px solid rgba(239,68,68,.2);border-right:3px solid #ef4444;border-radius:10px;overflow:hidden;margin-bottom:10px">';
+    html += '<div style="padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="this.nextSibling.style.display=this.nextSibling.style.display===\'none\'?\'block\':\'none\'">';
+    html += '<span style="font-weight:700;font-size:.75rem;flex:1">'+doc+'</span>';
+    html += '<span style="font-size:.62rem;background:rgba(239,68,68,.1);color:#ef4444;padding:2px 8px;border-radius:6px">'+appts.length+' No Show</span>';
+    html += '<span style="color:var(--mute)">▼</span></div>';
+    html += '<div style="display:none;padding:0 12px 10px">';
+    appts.slice(0,20).forEach(function(a){
+      var date = a.start ? new Date(a.start).toLocaleDateString('ar-EG',{day:'numeric',month:'short'}) : '—';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.66rem">';
+      html += '<span style="color:#ef4444">🚫</span>';
+      html += '<span style="flex:1">'+a.patient+'</span>';
+      html += '<span style="color:var(--mute)">'+date+'</span>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+}
+
+// ── الأكثر ─────────────────────────────────────────────────────────
+function manaTop() {
+  var el = document.getElementById('mana-top-content');
+  if (!el) return;
+  var all = manaGetData();
+  if (!all.length) { el.innerHTML = '<p style="color:var(--mute);font-size:.74rem">لا توجد بيانات</p>'; return; }
+
+  // Top patients by count
+  var patCount = {};
+  all.forEach(function(a){
+    if (a.patient && a.patient !== '—') patCount[a.patient] = (patCount[a.patient]||0)+1;
+  });
+  var topPats = Object.entries(patCount).sort(function(a,b){return b[1]-a[1];}).slice(0,15);
+
+  // Busiest hours
+  var hourCount = {};
+  all.forEach(function(a){
+    if (!a.start) return;
+    var h = new Date(a.start).getHours();
+    hourCount[h] = (hourCount[h]||0)+1;
+  });
+  var maxHour = Math.max.apply(null, Object.values(hourCount)) || 1;
+
+  var html = '<div class="two">';
+
+  // Top patients
+  html += '<div style="background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:13px">';
+  html += '<div style="font-weight:700;font-size:.74rem;margin-bottom:10px">🏆 أكثر المرضى زيارة</div>';
+  topPats.forEach(function(e, i){
+    var pct = Math.round(e[1]/topPats[0][1]*100);
+    html += '<div style="margin-bottom:7px">';
+    html += '<div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">';
+    html += '<span style="font-size:.6rem;color:var(--mute);min-width:16px">'+(i+1)+'.</span>';
+    html += '<span style="font-size:.68rem;flex:1">'+e[0]+'</span>';
+    html += '<span style="font-size:.66rem;font-weight:700;color:var(--acc)">'+e[1]+'</span>';
+    html += '</div>';
+    html += '<div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px;margin-right:23px"><div style="height:100%;background:var(--acc);width:'+pct+'%;border-radius:2px"></div></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Busiest hours
+  html += '<div style="background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:13px">';
+  html += '<div style="font-weight:700;font-size:.74rem;margin-bottom:10px">⏰ أكثر الأوقات ازدحاماً</div>';
+  html += '<div style="display:flex;align-items:flex-end;gap:3px;height:100px">';
+  for (var h = 7; h <= 22; h++) {
+    var cnt = hourCount[h] || 0;
+    var pct2 = Math.round(cnt/maxHour*90);
+    var suffix = h >= 12 ? 'م' : 'ص';
+    var h12 = h % 12 || 12;
+    html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%;justify-content:flex-end">';
+    html += '<div style="font-size:.48rem;color:var(--acc)">'+cnt+'</div>';
+    html += '<div style="width:100%;background:rgba(0,198,255,.6);border-radius:2px 2px 0 0;height:'+pct2+'%;min-height:2px"></div>';
+    html += '<div style="font-size:.44rem;color:var(--mute)">'+h12+suffix+'</div>';
+    html += '</div>';
+  }
+  html += '</div></div>';
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+// Analysis auto-builds when data loads (called from medLoad)
+
+</script>
 
 </body>
 </html>

@@ -17,27 +17,7 @@ API_URL   = "https://api.medicolize.com/"
 HEADLESS  = True
 TIMEOUT   = 45000
 
-GQL_QUERY = """
-query CREATED_APPOINTMENTS(
-  $doctor: ID, $branchId: ID, $orderBy: String!, $skip: Int!, $take: Int!,
-  $searchTerm: String, $rangeDate: [DateTime!]!, $filters: Filter
-) {
-  createdAppointments(
-    doctor: $doctor branchId: $branchId orderBy: $orderBy skip: $skip
-    take: $take searchTerm: $searchTerm rangeDate: $rangeDate filters: $filters
-  ) {
-    id start end status type other
-    doctor { id name color __typename }
-    branch { id name __typename }
-    patient {
-      id firstName lastName phoneNumber patientId
-      __typename
-    }
-    createdAt
-    __typename
-  }
-}
-"""
+GQL_QUERY = "query CREATED_APPOINTMENTS($doctor:ID,$branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$searchTerm:String,$rangeDate:[DateTime!]!,$filters:Filter){createdAppointments(doctor:$doctor branchId:$branchId orderBy:$orderBy skip:$skip take:$take searchTerm:$searchTerm rangeDate:$rangeDate filters:$filters){id start end status type other doctor{id name color __typename}branch{id name __typename}patient{id firstName lastName phoneNumber patientId __typename}createdAt __typename}}"
 
 def build_date_range():
     now   = datetime.now(timezone.utc)
@@ -47,7 +27,7 @@ def build_date_range():
 
 async def do_login(page):
     ts = lambda: datetime.now().strftime("%H:%M:%S")
-    print(f"[{ts()}] 🌐 فتح صفحة تسجيل الدخول...")
+    print(f"[{ts()}] Opening login page...")
     await page.goto(f"{SITE_URL}/auth/login", wait_until="domcontentloaded", timeout=TIMEOUT)
     await page.wait_for_timeout(2000)
 
@@ -56,7 +36,7 @@ async def do_login(page):
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
                 await loc.fill(USERNAME)
-                print(f"[{ts()}] ✅ تم إدخال البريد")
+                print(f"[{ts()}] Email entered")
                 break
         except: continue
 
@@ -65,21 +45,21 @@ async def do_login(page):
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
                 await loc.fill(PASSWORD)
-                print(f"[{ts()}] ✅ تم إدخال كلمة المرور")
+                print(f"[{ts()}] Password entered")
                 break
         except: continue
 
-    for sel in ['button[type="submit"]','button:has-text("Login")','button:has-text("دخول")']:
+    for sel in ['button[type="submit"]','button:has-text("Login")']:
         try:
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
                 await loc.click()
-                print(f"[{ts()}] ✅ تم الضغط على Login")
+                print(f"[{ts()}] Login clicked")
                 break
         except: continue
 
     await page.wait_for_timeout(5000)
-    print(f"[{ts()}] 🔄 تم تسجيل الدخول")
+    print(f"[{ts()}] Logged in successfully")
 
 async def fetch_all_appointments(page):
     ts         = lambda: datetime.now().strftime("%H:%M:%S")
@@ -89,7 +69,7 @@ async def fetch_all_appointments(page):
     take       = 100
     page_num   = 1
 
-    print(f"[{ts()}] 📋 بدء سحب المواعيد...")
+    print(f"[{ts()}] Fetching appointments...")
 
     while True:
         payload = {
@@ -107,28 +87,56 @@ async def fetch_all_appointments(page):
 
         result = await page.evaluate("""
             async (args) => {
-                const res = await fetch(args.url, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(args.payload)
-                });
-                return await res.json();
+                try {
+                    const res = await fetch(args.url, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(args.payload)
+                    });
+                    const text = await res.text();
+                    return { ok: true, text: text };
+                } catch(e) {
+                    return { ok: false, error: e.message };
+                }
             }
         """, {"url": API_URL, "payload": payload})
 
-        if result.get("errors"):
-            print(f"[{ts()}] ❌ GraphQL error: {result['errors'][0]['message']}")
+        if not result.get("ok"):
+            print(f"[{ts()}] Fetch error: {result.get('error')}")
             break
 
-        data = result.get("data") or {}
-        raw = data.get("createdAppointments") or []
-        batch = raw if isinstance(raw, list) else []
+        # Parse the response text safely
+        try:
+            data = json.loads(result["text"])
+        except Exception as e:
+            print(f"[{ts()}] JSON parse error: {e}")
+            print(f"[{ts()}] Raw response: {result['text'][:200]}")
+            break
+
+        # Handle different response shapes
+        if isinstance(data, list):
+            batch = data
+        elif isinstance(data, dict):
+            if data.get("errors"):
+                print(f"[{ts()}] GraphQL error: {data['errors'][0]['message']}")
+                break
+            inner = (data.get("data") or {})
+            if isinstance(inner, dict):
+                batch = inner.get("createdAppointments") or []
+            elif isinstance(inner, list):
+                batch = inner
+            else:
+                batch = []
+        else:
+            batch = []
+
         if not batch:
+            print(f"[{ts()}] No more appointments")
             break
 
         all_appts.extend(batch)
-        print(f"[{ts()}] 📄 صفحة {page_num}: {len(batch)} موعد (إجمالي: {len(all_appts)})")
+        print(f"[{ts()}] Page {page_num}: {len(batch)} appointments (total: {len(all_appts)})")
 
         if len(batch) < take:
             break
@@ -137,12 +145,11 @@ async def fetch_all_appointments(page):
         page_num += 1
         await asyncio.sleep(0.5)
 
-        # حد أقصى 5000 موعد
         if len(all_appts) >= 5000:
-            print(f"[{ts()}] ⚠️ وصلنا للحد الأقصى 5000 موعد")
+            print(f"[{ts()}] Reached 5000 limit")
             break
 
-    print(f"[{ts()}] ✅ إجمالي المواعيد: {len(all_appts)}")
+    print(f"[{ts()}] Total appointments: {len(all_appts)}")
     return all_appts
 
 def analyze(appointments):
@@ -153,11 +160,15 @@ def analyze(appointments):
     by_status  = defaultdict(int)
 
     for a in appointments:
-        doc    = (a.get("doctor")  or {}).get("name", "غير محدد")
-        branch = (a.get("branch")  or {}).get("name", "غير محدد")
+        if not isinstance(a, dict):
+            continue
+        doc    = (a.get("doctor")  or {}).get("name", "Unknown") if isinstance(a.get("doctor"), dict) else "Unknown"
+        branch = (a.get("branch")  or {}).get("name", "Unknown") if isinstance(a.get("branch"), dict) else "Unknown"
         start  = (a.get("start")   or "")[:10]
-        atype  = a.get("type")     or a.get("other") or "غير محدد"
-        status = a.get("status")   or "غير محدد"
+        atype  = a.get("type")     or a.get("other") or "Unknown"
+        status = a.get("status")   or "Unknown"
+        pat    = a.get("patient")  or {}
+        patient_name = f"{pat.get('firstName','')} {pat.get('lastName','')}".strip() if isinstance(pat, dict) else ""
 
         entry = {
             "id":      a.get("id"),
@@ -167,8 +178,8 @@ def analyze(appointments):
             "type":    atype,
             "doctor":  doc,
             "branch":  branch,
-            "patient": f"{(a.get('patient') or {}).get('firstName','')} {(a.get('patient') or {}).get('lastName','')}".strip(),
-            "phone":   (a.get("patient") or {}).get("phoneNumber", ""),
+            "patient": patient_name,
+            "phone":   pat.get("phoneNumber", "") if isinstance(pat, dict) else "",
         }
 
         by_doctor[doc].append(entry)
@@ -196,11 +207,11 @@ def analyze(appointments):
 async def main():
     print("=" * 55)
     print("   BODYFIX — Medicolize GraphQL Sync")
-    print(f"   الوقت: {datetime.now():%Y-%m-%d %H:%M:%S}")
+    print(f"   Time: {datetime.now():%Y-%m-%d %H:%M:%S}")
     print("=" * 55)
 
     if not USERNAME or not PASSWORD:
-        raise ValueError("❌ MEDICOLIZE_USER و MEDICOLIZE_PASS غير محددين")
+        raise ValueError("MEDICOLIZE_USER and MEDICOLIZE_PASS not set")
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(
@@ -222,7 +233,6 @@ async def main():
 
             os.makedirs("data", exist_ok=True)
 
-            # ملف كامل
             with open("data/appointments.json", "w", encoding="utf-8") as f:
                 json.dump({
                     "last_updated": now_str,
@@ -231,30 +241,27 @@ async def main():
                     "analysis":     analysis,
                 }, f, ensure_ascii=False, indent=2)
 
-            # ملف ملخص
             with open("data/summary.json", "w", encoding="utf-8") as f:
                 json.dump({
-                    "last_updated":   now_str,
-                    "total":          len(appointments),
-                    "doctors":        list(analysis["by_doctor"].keys()),
-                    "branches":       list(analysis["by_branch"].keys()),
-                    "by_type":        analysis["by_type"],
-                    "by_status":      analysis["by_status"],
-                    "by_date":        analysis["by_date"],
-                    "doctor_totals":  {
+                    "last_updated":  now_str,
+                    "total":         len(appointments),
+                    "doctors":       list(analysis["by_doctor"].keys()),
+                    "branches":      list(analysis["by_branch"].keys()),
+                    "by_type":       analysis["by_type"],
+                    "by_status":     analysis["by_status"],
+                    "by_date":       analysis["by_date"],
+                    "doctor_totals": {
                         doc: v["total"]
                         for doc, v in analysis["by_doctor"].items()
                     },
                 }, f, ensure_ascii=False, indent=2)
 
-            ts = datetime.now().strftime("%H:%M:%S")
-            print(f"\n✅ [{ts}] اكتمل بنجاح!")
-            print(f"   الأطباء: {list(analysis['by_doctor'].keys())[:5]}")
-            print(f"   الفروع:  {list(analysis['by_branch'].keys())}")
-            print(f"   الأنواع: {list(analysis['by_type'].keys())[:5]}")
+            print(f"\n✅ Done! {len(appointments)} appointments saved")
+            print(f"   Doctors: {list(analysis['by_doctor'].keys())[:5]}")
+            print(f"   Branches: {list(analysis['by_branch'].keys())}")
 
         except Exception as e:
-            print(f"\n❌ خطأ: {e}")
+            print(f"\n❌ Error: {e}")
             raise
         finally:
             await browser.close()

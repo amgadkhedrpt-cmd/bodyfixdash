@@ -17,6 +17,31 @@ API_URL  = "https://api.medicolize.com/"
 HEADLESS = True
 TIMEOUT  = 45000
 
+# Map of known Enum codes to Arabic names
+APPOINTMENT_TYPES = {
+    "Enum1":  "كشف",
+    "Enum2":  "متابعة",
+    "Enum3":  "استشارة",
+    "Enum4":  "علاج",
+    "Enum5":  "جلسة",
+    "Enum6":  "عملية",
+    "Enum7":  "أشعة",
+    "Enum8":  "تحليل",
+    "Enum9":  "طوارئ",
+    "Enum10": "مراجعة",
+    "Enum33": "متابعة",
+}
+
+STATUS_NAMES = {
+    "OPEN":      "مفتوح",
+    "CONFIRMED": "مؤكد",
+    "WAITING":   "قائمة انتظار",
+    "COMPLETED": "مكتمل",
+    "CANCELLED": "ملغي",
+    "CHECKED":   "حضر",
+    "IN_PROGRESS": "جاري",
+}
+
 GQL_QUERY = "query CREATED_APPOINTMENTS($orderBy:String!,$skip:Int!,$take:Int!,$searchTerm:String,$rangeDate:[DateTime!]!,$filters:Filter){createdAppointments(orderBy:$orderBy skip:$skip take:$take searchTerm:$searchTerm rangeDate:$rangeDate filters:$filters){id start end status type other doctor{id name color __typename}branch{id name __typename}patient{id firstName lastName phoneNumber __typename}createdAt __typename}}"
 
 def build_date_range():
@@ -25,139 +50,144 @@ def build_date_range():
     end   = (now + timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%S.999Z")
     return [start, end]
 
+def resolve_val(flat, val):
+    """Resolve a value — if int, treat as index into flat array."""
+    if isinstance(val, int) and 0 <= val < len(flat):
+        return flat[val]
+    return val
+
+def resolve_obj(flat, ref):
+    """Resolve an object reference from the flat array."""
+    obj = resolve_val(flat, ref)
+    if isinstance(obj, dict):
+        return {k: resolve_val(flat, v) for k, v in obj.items() if k != '__typename'}
+    return {}
+
+def parse_flat_array(flat):
+    """
+    Apollo flat array format:
+    - Last item is a dict like {"createdAppointments": 48} pointing to the index list
+    - That index points to a list of appointment indices
+    - Each index points to an appointment object dict
+    """
+    appointments = []
+
+    # Find the root object {"createdAppointments": N}
+    root_idx = None
+    for item in reversed(flat):
+        if isinstance(item, dict) and "createdAppointments" in item:
+            root_idx = item["createdAppointments"]
+            break
+
+    if root_idx is None:
+        return []
+
+    # Get the list of appointment indices
+    appt_indices = resolve_val(flat, root_idx)
+    if not isinstance(appt_indices, list):
+        return []
+
+    for idx in appt_indices:
+        appt_obj = resolve_val(flat, idx)
+        if not isinstance(appt_obj, dict):
+            continue
+
+        try:
+            # Resolve all fields
+            appt_id  = resolve_val(flat, appt_obj.get('id'))
+            start    = resolve_val(flat, appt_obj.get('start'))
+            end      = resolve_val(flat, appt_obj.get('end'))
+            status   = resolve_val(flat, appt_obj.get('status'))
+            type_raw = resolve_val(flat, appt_obj.get('type'))
+            other    = resolve_val(flat, appt_obj.get('other'))
+            created  = resolve_val(flat, appt_obj.get('createdAt'))
+
+            # Resolve nested objects
+            doctor_obj  = resolve_obj(flat, appt_obj.get('doctor'))
+            branch_obj  = resolve_obj(flat, appt_obj.get('branch'))
+            patient_obj = resolve_obj(flat, appt_obj.get('patient'))
+
+            # Get appointment type — prefer 'other' (human readable), fallback to mapped Enum
+            if other and isinstance(other, str) and not other.startswith("Enum"):
+                appt_type = other
+            elif type_raw and isinstance(type_raw, str) and not type_raw.startswith("Enum"):
+                appt_type = type_raw
+            else:
+                # Map Enum to Arabic
+                enum_key = other if isinstance(other, str) and other.startswith("Enum") else \
+                           type_raw if isinstance(type_raw, str) and type_raw.startswith("Enum") else None
+                appt_type = APPOINTMENT_TYPES.get(enum_key, enum_key or "غير محدد")
+
+            # Map status to Arabic
+            status_ar = STATUS_NAMES.get(status, status) if isinstance(status, str) else str(status)
+
+            appointments.append({
+                "id":        appt_id,
+                "start":     start,
+                "end":       end,
+                "status":    status_ar,
+                "status_en": status,
+                "type":      appt_type,
+                "createdAt": created,
+                "doctor":  {"name": doctor_obj.get('name'), "color": doctor_obj.get('color')},
+                "branch":  {"name": branch_obj.get('name')},
+                "patient": {
+                    "firstName":   patient_obj.get('firstName'),
+                    "lastName":    patient_obj.get('lastName'),
+                    "phoneNumber": patient_obj.get('phoneNumber'),
+                },
+            })
+        except Exception as e:
+            continue
+
+    return appointments
+
 async def do_login(context, page):
     ts = lambda: datetime.now().strftime("%H:%M:%S")
-
     print(f"[{ts()}] Opening login page...")
     await page.goto(f"{SITE_URL}/auth/login", wait_until="networkidle", timeout=TIMEOUT)
     await page.wait_for_timeout(3000)
 
-    # Screenshot page title for debug
-    title = await page.title()
-    print(f"[{ts()}] Page title: {title}")
-
-    # Fill email
-    print(f"[{ts()}] Filling email: {USERNAME}")
-    filled_email = False
-    for sel in ['input[type="email"]', 'input[name="email"]', 'input[placeholder*="mail" i]', 'input[placeholder*="user" i]', 'input']:
+    for sel in ['input[type="email"]', 'input[name="email"]', 'input']:
         try:
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
-                await loc.click()
-                await loc.fill("")
-                await loc.type(USERNAME, delay=50)
-                filled_email = True
-                print(f"[{ts()}] Email typed with selector: {sel}")
+                await loc.click(); await loc.fill(""); await loc.type(USERNAME, delay=50)
+                print(f"[{ts()}] Email entered")
                 break
         except: continue
 
-    await page.wait_for_timeout(500)
-
-    # Fill password
-    filled_pass = False
-    for sel in ['input[type="password"]', 'input[name="password"]', 'input[placeholder*="pass" i]']:
+    for sel in ['input[type="password"]', 'input[name="password"]']:
         try:
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
-                await loc.click()
-                await loc.fill("")
-                await loc.type(PASSWORD, delay=50)
-                filled_pass = True
-                print(f"[{ts()}] Password typed with selector: {sel}")
+                await loc.click(); await loc.fill(""); await loc.type(PASSWORD, delay=50)
+                print(f"[{ts()}] Password entered")
                 break
         except: continue
 
-    await page.wait_for_timeout(500)
-    print(f"[{ts()}] Email filled: {filled_email}, Password filled: {filled_pass}")
-
-    # Click login button
-    clicked = False
-    for sel in ['button[type="submit"]', 'button:has-text("Login")', 'button:has-text("Sign in")',
-                'input[type="submit"]', 'button']:
+    for sel in ['button[type="submit"]', 'button:has-text("Login")', 'button']:
         try:
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
-                await loc.click()
-                clicked = True
-                print(f"[{ts()}] Clicked: {sel}")
-                break
+                await loc.click(); print(f"[{ts()}] Login clicked"); break
         except: continue
 
-    if not clicked:
-        # Try pressing Enter on password field
-        print(f"[{ts()}] Pressing Enter...")
-        await page.keyboard.press("Enter")
-
-    # Wait for navigation
-    print(f"[{ts()}] Waiting for navigation after login...")
     await page.wait_for_timeout(8000)
-    print(f"[{ts()}] URL after login: {page.url}")
+    print(f"[{ts()}] URL: {page.url}")
 
-    # If still on login page, try GraphQL login directly
-    if "/auth/login" in page.url:
-        print(f"[{ts()}] Still on login page — trying GraphQL login mutation...")
-        login_result = await page.evaluate("""
-            async (args) => {
-                const mutation = `mutation LOGIN($email: String!, $password: String!) {
-                    login(email: $email, password: $password) {
-                        token
-                        user { id name email __typename }
-                        __typename
-                    }
-                }`;
-                try {
-                    const res = await fetch('https://api.medicolize.com/', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            operationName: 'LOGIN',
-                            variables: { email: args.username, password: args.password },
-                            query: mutation
-                        })
-                    });
-                    const text = await res.text();
-                    return { ok: true, text: text };
-                } catch(e) {
-                    return { ok: false, error: e.message };
-                }
-            }
-        """, {"username": USERNAME, "password": PASSWORD})
-
-        print(f"[{ts()}] GraphQL login response: {login_result.get('text', '')[:300]}")
-
-        if login_result.get("ok"):
-            try:
-                data = json.loads(login_result["text"])
-                token = None
-                if isinstance(data, dict):
-                    login_data = (data.get("data") or {}).get("login") or {}
-                    if isinstance(login_data, dict):
-                        token = login_data.get("token")
-                    # Also check top level
-                    if not token:
-                        token = data.get("token")
-                if token:
-                    print(f"[{ts()}] ✅ Got token from GraphQL login!")
-                    return None, None, f"Bearer {token}"
-            except Exception as e:
-                print(f"[{ts()}] Parse error: {e}")
-
-    # Get all cookies
     cookies = await context.cookies()
-    print(f"[{ts()}] Cookies: {len(cookies)}")
-    for c in cookies:
-        print(f"  {c['name']} @ {c['domain']}")
-
+    print(f"[{ts()}] Cookies: {[c['name'] for c in cookies]}")
     cookie_str = "; ".join([f"{c['name']}={c['value']}" for c in cookies])
-    return cookie_str, cookies, None
+    return cookie_str
 
-async def fetch_all_appointments(cookie_str, token, page):
+async def fetch_all_appointments(cookie_str, page):
     ts         = lambda: datetime.now().strftime("%H:%M:%S")
     range_date = build_date_range()
     all_appts  = []
     skip, take, page_num = 0, 100, 1
 
-    print(f"[{ts()}] Using token: {bool(token)}, cookies: {len(cookie_str or '')}")
+    print(f"[{ts()}] Fetching appointments...")
 
     while True:
         payload = {
@@ -167,16 +197,12 @@ async def fetch_all_appointments(cookie_str, token, page):
                           "filters": {"rangeDateKey": "start"}},
             "query": GQL_QUERY,
         }
-
         headers = {
             "Content-Type": "application/json",
-            "Origin": "https://my.medicolize.com",
+            "Origin":  "https://my.medicolize.com",
             "Referer": "https://my.medicolize.com/",
+            "Cookie":  cookie_str,
         }
-        if token:
-            headers["Authorization"] = token
-        if cookie_str:
-            headers["Cookie"] = cookie_str
 
         result = await page.evaluate("""
             async (args) => {
@@ -193,25 +219,32 @@ async def fetch_all_appointments(cookie_str, token, page):
         if not result.get("ok"):
             print(f"[{ts()}] Error: {result.get('error')}"); break
 
-        print(f"[{ts()}] HTTP {result.get('status')} page {page_num}")
-
         try: data = json.loads(result["text"])
-        except:
-            print(f"[{ts()}] Parse error: {result['text'][:200]}"); break
+        except: print(f"[{ts()}] Parse error"); break
 
         if isinstance(data, dict) and data.get("errors"):
             print(f"[{ts()}] GQL error: {data['errors'][0]['message']}"); break
 
+        # Extract raw list
         raw = []
-        if isinstance(data, list): raw = data
-        elif isinstance(data, dict):
-            inner = data.get("data") or {}
-            raw = (inner.get("createdAppointments") or []) if isinstance(inner, dict) else (inner or [])
+        if isinstance(data, dict) and "data" in data:
+            inner = data["data"]
+            if isinstance(inner, list):
+                raw = inner
+            elif isinstance(inner, dict):
+                raw = inner.get("createdAppointments") or []
+        elif isinstance(data, list):
+            raw = data
 
         if not raw: print(f"[{ts()}] No data"); break
 
-        batch = parse_flat_array(raw) if raw and isinstance(raw[0], (str, int)) else \
-                [x for x in raw if isinstance(x, dict)]
+        # Parse using new parser
+        batch = parse_flat_array(raw)
+
+        if not batch:
+            # Fallback: try old method
+            batch = [x for x in raw if isinstance(x, dict) and 'id' in x and 'start' in x]
+
         if not batch: print(f"[{ts()}] Empty batch"); break
 
         all_appts.extend(batch)
@@ -220,57 +253,66 @@ async def fetch_all_appointments(cookie_str, token, page):
         if len(batch) < take: break
         skip += take; page_num += 1
         await asyncio.sleep(0.5)
-        if len(all_appts) >= 10000: break
+        if len(all_appts) >= 23000: break  # كل المواعيد
 
     print(f"[{ts()}] Total: {len(all_appts)}")
     return all_appts
 
-def parse_flat_array(flat):
-    appointments = []
-    for item in flat:
-        if not isinstance(item, dict): continue
-        if not all(k in item for k in ['id','start','end','status','doctor','branch','patient']): continue
-        def resolve(val):
-            if isinstance(val, int) and 0 <= val < len(flat): return flat[val]
-            return val
-        def resolve_obj(ref):
-            obj = resolve(ref)
-            return {k: resolve(v) for k, v in obj.items() if k != '__typename'} if isinstance(obj, dict) else {}
-        try:
-            appointments.append({
-                "id": resolve(item['id']), "start": resolve(item['start']),
-                "end": resolve(item['end']), "status": resolve(item['status']),
-                "type": resolve(item.get('other')) or resolve(item.get('type')),
-                "createdAt": resolve(item.get('createdAt')),
-                "doctor":  {"name": resolve_obj(item.get('doctor')).get('name')},
-                "branch":  {"name": resolve_obj(item.get('branch')).get('name')},
-                "patient": resolve_obj(item.get('patient')),
-            })
-        except: continue
-    return appointments
-
 def analyze(appointments):
-    by_doctor = defaultdict(list); by_branch = defaultdict(list)
-    by_date = defaultdict(int); by_type = defaultdict(int); by_status = defaultdict(int)
+    by_doctor  = defaultdict(list)
+    by_branch  = defaultdict(list)
+    by_date    = defaultdict(lambda: defaultdict(list))  # date -> doctor -> appointments
+    by_type    = defaultdict(int)
+    by_status  = defaultdict(int)
+
     for a in appointments:
         if not isinstance(a, dict): continue
-        doc    = (a.get("doctor") or {}).get("name") or "Unknown"
-        branch = (a.get("branch") or {}).get("name") or "Unknown"
+        doc    = (a.get("doctor") or {}).get("name") or "غير محدد"
+        branch = (a.get("branch") or {}).get("name") or "غير محدد"
         start  = str(a.get("start") or "")[:10]
-        atype  = str(a.get("type") or "Unknown")
-        status = str(a.get("status") or "Unknown")
+        atype  = str(a.get("type")   or "غير محدد")
+        status = str(a.get("status") or "غير محدد")
         pat    = a.get("patient") or {}
         name   = f"{pat.get('firstName') or ''} {pat.get('lastName') or ''}".strip()
-        entry  = {"id": a.get("id"), "start": a.get("start"), "end": a.get("end"),
-                  "status": status, "type": atype, "doctor": doc, "branch": branch,
-                  "patient": name, "phone": pat.get("phoneNumber") or ""}
-        by_doctor[doc].append(entry); by_branch[branch].append(entry)
-        if start: by_date[start] += 1
-        by_type[atype] += 1; by_status[status] += 1
+
+        entry = {
+            "id":      a.get("id"),
+            "start":   a.get("start"),
+            "end":     a.get("end"),
+            "status":  status,
+            "type":    atype,
+            "doctor":  doc,
+            "branch":  branch,
+            "patient": name,
+            "phone":   pat.get("phoneNumber") or "",
+        }
+
+        by_doctor[doc].append(entry)
+        by_branch[branch].append(entry)
+        if start:
+            by_date[start][doc].append(entry)
+        by_type[atype]   += 1
+        by_status[status] += 1
+
+    # Build by_date as simple count + per-doctor breakdown
+    by_date_output = {}
+    for date, doc_map in sorted(by_date.items(), reverse=True)[:90]:
+        by_date_output[date] = {
+            "total":   sum(len(v) for v in doc_map.values()),
+            "doctors": {doc: len(appts) for doc, appts in doc_map.items()}
+        }
+
     return {
-        "by_doctor": {d: {"total": len(v), "appointments": v[:200]} for d, v in sorted(by_doctor.items())},
-        "by_branch": {b: {"total": len(v), "appointments": v[:200]} for b, v in sorted(by_branch.items())},
-        "by_date":   dict(sorted(by_date.items(), reverse=True)[:60]),
+        "by_doctor": {
+            d: {"total": len(v), "appointments": v[:300],
+                "color": (appointments[0].get("doctor") or {}).get("color") if appointments else None}
+            for d, v in sorted(by_doctor.items())
+        },
+        "by_branch": {
+            b: {"total": len(v), "appointments": v[:300]}
+            for b, v in sorted(by_branch.items())
+        },
+        "by_date":   by_date_output,
         "by_type":   dict(sorted(by_type.items(), key=lambda x: -x[1])),
         "by_status": dict(sorted(by_status.items(), key=lambda x: -x[1])),
     }
@@ -294,26 +336,36 @@ async def main():
         )
         page = await context.new_page()
         try:
-            cookie_str, cookies, token = await do_login(context, page)
-            appointments = await fetch_all_appointments(cookie_str, token, page)
+            cookie_str   = await do_login(context, page)
+            appointments = await fetch_all_appointments(cookie_str, page)
             analysis     = analyze(appointments)
             now_str      = datetime.now(timezone.utc).isoformat()
+
             os.makedirs("data", exist_ok=True)
+
             with open("data/appointments.json", "w", encoding="utf-8") as f:
                 json.dump({"last_updated": now_str, "total": len(appointments),
                            "appointments": appointments[:500], "analysis": analysis},
                           f, ensure_ascii=False, indent=2)
+
             with open("data/summary.json", "w", encoding="utf-8") as f:
-                json.dump({"last_updated": now_str, "total": len(appointments),
-                           "doctors": list(analysis["by_doctor"].keys()),
-                           "branches": list(analysis["by_branch"].keys()),
-                           "by_type": analysis["by_type"], "by_status": analysis["by_status"],
-                           "by_date": analysis["by_date"],
-                           "doctor_totals": {d: v["total"] for d, v in analysis["by_doctor"].items()}},
-                          f, ensure_ascii=False, indent=2)
+                json.dump({
+                    "last_updated":  now_str,
+                    "total":         len(appointments),
+                    "doctors":       list(analysis["by_doctor"].keys()),
+                    "branches":      list(analysis["by_branch"].keys()),
+                    "by_type":       analysis["by_type"],
+                    "by_status":     analysis["by_status"],
+                    "by_date":       analysis["by_date"],
+                    "doctor_totals": {d: v["total"] for d, v in analysis["by_doctor"].items()},
+                }, f, ensure_ascii=False, indent=2)
+
             print(f"\n✅ Done! {len(appointments)} appointments")
             print(f"   Doctors:  {list(analysis['by_doctor'].keys())[:8]}")
             print(f"   Branches: {list(analysis['by_branch'].keys())}")
+            print(f"   Types:    {list(analysis['by_type'].keys())[:6]}")
+            print(f"   Statuses: {list(analysis['by_status'].keys())}")
+
         except Exception as e:
             print(f"\n❌ Error: {e}")
             import traceback; traceback.print_exc()

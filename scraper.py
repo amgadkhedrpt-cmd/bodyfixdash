@@ -351,12 +351,12 @@ async def main():
 
             os.makedirs("data", exist_ok=True)
 
-            with open("data/appointments.json", "w", encoding="utf-8") as f:
+            with open("appointments.json", "w", encoding="utf-8") as f:
                 json.dump({"last_updated": now_str, "total": len(appointments),
                            "appointments": appointments[:500], "analysis": analysis},
                           f, ensure_ascii=False, indent=2)
 
-            with open("data/summary.json", "w", encoding="utf-8") as f:
+            with open("summary.json", "w", encoding="utf-8") as f:
                 json.dump({
                     "last_updated":  now_str,
                     "total":         len(appointments),
@@ -368,7 +368,12 @@ async def main():
                     "doctor_totals": {d: v["total"] for d, v in analysis["by_doctor"].items()},
                 }, f, ensure_ascii=False, indent=2)
 
-            print(f"\n✅ Done! {len(appointments)} appointments")
+            # Also save in data/ folder
+import shutil, os
+os.makedirs("data", exist_ok=True)
+shutil.copy("appointments.json", "data/appointments.json")
+shutil.copy("summary.json", "data/summary.json")
+print(f"\n✅ Done! {len(appointments)} appointments")
             print(f"   Doctors:  {list(analysis['by_doctor'].keys())[:8]}")
             print(f"   Branches: {list(analysis['by_branch'].keys())}")
             print(f"   Types:    {list(analysis['by_type'].keys())[:6]}")

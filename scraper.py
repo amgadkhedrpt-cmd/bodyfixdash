@@ -10,14 +10,14 @@ os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.environ.get(
 
 from playwright.async_api import async_playwright
 
-SITE_URL  = os.environ.get("MEDICOLIZE_URL",  "https://my.medicolize.com")
-USERNAME  = os.environ.get("MEDICOLIZE_USER", "")
-PASSWORD  = os.environ.get("MEDICOLIZE_PASS", "")
-API_URL   = "https://api.medicolize.com/"
-HEADLESS  = True
-TIMEOUT   = 45000
+SITE_URL = os.environ.get("MEDICOLIZE_URL",  "https://my.medicolize.com")
+USERNAME = os.environ.get("MEDICOLIZE_USER", "")
+PASSWORD = os.environ.get("MEDICOLIZE_PASS", "")
+API_URL  = "https://api.medicolize.com/"
+HEADLESS = True
+TIMEOUT  = 45000
 
-GQL_QUERY = "query CREATED_APPOINTMENTS($doctor:ID,$branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$searchTerm:String,$rangeDate:[DateTime!]!,$filters:Filter){createdAppointments(doctor:$doctor branchId:$branchId orderBy:$orderBy skip:$skip take:$take searchTerm:$searchTerm rangeDate:$rangeDate filters:$filters){id start end status type other doctor{id name color __typename}branch{id name __typename}patient{id firstName lastName phoneNumber patientId __typename}createdAt __typename}}"
+GQL_QUERY = """query CREATED_APPOINTMENTS($orderBy:String!,$skip:Int!,$take:Int!,$searchTerm:String,$rangeDate:[DateTime!]!,$filters:Filter){createdAppointments(orderBy:$orderBy skip:$skip take:$take searchTerm:$searchTerm rangeDate:$rangeDate filters:$filters){id start end status type other doctor{id name color __typename}branch{id name __typename}patient{id firstName lastName phoneNumber __typename}createdAt __typename}}"""
 
 def build_date_range():
     now   = datetime.now(timezone.utc)
@@ -31,7 +31,7 @@ async def do_login(page):
     await page.goto(f"{SITE_URL}/auth/login", wait_until="domcontentloaded", timeout=TIMEOUT)
     await page.wait_for_timeout(2000)
 
-    for sel in ['input[type="email"]','input[name="email"]','input[id*="email" i]']:
+    for sel in ['input[type="email"]', 'input[name="email"]']:
         try:
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
@@ -40,7 +40,7 @@ async def do_login(page):
                 break
         except: continue
 
-    for sel in ['input[type="password"]','input[name="password"]']:
+    for sel in ['input[type="password"]', 'input[name="password"]']:
         try:
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
@@ -49,7 +49,7 @@ async def do_login(page):
                 break
         except: continue
 
-    for sel in ['button[type="submit"]','button:has-text("Login")']:
+    for sel in ['button[type="submit"]', 'button:has-text("Login")']:
         try:
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
@@ -59,7 +59,82 @@ async def do_login(page):
         except: continue
 
     await page.wait_for_timeout(5000)
-    print(f"[{ts()}] Logged in successfully")
+    print(f"[{ts()}] Logged in")
+
+def parse_flat_array(flat):
+    """
+    Apollo returns a flat array where object fields reference indices.
+    We reconstruct proper appointment dicts from this format.
+    Example structure repeats: id, start, end, status, type, other,
+    doctor_id, doctor_name, doctor_color, doctor_typename, doctor_obj,
+    branch_id, branch_name, branch_typename, branch_obj,
+    patient_id, firstName, lastName, phone, patient_typename, patient_obj,
+    createdAt, typename, appt_obj, ...
+    """
+    appointments = []
+
+    # Find all appointment objects (dicts with 'id','start','end','status' keys)
+    for item in flat:
+        if not isinstance(item, dict):
+            continue
+        # Check if this looks like an appointment object with index references
+        if not all(k in item for k in ['id', 'start', 'end', 'status']):
+            continue
+        # Must have doctor and branch and patient refs
+        if not all(k in item for k in ['doctor', 'branch', 'patient', 'createdAt']):
+            continue
+
+        # Resolve field values from the flat array
+        def resolve(val):
+            if isinstance(val, int) and 0 <= val < len(flat):
+                return flat[val]
+            return val
+
+        def resolve_obj(obj_ref):
+            if isinstance(obj_ref, dict):
+                return {k: resolve(v) for k, v in obj_ref.items() if k != '__typename'}
+            return {}
+
+        try:
+            appt_id    = resolve(item['id'])
+            start      = resolve(item['start'])
+            end        = resolve(item['end'])
+            status     = resolve(item['status'])
+            atype      = resolve(item.get('type'))
+            other      = resolve(item.get('other'))
+            created_at = resolve(item.get('createdAt'))
+
+            doctor_obj  = resolve_obj(resolve(item.get('doctor')))
+            branch_obj  = resolve_obj(resolve(item.get('branch')))
+            patient_obj = resolve_obj(resolve(item.get('patient')))
+
+            appointments.append({
+                "id":        appt_id,
+                "start":     start,
+                "end":       end,
+                "status":    status,
+                "type":      other or atype,
+                "createdAt": created_at,
+                "doctor": {
+                    "id":    doctor_obj.get('id'),
+                    "name":  doctor_obj.get('name'),
+                    "color": doctor_obj.get('color'),
+                },
+                "branch": {
+                    "id":   branch_obj.get('id'),
+                    "name": branch_obj.get('name'),
+                },
+                "patient": {
+                    "id":          patient_obj.get('id'),
+                    "firstName":   patient_obj.get('firstName'),
+                    "lastName":    patient_obj.get('lastName'),
+                    "phoneNumber": patient_obj.get('phoneNumber'),
+                },
+            })
+        except Exception as e:
+            continue
+
+    return appointments
 
 async def fetch_all_appointments(page):
     ts         = lambda: datetime.now().strftime("%H:%M:%S")
@@ -69,7 +144,7 @@ async def fetch_all_appointments(page):
     take       = 100
     page_num   = 1
 
-    print(f"[{ts()}] Fetching appointments...")
+    print(f"[{ts()}] Fetching appointments via GraphQL...")
 
     while True:
         payload = {
@@ -106,33 +181,40 @@ async def fetch_all_appointments(page):
             print(f"[{ts()}] Fetch error: {result.get('error')}")
             break
 
-        # Parse the response text safely
         try:
             data = json.loads(result["text"])
         except Exception as e:
             print(f"[{ts()}] JSON parse error: {e}")
-            print(f"[{ts()}] Raw response: {result['text'][:200]}")
             break
 
-        # Handle different response shapes
+        # Handle errors
+        if isinstance(data, dict) and data.get("errors"):
+            print(f"[{ts()}] GraphQL error: {data['errors'][0]['message']}")
+            break
+
+        # Extract the raw appointments list
+        raw = []
         if isinstance(data, list):
-            batch = data
+            raw = data
         elif isinstance(data, dict):
-            if data.get("errors"):
-                print(f"[{ts()}] GraphQL error: {data['errors'][0]['message']}")
-                break
-            inner = (data.get("data") or {})
+            inner = data.get("data") or {}
             if isinstance(inner, dict):
-                batch = inner.get("createdAppointments") or []
+                raw = inner.get("createdAppointments") or []
             elif isinstance(inner, list):
-                batch = inner
-            else:
-                batch = []
+                raw = inner
+
+        if not raw:
+            print(f"[{ts()}] No more data")
+            break
+
+        # Parse flat Apollo format
+        if raw and isinstance(raw[0], (str, int)):
+            batch = parse_flat_array(raw)
         else:
-            batch = []
+            batch = raw
 
         if not batch:
-            print(f"[{ts()}] No more appointments")
+            print(f"[{ts()}] Empty batch after parsing")
             break
 
         all_appts.extend(batch)
@@ -145,11 +227,11 @@ async def fetch_all_appointments(page):
         page_num += 1
         await asyncio.sleep(0.5)
 
-        if len(all_appts) >= 5000:
-            print(f"[{ts()}] Reached 5000 limit")
+        if len(all_appts) >= 10000:
+            print(f"[{ts()}] Reached 10000 limit")
             break
 
-    print(f"[{ts()}] Total appointments: {len(all_appts)}")
+    print(f"[{ts()}] Total: {len(all_appts)} appointments")
     return all_appts
 
 def analyze(appointments):
@@ -162,13 +244,14 @@ def analyze(appointments):
     for a in appointments:
         if not isinstance(a, dict):
             continue
-        doc    = (a.get("doctor")  or {}).get("name", "Unknown") if isinstance(a.get("doctor"), dict) else "Unknown"
-        branch = (a.get("branch")  or {}).get("name", "Unknown") if isinstance(a.get("branch"), dict) else "Unknown"
+
+        doc    = (a.get("doctor")  or {}).get("name") or "Unknown"
+        branch = (a.get("branch")  or {}).get("name") or "Unknown"
         start  = str(a.get("start") or "")[:10]
-        atype  = a.get("type")     or a.get("other") or "Unknown"
-        status = a.get("status")   or "Unknown"
-        pat    = a.get("patient")  or {}
-        patient_name = f"{pat.get('firstName','')} {pat.get('lastName','')}".strip() if isinstance(pat, dict) else ""
+        atype  = str(a.get("type")  or "Unknown")
+        status = str(a.get("status") or "Unknown")
+        pat    = a.get("patient") or {}
+        patient_name = f"{pat.get('firstName') or ''} {pat.get('lastName') or ''}".strip()
 
         entry = {
             "id":      a.get("id"),
@@ -179,16 +262,14 @@ def analyze(appointments):
             "doctor":  doc,
             "branch":  branch,
             "patient": patient_name,
-            "phone":   pat.get("phoneNumber", "") if isinstance(pat, dict) else "",
+            "phone":   pat.get("phoneNumber") or "",
         }
 
         by_doctor[doc].append(entry)
         by_branch[branch].append(entry)
         if start: by_date[start] += 1
-        by_type[atype]   += 1
+        by_type[atype]    += 1
         by_status[status] += 1
-
-    top_dates = dict(sorted(by_date.items(), reverse=True)[:60])
 
     return {
         "by_doctor": {
@@ -199,7 +280,7 @@ def analyze(appointments):
             br: {"total": len(v), "appointments": v[:200]}
             for br, v in sorted(by_branch.items())
         },
-        "by_date":   top_dates,
+        "by_date":   dict(sorted(by_date.items(), reverse=True)[:60]),
         "by_type":   dict(sorted(by_type.items(),   key=lambda x: -x[1])),
         "by_status": dict(sorted(by_status.items(), key=lambda x: -x[1])),
     }
@@ -257,11 +338,13 @@ async def main():
                 }, f, ensure_ascii=False, indent=2)
 
             print(f"\n✅ Done! {len(appointments)} appointments saved")
-            print(f"   Doctors: {list(analysis['by_doctor'].keys())[:5]}")
+            print(f"   Doctors:  {list(analysis['by_doctor'].keys())[:8]}")
             print(f"   Branches: {list(analysis['by_branch'].keys())}")
 
         except Exception as e:
             print(f"\n❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
             raise
         finally:
             await browser.close()

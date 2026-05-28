@@ -5,7 +5,15 @@
       "destination": "/data/:path*"
     },
     {
-      "source": "/((?!data/).*)",
+      "source": "/appointments.json",
+      "destination": "/appointments.json"
+    },
+    {
+      "source": "/summary.json",
+      "destination": "/summary.json"
+    },
+    {
+      "source": "/((?!data/|appointments.json|summary.json).*)",
       "destination": "/index.html"
     }
   ]

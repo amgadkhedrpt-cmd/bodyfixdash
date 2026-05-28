@@ -4433,10 +4433,33 @@ function medRenderDoctors(data) {
     var doc   = entry[0];
     var info  = entry[1];
     var total = info.total || 0;
-    var appts = (info.appointments||[]).slice(0,5);
+    var appts = (info.appointments||[]).slice(0,10);
     var initials = doc.replace(/د\.|Dr\./gi,'').trim().split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
-    var colors = ['var(--acc)','var(--male)','var(--fem)','var(--g)','var(--am)'];
+    var colors = ['var(--acc)','var(--male)','var(--fem)','var(--g)','var(--am)','#a78bfa','#06b6d4','#f472b6'];
     var color  = colors[sorted.indexOf(entry) % colors.length];
+
+    var apptRows = appts.map(function(a){
+      var patient = a.patient || '—';
+      var date    = a.start ? new Date(a.start).toLocaleDateString('ar-EG',{day:'numeric',month:'short',year:'numeric'}) : '—';
+      var time    = a.start ? new Date(a.start).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}) : '';
+      var status  = a.status || '—';
+      var type    = a.type   || '—';
+      var branch  = a.branch || '';
+      var statusColor = status==='مكتمل'?'var(--g)':status==='مفتوح'?'var(--acc)':status==='ملغي'?'var(--r)':status==='قائمة انتظار'?'var(--am)':'var(--mute)';
+      return '<div style="display:grid;grid-template-columns:1fr auto;gap:6px;padding:7px 10px;background:rgba(255,255,255,.03);border-radius:7px;margin-bottom:4px">' +
+        '<div>' +
+          '<div style="font-size:.7rem;font-weight:700;color:var(--txt)">' + patient + '</div>' +
+          '<div style="font-size:.6rem;color:var(--mute);margin-top:2px">' +
+            '<span style="color:var(--acc)">📅 ' + date + '</span>' +
+            (time ? ' <span>🕐 ' + time + '</span>' : '') +
+            (branch ? ' <span style="color:var(--mute)">• ' + branch + '</span>' : '') +
+          '</div>' +
+          '<div style="font-size:.6rem;margin-top:2px"><span style="color:var(--mute)">النوع: </span><span style="color:var(--txt)">' + type + '</span></div>' +
+        '</div>' +
+        '<div style="text-align:left"><span style="font-size:.58rem;padding:2px 7px;border-radius:5px;background:rgba(0,0,0,.3);color:'+statusColor+';white-space:nowrap">' + status + '</span></div>' +
+      '</div>';
+    }).join('');
+
     html += '<div style="background:var(--card);border:1px solid var(--brd);border-right:3px solid '+color+';border-radius:11px;overflow:hidden;margin-bottom:10px">' +
       '<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none" onclick="medToggleDoc(this)">' +
         '<div style="width:36px;height:36px;border-radius:9px;background:rgba(0,198,255,.12);color:'+color+';display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.8rem;flex-shrink:0">'+initials+'</div>' +
@@ -4444,14 +4467,11 @@ function medRenderDoctors(data) {
           '<div style="font-size:.6rem;color:var(--mute);margin-top:2px">إجمالي المواعيد: <b style="color:'+color+'">'+total+'</b></div></div>' +
         '<span style="color:var(--mute);font-size:.75rem">▼</span>' +
       '</div>' +
-      '<div class="med-doc-detail" style="display:none;padding:0 14px 12px;border-top:1px solid rgba(255,255,255,.04)">' +
-        '<div style="font-size:.62rem;color:var(--mute);margin:8px 0 5px">آخر 5 مواعيد:</div>' +
-        appts.map(function(a){
-          var raw = (a.raw||[]).filter(function(v){return v&&v.trim();});
-          return '<div style="font-size:.63rem;padding:5px 8px;background:rgba(255,255,255,.03);border-radius:6px;margin-bottom:3px;line-height:1.7">'+raw.slice(0,6).join(' · ')+'</div>';
-        }).join('')+
-        (total>5?'<div style="font-size:.6rem;color:var(--mute);margin-top:5px">+ '+(total-5)+' موعد آخر</div>':'')+
-      '</div>'+
+      '<div class="med-doc-detail" style="display:none;padding:0 12px 12px;border-top:1px solid rgba(255,255,255,.04)">' +
+        '<div style="font-size:.62rem;color:var(--mute);margin:8px 0 6px">آخر ' + appts.length + ' مواعيد:</div>' +
+        apptRows +
+        (total > appts.length ? '<div style="font-size:.6rem;color:var(--mute);margin-top:6px;text-align:center">+ '+(total-appts.length)+' موعد آخر</div>' : '') +
+      '</div>' +
     '</div>';
   });
   el.innerHTML = html;

@@ -121,7 +121,9 @@ async def fetch_all_appointments(page):
             print(f"[{ts()}] ❌ GraphQL error: {result['errors'][0]['message']}")
             break
 
-        batch = (result.get("data") or {}).get("createdAppointments") or []
+        data = result.get("data") or {}
+        raw = data.get("createdAppointments") or []
+        batch = raw if isinstance(raw, list) else []
         if not batch:
             break
 

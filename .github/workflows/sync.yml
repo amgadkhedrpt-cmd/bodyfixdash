@@ -2,7 +2,7 @@ name: Medicolize Sync
 
 on:
   schedule:
-    - cron: '* * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -41,14 +41,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git reset --hard origin/main
-          python scraper.py || true
           git add appointments.json summary.json data/
           git diff --staged --quiet || git commit -m "🔄 sync appointments $(date -u '+%Y-%m-%d %H:%M') UTC"
           git push origin main
-
-      - name: Trigger Vercel Redeploy
-        run: |
-          curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_1bW3xZZ9Agf5Qd1nHcSBouCoTLGG" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{"target":"production"}' || echo "Vercel trigger attempted"

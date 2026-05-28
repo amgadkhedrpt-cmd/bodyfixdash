@@ -2,7 +2,7 @@ name: Medicolize Sync
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '* * * * *'
   workflow_dispatch:
 
 permissions:
@@ -39,13 +39,12 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add appointments.json summary.json data/
-          git stash
-          git pull --rebase origin main
-          git stash pop
+          git fetch origin main
+          git reset --hard origin/main
+          python scraper.py || true
           git add appointments.json summary.json data/
           git diff --staged --quiet || git commit -m "🔄 sync appointments $(date -u '+%Y-%m-%d %H:%M') UTC"
-          git push
+          git push origin main
 
       - name: Trigger Vercel Redeploy
         run: |

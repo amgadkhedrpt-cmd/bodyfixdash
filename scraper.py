@@ -29,66 +29,135 @@ async def do_login(context, page):
     ts = lambda: datetime.now().strftime("%H:%M:%S")
 
     print(f"[{ts()}] Opening login page...")
-    await page.goto(f"{SITE_URL}/auth/login", wait_until="domcontentloaded", timeout=TIMEOUT)
-    await page.wait_for_timeout(2000)
+    await page.goto(f"{SITE_URL}/auth/login", wait_until="networkidle", timeout=TIMEOUT)
+    await page.wait_for_timeout(3000)
 
-    for sel in ['input[type="email"]', 'input[name="email"]']:
-        try:
-            loc = page.locator(sel).first
-            if await loc.is_visible(timeout=2000):
-                await loc.fill(USERNAME)
-                print(f"[{ts()}] Email entered")
-                break
-        except: continue
+    # Screenshot page title for debug
+    title = await page.title()
+    print(f"[{ts()}] Page title: {title}")
 
-    for sel in ['input[type="password"]', 'input[name="password"]']:
-        try:
-            loc = page.locator(sel).first
-            if await loc.is_visible(timeout=2000):
-                await loc.fill(PASSWORD)
-                print(f"[{ts()}] Password entered")
-                break
-        except: continue
-
-    for sel in ['button[type="submit"]', 'button:has-text("Login")']:
+    # Fill email
+    print(f"[{ts()}] Filling email: {USERNAME}")
+    filled_email = False
+    for sel in ['input[type="email"]', 'input[name="email"]', 'input[placeholder*="mail" i]', 'input[placeholder*="user" i]', 'input']:
         try:
             loc = page.locator(sel).first
             if await loc.is_visible(timeout=2000):
                 await loc.click()
-                print(f"[{ts()}] Login clicked")
+                await loc.fill("")
+                await loc.type(USERNAME, delay=50)
+                filled_email = True
+                print(f"[{ts()}] Email typed with selector: {sel}")
                 break
         except: continue
 
-    # Wait for redirect away from login page
-    print(f"[{ts()}] Waiting for redirect...")
-    try:
-        await page.wait_for_url(lambda url: "/auth/login" not in url, timeout=15000)
-    except:
-        pass
-    await page.wait_for_timeout(3000)
+    await page.wait_for_timeout(500)
 
-    # Print ALL cookies for debugging
+    # Fill password
+    filled_pass = False
+    for sel in ['input[type="password"]', 'input[name="password"]', 'input[placeholder*="pass" i]']:
+        try:
+            loc = page.locator(sel).first
+            if await loc.is_visible(timeout=2000):
+                await loc.click()
+                await loc.fill("")
+                await loc.type(PASSWORD, delay=50)
+                filled_pass = True
+                print(f"[{ts()}] Password typed with selector: {sel}")
+                break
+        except: continue
+
+    await page.wait_for_timeout(500)
+    print(f"[{ts()}] Email filled: {filled_email}, Password filled: {filled_pass}")
+
+    # Click login button
+    clicked = False
+    for sel in ['button[type="submit"]', 'button:has-text("Login")', 'button:has-text("Sign in")',
+                'input[type="submit"]', 'button']:
+        try:
+            loc = page.locator(sel).first
+            if await loc.is_visible(timeout=2000):
+                await loc.click()
+                clicked = True
+                print(f"[{ts()}] Clicked: {sel}")
+                break
+        except: continue
+
+    if not clicked:
+        # Try pressing Enter on password field
+        print(f"[{ts()}] Pressing Enter...")
+        await page.keyboard.press("Enter")
+
+    # Wait for navigation
+    print(f"[{ts()}] Waiting for navigation after login...")
+    await page.wait_for_timeout(8000)
+    print(f"[{ts()}] URL after login: {page.url}")
+
+    # If still on login page, try GraphQL login directly
+    if "/auth/login" in page.url:
+        print(f"[{ts()}] Still on login page — trying GraphQL login mutation...")
+        login_result = await page.evaluate("""
+            async (args) => {
+                const mutation = `mutation LOGIN($email: String!, $password: String!) {
+                    login(email: $email, password: $password) {
+                        token
+                        user { id name email __typename }
+                        __typename
+                    }
+                }`;
+                try {
+                    const res = await fetch('https://api.medicolize.com/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            operationName: 'LOGIN',
+                            variables: { email: args.username, password: args.password },
+                            query: mutation
+                        })
+                    });
+                    const text = await res.text();
+                    return { ok: true, text: text };
+                } catch(e) {
+                    return { ok: false, error: e.message };
+                }
+            }
+        """, {"username": USERNAME, "password": PASSWORD})
+
+        print(f"[{ts()}] GraphQL login response: {login_result.get('text', '')[:300]}")
+
+        if login_result.get("ok"):
+            try:
+                data = json.loads(login_result["text"])
+                token = None
+                if isinstance(data, dict):
+                    login_data = (data.get("data") or {}).get("login") or {}
+                    if isinstance(login_data, dict):
+                        token = login_data.get("token")
+                    # Also check top level
+                    if not token:
+                        token = data.get("token")
+                if token:
+                    print(f"[{ts()}] ✅ Got token from GraphQL login!")
+                    return None, None, f"Bearer {token}"
+            except Exception as e:
+                print(f"[{ts()}] Parse error: {e}")
+
+    # Get all cookies
     cookies = await context.cookies()
-    print(f"[{ts()}] Cookies found: {len(cookies)}")
+    print(f"[{ts()}] Cookies: {len(cookies)}")
     for c in cookies:
-        print(f"  - {c['name']} @ {c['domain']} = {str(c['value'])[:30]}...")
+        print(f"  {c['name']} @ {c['domain']}")
 
-    # Build cookie header string
     cookie_str = "; ".join([f"{c['name']}={c['value']}" for c in cookies])
+    return cookie_str, cookies, None
 
-    # Also check current URL
-    print(f"[{ts()}] Current URL: {page.url}")
-
-    return cookie_str, cookies
-
-async def fetch_all_appointments(cookie_str, cookies, page):
+async def fetch_all_appointments(cookie_str, token, page):
     ts         = lambda: datetime.now().strftime("%H:%M:%S")
     range_date = build_date_range()
     all_appts  = []
     skip, take, page_num = 0, 100, 1
 
-    print(f"[{ts()}] Cookie string length: {len(cookie_str)}")
-    print(f"[{ts()}] Fetching appointments...")
+    print(f"[{ts()}] Using token: {bool(token)}, cookies: {len(cookie_str or '')}")
 
     while True:
         payload = {
@@ -99,25 +168,27 @@ async def fetch_all_appointments(cookie_str, cookies, page):
             "query": GQL_QUERY,
         }
 
-        # Pass cookies explicitly in the header
+        headers = {
+            "Content-Type": "application/json",
+            "Origin": "https://my.medicolize.com",
+            "Referer": "https://my.medicolize.com/",
+        }
+        if token:
+            headers["Authorization"] = token
+        if cookie_str:
+            headers["Cookie"] = cookie_str
+
         result = await page.evaluate("""
             async (args) => {
                 try {
                     const res = await fetch(args.url, {
-                        method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Cookie': args.cookieStr,
-                            'Origin': 'https://my.medicolize.com',
-                            'Referer': 'https://my.medicolize.com/'
-                        },
-                        body: JSON.stringify(args.payload)
+                        method: 'POST', credentials: 'include',
+                        headers: args.headers, body: JSON.stringify(args.payload)
                     });
                     return { ok: true, text: await res.text(), status: res.status };
                 } catch(e) { return { ok: false, error: e.message }; }
             }
-        """, {"url": API_URL, "payload": payload, "cookieStr": cookie_str})
+        """, {"url": API_URL, "payload": payload, "headers": headers})
 
         if not result.get("ok"):
             print(f"[{ts()}] Error: {result.get('error')}"); break
@@ -125,13 +196,11 @@ async def fetch_all_appointments(cookie_str, cookies, page):
         print(f"[{ts()}] HTTP {result.get('status')} page {page_num}")
 
         try: data = json.loads(result["text"])
-        except Exception as e:
-            print(f"[{ts()}] Parse error: {result['text'][:300]}"); break
+        except:
+            print(f"[{ts()}] Parse error: {result['text'][:200]}"); break
 
         if isinstance(data, dict) and data.get("errors"):
-            print(f"[{ts()}] GQL error: {data['errors'][0]['message']}")
-            print(f"[{ts()}] Full response: {result['text'][:500]}")
-            break
+            print(f"[{ts()}] GQL error: {data['errors'][0]['message']}"); break
 
         raw = []
         if isinstance(data, list): raw = data
@@ -225,8 +294,8 @@ async def main():
         )
         page = await context.new_page()
         try:
-            cookie_str, cookies = await do_login(context, page)
-            appointments = await fetch_all_appointments(cookie_str, cookies, page)
+            cookie_str, cookies, token = await do_login(context, page)
+            appointments = await fetch_all_appointments(cookie_str, token, page)
             analysis     = analyze(appointments)
             now_str      = datetime.now(timezone.utc).isoformat()
             os.makedirs("data", exist_ok=True)

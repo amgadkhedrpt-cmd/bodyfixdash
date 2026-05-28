@@ -5376,13 +5376,21 @@ function buildFreeSlotsBanner() {
   var badge    = document.getElementById('med-free-badge');
   if (!banner || !list) return;
 
+  // If DR not loaded yet, retry after sheet loads
+  var haramDR = (typeof DR_HARAM_STATIC !== 'undefined') ? DR_HARAM_STATIC : [];
+  if (!haramDR.length) {
+    list.innerHTML = '<div style="font-size:.62rem;color:var(--mute);padding:4px">⏳ جاري تحميل شيت التثبيتات...</div>';
+    banner.style.display = 'block';
+    // Retry after 3 seconds
+    setTimeout(function(){ buildFreeSlotsBanner(); }, 3000);
+    return;
+  }
+
   var DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
   // Get today's date in local timezone
   var now = new Date();
   var todayISO = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   var todayKey = DAY_KEYS[now.getDay()];
-
-  var haramDR = (typeof DR_HARAM_STATIC !== 'undefined') ? DR_HARAM_STATIC : [];
   var currentDR = (typeof DR !== 'undefined') ? DR : [];
   // Use current DR (could be haram or dokki depending on active branch)
   // Combine both for 'all' branches view
@@ -5421,12 +5429,15 @@ function buildFreeSlotsBanner() {
   var todayApptsSrc = [];
 
   // First priority: summary.today_appointments (scraper saves ALL of today)
+  var hasTodayData = false;
   if (MED_SUMMARY && MED_SUMMARY.today_appointments && MED_SUMMARY.today_appointments.length) {
     todayApptsSrc = MED_SUMMARY.today_appointments;
-  } else if (MED_DATA && MED_DATA.analysis && MED_DATA.analysis.today_appointments) {
+    hasTodayData = true;
+  } else if (MED_DATA && MED_DATA.analysis && MED_DATA.analysis.today_appointments && MED_DATA.analysis.today_appointments.length) {
     todayApptsSrc = MED_DATA.analysis.today_appointments;
+    hasTodayData = true;
   } else {
-    // fallback: search in by_doctor
+    // fallback: search in by_doctor (may be incomplete)
     if (MED_DATA && MED_DATA.analysis && MED_DATA.analysis.by_doctor) {
       Object.entries(MED_DATA.analysis.by_doctor).forEach(function(e){
         (e[1].appointments||[]).forEach(function(a){
@@ -5434,6 +5445,7 @@ function buildFreeSlotsBanner() {
         });
       });
     }
+    hasTodayData = todayApptsSrc.length > 0;
   }
 
   todayApptsSrc.forEach(function(a){
@@ -5443,7 +5455,17 @@ function buildFreeSlotsBanner() {
     todayDocMap[doc].push(a);
   });
 
+  // If no today data at all, show all doctors from DR as fully free
   var byDoc = todayDocMap;
+  if (!hasTodayData) {
+    // Build from DR directly - all hours are free
+    var fmtH2 = function(h){ var s=h>=12?'م':'ص'; return (h%12||12)+':00 '+s; };
+    var html2 = '<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px 12px;font-size:.62rem;color:var(--am)">⚠️ بيانات Medicolize لم تُحدَّث بعد — الساعات المعروضة من شيت التثبيتات فقط</div>';
+    if (badge) badge.textContent = 'من الشيت فقط';
+    list.innerHTML = html2;
+    banner.style.display = 'block';
+    return;
+  }
 
   var results = [];
   Object.keys(byDoc).forEach(function(docName){

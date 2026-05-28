@@ -49,7 +49,7 @@ jobs:
 
       - name: Trigger Vercel Redeploy
         run: |
-          curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_QTgUTMw7BsAuMJACTPnfCRsTpDSm" \
+          curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_1bW3xZZ9Agf5Qd1nHcSBouCoTLGG" \
             -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"target":"production"}' || echo "Vercel trigger attempted"

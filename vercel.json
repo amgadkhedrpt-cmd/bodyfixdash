@@ -1,11 +1,12 @@
 {
-  "headers": [
+  "rewrites": [
     {
-      "source": "/data/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Content-Type", "value": "application/json" }
-      ]
+      "source": "/data/:path*",
+      "destination": "/data/:path*"
+    },
+    {
+      "source": "/((?!data/).*)",
+      "destination": "/index.html"
     }
   ]
 }

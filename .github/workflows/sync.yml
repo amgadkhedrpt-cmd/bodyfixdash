@@ -22,11 +22,31 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-playwright-${{ runner.os }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-v1
+
       - name: Install dependencies
+        run: pip install playwright
+
+      - name: Install Chromium (only if not cached)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
-          pip install playwright
           playwright install chromium
           playwright install-deps chromium
+
+      - name: Install Chromium deps only (if cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: playwright install-deps chromium
 
       - name: Run scraper
         env:

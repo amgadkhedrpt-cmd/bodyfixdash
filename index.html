@@ -3846,17 +3846,33 @@ window.addEventListener('load',function(){
   populateAddForm();
   initAttTab();
   // ── تحميل الشيتين في الخلفية ─────────────────────────────────
+  function fetchBranchInBackground(branchKey) {
+    var url = BRANCHES[branchKey] && BRANCHES[branchKey].url;
+    if (!url) return;
+    var cbName = '_bgLoad_' + branchKey + '_' + Date.now();
+    var sc = document.createElement('script');
+    window[cbName] = function(data) {
+      try { document.head.removeChild(sc); } catch(e) {}
+      delete window[cbName];
+      if (data && data.ok && data.doctors && data.doctors.length) {
+        if (branchKey === 'dokki') {
+          DR_DOKKI_STATIC = data.doctors.slice();
+        } else if (branchKey === 'haram') {
+          DR_HARAM_STATIC = data.doctors.slice();
+        }
+      }
+    };
+    sc.src = url + '?callback=' + cbName + '&t=' + Date.now();
+    document.head.appendChild(sc);
+  }
+
   setTimeout(function(){
+    // حمّل الفرع التاني في الخلفية عشان getCapacity يشتغل صح
     var activeBranch = CURRENT_BRANCH;
     Object.keys(BRANCHES).forEach(function(b){
-      if (b !== activeBranch && BRANCHES[b].url) {
-        var bg = new XMLHttpRequest();
-        bg.open('GET', BRANCHES[b].url + '?t=' + Date.now(), true);
-        bg.onreadystatechange = function(){};
-        bg.send();
-      }
+      if (b !== activeBranch) fetchBranchInBackground(b);
     });
-  }, 5000);
+  }, 3000);
 });
 </script>
 

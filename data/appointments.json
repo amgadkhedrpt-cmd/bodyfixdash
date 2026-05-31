@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-05-30T23:16:54.531221+00:00",
+  "last_updated": "2026-05-31T00:18:56.058164+00:00",
   "total": 23000,
   "appointments": [
     {
@@ -7647,6 +7647,27 @@
       }
     },
     {
+      "id": "d631eff3-aae0-4dbc-b86d-f470be75dc7f",
+      "start": "2026-06-03T09:00:00.000Z",
+      "end": "2026-06-03T20:30:00.000Z",
+      "status": "Note",
+      "status_en": "NOTE",
+      "type": "Enum18",
+      "createdAt": "2026-05-30T23:57:11.692Z",
+      "doctor": {
+        "name": "Dr Amgad Khedr",
+        "color": null
+      },
+      "branch": {
+        "name": "BODYFIX Center"
+      },
+      "patient": {
+        "firstName": null,
+        "lastName": null,
+        "phoneNumber": null
+      }
+    },
+    {
       "id": "9a820876-121e-4244-9680-3e04b9d2ce37",
       "start": "2026-06-03T09:00:00.000Z",
       "end": "2026-06-03T09:30:00.000Z",
@@ -8988,6 +9009,27 @@
         "firstName": "حياة",
         "lastName": "احمد سيد عبد الهادى",
         "phoneNumber": "+2_01226603862"
+      }
+    },
+    {
+      "id": "0fef307a-b607-4aed-b063-24326da30b12",
+      "start": "2026-06-02T09:00:00.000Z",
+      "end": "2026-06-02T20:30:00.000Z",
+      "status": "Note",
+      "status_en": "NOTE",
+      "type": "Enum18",
+      "createdAt": "2026-05-30T23:57:11.682Z",
+      "doctor": {
+        "name": "Dr Amgad Khedr",
+        "color": null
+      },
+      "branch": {
+        "name": "BODYFIX Center"
+      },
+      "patient": {
+        "firstName": null,
+        "lastName": null,
+        "phoneNumber": null
       }
     },
     {
@@ -10458,48 +10500,6 @@
         "firstName": "هدى",
         "lastName": "عريان جوده عطيه",
         "phoneNumber": "+2_01140079408"
-      }
-    },
-    {
-      "id": "36997410-fbbb-42fb-bd32-848056789294",
-      "start": "2026-06-01T12:00:00.000Z",
-      "end": "2026-06-01T12:30:00.000Z",
-      "status": "Waiting List",
-      "status_en": "WAITING",
-      "type": "متابعة",
-      "createdAt": "2026-05-21T11:45:00.518Z",
-      "doctor": {
-        "name": "Follow up",
-        "color": null
-      },
-      "branch": {
-        "name": "BODYFIX Center"
-      },
-      "patient": {
-        "firstName": "ناهد ممدوح مصطفي",
-        "lastName": "ماهر",
-        "phoneNumber": "+2_01006424894"
-      }
-    },
-    {
-      "id": "2fced30a-db15-4ddf-82f1-105d87a01dbe",
-      "start": "2026-06-01T12:00:00.000Z",
-      "end": "2026-06-01T13:00:00.000Z",
-      "status": "Open",
-      "status_en": "OPEN",
-      "type": "جلسة",
-      "createdAt": "2026-05-08T23:03:12.732Z",
-      "doctor": {
-        "name": "Mohammad Alaa",
-        "color": "#4a90e2"
-      },
-      "branch": {
-        "name": "BODYFIX Center"
-      },
-      "patient": {
-        "firstName": "عبد المنعم",
-        "lastName": "حسين عبد المنعم حسين",
-        "phoneNumber": "+2_01004231355"
       }
     }
   ],
@@ -16790,8 +16790,19 @@
         ]
       },
       "Dr Amgad Khedr": {
-        "total": 1918,
+        "total": 1921,
         "appointments": [
+          {
+            "id": "d631eff3-aae0-4dbc-b86d-f470be75dc7f",
+            "start": "2026-06-03T09:00:00.000Z",
+            "end": "2026-06-03T20:30:00.000Z",
+            "status": "Note",
+            "type": "Enum18",
+            "doctor": "Dr Amgad Khedr",
+            "branch": "BODYFIX Center",
+            "patient": "",
+            "phone": ""
+          },
           {
             "id": "e0766d11-516e-41d8-8eae-8473f39ace77",
             "start": "2026-06-02T15:00:00.000Z",
@@ -16804,9 +16815,31 @@
             "phone": "+2_01021269965"
           },
           {
+            "id": "0fef307a-b607-4aed-b063-24326da30b12",
+            "start": "2026-06-02T09:00:00.000Z",
+            "end": "2026-06-02T20:30:00.000Z",
+            "status": "Note",
+            "type": "Enum18",
+            "doctor": "Dr Amgad Khedr",
+            "branch": "BODYFIX Center",
+            "patient": "",
+            "phone": ""
+          },
+          {
             "id": "73ed31b9-40d4-4f7d-bd52-558c6dfacbe6",
             "start": "2026-06-01T14:00:00.000Z",
             "end": "2026-06-01T15:00:00.000Z",
+            "status": "Note",
+            "type": "Enum18",
+            "doctor": "Dr Amgad Khedr",
+            "branch": "BODYFIX Center",
+            "patient": "",
+            "phone": ""
+          },
+          {
+            "id": "4339d76c-b7e6-4c36-9b26-313c85901b56",
+            "start": "2026-06-01T09:00:00.000Z",
+            "end": "2026-06-01T20:30:00.000Z",
             "status": "Note",
             "type": "Enum18",
             "doctor": "Dr Amgad Khedr",
@@ -20058,44 +20091,11 @@
             "branch": "BODYFIX Center",
             "patient": "",
             "phone": ""
-          },
-          {
-            "id": "5a0ca3ee-00a2-4343-be15-fea519563071",
-            "start": "2026-05-06T17:30:00.000Z",
-            "end": "2026-05-06T17:45:00.000Z",
-            "status": "No Show",
-            "type": "حجز",
-            "doctor": "Dr Amgad Khedr",
-            "branch": "BODYFIX Center",
-            "patient": "صالح جابر محسن جابر",
-            "phone": "+2_01152962636"
-          },
-          {
-            "id": "6b1a249d-2ebf-47ab-8241-07ac345c33e6",
-            "start": "2026-05-06T17:15:00.000Z",
-            "end": "2026-05-06T17:30:00.000Z",
-            "status": "Canceled",
-            "type": "حجز",
-            "doctor": "Dr Amgad Khedr",
-            "branch": "BODYFIX Center",
-            "patient": "هشام محمد خيري محمود",
-            "phone": "+2_01153349980"
-          },
-          {
-            "id": "15c8fe9d-ee3b-488c-959a-3f85fff7b2ef",
-            "start": "2026-05-06T17:00:00.000Z",
-            "end": "2026-05-06T17:15:00.000Z",
-            "status": "Completed",
-            "type": "حجز",
-            "doctor": "Dr Amgad Khedr",
-            "branch": "BODYFIX Center",
-            "patient": "وفاء ثابت محمد عبد لرحيم",
-            "phone": "+20_1146557825"
           }
         ]
       },
       "Dr. Abdelrahman Abdelbaset": {
-        "total": 506,
+        "total": 505,
         "appointments": [
           {
             "id": "cec74cac-cfc7-4a7d-a62f-4aa3b6ab185b",
@@ -45677,7 +45677,7 @@
         ]
       },
       "Dr. Mohammad Reda": {
-        "total": 538,
+        "total": 537,
         "appointments": [
           {
             "id": "1ff0fa66-ffb2-4b9d-a430-4de13581998e",
@@ -106972,7 +106972,7 @@
         ]
       },
       "Shorouk": {
-        "total": 364,
+        "total": 363,
         "appointments": [
           {
             "id": "7d195c84-bbd3-4973-9c23-68756dde62e5",
@@ -117183,7 +117183,7 @@
         }
       },
       "2026-06-03": {
-        "total": 86,
+        "total": 87,
         "doctors": {
           "Follow up": 59,
           "Dr. Alaa Harfoush": 5,
@@ -117197,11 +117197,12 @@
           "Dr. Ahmed Ashraf": 2,
           "Abeer": 2,
           "Dr. Adel Ashraf": 2,
-          "Mohammad Alaa": 1
+          "Mohammad Alaa": 1,
+          "Dr Amgad Khedr": 1
         }
       },
       "2026-06-02": {
-        "total": 63,
+        "total": 64,
         "doctors": {
           "Follow up": 38,
           "Mohammad Alaa": 2,
@@ -117209,7 +117210,7 @@
           "Roba": 1,
           "Rahma": 4,
           "Dr. Mohammad Reda": 1,
-          "Dr Amgad Khedr": 1,
+          "Dr Amgad Khedr": 2,
           "Dr. Sara Hussein": 3,
           "Dr. Ahmad Ibrahim": 2,
           "Hisham": 1,
@@ -117222,7 +117223,7 @@
         }
       },
       "2026-06-01": {
-        "total": 99,
+        "total": 100,
         "doctors": {
           "Follow up": 60,
           "Gomaa Mohammad": 4,
@@ -117237,7 +117238,7 @@
           "Dr. Ahmed Ashraf": 2,
           "Abeer": 3,
           "Dr. Ahmad Ibrahim": 2,
-          "Dr Amgad Khedr": 1,
+          "Dr Amgad Khedr": 2,
           "Sayed Galal": 1,
           "Mohammad Alaa": 1
         }
@@ -118489,7 +118490,7 @@
       }
     },
     "by_type": {
-      "جلسة": 10847,
+      "جلسة": 10845,
       "متابعة": 3123,
       "استشارة": 1835,
       "حجز": 1101,
@@ -118498,9 +118499,9 @@
       "كشف": 894,
       "استشارة أونلاين": 669,
       "Enum25": 472,
-      "Enum18": 341,
+      "Enum18": 344,
       "Enum31": 248,
-      "Enum26": 247,
+      "Enum26": 246,
       "مراجعة": 234,
       "Enum28": 177,
       "تحليل": 166,
@@ -118526,11 +118527,11 @@
       "Enum39": 1
     },
     "by_status": {
-      "Completed": 15837,
+      "Completed": 15834,
       "Canceled": 3920,
       "No Show": 1345,
       "Waiting List": 1138,
-      "Note": 357,
+      "Note": 360,
       "Open": 252,
       "Confirmed": 134,
       "Checked In": 11,

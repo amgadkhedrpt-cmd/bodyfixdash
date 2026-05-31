@@ -6804,15 +6804,84 @@ function manaDaily(filterDate, timeFrom, timeTo, genderFilter) {
       });
       html += '<div style="font-size:.72rem;font-weight:700;margin-bottom:4px;color:var(--acc);display:flex;align-items:center;gap:5px;flex-wrap:wrap">'+doc+' '+arBadge+genderBadge+' <span style="color:var(--mute);font-weight:400">('+docAppts.length+')</span> '+statusBadges+'</div>';
       html += '<div style="display:flex;flex-direction:column;gap:3px">';
-      docAppts.sort(function(a,b){return (a.start||'') > (b.start||'') ? 1 : -1;}).forEach(function(a){
+      docAppts.sort(function(a,b){return (a.start||'') > (b.start||'') ? 1 : -1;}).forEach(function(a, ai){
         var time = a.start ? fmt12hDateFull(new Date(a.start)) : '';
         var sc = getStatusColor(a.status);
-        html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:rgba(255,255,255,.02);border-radius:6px">';
+        var uid = 'appt-det-' + dk.replace(/-/g,'') + '-' + doc.replace(/\s/g,'') + '-' + ai;
+        /* حساب المدة لو في وقت نهاية */
+        var durationStr = '';
+        if (a.end && a.start) {
+          try {
+            var ms = new Date(a.end) - new Date(a.start);
+            if (ms > 0) { var mins = Math.round(ms/60000); durationStr = mins + ' دقيقة'; }
+          } catch(e){}
+        }
+        /* تجميع التفاصيل المتاحة */
+        var hasDetails = a.details || a.reason || a.notes || a.appt_notes || a.other_notes || a.branch || durationStr;
+        html += '<div style="background:rgba(255,255,255,.02);border-radius:6px;overflow:hidden">';
+        /* الصف الأساسي */
+        html += '<div onclick="(function(el){var d=document.getElementById(\''+uid+'\');if(!d)return;var open=d.style.display!==\'none\';d.style.display=open?\'none\':\'block\';el.querySelector(\'.det-arr\').style.transform=open?\'rotate(0deg)\':\'rotate(90deg)\'})(this)" style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:'+(hasDetails?'pointer':'default')+'">';
         html += '<div style="width:7px;height:7px;border-radius:50%;background:'+sc+';flex-shrink:0"></div>';
         html += '<span style="font-size:.6rem;color:var(--mute);min-width:42px">'+time+'</span>';
-        html += '<span style="font-size:.68rem;flex:1">'+a.patient+'</span>';
-        html += '<span style="font-size:.58rem;color:'+sc+'">'+a.status+'</span>';
-        html += '<span style="font-size:.58rem;color:var(--mute)">'+a.type+'</span>';
+        html += '<span style="font-size:.68rem;flex:1;font-weight:600">'+a.patient+'</span>';
+        html += '<span style="font-size:.58rem;color:'+sc+';font-weight:700">'+a.status+'</span>';
+        if (a.type) html += '<span style="font-size:.54rem;color:var(--mute);background:rgba(255,255,255,.05);border-radius:4px;padding:1px 5px">'+a.type+'</span>';
+        if (hasDetails) html += '<span class="det-arr" style="font-size:.55rem;color:var(--mute);transition:transform .2s;flex-shrink:0">▶</span>';
+        html += '</div>';
+        /* قسم التفاصيل */
+        if (hasDetails) {
+          html += '<div id="'+uid+'" style="display:none;padding:6px 12px 8px 22px;background:rgba(0,0,0,.15);border-top:1px solid rgba(255,255,255,.04)">';
+          html += '<div style="display:flex;flex-direction:column;gap:4px">';
+          if (durationStr) {
+            html += '<div style="display:flex;align-items:center;gap:6px;font-size:.6rem">';
+            html += '<span style="color:var(--mute);min-width:70px">⏱ المدة</span>';
+            html += '<span style="color:var(--acc);font-weight:700">'+durationStr+'</span>';
+            html += '</div>';
+          }
+          if (a.branch) {
+            html += '<div style="display:flex;align-items:center;gap:6px;font-size:.6rem">';
+            html += '<span style="color:var(--mute);min-width:70px">🏥 الفرع</span>';
+            html += '<span style="color:var(--txt)">'+a.branch+'</span>';
+            html += '</div>';
+          }
+          if (a.type) {
+            html += '<div style="display:flex;align-items:center;gap:6px;font-size:.6rem">';
+            html += '<span style="color:var(--mute);min-width:70px">🏷 النوع</span>';
+            html += '<span style="color:var(--txt)">'+a.type+'</span>';
+            html += '</div>';
+          }
+          if (a.details) {
+            html += '<div style="display:flex;align-items:flex-start;gap:6px;font-size:.6rem">';
+            html += '<span style="color:var(--mute);min-width:70px;flex-shrink:0">📋 التفاصيل</span>';
+            html += '<span style="color:var(--txt);word-break:break-word">'+a.details+'</span>';
+            html += '</div>';
+          }
+          if (a.reason) {
+            html += '<div style="display:flex;align-items:flex-start;gap:6px;font-size:.6rem">';
+            html += '<span style="color:var(--mute);min-width:70px;flex-shrink:0">❓ السبب</span>';
+            html += '<span style="color:var(--am);word-break:break-word">'+a.reason+'</span>';
+            html += '</div>';
+          }
+          if (a.notes) {
+            html += '<div style="display:flex;align-items:flex-start;gap:6px;font-size:.6rem">';
+            html += '<span style="color:var(--mute);min-width:70px;flex-shrink:0">📝 ملاحظات</span>';
+            html += '<span style="color:var(--txt);word-break:break-word">'+a.notes+'</span>';
+            html += '</div>';
+          }
+          if (a.appt_notes) {
+            html += '<div style="display:flex;align-items:flex-start;gap:6px;font-size:.6rem">';
+            html += '<span style="color:var(--mute);min-width:70px;flex-shrink:0">📌 ملاحظات موعد</span>';
+            html += '<span style="color:var(--acc);word-break:break-word">'+a.appt_notes+'</span>';
+            html += '</div>';
+          }
+          if (a.other_notes) {
+            html += '<div style="display:flex;align-items:flex-start;gap:6px;font-size:.6rem">';
+            html += '<span style="color:var(--mute);min-width:70px;flex-shrink:0">📝 أخرى</span>';
+            html += '<span style="color:var(--mute);word-break:break-word">'+a.other_notes+'</span>';
+            html += '</div>';
+          }
+          html += '</div></div>';
+        }
         html += '</div>';
       });
       html += '</div></div>';

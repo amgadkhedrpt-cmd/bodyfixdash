@@ -4102,38 +4102,34 @@ try {
 } catch(e) {}
 var REQ_ICONS = {'إجازة':'🏖️','سلفة':'💰','إذن':'🕐','ترك عمل':'🚪','شكوى/اقتراح':'💬','مكافأة':'🎁','خصم':'⚠️','تحويل راتب':'🏦'};
 /* ── تنسيق قيم الـ fields (تواريخ وساعات ISO → عربي مقروء) ── */
-function reqFmtFieldValue(k, v) {
-  var s = String(v).trim();
-  // تاريخ + وقت كامل: 2026-05-30T21:00:00.000Z
-  var mDT = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?Z?$/);
-  if (mDT) {
-    var yr=+mDT[1], mo=+mDT[2], dy=+mDT[3], hh=+mDT[4], mm=+mDT[5];
-    // تحقق لو السنة طبيعية (مش 1899) — لو 1899 فده بيمثل مدة وقت مش تاريخ
-    if (yr >= 2000) {
-      var dayNames=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-      var dt = new Date(yr, mo-1, dy);
-      var dayName = dayNames[dt.getDay()];
-      var suffix = hh >= 12 ? 'م' : 'ص';
-      var h12 = hh % 12 || 12;
-      var mmStr = mm > 0 ? ':' + (mm<10?'0':'')+mm : '';
-      return dayName + ' ' + dy + '/' + mo + '/' + yr + ' — ' + h12 + mmStr + ' ' + suffix;
+var DAY_NAMES_AR=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+var CAIRO_OFFSET_MS=3*60*60*1000;
+function reqFmtFieldValue(k,v){
+  var s=String(v).trim();
+  var mDT=s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?Z?$/);
+  if(mDT){
+    var yr=+mDT[1],mo=+mDT[2],dy=+mDT[3],hh=+mDT[4],mm=+mDT[5];
+    var utcMs=Date.UTC(yr,mo-1,dy,hh,mm,0);
+    var cairoMs=utcMs+CAIRO_OFFSET_MS;
+    var dt=new Date(cairoMs);
+    var cYr=dt.getUTCFullYear(),cMo=dt.getUTCMonth()+1,cDy=dt.getUTCDate();
+    var cHH=dt.getUTCHours(),cMM=dt.getUTCMinutes();
+    var suffix=cHH>=12?'م':'ص';
+    var h12=cHH%12||12;
+    var mmStr=cMM>0?':'+(cMM<10?'0':'')+cMM:'';
+    if(yr>=2000){
+      return DAY_NAMES_AR[dt.getUTCDay()]+' '+cDy+'/'+cMo+'/'+cYr+' — '+h12+mmStr+' '+suffix;
     } else {
-      // سنة 1899 = مدة (ساعات ودقائق فقط)
-      var suffix2 = hh >= 12 ? 'م' : 'ص';
-      var h12b = hh % 12 || 12;
-      var mmStr2 = mm > 0 ? ':' + (mm<10?'0':'')+mm : ':00';
-      return h12b + mmStr2 + ' ' + suffix2;
+      return h12+(cMM>0?':'+(cMM<10?'0':'')+cMM:':00')+' '+suffix;
     }
   }
-  // تاريخ بدون وقت: 2026-05-30
-  var mD = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (mD) {
-    var yr2=+mD[1], mo2=+mD[2], dy2=+mD[3];
-    var dayNames2=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-    var dt2 = new Date(yr2, mo2-1, dy2);
-    return dayNames2[dt2.getDay()] + ' ' + dy2 + '/' + mo2 + '/' + yr2;
+  var mD=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(mD){
+    var yr2=+mD[1],mo2=+mD[2],dy2=+mD[3];
+    var dt2=new Date(Date.UTC(yr2,mo2-1,dy2));
+    return DAY_NAMES_AR[dt2.getUTCDay()]+' '+dy2+'/'+mo2+'/'+yr2;
   }
-  return s.substring(0, 60);
+  return s.substring(0,60);
 }
 var REQ_COLORS = {'إجازة':'var(--acc)','سلفة':'var(--am)','إذن':'#6366f1','ترك عمل':'var(--r)','شكوى/اقتراح':'#ec4899','مكافأة':'var(--g)','خصم':'var(--r)','تحويل راتب':'#06b6d4'};
 function reqGetName(r){return r['اسم الموظف']||r['Name']||r['الاسم']||'—';}

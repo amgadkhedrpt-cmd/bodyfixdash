@@ -4527,8 +4527,10 @@ function reqRender(){
             var hh2=eg2.getUTCHours(),mm2=eg2.getUTCMinutes();
             sv=(hh2%12||12)+':'+(mm2<10?'0':'')+mm2+(hh2>=12?'م':'ص');
           } else {
-            /* حقل تاريخ — خذ التاريخ من الـ string مباشرة بدون تحويل */
-            sv=mFull[3]+'/'+mFull[2]+'/'+mFull[1];
+            /* حقل تاريخ — UTC+2 */
+            var utcMs3=Date.UTC(+mFull[1],+mFull[2]-1,+mFull[3],+mFull[4],+mFull[5]);
+            var eg3=new Date(utcMs3+2*3600*1000);
+            sv=eg3.getUTCDate()+'/'+(eg3.getUTCMonth()+1)+'/'+eg3.getUTCFullYear();
           }
         } else {
           var mDate=sv.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);

@@ -4511,23 +4511,24 @@ function reqRender(){
       var isTimeField = /ساعه|وقت|time/i.test(k);
       var m1899=sv.match(/^1899-12-\d+[T ](\d{2}):(\d{2})/);
       if(m1899){
-        /* وقت بس — UTC+2 */
+        /* وقت بس — UTC+2 مع تقريب لأقرب 15 دقيقة */
         var totalMin2=(+m1899[1])*60+(+m1899[2])+120;
+        totalMin2=Math.round(totalMin2/15)*15;
         totalMin2=((totalMin2%(24*60))+24*60)%(24*60);
         var fh2=Math.floor(totalMin2/60),fm2=totalMin2%60;
         sv=(fh2%12||12)+':'+(fm2<10?'0':'')+fm2+(fh2>=12?'م':'ص');
       } else {
         var mFull=sv.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{2}):(\d{2})/);
         if(mFull){
-          var utcMs2=Date.UTC(+mFull[1],+mFull[2]-1,+mFull[3],+mFull[4],+mFull[5]);
-          var eg2=new Date(utcMs2+2*3600*1000);
           if(isTimeField){
-            /* حقل وقت — اعرض الوقت بس */
+            /* حقل وقت — UTC+2 */
+            var utcMs2=Date.UTC(+mFull[1],+mFull[2]-1,+mFull[3],+mFull[4],+mFull[5]);
+            var eg2=new Date(utcMs2+2*3600*1000);
             var hh2=eg2.getUTCHours(),mm2=eg2.getUTCMinutes();
             sv=(hh2%12||12)+':'+(mm2<10?'0':'')+mm2+(hh2>=12?'م':'ص');
           } else {
-            /* حقل تاريخ — اعرض التاريخ بس بدون وقت */
-            sv=eg2.getUTCDate()+'/'+(eg2.getUTCMonth()+1)+'/'+eg2.getUTCFullYear();
+            /* حقل تاريخ — خذ التاريخ من الـ string مباشرة بدون تحويل */
+            sv=mFull[3]+'/'+mFull[2]+'/'+mFull[1];
           }
         } else {
           var mDate=sv.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);

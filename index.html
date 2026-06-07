@@ -408,7 +408,6 @@ padding:7px 11px;font-family:'Cairo',sans-serif;font-size:.74rem;color:var(--txt
     <div class="frow">
       <span class="flbl">🔍 الدكتور:</span>
       <select class="fsel" id="full-doc" onchange="applyFull()"><option value="">— كل الأطباء —</option></select>
-      <input type="text" id="full-doc-search" placeholder="🔍 ابحث باسم الدكتور..." oninput="applyFull()" style="flex:1;min-width:120px;background:var(--sur);border:1px solid var(--brd);border-radius:6px;padding:4px 9px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.68rem;outline:none">
       <button class="fbtn warn" id="full-alert-btn" onclick="toggleFullAlert(this)">⚠️ أصحاب التنبيهات فقط</button>
       <button class="fbtn" onclick="resetFull()">↺ مسح</button>
     </div>
@@ -458,7 +457,6 @@ padding:7px 11px;font-family:'Cairo',sans-serif;font-size:.74rem;color:var(--txt
     <div class="frow">
       <span class="flbl">🔍 الدكتور:</span>
       <select class="fsel" id="av-doc" onchange="applyAvail()"><option value="">— كل الأطباء —</option></select>
-      <input type="text" id="av-doc-search" placeholder="🔍 ابحث باسم الدكتور..." oninput="applyAvail()" style="flex:1;min-width:120px;background:var(--sur);border:1px solid var(--brd);border-radius:6px;padding:4px 9px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.68rem;outline:none">
       <button class="fbtn" onclick="resetAvail()">↺ مسح</button>
     </div>
     <div class="fchip" id="av-chip"></div>
@@ -1175,12 +1173,6 @@ function _docPassesGenderShift(d, gf, sf){
 }
 function applyFull(){
   var docName = document.getElementById('full-doc').value;
-  var fullDocQ = ((document.getElementById('full-doc-search')||{}).value||'').toLowerCase().trim();
-  function fullDocMatch(d){
-    if(!fullDocQ) return true;
-    function nn(s){return (s||'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').toLowerCase().trim();}
-    return nn(d.name).indexOf(nn(fullDocQ))>=0||(d.nameEn&&nn(d.nameEn).indexOf(nn(fullDocQ))>=0);
-  }
   var chip = document.getElementById('full-chip');
   var parts = [];
   if(fullAlertsOnly) parts.push('أصحاب التنبيهات فقط');
@@ -1200,7 +1192,6 @@ function applyFull(){
     });
     if(fullAlertsOnly) docs = docs.filter(function(d){ return docHasAlerts(d); });
     if(docName) docs = docs.filter(function(d){ return d.name===docName; });
-    if(fullDocQ) docs = docs.filter(function(d){ return fullDocMatch(d); });
     docs.sort(function(a,b){ return pct(b)-pct(a); });
     renderGrid('full-'+sfx, docs);
   });
@@ -1217,12 +1208,6 @@ function applyAvail(){
   var fH = fromVal ? parseInt(fromVal) : null;
   var tH = toVal   ? parseInt(toVal)   : null;
   var docName = document.getElementById('av-doc').value;
-  var avDocQ = ((document.getElementById('av-doc-search')||{}).value||'').toLowerCase().trim();
-  function avDocMatch(d){
-    if(!avDocQ) return true;
-    function nn(s){return (s||'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').toLowerCase().trim();}
-    return nn(d.name).indexOf(nn(avDocQ))>=0||(d.nameEn&&nn(d.nameEn).indexOf(nn(avDocQ))>=0);
-  }
   var chip = document.getElementById('av-chip');
   var singleHour = fH !== null && (tH === null || tH === fH);
   var rangeMode  = fH !== null && tH !== null && tH > fH;
@@ -1255,7 +1240,6 @@ function applyAvail(){
       docs = docs.filter(function(d){ return docInRange(d, fH, useTH, keys); });
     }
     if(docName) docs = docs.filter(function(d){ return d.name===docName; });
-    if(avDocQ) docs = docs.filter(function(d){ return avDocMatch(d); });
     docs.sort(function(a,b){ return free(b)-free(a); });
     renderGrid('av-'+sfx, docs);
   });
@@ -4518,41 +4502,7 @@ function reqRender(){
     var ico=REQ_ICONS[r._type]||'📝';
     var skip=['_type','_row','_sheet','Timestamp','اسم الموظف','Score','Email Address','تاريخ تقديم الطلب'];
     var details=[];
-    Object.keys(r).forEach(function(k){
-      if(skip.indexOf(k)>=0)return;
-      var v=r[k];
-      if(!v||v==='0'||v===0)return;
-      var sv=String(v).trim();
-      /* حقول الوقت فقط: 1899 = Excel zero date */
-      var isTimeField = /ساعه|وقت|time/i.test(k);
-      var m1899=sv.match(/^1899-12-\d+[T ](\d{2}):(\d{2})/);
-      if(m1899){
-        /* وقت بس — UTC+2 مع تقريب لأقرب 15 دقيقة */
-        var totalMin2=(+m1899[1])*60+(+m1899[2])+120;
-        totalMin2=Math.round(totalMin2/15)*15;
-        totalMin2=((totalMin2%(24*60))+24*60)%(24*60);
-        var fh2=Math.floor(totalMin2/60),fm2=totalMin2%60;
-        sv=(fh2%12||12)+':'+(fm2<10?'0':'')+fm2+(fh2>=12?'م':'ص');
-      } else {
-        var mFull=sv.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{2}):(\d{2})/);
-        if(mFull){
-          if(isTimeField){
-            /* حقل وقت فقط — UTC+2 */
-            var utcMs2=Date.UTC(+mFull[1],+mFull[2]-1,+mFull[3],+mFull[4],+mFull[5]);
-            var eg2=new Date(utcMs2+2*3600*1000);
-            var hh2=eg2.getUTCHours(),mm2=eg2.getUTCMinutes();
-            sv=(hh2%12||12)+':'+(mm2<10?'0':'')+mm2+(hh2>=12?'م':'ص');
-          } else {
-            /* حقل تاريخ — نقل كما هو DD/MM/YYYY */
-            sv=(+mFull[3])+'/'+(+mFull[2])+'/'+mFull[1];
-          }
-        } else {
-          var mDate=sv.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-          if(mDate)sv=(+mDate[3])+'/'+(+mDate[2])+'/'+mDate[1];
-        }
-      }
-      details.push('<span style="color:var(--mute);font-size:.6rem">'+k+':</span> <span style="font-size:.62rem;color:var(--txt)">'+sv.substring(0,60)+'</span>');
-    });
+    Object.keys(r).forEach(function(k){if(skip.indexOf(k)>=0)return;var v=r[k];if(!v||v==='0'||v===0)return;details.push('<span style="color:var(--mute);font-size:.6rem">'+k+':</span> <span style="font-size:.62rem;color:var(--txt)">'+String(v).substring(0,60)+'</span>');});
     var savedReason=(REQ_REASONS&&REQ_REASONS[reqGetId(r,origIdx)])||'';
     var actionHtml='';
     if(action==='approved'){
@@ -5138,7 +5088,11 @@ function manaFreeSlots() {
     return found;
   }
   var results = [];
-  var allDRdocs = haramDR.concat(dokkiDR);
+  /* نفس مصدر DR زي buildFreeSlotsBanner — الفرع الحالي بس */
+  var allDRdocs = CURRENT_BRANCH === 'dokki' ? dokkiDR : haramDR;
+  if (!allDRdocs.length && typeof DR !== 'undefined') allDRdocs = DR;
+  /* لو فيه فلتر فرع محدد — نضيف الفرعين */
+  if (br !== 'all') allDRdocs = haramDR.concat(dokkiDR);
   var reverseDocMap = {};
   if (typeof DOC_MAP !== 'undefined') {
     Object.keys(DOC_MAP).forEach(function(en){ reverseDocMap[DOC_MAP[en]] = en; });
@@ -5213,11 +5167,8 @@ function manaFreeSlots() {
     });
   });
   results.sort(function(a,b){ return b.filteredFreeHours.length - a.filteredFreeHours.length; });
-  /* حفظ النتيجة وتحديث البانر والكارت */
-  if (selDate === todayISO) {
-    window._FREE_RESULTS = results;
-    _syncFreeResults(results);
-  }
+  /* حفظ النتيجة كمصدر موحد */
+  if (selDate === todayISO) window._FREE_RESULTS = results;
   var dayLabel  = DLBL_F[selDayKey] + (selDate===todayISO?' (اليوم)':'');
   var timeLabel = (tf||tt) ? (' • '+(tf||'...')+' – '+(tt||'...')) : '';
   var totalFreeHours = results.reduce(function(s,r){return s+r.filteredFreeHours.length;},0);
@@ -5479,32 +5430,6 @@ function applyAttToShiftHours(shiftHours, attStatus) {
 }
 
 var _freeBannerGen = 0;
-function _syncFreeResults(results) {
-  var badge=document.getElementById('med-free-badge');
-  var list=document.getElementById('med-free-banner-list');
-  var banner=document.getElementById('med-free-banner');
-  var total=results.reduce(function(s,r){return s+(r.filteredFreeHours||r.freeHours).length;},0);
-  if(badge)badge.textContent=total+' ساعة فاضية • '+results.length+' دكتور';
-  if(list){
-    function fmtH(h){return (h%12||12)+':00'+(h>=12?'م':'ص');}
-    var html='';
-    results.slice(0,5).forEach(function(r){
-      var fh=r.filteredFreeHours||r.freeHours;
-      var gCol=r.gender==='female'?'var(--fem)':'var(--male)';
-      html+='<div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.15);border-radius:8px;padding:6px 10px">';
-      html+='<span style="font-size:.64rem;font-weight:700;color:'+gCol+'">'+(r.gender==='female'?'♀':'♂')+' '+(r.nameAr||r.name)+'</span>';
-      html+='<div style="display:flex;gap:4px;flex-wrap:wrap;flex:1">';
-      fh.sort(function(a,b){return a-b;}).forEach(function(h){html+='<span style="background:rgba(16,185,129,.15);color:var(--g);border:1px solid rgba(16,185,129,.2);border-radius:4px;padding:1px 6px;font-size:.58rem;font-weight:700">🔓'+fmtH(h)+'</span>';});
-      if(r.openHours&&r.openHours.length)r.openHours.sort(function(a,b){return a-b;}).forEach(function(h){html+='<span style="background:rgba(251,191,36,.12);color:var(--am);border:1px solid rgba(251,191,36,.2);border-radius:4px;padding:1px 6px;font-size:.58rem">⚠️'+fmtH(h)+'</span>';});
-      html+='<span style="font-size:.56rem;color:var(--g);font-weight:700">'+fh.length+'↓</span>';
-      html+='</div></div>';
-    });
-    if(results.length>5)html+='<div style="text-align:center;font-size:.6rem;color:var(--mute);padding:4px">+ '+(results.length-5)+' دكاترة أخرى</div>';
-    list.innerHTML=html||'<div style="font-size:.62rem;color:var(--mute);padding:4px">لا توجد ساعات فاضية اليوم</div>';
-    if(banner)banner.style.display='block';
-  }
-  updateOverviewFreeSlots(results.map(function(r){return Object.assign({},r,{freeHours:r.filteredFreeHours||r.freeHours});}));
-}
 
 function buildFreeSlotsBanner() {
   var banner = document.getElementById('med-free-banner');
@@ -5522,9 +5447,36 @@ function buildFreeSlotsBanner() {
     banner.style.display = 'block';
     return;
   }
-  /* شغّل manaFreeSlots عشان يحسب ويحفظ في _FREE_RESULTS ويحدث البانر مباشرة */
+  /* شغّل manaFreeSlots عشان يحسب _FREE_RESULTS بنفس الـ logic الصح */
   manaFreeSlots();
-  return;
+  /* استخدم النتيجة المحسوبة */
+  if (window._FREE_RESULTS) {
+    var _res = window._FREE_RESULTS;
+    var _total = _res.reduce(function(s,r){return s+(r.filteredFreeHours||r.freeHours).length;},0);
+    if (badge) badge.textContent = _total+' ساعة فاضية • '+_res.length+' دكتور';
+    function _fmtH(h){ return (h%12||12)+':00'+(h>=12?'م':'ص'); }
+    var _html = '';
+    _res.slice(0,5).forEach(function(r){
+      var fh = r.filteredFreeHours||r.freeHours;
+      var gCol = r.gender==='female'?'var(--fem)':'var(--male)';
+      _html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.15);border-radius:8px;padding:6px 10px">';
+      _html += '<span style="font-size:.64rem;font-weight:700;color:'+gCol+'">'+(r.gender==='female'?'♀':'♂')+' '+(r.nameAr||r.name)+'</span>';
+      _html += '<div style="display:flex;gap:4px;flex-wrap:wrap;flex:1">';
+      fh.sort(function(a,b){return a-b;}).forEach(function(h){
+        _html += '<span style="background:rgba(16,185,129,.15);color:var(--g);border:1px solid rgba(16,185,129,.2);border-radius:4px;padding:1px 6px;font-size:.58rem;font-weight:700">🔓'+_fmtH(h)+'</span>';
+      });
+      if (r.openHours&&r.openHours.length) r.openHours.sort(function(a,b){return a-b;}).forEach(function(h){
+        _html += '<span style="background:rgba(251,191,36,.12);color:var(--am);border:1px solid rgba(251,191,36,.2);border-radius:4px;padding:1px 6px;font-size:.58rem">⚠️'+_fmtH(h)+'</span>';
+      });
+      _html += '<span style="font-size:.56rem;color:var(--g);font-weight:700">'+fh.length+'↓</span>';
+      _html += '</div></div>';
+    });
+    if (_res.length>5) _html += '<div style="text-align:center;font-size:.6rem;color:var(--mute);padding:4px">+ '+(_res.length-5)+' دكاترة أخرى</div>';
+    list.innerHTML = _html || '<div style="font-size:.62rem;color:var(--mute);padding:4px">لا توجد ساعات فاضية اليوم</div>';
+    banner.style.display = 'block';
+    updateOverviewFreeSlots(_res.map(function(r){ return Object.assign({}, r, {freeHours: r.filteredFreeHours||r.freeHours}); }));
+    return;
+  }
   _freeBannerGen++;
   /* لو الـ DR فاضي اجلبه من الشيت مباشرة ثم أعد البناء */
   if (!allDR.length) {

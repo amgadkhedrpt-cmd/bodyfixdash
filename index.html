@@ -2572,11 +2572,11 @@ function attDelEmpSearch(q){
   var dd=document.getElementById('att-del-emp-dropdown');
   if(!dd)return;
   q=(q||'').trim();
-  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.toLowerCase().indexOf(q.toLowerCase())>=0;}) : ATT_EMPLOYEES.slice();
+  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.indexOf(q)>=0;}) : ATT_EMPLOYEES.slice(0,20);
   if(!results.length){dd.style.display='none';return;}
   var html='';
   results.forEach(function(e){
-    var hi=q ? e.replace(new RegExp(q,'gi'),'<mark style="background:rgba(239,68,68,.25);color:var(--r);border-radius:2px">$&</mark>') : e;
+    var hi=q ? e.replace(q,'<mark style="background:rgba(239,68,68,.25);color:var(--r);border-radius:2px">'+q+'</mark>') : e;
     html+='<div class="att-del-emp-opt" style="padding:8px 12px;font-size:.72rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)">'+hi+'</div>';
   });
   dd.innerHTML=html;
@@ -2753,11 +2753,11 @@ function attEmpSearch(q){
   var dd=document.getElementById('att-emp-dropdown');
   if(!dd)return;
   q=(q||'').trim();
-  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.toLowerCase().indexOf(q.toLowerCase())>=0;}) : ATT_EMPLOYEES.slice();
+  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.indexOf(q)>=0;}) : ATT_EMPLOYEES.slice(0,20);
   if(!results.length){dd.style.display='none';return;}
   var html='';
   results.forEach(function(e){
-    var hi=q ? e.replace(new RegExp(q,'gi'),'<mark style="background:rgba(0,198,255,.25);color:var(--acc);border-radius:2px">$&</mark>') : e;
+    var hi=q ? e.replace(q,'<mark style="background:rgba(0,198,255,.25);color:var(--acc);border-radius:2px">'+q+'</mark>') : e;
     html+='<div data-empname class="att-emp-opt" style="padding:8px 12px;font-size:.72rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)">'+hi+'</div>';
   });
   dd.innerHTML=html;
@@ -4556,18 +4556,23 @@ function reqRender(){
         }
         /* إذا v < 1 (أقل من يوم) أو سالب — نتجاهله ونبقي sv كما هو */
       } else {
-        /* --- JS Date string: "Mon Feb 26 2024 19:28:45 GMT+0200 (...)" --- */
-        var jsDateParsed=new Date(sv);
-        if(!isNaN(jsDateParsed.getTime())){
-          if(jsDateParsed.getFullYear()<=1899){
-            /* 1899 = time-only value (Excel zero date) */
-            var hRaw=jsDateParsed.getHours(),mRaw=jsDateParsed.getMinutes();
-            sv=(hRaw%12||12)+':'+(mRaw<10?'0':'')+mRaw+(hRaw>=12?'م':'ص');
-          } else if(isTimeField){
-            var hRaw=jsDateParsed.getHours(),mRaw=jsDateParsed.getMinutes();
-            sv=(hRaw%12||12)+':'+(mRaw<10?'0':'')+mRaw+(hRaw>=12?'م':'ص');
-          } else {
-            sv=jsDateParsed.getDate()+'/'+(jsDateParsed.getMonth()+1)+'/'+jsDateParsed.getFullYear();
+        /* لو القيمة رقم خالص (مثل "1" أو "3") — لا نحولها لتاريخ */
+        if(/^\d+(\.\d+)?$/.test(sv.trim())){
+          /* نبقيها كما هي */
+        } else {
+          /* --- JS Date string: "Mon Feb 26 2024 19:28:45 GMT+0200 (...)" --- */
+          var jsDateParsed=new Date(sv);
+          if(!isNaN(jsDateParsed.getTime())){
+            if(jsDateParsed.getFullYear()<=1899){
+              /* 1899 = time-only value (Excel zero date) */
+              var hRaw=jsDateParsed.getHours(),mRaw=jsDateParsed.getMinutes();
+              sv=(hRaw%12||12)+':'+(mRaw<10?'0':'')+mRaw+(hRaw>=12?'م':'ص');
+            } else if(isTimeField){
+              var hRaw=jsDateParsed.getHours(),mRaw=jsDateParsed.getMinutes();
+              sv=(hRaw%12||12)+':'+(mRaw<10?'0':'')+mRaw+(hRaw>=12?'م':'ص');
+            } else {
+              sv=jsDateParsed.getDate()+'/'+(jsDateParsed.getMonth()+1)+'/'+jsDateParsed.getFullYear();
+            }
           }
         }
       }

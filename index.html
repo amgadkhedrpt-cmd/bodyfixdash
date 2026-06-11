@@ -4556,23 +4556,18 @@ function reqRender(){
         }
         /* إذا v < 1 (أقل من يوم) أو سالب — نتجاهله ونبقي sv كما هو */
       } else {
-        /* لو القيمة رقم خالص (مثل "1" أو "3") — لا نحولها لتاريخ */
-        if(/^\d+(\.\d+)?$/.test(sv.trim())){
-          /* نبقيها كما هي */
-        } else {
-          /* --- JS Date string: "Mon Feb 26 2024 19:28:45 GMT+0200 (...)" --- */
-          var jsDateParsed=new Date(sv);
-          if(!isNaN(jsDateParsed.getTime())){
-            if(jsDateParsed.getFullYear()<=1899){
-              /* 1899 = time-only value (Excel zero date) */
-              var hRaw=jsDateParsed.getHours(),mRaw=jsDateParsed.getMinutes();
-              sv=(hRaw%12||12)+':'+(mRaw<10?'0':'')+mRaw+(hRaw>=12?'م':'ص');
-            } else if(isTimeField){
-              var hRaw=jsDateParsed.getHours(),mRaw=jsDateParsed.getMinutes();
-              sv=(hRaw%12||12)+':'+(mRaw<10?'0':'')+mRaw+(hRaw>=12?'م':'ص');
-            } else {
-              sv=jsDateParsed.getDate()+'/'+(jsDateParsed.getMonth()+1)+'/'+jsDateParsed.getFullYear();
-            }
+        /* --- JS Date string: "Mon Feb 26 2024 19:28:45 GMT+0200 (...)" --- */
+        var jsDateParsed=new Date(sv);
+        if(!isNaN(jsDateParsed.getTime())){
+          if(jsDateParsed.getFullYear()<=1899){
+            /* 1899 = time-only value (Excel zero date) */
+            var hRaw=jsDateParsed.getHours(),mRaw=jsDateParsed.getMinutes();
+            sv=(hRaw%12||12)+':'+(mRaw<10?'0':'')+mRaw+(hRaw>=12?'م':'ص');
+          } else if(isTimeField){
+            var hRaw=jsDateParsed.getHours(),mRaw=jsDateParsed.getMinutes();
+            sv=(hRaw%12||12)+':'+(mRaw<10?'0':'')+mRaw+(hRaw>=12?'م':'ص');
+          } else {
+            sv=jsDateParsed.getDate()+'/'+(jsDateParsed.getMonth()+1)+'/'+jsDateParsed.getFullYear();
           }
         }
       }
@@ -4642,8 +4637,11 @@ function reqUpdateNotifUI(){
 }
 function reqSendNotif(newOnes){
   if(!REQ_NOTIF_ENABLED||!('Notification'in window)||Notification.permission!=='granted')return;
-  newOnes.slice(0,3).forEach(function(r){try{new Notification((REQ_ICONS[r._type]||'📋')+' طلب جديد — BODYFIX',{body:reqGetName(r)+' — '+r._type+' ('+reqGetDate(r)+')',requireInteraction:true,tag:'req-'+reqGetId(r,0)});}catch(e){}});
-  if(newOnes.length>3){try{new Notification('📋 '+newOnes.length+' طلبات جديدة — BODYFIX',{body:'افتح الداشبورد لعرض كل الطلبات'});}catch(e){}}
+  var total=newOnes.length;
+  var lines=newOnes.slice(0,3).map(function(r){return reqGetName(r)+' ('+r._type+')';});
+  if(total>3)lines.push('+ '+(total-3)+' آخرين');
+  var ttl='📋 '+total+' طلب'+(total===1?' جديد':' جديدة')+' — BODYFIX';
+  try{new Notification(ttl,{body:lines.join('\n'),requireInteraction:true,tag:'req-summary'});}catch(e){}
 }
 function reqToast(msg,color){var el=document.createElement('div');el.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:'+color+';color:#fff;padding:10px 22px;border-radius:10px;font-family:Cairo,sans-serif;font-size:.82rem;font-weight:700;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:opacity .4s';el.textContent=msg;document.body.appendChild(el);setTimeout(function(){el.style.opacity='0';setTimeout(function(){try{document.body.removeChild(el);}catch(e){}},400);},2800);}
 var _reqTabInited=false;

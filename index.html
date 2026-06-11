@@ -2438,15 +2438,9 @@ function fetchAttData(quarterOnly){
       if(data&&data.ok&&data.attendance){
         Object.keys(data.attendance).forEach(function(k){ ATT_DATA[k]=data.attendance[k]; });
         if(data.notes) Object.assign(ATT_NOTES, data.notes);
-        /* ★ استخراج أسماء الموظفين من كل الـ quarters تلقائياً */
-        var empSet={};
-        Object.keys(ATT_DATA).forEach(function(q){
-          var qData=ATT_DATA[q];
-          if(qData && typeof qData==='object'){
-            Object.keys(qData).forEach(function(emp){ if(emp)empSet[emp]=true; });
-          }
-        });
-        var allEmps=Object.keys(empSet).filter(Boolean).sort();
+        /* ★ استخراج أسماء الموظفين من الـ quarter الحالي فقط */
+        var curQData=ATT_DATA[ATT_QUARTER]||{};
+        var allEmps=Object.keys(curQData).filter(Boolean).sort();
         if(allEmps.length>0){
           ATT_EMPLOYEES=allEmps;
           var selFilter=document.getElementById('att-emp-filter');

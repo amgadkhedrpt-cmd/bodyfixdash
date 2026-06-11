@@ -4407,6 +4407,100 @@ function reqReasonConfirm(idx,action){
     '&callback='+cb;
   document.head.appendChild(sc);
   reqSendActionEmail(r,action,reason);
+  if(action==='approved'&&r._type==='إجازة'){setTimeout(function(){reqShowAttPopup(r);},400);}
+}
+function reqGetISODate(s){
+  if(!s)return'';
+  var d=new Date(String(s).trim());
+  if(isNaN(d.getTime()))return'';
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function reqFindAttEmp(name){
+  if(!name)return'';
+  function nn(s){return s.toLowerCase().replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');}
+  var n=nn(name.trim());
+  for(var i=0;i<ATT_EMPLOYEES.length;i++){if(nn(ATT_EMPLOYEES[i])===n)return ATT_EMPLOYEES[i];}
+  var parts=n.split(' ').filter(function(p){return p.length>2;});
+  for(var i=0;i<ATT_EMPLOYEES.length;i++){var e=nn(ATT_EMPLOYEES[i]);if(parts.some(function(p){return e.indexOf(p)>=0;}))return ATT_EMPLOYEES[i];}
+  return'';
+}
+function reqShowAttPopup(r){
+  var empName=reqGetName(r);
+  var suggested=reqFindAttEmp(empName);
+  var dateFrom=reqGetISODate(r['من يوم']||r['تاريخ الاجازه المطلوبه']);
+  var dateTo=reqGetISODate(r['الي يوم']||r['من يوم']||r['تاريخ الاجازه المطلوبه']);
+  if(!dateFrom)dateFrom=dateTo;
+  if(!dateTo)dateTo=dateFrom;
+  var days=[];
+  if(dateFrom&&dateTo){var d=new Date(dateFrom),end=new Date(dateTo);while(d<=end){days.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));d.setDate(d.getDate()+1);}}
+  var daysHtml=days.map(function(d){return'<span style="background:rgba(0,198,255,.1);border:1px solid rgba(0,198,255,.2);border-radius:5px;padding:2px 8px;font-size:.64rem;color:var(--acc)">'+d+'</span>';}).join(' ');
+  var empOpts=ATT_EMPLOYEES.map(function(e){return'<option value="'+e+'"'+(e===suggested?' selected':'')+'>'+e+'</option>';}).join('');
+  window._reqAttDays=days;
+  var ov=document.createElement('div');
+  ov.id='req-att-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px)';
+  ov.innerHTML=
+    '<div style="background:var(--card);border:1px solid rgba(0,198,255,.3);border-radius:16px;padding:24px 22px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.5)">'+
+    '<div style="font-size:1.6rem;text-align:center;margin-bottom:6px">??</div>'+
+    '<div style="font-size:.88rem;font-weight:700;text-align:center;margin-bottom:4px;color:var(--acc)">تسجيل قيد حضور</div>'+
+    '<div style="font-size:.66rem;color:var(--mute);text-align:center;margin-bottom:14px">تمت الموافقة على إجازة '+empName+'</div>'+
+    '<div style="font-size:.7rem;font-weight:700;margin-bottom:5px">اسم الموظف في سجل الحضور</div>'+
+    '<select id="req-att-emp" style="width:100%;background:var(--sur);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;font-family:Cairo,sans-serif;font-size:.74rem;color:var(--txt);margin-bottom:10px;outline:none">'+
+    '<option value="">— اختر الموظف —</option>'+empOpts+
+    '</select>'+
+    '<div style="font-size:.7rem;font-weight:700;margin-bottom:5px">نوع الغياب</div>'+
+    '<div style="display:flex;gap:6px;margin-bottom:12px">'+
+    '<button id="req-att-btn-full" onclick="reqAttSetCode(0)" style="flex:1;background:rgba(59,130,246,.2);border:2px solid var(--male);color:var(--male);border-radius:8px;padding:8px;font-family:Cairo,sans-serif;font-size:.74rem;font-weight:700;cursor:pointer">غ ط يوم كامل</button>'+
+    '<button id="req-att-btn-half" onclick="reqAttSetCode(1)" style="flex:1;background:rgba(255,255,255,.05);border:2px solid var(--brd);color:var(--mute);border-radius:8px;padding:8px;font-family:Cairo,sans-serif;font-size:.74rem;font-weight:700;cursor:pointer">غ ن نصف يوم</button>'+
+    '</div>'+
+    '<input type="hidden" id="req-att-code" value="GH_T">'+
+    '<div style="font-size:.7rem;font-weight:700;margin-bottom:5px">الأيام ('+days.length+')</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px">'+daysHtml+'</div>'+
+    '<div id="req-att-err" style="color:var(--r);font-size:.64rem;min-height:16px;margin-bottom:8px"></div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="reqAttCancel()" style="flex:1;background:rgba(255,255,255,.07);color:var(--txt);border:1px solid var(--brd);border-radius:9px;padding:10px;font-family:Cairo,sans-serif;font-size:.76rem;cursor:pointer">تخطي</button>'+
+    '<button onclick="reqAttSubmit()" style="flex:1;background:var(--g);color:#fff;border:none;border-radius:9px;padding:10px;font-family:Cairo,sans-serif;font-size:.76rem;font-weight:700;cursor:pointer">?? تسجيل</button>'+
+    '</div></div>';
+  document.body.appendChild(ov);
+}
+var REQ_ATT_CODES=['غ ط','غ ن'];
+function reqAttSetCode(idx){
+  document.getElementById('req-att-code').value=REQ_ATT_CODES[idx];
+  var btnFull=document.getElementById('req-att-btn-full');
+  var btnHalf=document.getElementById('req-att-btn-half');
+  if(idx===0){
+    btnFull.style.background='rgba(59,130,246,.2)';btnFull.style.borderColor='var(--male)';btnFull.style.color='var(--male)';
+    btnHalf.style.background='rgba(255,255,255,.05)';btnHalf.style.borderColor='var(--brd)';btnHalf.style.color='var(--mute)';
+  } else {
+    btnHalf.style.background='rgba(245,158,11,.2)';btnHalf.style.borderColor='var(--am)';btnHalf.style.color='var(--am)';
+    btnFull.style.background='rgba(255,255,255,.05)';btnFull.style.borderColor='var(--brd)';btnFull.style.color='var(--mute)';
+  }
+}
+function reqAttCancel(){var o=document.getElementById('req-att-ov');if(o)document.body.removeChild(o);}
+function reqAttSubmit(){
+  var daysStr=(window._reqAttDays||[]).join(',');
+  var emp=document.getElementById('req-att-emp').value;
+  var codeRaw=document.getElementById('req-att-code').value;
+  var code=codeRaw==='GH_T'?REQ_ATT_CODES[0]:codeRaw;
+  var errEl=document.getElementById('req-att-err');
+  if(!emp){if(errEl)errEl.textContent='اختر اسم الموظف أولاً';return;}
+  var days=daysStr.split(',').filter(Boolean);
+  var m=parseInt((days[0]||'').split('-')[1]);
+  var q=Math.ceil(m/3);
+  if(!ATT_DATA[q])ATT_DATA[q]={};
+  if(!ATT_DATA[q][emp])ATT_DATA[q][emp]={};
+  days.forEach(function(d){ATT_DATA[q][emp][d]=code;});
+  reqAttCancel();
+  renderAttView();buildAttSummary();
+  reqToast('✅ تم تسجيل '+days.length+' يوم لـ '+emp,'var(--g)');
+  if(!ATT_SCRIPT_URL)return;
+  days.forEach(function(date){
+    var cb='_attauto_'+Date.now();
+    var sc=document.createElement('script');
+    window[cb]=function(){delete window[cb];try{document.head.removeChild(sc);}catch(e){}};
+    sc.src=ATT_SCRIPT_URL+'?action=addAttendance&callback='+cb+'&employee='+encodeURIComponent(emp)+'&code='+encodeURIComponent(code)+'&date='+encodeURIComponent(date)+'&notes='+encodeURIComponent('تلقائي من طلب إجازة');
+    document.head.appendChild(sc);
+  });
 }
 function reqSendActionEmail(r,action,reason){
   var email=r['Email Address']||r['email']||r['البريد الإلكتروني']||'';

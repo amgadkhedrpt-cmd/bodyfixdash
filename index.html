@@ -2438,23 +2438,6 @@ function fetchAttData(quarterOnly){
       if(data&&data.ok&&data.attendance){
         Object.keys(data.attendance).forEach(function(k){ ATT_DATA[k]=data.attendance[k]; });
         if(data.notes) Object.assign(ATT_NOTES, data.notes);
-        /* ★ استخراج أسماء الموظفين من الـ quarter الحالي فقط */
-        var curQData=ATT_DATA[ATT_QUARTER]||{};
-        var allEmps=Object.keys(curQData).filter(Boolean).sort();
-        if(allEmps.length>0){
-          ATT_EMPLOYEES=allEmps;
-          var selFilter=document.getElementById('att-emp-filter');
-          if(selFilter){
-            var prevVal=selFilter.value;
-            while(selFilter.options.length>1)selFilter.remove(1);
-            ATT_EMPLOYEES.forEach(function(emp){
-              var opt=document.createElement('option');
-              opt.value=emp;opt.textContent=emp;
-              selFilter.appendChild(opt);
-            });
-            selFilter.value=prevVal;
-          }
-        }
         if(!isBackground){
           if(el)el.style.display='none';
           if(status)status.textContent='✅ '+new Date().toLocaleTimeString('ar');
@@ -2589,7 +2572,7 @@ function attDelEmpSearch(q){
   var dd=document.getElementById('att-del-emp-dropdown');
   if(!dd)return;
   q=(q||'').trim();
-  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.indexOf(q)>=0;}) : ATT_EMPLOYEES.slice(0,20);
+  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.indexOf(q)>=0;}) : ATT_EMPLOYEES.slice();
   if(!results.length){dd.style.display='none';return;}
   var html='';
   results.forEach(function(e){
@@ -2770,7 +2753,7 @@ function attEmpSearch(q){
   var dd=document.getElementById('att-emp-dropdown');
   if(!dd)return;
   q=(q||'').trim();
-  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.indexOf(q)>=0;}) : ATT_EMPLOYEES.slice(0,20);
+  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.indexOf(q)>=0;}) : ATT_EMPLOYEES.slice();
   if(!results.length){dd.style.display='none';return;}
   var html='';
   results.forEach(function(e){

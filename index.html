@@ -1344,7 +1344,7 @@ function applyAvail(){
     });
     /* استثناء الغائبين اليوم */
     docs = docs.filter(function(d){
-      return getDocAttStatus(d.name, _todayISO) !== 'absent';
+      return getDocAttStatus(d.name, _todayISO).status !== 'absent';
     });
     if(timeOn){
       var useTH = rangeMode ? tH : null;
@@ -2536,8 +2536,9 @@ function fetchAttData(quarterOnly){
       if(data&&data.ok&&data.attendance){
         Object.keys(data.attendance).forEach(function(k){ ATT_DATA[k]=data.attendance[k]; });
         if(data.notes) Object.assign(ATT_NOTES, data.notes);
-        /* ★ تحديث ATT_EMPLOYEES تلقائياً من كل الـ quarters */
+        /* ★ دمج (union) أسماء القائمة الأصلية + الأسماء المكتشفة من الشيت */
         var _empSet={};
+        ATT_EMPLOYEES.forEach(function(emp){if(emp)_empSet[emp]=true;});
         Object.keys(ATT_DATA).forEach(function(q){
           var qd=ATT_DATA[q];
           if(qd&&typeof qd==='object') Object.keys(qd).forEach(function(emp){if(emp)_empSet[emp]=true;});
@@ -2688,11 +2689,13 @@ function attDelEmpSearch(q){
   var dd=document.getElementById('att-del-emp-dropdown');
   if(!dd)return;
   q=(q||'').trim();
-  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.indexOf(q)>=0;}) : ATT_EMPLOYEES.slice(0,20);
+  var ql=q.toLowerCase();
+  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.toLowerCase().indexOf(ql)>=0;}) : ATT_EMPLOYEES.slice();
   if(!results.length){dd.style.display='none';return;}
   var html='';
   results.forEach(function(e){
-    var hi=q ? e.replace(q,'<mark style="background:rgba(239,68,68,.25);color:var(--r);border-radius:2px">'+q+'</mark>') : e;
+    var idx=q?e.toLowerCase().indexOf(ql):-1;
+    var hi=idx>=0 ? e.slice(0,idx)+'<mark style="background:rgba(239,68,68,.25);color:var(--r);border-radius:2px">'+e.slice(idx,idx+q.length)+'</mark>'+e.slice(idx+q.length) : e;
     html+='<div class="att-del-emp-opt" style="padding:8px 12px;font-size:.72rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)">'+hi+'</div>';
   });
   dd.innerHTML=html;
@@ -2910,11 +2913,13 @@ function attEmpSearch(q){
   var dd=document.getElementById('att-emp-dropdown');
   if(!dd)return;
   q=(q||'').trim();
-  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.indexOf(q)>=0;}) : ATT_EMPLOYEES.slice(0,20);
+  var ql=q.toLowerCase();
+  var results=q ? ATT_EMPLOYEES.filter(function(e){return e.toLowerCase().indexOf(ql)>=0;}) : ATT_EMPLOYEES.slice();
   if(!results.length){dd.style.display='none';return;}
   var html='';
   results.forEach(function(e){
-    var hi=q ? e.replace(q,'<mark style="background:rgba(0,198,255,.25);color:var(--acc);border-radius:2px">'+q+'</mark>') : e;
+    var idx=q?e.toLowerCase().indexOf(ql):-1;
+    var hi=idx>=0 ? e.slice(0,idx)+'<mark style="background:rgba(0,198,255,.25);color:var(--acc);border-radius:2px">'+e.slice(idx,idx+q.length)+'</mark>'+e.slice(idx+q.length) : e;
     html+='<div data-empname class="att-emp-opt" style="padding:8px 12px;font-size:.72rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)">'+hi+'</div>';
   });
   dd.innerHTML=html;
@@ -2932,13 +2937,23 @@ function attEmpSelect(name){
 }
 function submitAttEntry(){
   var emp  = document.getElementById('att-add-emp').value;
+  /* لو مفيش اختيار من القائمة، استخدم النص المكتوب في البحث (موظف جديد) */
+  if(!emp){
+    var srchVal=(document.getElementById('att-add-emp-search')||{}).value||'';
+    emp=srchVal.trim();
+  }
   var code = document.getElementById('att-add-code').value;
   var date = document.getElementById('att-add-date').value;
   var notes= document.getElementById('att-add-notes').value.trim();
   var msg  = document.getElementById('att-add-msg');
-  if(!emp){  msg.innerHTML='<span style="color:var(--r)">اختر الموظف</span>';return;}
+  if(!emp){  msg.innerHTML='<span style="color:var(--r)">اختر الموظف أو اكتب اسمه</span>';return;}
   if(!code){ msg.innerHTML='<span style="color:var(--r)">اختر نوع القيد</span>';return;}
   if(!date){ msg.innerHTML='<span style="color:var(--r)">اختر التاريخ</span>';return;}
+  /* إضافة الموظف للقائمة لو كان اسم جديد */
+  if(ATT_EMPLOYEES.indexOf(emp)<0){
+    ATT_EMPLOYEES.push(emp);
+    ATT_EMPLOYEES.sort();
+  }
   var m=parseInt(date.split('-')[1]);
   var q=Math.ceil(m/3);
   if(!ATT_DATA[q])ATT_DATA[q]={};
@@ -4796,6 +4811,8 @@ function reqRender(){
           sv=_dt2.getUTCDate()+'/'+((_dt2.getUTCMonth()+1))+'/'+_dt2.getUTCFullYear();
         }
         /* إذا v < 1 (أقل من يوم) أو سالب — نتجاهله ونبقي sv كما هو */
+      } else if(/^\d+(\.\d+)?$/.test(sv)){
+        /* رقم صريح (مثل "1") — لا تحوله لتاريخ، اتركه كما هو */
       } else {
         /* --- JS Date string: "Mon Feb 26 2024 19:28:45 GMT+0200 (...)" --- */
         var jsDateParsed=new Date(sv);
@@ -5421,15 +5438,15 @@ function manaFreeSlots() {
     }
     if (gen !== 'all' && info.gender !== gen) return;
     var shiftStr = (drDoc.days||{})[selDayKey];
-    if (!shiftStr) return;
-    var shift = parseShift(shiftStr);
-    if (!shift) return;
+    var shift = shiftStr ? parseShift(shiftStr) : null;
     var appts = _getAppts(docName, docEn);
-    var shiftHours = [];
-    for (var h = shift.from; h < shift.to; h++) shiftHours.push(h);
-    /* فلتر الحضور للتاريخ المختار */
     var attStatusM = getDocAttStatus(docName, selDate);
-    shiftHours = applyAttToShiftHours(shiftHours, attStatusM);
+    /* لو مفيش شيفت أساسي ومفيش وردية إضافية بنطاق محدد — تجاهل الدكتور */
+    if (!shift && !(attStatusM.status === 'extra' && attStatusM.range)) return;
+    var baseHours = [];
+    if (shift) for (var h = shift.from; h < shift.to; h++) baseHours.push(h);
+    /* فلتر/إضافة الحضور للتاريخ المختار */
+    var shiftHours = applyAttToShiftHours(baseHours, attStatusM);
     if (!shiftHours.length) return;
     var ACTIVE_FOR_FREE = MANA_ACTIVE;
     var OPEN_STATUSES = ['مفتوح','Open','OPEN'];
@@ -5457,14 +5474,16 @@ function manaFreeSlots() {
       nameAr:      docAr,
       gender:      info.gender,
       branch:      info.branch,
-      shiftFrom:   shift.from,
-      shiftTo:     shift.to,
+      shiftFrom:   shift ? shift.from : shiftHours[0],
+      shiftTo:     shift ? shift.to : (shiftHours[shiftHours.length-1]+1),
       shiftHours:  shiftHours,
       bookedHours: Object.keys(bookedHours).map(Number),
       openHours:   Object.keys(openHours).map(Number),
       freeHours:   freeHours,
       filteredFreeHours: filteredFreeHours,
       totalAppts:  appts.length,
+      attCode:     attStatusM.code || null,
+      attNote:     attStatusM.note || null,
     });
   });
   results.sort(function(a,b){ return b.filteredFreeHours.length - a.filteredFreeHours.length; });
@@ -5520,6 +5539,10 @@ function manaFreeSlots() {
       html += '<div style="font-size:.5rem;color:var(--mute)">'+s.l+'</div></div>';
     });
     html += '</div>';
+    if (r.attNote) {
+      var noteIcon = r.attCode==='غ ن'?'🟠':r.attCode==='ن'?'🟡':'🟢';
+      html += '<div style="background:rgba(255,255,255,.04);border:1px solid var(--brd);border-radius:6px;padding:5px 8px;margin-bottom:6px;font-size:.62rem;color:var(--mute)">'+noteIcon+' <b style="color:var(--txt)">'+r.attCode+'</b> — '+r.attNote+'</div>';
+    }
     if (r.filteredFreeHours.length) {
       html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">';
       r.filteredFreeHours.sort(function(a,b){return a-b;}).forEach(function(h){
@@ -5677,13 +5700,25 @@ setInterval(function(){ medUpdateSyncStatus(); }, 60000);
      'half'     → غ ن (نص يوم) — ٤ ساعات حضور فقط
      'present'  → حاضر أو مفيش قيد
    ============================================================ */
+/* تحويل ملحوظة "من X ل Y" إلى نطاق ساعات (نفس منطق parseShift: أرقام أقل من 12 تعتبر مساءً) */
+function parseNoteRange(note) {
+  if (!note) return null;
+  var m = String(note).match(/من\s*(\d{1,2})(?::(\d{2}))?\s*(?:ل|الى|إلى|-|–|to)\s*(\d{1,2})(?::(\d{2}))?/i);
+  if (!m) return null;
+  var f = parseInt(m[1]), t = parseInt(m[3]);
+  if (isNaN(f)||isNaN(t)) return null;
+  if (f < 12) f += 12;
+  if (t < 12) t += 12;
+  if (t <= f) return null;
+  return {from:f, to:t};
+}
 function getDocAttStatus(drDocName, dateISO) {
-  if (!ATT_DATA || !dateISO) return 'present';
+  if (!ATT_DATA || !dateISO) return {status:'present', range:null};
   var m = parseInt((dateISO||'').split('-')[1]);
-  if (!m) return 'present';
+  if (!m) return {status:'present', range:null};
   var q = Math.ceil(m / 3);
   var qData = ATT_DATA[q] || {};
-  if (!Object.keys(qData).length) return 'present';
+  if (!Object.keys(qData).length) return {status:'present', range:null};
 
   /* بنبني reverse map: اسم الدكتور العربي → اسم الموظف في ATT_EMPLOYEES */
   /* الربط: ATT_EMPLOYEES بالإنجليزي ↔ DOC_MAP[en] = ar ↔ drDoc.name = ar    */
@@ -5715,20 +5750,36 @@ function getDocAttStatus(drDocName, dateISO) {
     if (nEn.length > 3 && nEmp.indexOf(nEn) >= 0) { matchedEmp = emp; return; }
     if (nEn.length > 3 && nEn.indexOf(nEmp) >= 0 && nEmp.length > 3) { matchedEmp = emp; return; }
   });
-  if (!matchedEmp) return 'present';
+  if (!matchedEmp) return {status:'present', range:null};
 
   var code = (qData[matchedEmp] || {})[dateISO] || '';
-  if (code === 'غ ط' || code === 'غ ئ') return 'absent';
-  if (code === 'غ ن') return 'half';
-  return 'present';
+  var note = (typeof ATT_NOTES !== 'undefined') ? (ATT_NOTES[matchedEmp+'|'+dateISO] || '') : '';
+  var range = parseNoteRange(note);
+  if (code === 'غ ط' || code === 'غ ئ') return {status:'absent', range:null, note:note, code:code};
+  if (code === 'غ ن') return {status:'half', range:range, note:note, code:code};
+  if (code === 'ن')   return {status:'permission', range:range, note:note, code:code};
+  if (code === 'ض ن' || code === 'ض ي') return {status:'extra', range:range, note:note, code:code};
+  return {status:'present', range:null};
 }
 
-/* بتأخذ shiftHours وحالة الحضور وبترجع الساعات المتاحة فعلاً */
-function applyAttToShiftHours(shiftHours, attStatus) {
-  if (attStatus === 'absent') return [];
-  if (attStatus === 'half') {
-    /* آخر ٤ ساعات من الشيفت */
-    return shiftHours.slice(-4);
+/* بتأخذ shiftHours الأساسية وحالة الحضور (status+range) وبترجع الساعات المتاحة فعلاً */
+function applyAttToShiftHours(shiftHours, attInfo) {
+  attInfo = attInfo || {status:'present', range:null};
+  shiftHours = shiftHours || [];
+  if (attInfo.status === 'absent') return [];
+  if (attInfo.status === 'half' || attInfo.status === 'permission') {
+    if (attInfo.range) {
+      return shiftHours.filter(function(h){ return h < attInfo.range.from || h >= attInfo.range.to; });
+    }
+    /* مفيش ملحوظة بنطاق واضح — لا نفترض شيء، اترك الساعات كما هي */
+    return shiftHours;
+  }
+  if (attInfo.status === 'extra' && attInfo.range) {
+    var extra=[];
+    for (var h=attInfo.range.from; h<attInfo.range.to; h++) extra.push(h);
+    var seen={}, out=[];
+    shiftHours.concat(extra).forEach(function(h){ if(!seen[h]){seen[h]=true;out.push(h);} });
+    return out.sort(function(a,b){return a-b;});
   }
   return shiftHours;
 }
@@ -5884,14 +5935,14 @@ function buildFreeSlotsBanner() {
     if (seenBnr[drDoc.name]) return;
     seenBnr[drDoc.name] = true;
     if (drDoc.name === 'أمجد خضر') return;
-    /* تحقق إن الدكتور جاي النهارده في الشيت */
-    var shiftHours = parseShiftHrs((drDoc.days||{})[todayKey]);
-    if (!shiftHours||!shiftHours.length) return;
     var docName = drDoc.name;
     var docEn   = reverseDocMapBnr[docName] || '';
-    /* فلتر الحضور */
+    /* تحقق إن الدكتور جاي النهارده في الشيت */
+    var baseShiftHours = parseShiftHrs((drDoc.days||{})[todayKey]) || [];
+    /* فلتر/إضافة الحضور */
     var attStatus = getDocAttStatus(docName, todayISO);
-    shiftHours = applyAttToShiftHours(shiftHours, attStatus);
+    if (!baseShiftHours.length && !(attStatus.status === 'extra' && attStatus.range)) return;
+    var shiftHours = applyAttToShiftHours(baseShiftHours, attStatus);
     if (!shiftHours.length) return;
     /* دور على مواعيد الدكتور في medicolize */
     var appts = _getApptsBnr(docName, docEn);
@@ -5911,7 +5962,7 @@ function buildFreeSlotsBanner() {
     var freeHours = shiftHours.filter(function(h){ return !bookedHours[h]; });
     if (!freeHours.length) return;
     var docAr = (typeof DOC_MAP!=='undefined'&&DOC_MAP[docName])?DOC_MAP[docName]:null;
-    results.push({ name:docName, nameAr:docAr, gender:drDoc.gender, freeHours:freeHours, openHours:Object.keys(openHrs).map(Number) });
+    results.push({ name:docName, nameAr:docAr, gender:drDoc.gender, freeHours:freeHours, openHours:Object.keys(openHrs).map(Number), attCode:attStatus.code||null, attNote:attStatus.note||null });
   });
   results.sort(function(a,b){ return b.freeHours.length-a.freeHours.length; });
   var totalFree = results.reduce(function(s,r){return s+r.freeHours.length;},0);
@@ -5925,6 +5976,10 @@ function buildFreeSlotsBanner() {
   var html = '';
   results.slice(0,5).forEach(function(r){
     var gCol = r.gender==='female'?'var(--fem)':'var(--male)';
+    if (r.attNote) {
+      var noteIcon = r.attCode==='غ ن'?'🟠':r.attCode==='ن'?'🟡':'🟢';
+      html += '<div style="font-size:.56rem;color:var(--mute);padding:2px 10px">'+noteIcon+' <b style="color:var(--txt)">'+(r.nameAr||r.name)+' • '+r.attCode+'</b> — '+r.attNote+'</div>';
+    }
     html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.15);border-radius:8px;padding:6px 10px">';
     html += '<span style="font-size:.64rem;font-weight:700;color:'+gCol+'">'+(r.gender==='female'?'♀':'♂')+' '+(r.nameAr||r.name)+'</span>';
     html += '<div style="display:flex;gap:4px;flex-wrap:wrap;flex:1">';

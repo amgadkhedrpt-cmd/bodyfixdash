@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-07-14T07:34:08.126258+00:00",
+  "last_updated": "2026-07-14T09:31:05.046677+00:00",
   "total": 23000,
   "appointments": [
     {
@@ -8655,6 +8655,27 @@
       }
     },
     {
+      "id": "cd5ac1e6-d43e-4415-81fb-55c63a561916",
+      "start": "2026-07-19T11:00:00.000Z",
+      "end": "2026-07-19T11:45:00.000Z",
+      "status": "Waiting List",
+      "status_en": "WAITING",
+      "type": "كشف",
+      "createdAt": "2026-07-14T08:47:36.418Z",
+      "doctor": {
+        "name": "Dr. Sara Hussein",
+        "color": "#10f199"
+      },
+      "branch": {
+        "name": "BODYFIX Center"
+      },
+      "patient": {
+        "firstName": "مني",
+        "lastName": "يحيي سعيد زايده",
+        "phoneNumber": "+2_0 109 929 3612"
+      }
+    },
+    {
       "id": "c3e4fb06-c7cb-4622-aeaa-393a66232572",
       "start": "2026-07-19T11:00:00.000Z",
       "end": "2026-07-19T12:00:00.000Z",
@@ -10479,27 +10500,6 @@
         "firstName": "محمد",
         "lastName": "صابر محمد عبد التواب",
         "phoneNumber": "+2_01062067344"
-      }
-    },
-    {
-      "id": "0305a4c5-3acf-416d-97eb-e5634c883ae4",
-      "start": "2026-07-16T18:30:00.000Z",
-      "end": "2026-07-16T18:45:00.000Z",
-      "status": "Open",
-      "status_en": "OPEN",
-      "type": "استشارة",
-      "createdAt": "2026-07-11T19:28:37.381Z",
-      "doctor": {
-        "name": "Dr. Alaa Harfoush",
-        "color": "#ff04a3"
-      },
-      "branch": {
-        "name": "BODYFIX Center"
-      },
-      "patient": {
-        "firstName": "الفاروق",
-        "lastName": "محمد فاروق محمد",
-        "phoneNumber": "+2_01124445212"
       }
     }
   ],
@@ -19530,7 +19530,7 @@
             "id": "1e35deaf-570a-44db-afdd-32b223bda435",
             "start": "2026-07-14T12:00:00.000Z",
             "end": "2026-07-14T13:00:00.000Z",
-            "status": "Open",
+            "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Anas Abdelwahab",
             "branch": "BODYFIX Center",
@@ -20629,7 +20629,7 @@
         ]
       },
       "Anwar Essam": {
-        "total": 54,
+        "total": 55,
         "appointments": [
           {
             "id": "663c5b3f-0f30-4ac0-b582-7aa3eebd87e9",
@@ -20877,7 +20877,7 @@
             "id": "400ec6a0-63dc-4db5-976d-c1e90f7f5bd2",
             "start": "2026-07-14T13:00:00.000Z",
             "end": "2026-07-14T14:30:00.000Z",
-            "status": "Open",
+            "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Anwar Essam",
             "branch": "BODYFIX Center",
@@ -20905,6 +20905,17 @@
             "branch": "BODYFIX Center",
             "patient": "محمد عيسي محمد الشخاتره",
             "phone": "+2_01155890012"
+          },
+          {
+            "id": "9149a22f-4584-4a25-b72c-b923782f6e37",
+            "start": "2026-07-14T12:00:00.000Z",
+            "end": "2026-07-14T13:00:00.000Z",
+            "status": "Confirmed",
+            "type": "جلسة",
+            "doctor": "Anwar Essam",
+            "branch": "BODYFIX Center",
+            "patient": "محمد راشد صالح طاهر",
+            "phone": "+967_782498509"
           },
           {
             "id": "676b4368-8b85-4588-9bc2-81eb4421e37f",
@@ -28959,7 +28970,7 @@
         ]
       },
       "Dr. Adel Ashraf": {
-        "total": 416,
+        "total": 417,
         "appointments": [
           {
             "id": "08c898cd-508c-4f1b-a234-6b2396436ead",
@@ -28973,9 +28984,20 @@
             "phone": "+2_01286182225"
           },
           {
-            "id": "69f00aaf-b4ba-43f0-bd6c-fd4e0cef4cc1",
+            "id": "42498eaa-a132-4cf2-a1c2-b5ae8e3736e3",
             "start": "2026-07-15T15:00:00.000Z",
-            "end": "2026-07-15T16:30:00.000Z",
+            "end": "2026-07-15T16:00:00.000Z",
+            "status": "Confirmed",
+            "type": "جلسة",
+            "doctor": "Dr. Adel Ashraf",
+            "branch": "BODYFIX Center",
+            "patient": "رامي ميلاد نجيب ء",
+            "phone": "+2_01286182225"
+          },
+          {
+            "id": "69f00aaf-b4ba-43f0-bd6c-fd4e0cef4cc1",
+            "start": "2026-07-15T13:00:00.000Z",
+            "end": "2026-07-15T14:30:00.000Z",
             "status": "Waiting List",
             "type": "جلسة",
             "doctor": "Dr. Adel Ashraf",
@@ -32249,17 +32271,6 @@
             "branch": "BODYFIX Center",
             "patient": "سحر فهمي محمد اسماعيل",
             "phone": "+2_01222341416"
-          },
-          {
-            "id": "2b4ccc81-7224-4d36-941b-8741a0b53dea",
-            "start": "2026-04-09T17:30:00.000Z",
-            "end": "2026-04-09T18:00:00.000Z",
-            "status": "Completed",
-            "type": "كشف",
-            "doctor": "Dr. Adel Ashraf",
-            "branch": "BODYFIX Center",
-            "patient": "عبد الوهاب قاسم احمد خالد",
-            "phone": "+2_01005056391"
           }
         ]
       },
@@ -38874,7 +38885,7 @@
         ]
       },
       "Dr. Ahmed Ashraf": {
-        "total": 805,
+        "total": 804,
         "appointments": [
           {
             "id": "c3684900-99dd-466e-b476-fb181b171801",
@@ -39262,15 +39273,15 @@
             "phone": "+2_01025592003"
           },
           {
-            "id": "9149a22f-4584-4a25-b72c-b923782f6e37",
+            "id": "b714f08f-0f58-4e34-a417-e70c42876757",
             "start": "2026-07-14T12:00:00.000Z",
             "end": "2026-07-14T13:00:00.000Z",
             "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Dr. Ahmed Ashraf",
             "branch": "BODYFIX Center",
-            "patient": "محمد راشد صالح طاهر",
-            "phone": "+967_782498509"
+            "patient": "اسماعيل مصطفي اسماعيل خليل",
+            "phone": "+2_01124822233"
           },
           {
             "id": "211a31f1-e13b-4a70-9526-cbdd7f6e80a4",
@@ -39320,7 +39331,7 @@
             "id": "0305c8c7-182a-4e53-afc0-29099b75f1af",
             "start": "2026-07-14T09:00:00.000Z",
             "end": "2026-07-14T10:00:00.000Z",
-            "status": "Confirmed",
+            "status": "In Progress",
             "type": "جلسة",
             "doctor": "Dr. Ahmed Ashraf",
             "branch": "BODYFIX Center",
@@ -43219,7 +43230,7 @@
             "id": "e3c0a14b-4208-451a-97fb-5eb40d70ed83",
             "start": "2026-07-15T09:15:00.000Z",
             "end": "2026-07-15T09:30:00.000Z",
-            "status": "Open",
+            "status": "Confirmed",
             "type": "استشارة",
             "doctor": "Dr. Alaa Harfoush",
             "branch": "BODYFIX Center",
@@ -43229,7 +43240,7 @@
           {
             "id": "d665c5e0-11d9-4d45-a938-074d9082ba5f",
             "start": "2026-07-15T09:00:00.000Z",
-            "end": "2026-07-15T10:00:00.000Z",
+            "end": "2026-07-15T09:15:00.000Z",
             "status": "Waiting List",
             "type": "استشارة",
             "doctor": "Dr. Alaa Harfoush",
@@ -43362,23 +43373,12 @@
             "id": "bea80129-8eb4-42d8-9b66-734a22a3dc0e",
             "start": "2026-07-14T16:45:00.000Z",
             "end": "2026-07-14T17:00:00.000Z",
-            "status": "Waiting List",
+            "status": "Open",
             "type": "استشارة",
             "doctor": "Dr. Alaa Harfoush",
             "branch": "BODYFIX Center",
             "patient": "بغداد احمد عبادي الحربي",
             "phone": "+2_01280853528"
-          },
-          {
-            "id": "556c4db6-86c9-483c-9efb-e7b51c38c2a6",
-            "start": "2026-07-14T16:45:00.000Z",
-            "end": "2026-07-14T17:00:00.000Z",
-            "status": "Waiting List",
-            "type": "استشارة",
-            "doctor": "Dr. Alaa Harfoush",
-            "branch": "BODYFIX Center",
-            "patient": "سهام قايد غالب عبد القادر",
-            "phone": "+2_01274142010"
           },
           {
             "id": "abf80a5a-89cd-4463-8778-75b85db66b02",
@@ -43423,6 +43423,17 @@
             "branch": "BODYFIX Center",
             "patient": "عبد الرحمن احمد محمد احمد",
             "phone": "+2_01141470603"
+          },
+          {
+            "id": "556c4db6-86c9-483c-9efb-e7b51c38c2a6",
+            "start": "2026-07-14T15:45:00.000Z",
+            "end": "2026-07-14T16:00:00.000Z",
+            "status": "Confirmed",
+            "type": "أشعة",
+            "doctor": "Dr. Alaa Harfoush",
+            "branch": "BODYFIX Center",
+            "patient": "سهام قايد غالب عبد القادر",
+            "phone": "+2_01274142010"
           },
           {
             "id": "fadde325-719e-48b7-84f6-23a83a7cc9ed",
@@ -45484,19 +45495,8 @@
         ]
       },
       "Dr. Manar": {
-        "total": 114,
+        "total": 113,
         "appointments": [
-          {
-            "id": "db095d2e-2059-47d5-bf10-6c12ec8ea619",
-            "start": "2026-07-14T13:00:00.000Z",
-            "end": "2026-07-14T14:00:00.000Z",
-            "status": "Waiting List",
-            "type": "كشف",
-            "doctor": "Dr. Manar",
-            "branch": "BODYFIX Center",
-            "patient": "تغريد محمد عبد الجليل",
-            "phone": "+2_01012872648"
-          },
           {
             "id": "3b6d9a62-29f7-4801-ab1c-48e8bf093cc6",
             "start": "2026-04-26T11:45:00.000Z",
@@ -50373,7 +50373,7 @@
             "id": "55e6a344-d96d-4ad0-ad68-f7b6b3f86391",
             "start": "2026-07-14T15:00:00.000Z",
             "end": "2026-07-14T16:00:00.000Z",
-            "status": "Open",
+            "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Dr. Mohammad Reda",
             "branch": "BODYFIX Center",
@@ -55552,7 +55552,7 @@
         ]
       },
       "Dr. Sara Hussein": {
-        "total": 946,
+        "total": 947,
         "appointments": [
           {
             "id": "b7853c91-a151-4b25-ad53-d719ea785231",
@@ -55808,6 +55808,17 @@
             "phone": "+2_01068111549"
           },
           {
+            "id": "cd5ac1e6-d43e-4415-81fb-55c63a561916",
+            "start": "2026-07-19T11:00:00.000Z",
+            "end": "2026-07-19T11:45:00.000Z",
+            "status": "Waiting List",
+            "type": "كشف",
+            "doctor": "Dr. Sara Hussein",
+            "branch": "BODYFIX Center",
+            "patient": "مني يحيي سعيد زايده",
+            "phone": "+2_0 109 929 3612"
+          },
+          {
             "id": "abdf2b8f-0a43-43fd-abad-66061a8e0768",
             "start": "2026-07-19T09:00:00.000Z",
             "end": "2026-07-19T10:00:00.000Z",
@@ -56009,7 +56020,7 @@
             "id": "f0b27f43-6dba-41b8-850d-a9437ea82a43",
             "start": "2026-07-14T12:00:00.000Z",
             "end": "2026-07-14T13:00:00.000Z",
-            "status": "Open",
+            "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Dr. Sara Hussein",
             "branch": "BODYFIX Center",
@@ -56031,7 +56042,7 @@
             "id": "05698cce-2c41-492c-aabb-9d5d431bc897",
             "start": "2026-07-14T09:00:00.000Z",
             "end": "2026-07-14T10:00:00.000Z",
-            "status": "Confirmed",
+            "status": "Checked In",
             "type": "جلسة",
             "doctor": "Dr. Sara Hussein",
             "branch": "BODYFIX Center",
@@ -58842,22 +58853,11 @@
             "branch": "BODYFIX Center",
             "patient": "حنان محمود شوقي الانصاري",
             "phone": "+20_1003888081"
-          },
-          {
-            "id": "a5c80c9b-07b6-4886-8752-11cf3eb7c0c5",
-            "start": "2026-06-08T13:00:00.000Z",
-            "end": "2026-06-08T14:30:00.000Z",
-            "status": "Completed",
-            "type": "جلسة",
-            "doctor": "Dr. Sara Hussein",
-            "branch": "BODYFIX Center",
-            "patient": "ساميه صادق محمد عبد الباقي الكردي",
-            "phone": "+2_01006319450"
           }
         ]
       },
       "Dr. Yasmin Ayman": {
-        "total": 447,
+        "total": 448,
         "appointments": [
           {
             "id": "625b8ead-e887-495f-ac3c-5439f6831ad6",
@@ -59039,12 +59039,23 @@
             "id": "d73cc3a9-9273-4497-a2ee-dace52d66863",
             "start": "2026-07-14T11:00:00.000Z",
             "end": "2026-07-14T12:30:00.000Z",
-            "status": "Open",
+            "status": "Canceled",
             "type": "جلسة",
             "doctor": "Dr. Yasmin Ayman",
             "branch": "BODYFIX Center",
             "patient": "سارة عبد العزيز عبد الله محمد",
             "phone": "+2_01099741825"
+          },
+          {
+            "id": "600c6a5b-f64e-4eef-b27b-5a7c0e7148a7",
+            "start": "2026-07-14T11:00:00.000Z",
+            "end": "2026-07-14T12:00:00.000Z",
+            "status": "Open",
+            "type": "جلسة",
+            "doctor": "Dr. Yasmin Ayman",
+            "branch": "BODYFIX Center",
+            "patient": "لطفيه عبد الجليل احمد",
+            "phone": "+20_1012872648"
           },
           {
             "id": "c16c5a7c-ab48-4e5b-a6c5-280eb5c570d1",
@@ -62147,17 +62158,6 @@
             "branch": "BODYFIX Center",
             "patient": "عبير ابراهيم كمال الدين",
             "phone": "+2_01067131114"
-          },
-          {
-            "id": "67019e30-4d14-46a4-a20a-ea5ed30d7e34",
-            "start": "2026-04-16T12:00:00.000Z",
-            "end": "2026-04-16T13:00:00.000Z",
-            "status": "Canceled",
-            "type": "جلسة",
-            "doctor": "Dr. Yasmin Ayman",
-            "branch": "BODYFIX Center",
-            "patient": "سارة عبد العزيز عبد الله محمد",
-            "phone": "+2_01099741825"
           }
         ]
       },
@@ -68772,7 +68772,7 @@
         ]
       },
       "Fatma Saeed": {
-        "total": 166,
+        "total": 167,
         "appointments": [
           {
             "id": "90092291-7708-42a7-9346-a0751ef56984",
@@ -68830,6 +68830,17 @@
             "phone": "+996_0507288577"
           },
           {
+            "id": "ea018d9c-d2ab-4ba8-bedb-874c043e765f",
+            "start": "2026-07-14T13:00:00.000Z",
+            "end": "2026-07-14T14:00:00.000Z",
+            "status": "Waiting List",
+            "type": "جلسة",
+            "doctor": "Fatma Saeed",
+            "branch": "BODYFIX Center",
+            "patient": "هدي صالح طه محمود",
+            "phone": "+2_01019235189"
+          },
+          {
             "id": "7ae50b49-caa2-4a24-ac4b-c679a1362887",
             "start": "2026-07-14T13:00:00.000Z",
             "end": "2026-07-14T14:30:00.000Z",
@@ -68841,15 +68852,15 @@
             "phone": "+20_1064466387"
           },
           {
-            "id": "600c6a5b-f64e-4eef-b27b-5a7c0e7148a7",
+            "id": "6b5a16ff-a466-4b4d-a30a-dd7d5ea3776e",
             "start": "2026-07-14T13:00:00.000Z",
             "end": "2026-07-14T14:00:00.000Z",
-            "status": "Waiting List",
+            "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Fatma Saeed",
             "branch": "BODYFIX Center",
-            "patient": "لطفيه عبد الجليل احمد",
-            "phone": "+20_1012872648"
+            "patient": "ياسمين غالب احمد يحيى",
+            "phone": "+20_1097397917"
           },
           {
             "id": "ce5944f9-ad31-4962-a449-366de69d27a3",
@@ -70603,7 +70614,7 @@
         ]
       },
       "Follow up": {
-        "total": 4641,
+        "total": 4639,
         "appointments": [
           {
             "id": "e756338e-206e-4001-b24d-afdf6fce571a",
@@ -72556,8 +72567,8 @@
             "id": "777cd8ed-91ed-4de3-a8ae-bdc16450f7e5",
             "start": "2026-07-14T12:00:00.000Z",
             "end": "2026-07-14T12:30:00.000Z",
-            "status": "Waiting List",
-            "type": "علاج طبيعي",
+            "status": "Completed",
+            "type": "إعادة جلسة",
             "doctor": "Follow up",
             "branch": "FIX ZONE",
             "patient": "احمد محمد مكاوي عبدالله",
@@ -72567,8 +72578,8 @@
             "id": "55546f27-2b45-4cf9-ab72-ebcf166fb3bb",
             "start": "2026-07-14T12:00:00.000Z",
             "end": "2026-07-14T12:30:00.000Z",
-            "status": "Waiting List",
-            "type": "علاج طبيعي",
+            "status": "Completed",
+            "type": "إعادة جلسة",
             "doctor": "Follow up",
             "branch": "FIX ZONE",
             "patient": "مصطفى رجائي محمد حسين",
@@ -72599,7 +72610,7 @@
           {
             "id": "571d6775-9920-4741-9e64-54b928596f27",
             "start": "2026-07-14T11:00:00.000Z",
-            "end": "2026-07-14T12:30:00.000Z",
+            "end": "2026-07-14T11:30:00.000Z",
             "status": "Waiting List",
             "type": "متابعة",
             "doctor": "Follow up",
@@ -81350,6 +81361,17 @@
             "phone": "+967_772777553"
           },
           {
+            "id": "c2086598-59e8-4a18-b22d-6c2b3b6faf49",
+            "start": "2026-07-14T15:00:00.000Z",
+            "end": "2026-07-14T16:30:00.000Z",
+            "status": "Waiting List",
+            "type": "جلسة",
+            "doctor": "Ibrahim",
+            "branch": "BODYFIX Center",
+            "patient": "قصي عبد السلام صالح علي",
+            "phone": "+2_01023445792"
+          },
+          {
             "id": "af6151c6-e3dd-427a-894d-b7315aa020de",
             "start": "2026-07-14T14:00:00.000Z",
             "end": "2026-07-14T15:00:00.000Z",
@@ -81359,17 +81381,6 @@
             "branch": "BODYFIX Center",
             "patient": "محمود علي عبدالخالق",
             "phone": "+2_01090817660"
-          },
-          {
-            "id": "c2086598-59e8-4a18-b22d-6c2b3b6faf49",
-            "start": "2026-07-14T12:00:00.000Z",
-            "end": "2026-07-14T13:30:00.000Z",
-            "status": "Waiting List",
-            "type": "جلسة",
-            "doctor": "Ibrahim",
-            "branch": "BODYFIX Center",
-            "patient": "قصي عبد السلام صالح علي",
-            "phone": "+2_01023445792"
           },
           {
             "id": "502409b8-7c3d-4190-80ad-bbd1f6b4fb2d",
@@ -84355,7 +84366,7 @@
         ]
       },
       "Mahmoud El Kashef": {
-        "total": 822,
+        "total": 821,
         "appointments": [
           {
             "id": "3af513a1-3780-4c40-abdb-beb46d9f2556",
@@ -96293,7 +96304,7 @@
             "id": "185a075e-9d07-4055-9491-908c60c67685",
             "start": "2026-07-14T15:00:00.000Z",
             "end": "2026-07-14T16:30:00.000Z",
-            "status": "Open",
+            "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Mohammad Osama",
             "branch": "BODYFIX Center",
@@ -98729,7 +98740,7 @@
             "id": "c0668ebe-079a-4edc-a001-b2af2f2531c3",
             "start": "2026-07-14T15:00:00.000Z",
             "end": "2026-07-14T16:00:00.000Z",
-            "status": "Open",
+            "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Ola Mohammad",
             "branch": "BODYFIX Center",
@@ -98770,15 +98781,15 @@
             "phone": "+2_01000965224"
           },
           {
-            "id": "2fde76fc-4340-4e42-902c-c9c2694d5f09",
-            "start": "2026-07-14T12:00:00.000Z",
+            "id": "2b592550-acec-411b-b335-87b74d87611b",
+            "start": "2026-07-14T11:45:00.000Z",
             "end": "2026-07-14T13:00:00.000Z",
-            "status": "Waiting List",
+            "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Ola Mohammad",
             "branch": "BODYFIX Center",
-            "patient": "امل امجد سعد الدين الانصارى",
-            "phone": "+20_1007516303"
+            "patient": "فاطمه عيد بيومي محمد",
+            "phone": "+2_01123722885"
           },
           {
             "id": "f6591483-d795-4c52-845f-d21a3e2c140f",
@@ -101896,7 +101907,7 @@
         ]
       },
       "Rahma": {
-        "total": 216,
+        "total": 217,
         "appointments": [
           {
             "id": "bc5c5cb2-6f02-44be-83bb-a8a8db3e9587",
@@ -102051,6 +102062,17 @@
             "branch": "BODYFIX Center",
             "patient": "حكيمة صالح محمد صالح",
             "phone": "+2_01559090387"
+          },
+          {
+            "id": "2fde76fc-4340-4e42-902c-c9c2694d5f09",
+            "start": "2026-07-14T12:00:00.000Z",
+            "end": "2026-07-14T13:00:00.000Z",
+            "status": "Open",
+            "type": "جلسة",
+            "doctor": "Rahma",
+            "branch": "BODYFIX Center",
+            "patient": "امل امجد سعد الدين الانصارى",
+            "phone": "+20_1007516303"
           },
           {
             "id": "eba469ad-d60f-464a-9eca-c829aaa933ed",
@@ -108087,7 +108109,7 @@
         ]
       },
       "Roba": {
-        "total": 473,
+        "total": 471,
         "appointments": [
           {
             "id": "69912a02-028d-4e82-9861-2f405ad369f5",
@@ -108178,17 +108200,6 @@
             "phone": "+2_01111806996"
           },
           {
-            "id": "ea018d9c-d2ab-4ba8-bedb-874c043e765f",
-            "start": "2026-07-14T14:00:00.000Z",
-            "end": "2026-07-14T15:00:00.000Z",
-            "status": "Waiting List",
-            "type": "جلسة",
-            "doctor": "Roba",
-            "branch": "BODYFIX Center",
-            "patient": "هدي صالح طه محمود",
-            "phone": "+2_01019235189"
-          },
-          {
             "id": "adad6d0f-c4d5-4f8d-ae62-2eccf0169690",
             "start": "2026-07-14T14:00:00.000Z",
             "end": "2026-07-14T15:00:00.000Z",
@@ -108225,7 +108236,7 @@
             "id": "854ee33d-2a55-4eb5-a05c-ecd80ae12524",
             "start": "2026-07-14T11:00:00.000Z",
             "end": "2026-07-14T12:00:00.000Z",
-            "status": "Open",
+            "status": "Confirmed",
             "type": "جلسة",
             "doctor": "Roba",
             "branch": "BODYFIX Center",
@@ -111388,11 +111399,22 @@
             "branch": "BODYFIX Center",
             "patient": "رويدا احمد حسين مهدي",
             "phone": "+2_01030324591"
+          },
+          {
+            "id": "99a670d1-46c4-476d-a150-16f52a64768a",
+            "start": "2026-04-26T18:00:00.000Z",
+            "end": "2026-04-26T19:00:00.000Z",
+            "status": "Completed",
+            "type": "جلسة",
+            "doctor": "Roba",
+            "branch": "BODYFIX Center",
+            "patient": "علياء ابراهيم فتحي خليفه",
+            "phone": "+2_01068111549"
           }
         ]
       },
       "Sarah Ahmad": {
-        "total": 516,
+        "total": 517,
         "appointments": [
           {
             "id": "80c4c5f5-bcbe-4714-a7f5-99a9b78203bd",
@@ -111651,12 +111673,23 @@
             "id": "d6cc68ad-b956-4bf5-bf00-7d055924d29e",
             "start": "2026-07-14T15:00:00.000Z",
             "end": "2026-07-14T16:00:00.000Z",
-            "status": "Open",
+            "status": "Canceled",
             "type": "جلسة",
             "doctor": "Sarah Ahmad",
             "branch": "BODYFIX Center",
             "patient": "حياة احمد سيد عبد الهادى",
             "phone": "+2_01226603862"
+          },
+          {
+            "id": "61bbf9c8-2b47-450f-a854-9fba4c2ded35",
+            "start": "2026-07-14T15:00:00.000Z",
+            "end": "2026-07-14T16:00:00.000Z",
+            "status": "Open",
+            "type": "جلسة",
+            "doctor": "Sarah Ahmad",
+            "branch": "BODYFIX Center",
+            "patient": "هيام طه عبد المطلب طه",
+            "phone": "+2_01000447260"
           },
           {
             "id": "443f8e4c-907b-4ca6-af6f-78e075e74d8f",
@@ -111668,17 +111701,6 @@
             "branch": "BODYFIX Center",
             "patient": "نظيرة قطب عبد الجواد علي",
             "phone": "+20_1156068841"
-          },
-          {
-            "id": "6b5a16ff-a466-4b4d-a30a-dd7d5ea3776e",
-            "start": "2026-07-14T14:00:00.000Z",
-            "end": "2026-07-14T15:00:00.000Z",
-            "status": "Waiting List",
-            "type": "جلسة",
-            "doctor": "Sarah Ahmad",
-            "branch": "BODYFIX Center",
-            "patient": "ياسمين غالب احمد يحيى",
-            "phone": "+20_1097397917"
           },
           {
             "id": "6a2aef4d-ff95-48f2-93d9-29ed5d2c99cf",
@@ -111714,10 +111736,21 @@
             "phone": "+2_01272460222"
           },
           {
-            "id": "583e3d3c-7d1e-4425-9707-5fba8aab0b10",
+            "id": "db095d2e-2059-47d5-bf10-6c12ec8ea619",
             "start": "2026-07-14T11:00:00.000Z",
             "end": "2026-07-14T12:00:00.000Z",
             "status": "Open",
+            "type": "كشف",
+            "doctor": "Sarah Ahmad",
+            "branch": "BODYFIX Center",
+            "patient": "تغريد محمد عبد الجليل",
+            "phone": "+2_01012872648"
+          },
+          {
+            "id": "583e3d3c-7d1e-4425-9707-5fba8aab0b10",
+            "start": "2026-07-14T11:00:00.000Z",
+            "end": "2026-07-14T12:00:00.000Z",
+            "status": "Canceled",
             "type": "جلسة",
             "doctor": "Sarah Ahmad",
             "branch": "BODYFIX Center",
@@ -114682,17 +114715,6 @@
             "branch": "BODYFIX Center",
             "patient": "نيفين عبد الله السيد القط",
             "phone": "+2_01117902150"
-          },
-          {
-            "id": "33dc03e3-911a-4700-aeb2-58e433ce03dd",
-            "start": "2026-05-05T11:00:00.000Z",
-            "end": "2026-05-05T12:30:00.000Z",
-            "status": "Completed",
-            "type": "جلسة",
-            "doctor": "Sarah Ahmad",
-            "branch": "BODYFIX Center",
-            "patient": "امنة حزام عبد الله ..",
-            "phone": "+2_01272460222"
           }
         ]
       },
@@ -119912,7 +119934,7 @@
     },
     "by_branch": {
       "BODYFIX Center": {
-        "total": 20590,
+        "total": 20591,
         "appointments": [
           {
             "id": "e756338e-206e-4001-b24d-afdf6fce571a",
@@ -123217,7 +123239,7 @@
         ]
       },
       "FIX ZONE": {
-        "total": 2410,
+        "total": 2409,
         "appointments": [
           {
             "id": "3af513a1-3780-4c40-abdb-beb46d9f2556",
@@ -124609,8 +124631,8 @@
             "id": "777cd8ed-91ed-4de3-a8ae-bdc16450f7e5",
             "start": "2026-07-14T12:00:00.000Z",
             "end": "2026-07-14T12:30:00.000Z",
-            "status": "Waiting List",
-            "type": "علاج طبيعي",
+            "status": "Completed",
+            "type": "إعادة جلسة",
             "doctor": "Follow up",
             "branch": "FIX ZONE",
             "patient": "احمد محمد مكاوي عبدالله",
@@ -124620,8 +124642,8 @@
             "id": "55546f27-2b45-4cf9-ab72-ebcf166fb3bb",
             "start": "2026-07-14T12:00:00.000Z",
             "end": "2026-07-14T12:30:00.000Z",
-            "status": "Waiting List",
-            "type": "علاج طبيعي",
+            "status": "Completed",
+            "type": "إعادة جلسة",
             "doctor": "Follow up",
             "branch": "FIX ZONE",
             "patient": "مصطفى رجائي محمد حسين",
@@ -124652,7 +124674,7 @@
           {
             "id": "571d6775-9920-4741-9e64-54b928596f27",
             "start": "2026-07-14T11:00:00.000Z",
-            "end": "2026-07-14T12:30:00.000Z",
+            "end": "2026-07-14T11:30:00.000Z",
             "status": "Waiting List",
             "type": "متابعة",
             "doctor": "Follow up",
@@ -126900,7 +126922,7 @@
         }
       },
       "2026-07-19": {
-        "total": 72,
+        "total": 73,
         "doctors": {
           "Follow up": 7,
           "Dr. Alaa Harfoush": 26,
@@ -126918,7 +126940,7 @@
           "Dr. Ahmed Ashraf": 5,
           "Roba": 1,
           "Dr. Ahmad Ibrahim": 1,
-          "Dr. Sara Hussein": 3
+          "Dr. Sara Hussein": 4
         }
       },
       "2026-07-18": {
@@ -126968,7 +126990,7 @@
         }
       },
       "2026-07-15": {
-        "total": 135,
+        "total": 136,
         "doctors": {
           "Follow up": 45,
           "Ahmad Abdelazim": 4,
@@ -126985,14 +127007,14 @@
           "Dr. Ahmed Ashraf": 4,
           "Mohammad Osama": 5,
           "Shorouk": 1,
-          "Dr. Adel Ashraf": 2,
           "Hazem Ibrahim": 4,
+          "Dr. Adel Ashraf": 3,
           "Doaa Tarek": 4,
           "Ibrahim": 1
         }
       },
       "2026-07-14": {
-        "total": 210,
+        "total": 213,
         "doctors": {
           "Follow up": 35,
           "Dr. Alaa Harfoush": 26,
@@ -127002,22 +127024,21 @@
           "Ola Mohammad": 9,
           "Mahmoud El Kashef": 8,
           "Mohammad Alaa": 9,
-          "Anwar Essam": 8,
+          "Anwar Essam": 9,
           "Dr. Mohammad Reda": 8,
           "Amr Mohsen": 6,
           "Dr Amgad Khedr": 12,
-          "Fatma Saeed": 9,
+          "Fatma Saeed": 10,
           "Ibrahim": 6,
-          "Rahma": 9,
-          "Roba": 8,
-          "Dr. Yasmin Ayman": 7,
-          "Sarah Ahmad": 9,
+          "Rahma": 10,
+          "Roba": 7,
+          "Dr. Yasmin Ayman": 8,
+          "Sarah Ahmad": 10,
           "Dr. Yasmin Mohamad": 3,
           "Shorouk": 3,
           "Mai Ashraf": 2,
           "Dr. Ahmed Ashraf": 8,
-          "Dr. Sara Hussein": 6,
-          "Dr. Manar": 1
+          "Dr. Sara Hussein": 6
         }
       },
       "2026-07-13": {
@@ -128107,13 +128128,13 @@
       }
     },
     "by_type": {
-      "جلسة": 11408,
-      "متابعة": 2824,
-      "استشارة": 1747,
+      "جلسة": 11409,
+      "متابعة": 2822,
+      "استشارة": 1746,
       "حجز": 1113,
-      "علاج طبيعي": 1109,
-      "كشف": 945,
-      "إعادة جلسة": 865,
+      "علاج طبيعي": 1107,
+      "كشف": 946,
+      "إعادة جلسة": 867,
       "استشارة أونلاين": 599,
       "Enum18": 385,
       "Enum25": 335,
@@ -128130,7 +128151,7 @@
       "Enum21": 56,
       "Enum14": 48,
       "Enum15": 47,
-      "أشعة": 42,
+      "أشعة": 43,
       "Enum38": 42,
       "علاج": 32,
       "طوارئ": 23,
@@ -128143,15 +128164,15 @@
       "Enum39": 1
     },
     "by_status": {
-      "Completed": 15590,
-      "Canceled": 3980,
+      "Completed": 15588,
+      "Canceled": 3982,
       "No Show": 1235,
-      "Waiting List": 1027,
-      "Open": 560,
+      "Waiting List": 1020,
+      "Open": 554,
       "Note": 401,
-      "Confirmed": 184,
-      "Checked In": 15,
-      "In Progress": 5,
+      "Confirmed": 195,
+      "Checked In": 16,
+      "In Progress": 6,
       "Delayed": 3
     },
     "today_date": "2026-07-14",
@@ -128721,23 +128742,12 @@
         "id": "bea80129-8eb4-42d8-9b66-734a22a3dc0e",
         "start": "2026-07-14T16:45:00.000Z",
         "end": "2026-07-14T17:00:00.000Z",
-        "status": "Waiting List",
+        "status": "Open",
         "type": "استشارة",
         "doctor": "Dr. Alaa Harfoush",
         "branch": "BODYFIX Center",
         "patient": "بغداد احمد عبادي الحربي",
         "phone": "+2_01280853528"
-      },
-      {
-        "id": "556c4db6-86c9-483c-9efb-e7b51c38c2a6",
-        "start": "2026-07-14T16:45:00.000Z",
-        "end": "2026-07-14T17:00:00.000Z",
-        "status": "Waiting List",
-        "type": "استشارة",
-        "doctor": "Dr. Alaa Harfoush",
-        "branch": "BODYFIX Center",
-        "patient": "سهام قايد غالب عبد القادر",
-        "phone": "+2_01274142010"
       },
       {
         "id": "da2abaa4-f1d6-4f18-bbff-ec46fcccccb1",
@@ -129026,6 +129036,17 @@
         "phone": "+2_01141470603"
       },
       {
+        "id": "556c4db6-86c9-483c-9efb-e7b51c38c2a6",
+        "start": "2026-07-14T15:45:00.000Z",
+        "end": "2026-07-14T16:00:00.000Z",
+        "status": "Confirmed",
+        "type": "أشعة",
+        "doctor": "Dr. Alaa Harfoush",
+        "branch": "BODYFIX Center",
+        "patient": "سهام قايد غالب عبد القادر",
+        "phone": "+2_01274142010"
+      },
+      {
         "id": "4b38f2e9-e8a3-4d37-b39c-e6a423b74cc9",
         "start": "2026-07-14T15:45:00.000Z",
         "end": "2026-07-14T16:00:00.000Z",
@@ -129095,7 +129116,7 @@
         "id": "d6cc68ad-b956-4bf5-bf00-7d055924d29e",
         "start": "2026-07-14T15:00:00.000Z",
         "end": "2026-07-14T16:00:00.000Z",
-        "status": "Open",
+        "status": "Canceled",
         "type": "جلسة",
         "doctor": "Sarah Ahmad",
         "branch": "BODYFIX Center",
@@ -129125,10 +129146,21 @@
         "phone": "+2_01551488724"
       },
       {
+        "id": "c2086598-59e8-4a18-b22d-6c2b3b6faf49",
+        "start": "2026-07-14T15:00:00.000Z",
+        "end": "2026-07-14T16:30:00.000Z",
+        "status": "Waiting List",
+        "type": "جلسة",
+        "doctor": "Ibrahim",
+        "branch": "BODYFIX Center",
+        "patient": "قصي عبد السلام صالح علي",
+        "phone": "+2_01023445792"
+      },
+      {
         "id": "c0668ebe-079a-4edc-a001-b2af2f2531c3",
         "start": "2026-07-14T15:00:00.000Z",
         "end": "2026-07-14T16:00:00.000Z",
-        "status": "Open",
+        "status": "Confirmed",
         "type": "جلسة",
         "doctor": "Ola Mohammad",
         "branch": "BODYFIX Center",
@@ -129224,6 +129256,17 @@
         "phone": "+20_1203171379"
       },
       {
+        "id": "61bbf9c8-2b47-450f-a854-9fba4c2ded35",
+        "start": "2026-07-14T15:00:00.000Z",
+        "end": "2026-07-14T16:00:00.000Z",
+        "status": "Open",
+        "type": "جلسة",
+        "doctor": "Sarah Ahmad",
+        "branch": "BODYFIX Center",
+        "patient": "هيام طه عبد المطلب طه",
+        "phone": "+2_01000447260"
+      },
+      {
         "id": "5895632d-9ad5-42d1-9534-a6274d91d74e",
         "start": "2026-07-14T15:00:00.000Z",
         "end": "2026-07-14T15:30:00.000Z",
@@ -129238,7 +129281,7 @@
         "id": "55e6a344-d96d-4ad0-ad68-f7b6b3f86391",
         "start": "2026-07-14T15:00:00.000Z",
         "end": "2026-07-14T16:00:00.000Z",
-        "status": "Open",
+        "status": "Confirmed",
         "type": "جلسة",
         "doctor": "Dr. Mohammad Reda",
         "branch": "BODYFIX Center",
@@ -129326,7 +129369,7 @@
         "id": "185a075e-9d07-4055-9491-908c60c67685",
         "start": "2026-07-14T15:00:00.000Z",
         "end": "2026-07-14T16:30:00.000Z",
-        "status": "Open",
+        "status": "Confirmed",
         "type": "جلسة",
         "doctor": "Mohammad Osama",
         "branch": "BODYFIX Center",
@@ -129420,17 +129463,6 @@
         "branch": "BODYFIX Center",
         "patient": "",
         "phone": ""
-      },
-      {
-        "id": "ea018d9c-d2ab-4ba8-bedb-874c043e765f",
-        "start": "2026-07-14T14:00:00.000Z",
-        "end": "2026-07-14T15:00:00.000Z",
-        "status": "Waiting List",
-        "type": "جلسة",
-        "doctor": "Roba",
-        "branch": "BODYFIX Center",
-        "patient": "هدي صالح طه محمود",
-        "phone": "+2_01019235189"
       },
       {
         "id": "d7038610-d555-4c17-95f1-65bab84268f1",
@@ -129574,17 +129606,6 @@
         "branch": "BODYFIX Center",
         "patient": "معتز سالم عبد الكريم العولقي",
         "phone": "+2_01107652468"
-      },
-      {
-        "id": "6b5a16ff-a466-4b4d-a30a-dd7d5ea3776e",
-        "start": "2026-07-14T14:00:00.000Z",
-        "end": "2026-07-14T15:00:00.000Z",
-        "status": "Waiting List",
-        "type": "جلسة",
-        "doctor": "Sarah Ahmad",
-        "branch": "BODYFIX Center",
-        "patient": "ياسمين غالب احمد يحيى",
-        "phone": "+20_1097397917"
       },
       {
         "id": "6a2aef4d-ff95-48f2-93d9-29ed5d2c99cf",
@@ -129763,6 +129784,17 @@
         "phone": "+2_01284555075"
       },
       {
+        "id": "ea018d9c-d2ab-4ba8-bedb-874c043e765f",
+        "start": "2026-07-14T13:00:00.000Z",
+        "end": "2026-07-14T14:00:00.000Z",
+        "status": "Waiting List",
+        "type": "جلسة",
+        "doctor": "Fatma Saeed",
+        "branch": "BODYFIX Center",
+        "patient": "هدي صالح طه محمود",
+        "phone": "+2_01019235189"
+      },
+      {
         "id": "e0f56843-a746-4b6e-926b-c106f27e8fc7",
         "start": "2026-07-14T13:00:00.000Z",
         "end": "2026-07-14T14:00:00.000Z",
@@ -129772,17 +129804,6 @@
         "branch": "BODYFIX Center",
         "patient": "حنان السيد لطفى نصر",
         "phone": "+2_01062508529"
-      },
-      {
-        "id": "db095d2e-2059-47d5-bf10-6c12ec8ea619",
-        "start": "2026-07-14T13:00:00.000Z",
-        "end": "2026-07-14T14:00:00.000Z",
-        "status": "Waiting List",
-        "type": "كشف",
-        "doctor": "Dr. Manar",
-        "branch": "BODYFIX Center",
-        "patient": "تغريد محمد عبد الجليل",
-        "phone": "+2_01012872648"
       },
       {
         "id": "d8427c59-c87e-4baa-a7f0-fc1876cd0e16",
@@ -129862,6 +129883,17 @@
         "phone": "+2_01140079408"
       },
       {
+        "id": "6b5a16ff-a466-4b4d-a30a-dd7d5ea3776e",
+        "start": "2026-07-14T13:00:00.000Z",
+        "end": "2026-07-14T14:00:00.000Z",
+        "status": "Confirmed",
+        "type": "جلسة",
+        "doctor": "Fatma Saeed",
+        "branch": "BODYFIX Center",
+        "patient": "ياسمين غالب احمد يحيى",
+        "phone": "+20_1097397917"
+      },
+      {
         "id": "62121879-f953-4419-84be-02949d426320",
         "start": "2026-07-14T13:00:00.000Z",
         "end": "2026-07-14T14:30:00.000Z",
@@ -129871,17 +129903,6 @@
         "branch": "BODYFIX Center",
         "patient": "يونس محمد عبده مزيد",
         "phone": "+1_6612386890"
-      },
-      {
-        "id": "600c6a5b-f64e-4eef-b27b-5a7c0e7148a7",
-        "start": "2026-07-14T13:00:00.000Z",
-        "end": "2026-07-14T14:00:00.000Z",
-        "status": "Waiting List",
-        "type": "جلسة",
-        "doctor": "Fatma Saeed",
-        "branch": "BODYFIX Center",
-        "patient": "لطفيه عبد الجليل احمد",
-        "phone": "+20_1012872648"
       },
       {
         "id": "5515053f-c76a-4873-b04f-212e18f749fd",
@@ -129898,7 +129919,7 @@
         "id": "400ec6a0-63dc-4db5-976d-c1e90f7f5bd2",
         "start": "2026-07-14T13:00:00.000Z",
         "end": "2026-07-14T14:30:00.000Z",
-        "status": "Open",
+        "status": "Confirmed",
         "type": "جلسة",
         "doctor": "Anwar Essam",
         "branch": "BODYFIX Center",
@@ -129942,7 +129963,7 @@
         "id": "f0b27f43-6dba-41b8-850d-a9437ea82a43",
         "start": "2026-07-14T12:00:00.000Z",
         "end": "2026-07-14T13:00:00.000Z",
-        "status": "Open",
+        "status": "Confirmed",
         "type": "جلسة",
         "doctor": "Dr. Sara Hussein",
         "branch": "BODYFIX Center",
@@ -130005,17 +130026,6 @@
         "phone": "+2_01090902644"
       },
       {
-        "id": "c2086598-59e8-4a18-b22d-6c2b3b6faf49",
-        "start": "2026-07-14T12:00:00.000Z",
-        "end": "2026-07-14T13:30:00.000Z",
-        "status": "Waiting List",
-        "type": "جلسة",
-        "doctor": "Ibrahim",
-        "branch": "BODYFIX Center",
-        "patient": "قصي عبد السلام صالح علي",
-        "phone": "+2_01023445792"
-      },
-      {
         "id": "c16673cd-1b10-4d64-8fdb-62d86e315176",
         "start": "2026-07-14T12:00:00.000Z",
         "end": "2026-07-14T12:30:00.000Z",
@@ -130025,6 +130035,17 @@
         "branch": "FIX ZONE",
         "patient": "ايناس الشائب محمد صالح",
         "phone": "+2_01550428748"
+      },
+      {
+        "id": "b714f08f-0f58-4e34-a417-e70c42876757",
+        "start": "2026-07-14T12:00:00.000Z",
+        "end": "2026-07-14T13:00:00.000Z",
+        "status": "Confirmed",
+        "type": "جلسة",
+        "doctor": "Dr. Ahmed Ashraf",
+        "branch": "BODYFIX Center",
+        "patient": "اسماعيل مصطفي اسماعيل خليل",
+        "phone": "+2_01124822233"
       },
       {
         "id": "b08b94eb-eee1-40e9-91ed-ec90f8b6c0f9",
@@ -130054,7 +130075,7 @@
         "end": "2026-07-14T13:00:00.000Z",
         "status": "Confirmed",
         "type": "جلسة",
-        "doctor": "Dr. Ahmed Ashraf",
+        "doctor": "Anwar Essam",
         "branch": "BODYFIX Center",
         "patient": "محمد راشد صالح طاهر",
         "phone": "+967_782498509"
@@ -130074,8 +130095,8 @@
         "id": "777cd8ed-91ed-4de3-a8ae-bdc16450f7e5",
         "start": "2026-07-14T12:00:00.000Z",
         "end": "2026-07-14T12:30:00.000Z",
-        "status": "Waiting List",
-        "type": "علاج طبيعي",
+        "status": "Completed",
+        "type": "إعادة جلسة",
         "doctor": "Follow up",
         "branch": "FIX ZONE",
         "patient": "احمد محمد مكاوي عبدالله",
@@ -130096,8 +130117,8 @@
         "id": "55546f27-2b45-4cf9-ab72-ebcf166fb3bb",
         "start": "2026-07-14T12:00:00.000Z",
         "end": "2026-07-14T12:30:00.000Z",
-        "status": "Waiting List",
-        "type": "علاج طبيعي",
+        "status": "Completed",
+        "type": "إعادة جلسة",
         "doctor": "Follow up",
         "branch": "FIX ZONE",
         "patient": "مصطفى رجائي محمد حسين",
@@ -130118,9 +130139,9 @@
         "id": "2fde76fc-4340-4e42-902c-c9c2694d5f09",
         "start": "2026-07-14T12:00:00.000Z",
         "end": "2026-07-14T13:00:00.000Z",
-        "status": "Waiting List",
+        "status": "Open",
         "type": "جلسة",
-        "doctor": "Ola Mohammad",
+        "doctor": "Rahma",
         "branch": "BODYFIX Center",
         "patient": "امل امجد سعد الدين الانصارى",
         "phone": "+20_1007516303"
@@ -130151,7 +130172,7 @@
         "id": "1e35deaf-570a-44db-afdd-32b223bda435",
         "start": "2026-07-14T12:00:00.000Z",
         "end": "2026-07-14T13:00:00.000Z",
-        "status": "Open",
+        "status": "Confirmed",
         "type": "جلسة",
         "doctor": "Anas Abdelwahab",
         "branch": "BODYFIX Center",
@@ -130190,6 +130211,17 @@
         "branch": "BODYFIX Center",
         "patient": "عبدالرحمن محمد عبدالرحمن حسين",
         "phone": "+2_01013433466"
+      },
+      {
+        "id": "2b592550-acec-411b-b335-87b74d87611b",
+        "start": "2026-07-14T11:45:00.000Z",
+        "end": "2026-07-14T13:00:00.000Z",
+        "status": "Confirmed",
+        "type": "جلسة",
+        "doctor": "Ola Mohammad",
+        "branch": "BODYFIX Center",
+        "patient": "فاطمه عيد بيومي محمد",
+        "phone": "+2_01123722885"
       },
       {
         "id": "f47a28f7-e171-4d6b-b60c-3c640e15ccd2",
@@ -130236,10 +130268,21 @@
         "phone": "+966_547690566"
       },
       {
+        "id": "db095d2e-2059-47d5-bf10-6c12ec8ea619",
+        "start": "2026-07-14T11:00:00.000Z",
+        "end": "2026-07-14T12:00:00.000Z",
+        "status": "Open",
+        "type": "كشف",
+        "doctor": "Sarah Ahmad",
+        "branch": "BODYFIX Center",
+        "patient": "تغريد محمد عبد الجليل",
+        "phone": "+2_01012872648"
+      },
+      {
         "id": "d73cc3a9-9273-4497-a2ee-dace52d66863",
         "start": "2026-07-14T11:00:00.000Z",
         "end": "2026-07-14T12:30:00.000Z",
-        "status": "Open",
+        "status": "Canceled",
         "type": "جلسة",
         "doctor": "Dr. Yasmin Ayman",
         "branch": "BODYFIX Center",
@@ -130305,12 +130348,23 @@
         "id": "854ee33d-2a55-4eb5-a05c-ecd80ae12524",
         "start": "2026-07-14T11:00:00.000Z",
         "end": "2026-07-14T12:00:00.000Z",
-        "status": "Open",
+        "status": "Confirmed",
         "type": "جلسة",
         "doctor": "Roba",
         "branch": "BODYFIX Center",
         "patient": "مروه جمال عبد المغني عمار",
         "phone": "+2_01061149696"
+      },
+      {
+        "id": "600c6a5b-f64e-4eef-b27b-5a7c0e7148a7",
+        "start": "2026-07-14T11:00:00.000Z",
+        "end": "2026-07-14T12:00:00.000Z",
+        "status": "Open",
+        "type": "جلسة",
+        "doctor": "Dr. Yasmin Ayman",
+        "branch": "BODYFIX Center",
+        "patient": "لطفيه عبد الجليل احمد",
+        "phone": "+20_1012872648"
       },
       {
         "id": "5bc5e338-d646-4be0-b04f-b1e9e1306438",
@@ -130327,7 +130381,7 @@
         "id": "583e3d3c-7d1e-4425-9707-5fba8aab0b10",
         "start": "2026-07-14T11:00:00.000Z",
         "end": "2026-07-14T12:00:00.000Z",
-        "status": "Open",
+        "status": "Canceled",
         "type": "جلسة",
         "doctor": "Sarah Ahmad",
         "branch": "BODYFIX Center",
@@ -130337,7 +130391,7 @@
       {
         "id": "571d6775-9920-4741-9e64-54b928596f27",
         "start": "2026-07-14T11:00:00.000Z",
-        "end": "2026-07-14T12:30:00.000Z",
+        "end": "2026-07-14T11:30:00.000Z",
         "status": "Waiting List",
         "type": "متابعة",
         "doctor": "Follow up",
@@ -130426,7 +130480,7 @@
         "id": "05698cce-2c41-492c-aabb-9d5d431bc897",
         "start": "2026-07-14T09:00:00.000Z",
         "end": "2026-07-14T10:00:00.000Z",
-        "status": "Confirmed",
+        "status": "Checked In",
         "type": "جلسة",
         "doctor": "Dr. Sara Hussein",
         "branch": "BODYFIX Center",
@@ -130437,7 +130491,7 @@
         "id": "0305c8c7-182a-4e53-afc0-29099b75f1af",
         "start": "2026-07-14T09:00:00.000Z",
         "end": "2026-07-14T10:00:00.000Z",
-        "status": "Confirmed",
+        "status": "In Progress",
         "type": "جلسة",
         "doctor": "Dr. Ahmed Ashraf",
         "branch": "BODYFIX Center",

@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-07-19T22:29:01.639270+00:00",
+  "last_updated": "2026-07-19T23:30:29.093031+00:00",
   "total": 23000,
   "appointments": [
     {
@@ -36379,7 +36379,7 @@
             "start": "2026-07-18T17:00:00.000Z",
             "end": "2026-07-18T18:00:00.000Z",
             "status": "Completed",
-            "type": "كشف",
+            "type": "جلسة",
             "doctor": "Dr. Ahmad Mokhtar",
             "branch": "BODYFIX Center",
             "patient": "محمد عادل صالح صالح",
@@ -36467,7 +36467,7 @@
             "start": "2026-07-18T10:30:00.000Z",
             "end": "2026-07-18T11:30:00.000Z",
             "status": "Completed",
-            "type": "جلسة",
+            "type": "Enum17",
             "doctor": "Dr. Ahmad Mokhtar",
             "branch": "BODYFIX Center",
             "patient": "محمد عبده مزيد محسن",
@@ -55882,7 +55882,7 @@
         ]
       },
       "Dr. Sara Hussein": {
-        "total": 933,
+        "total": 934,
         "appointments": [
           {
             "id": "b7853c91-a151-4b25-ad53-d719ea785231",
@@ -56191,6 +56191,17 @@
             "branch": "BODYFIX Center",
             "patient": "نهي سليم فريج الجمل",
             "phone": "+2_01115555037"
+          },
+          {
+            "id": "aa932aa2-ed0d-476c-a6d9-c484a7370176",
+            "start": "2026-07-20T11:00:00.000Z",
+            "end": "2026-07-20T12:00:00.000Z",
+            "status": "Waiting List",
+            "type": "جلسة",
+            "doctor": "Dr. Sara Hussein",
+            "branch": "BODYFIX Center",
+            "patient": "ميرفت احمد خليل محمد",
+            "phone": "+2_01003171913"
           },
           {
             "id": "fe78f3c3-89fa-4d38-ae01-93343dbcdaa6",
@@ -59172,17 +59183,6 @@
             "branch": "BODYFIX Center",
             "patient": "سحر نجاح الدين محمد علي",
             "phone": "+2_01116321615"
-          },
-          {
-            "id": "5410dc27-088b-4b7c-b7c6-a8cca3af13bd",
-            "start": "2026-06-13T14:00:00.000Z",
-            "end": "2026-06-13T15:30:00.000Z",
-            "status": "Completed",
-            "type": "جلسة",
-            "doctor": "Dr. Sara Hussein",
-            "branch": "BODYFIX Center",
-            "patient": "حكيمة صالح محمد صالح",
-            "phone": "+2_01559090387"
           }
         ]
       },
@@ -71406,7 +71406,7 @@
         ]
       },
       "Follow up": {
-        "total": 4362,
+        "total": 4361,
         "appointments": [
           {
             "id": "e756338e-206e-4001-b24d-afdf6fce571a",
@@ -72815,17 +72815,6 @@
             "branch": "BODYFIX Center",
             "patient": "محمد سيد السيد محمد",
             "phone": "+2_01554569400"
-          },
-          {
-            "id": "aa932aa2-ed0d-476c-a6d9-c484a7370176",
-            "start": "2026-07-20T23:00:00.000Z",
-            "end": "2026-07-20T23:30:00.000Z",
-            "status": "Waiting List",
-            "type": "متابعة",
-            "doctor": "Follow up",
-            "branch": "BODYFIX Center",
-            "patient": "ميرفت احمد خليل محمد",
-            "phone": "+2_01003171913"
           },
           {
             "id": "c53e68d2-b7af-4ce8-9ae7-72e419935a99",
@@ -74707,6 +74696,17 @@
             "branch": "BODYFIX Center",
             "patient": "هاله بركات عبد الفتاح بركات",
             "phone": "+2_01553401013"
+          },
+          {
+            "id": "75c0a192-4c75-4e22-8bda-0b7e3402bbf1",
+            "start": "2026-07-14T13:00:00.000Z",
+            "end": "2026-07-14T13:30:00.000Z",
+            "status": "Completed",
+            "type": "علاج طبيعي",
+            "doctor": "Follow up",
+            "branch": "BODYFIX Center",
+            "patient": "هدى عريان جوده عطيه",
+            "phone": "+2_01140079408"
           }
         ]
       },
@@ -129412,7 +129412,7 @@
       "2026-07-20": {
         "total": 210,
         "doctors": {
-          "Follow up": 57,
+          "Follow up": 56,
           "Dr. Ahmad Mokhtar": 8,
           "Sayed Galal": 7,
           "Dr. Yasmin Sakr": 6,
@@ -129420,7 +129420,7 @@
           "Gomaa Mohammad": 10,
           "Rawan Wessam": 7,
           "Mohammad Osama": 7,
-          "Dr. Sara Hussein": 9,
+          "Dr. Sara Hussein": 10,
           "Shorouk": 7,
           "Dr Amgad Khedr": 4,
           "Dr. Ahmad Ibrahim": 7,
@@ -130621,12 +130621,12 @@
       }
     },
     "by_type": {
-      "جلسة": 11571,
-      "متابعة": 2745,
+      "جلسة": 11572,
+      "متابعة": 2744,
       "استشارة": 1779,
       "حجز": 1140,
       "علاج طبيعي": 991,
-      "كشف": 966,
+      "كشف": 965,
       "إعادة جلسة": 797,
       "استشارة أونلاين": 607,
       "Enum18": 390,
@@ -130639,7 +130639,7 @@
       "Enum28": 119,
       "فحص": 92,
       "Enum22": 87,
-      "Enum17": 77,
+      "Enum17": 78,
       "Enum27": 59,
       "Enum21": 56,
       "Enum14": 52,
@@ -130670,17 +130670,6 @@
     },
     "today_date": "2026-07-20",
     "today_appointments": [
-      {
-        "id": "aa932aa2-ed0d-476c-a6d9-c484a7370176",
-        "start": "2026-07-20T23:00:00.000Z",
-        "end": "2026-07-20T23:30:00.000Z",
-        "status": "Waiting List",
-        "type": "متابعة",
-        "doctor": "Follow up",
-        "branch": "BODYFIX Center",
-        "patient": "ميرفت احمد خليل محمد",
-        "phone": "+2_01003171913"
-      },
       {
         "id": "c53e68d2-b7af-4ce8-9ae7-72e419935a99",
         "start": "2026-07-20T22:00:00.000Z",
@@ -132594,6 +132583,17 @@
         "branch": "BODYFIX Center",
         "patient": "حنان مجدي انطون ميخائيل",
         "phone": "+2_01202210073"
+      },
+      {
+        "id": "aa932aa2-ed0d-476c-a6d9-c484a7370176",
+        "start": "2026-07-20T11:00:00.000Z",
+        "end": "2026-07-20T12:00:00.000Z",
+        "status": "Waiting List",
+        "type": "جلسة",
+        "doctor": "Dr. Sara Hussein",
+        "branch": "BODYFIX Center",
+        "patient": "ميرفت احمد خليل محمد",
+        "phone": "+2_01003171913"
       },
       {
         "id": "a526733a-399e-4742-ad61-14aea270d7ee",

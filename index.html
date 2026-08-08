@@ -5379,7 +5379,7 @@ function medLoad(force, onDone) {
         MED_LOADED = true;
         var filtered = medFilterData(data);
         medRenderSummaryFromData(filtered);
-                        setTimeout(function(){ manaBuildAll(); buildFreeSlotsBanner(); medUpdateSyncStatus(); updateOverviewPTWaiting(); updateApptStatusCard(); if (onDone) onDone(); }, 200);
+                        setTimeout(function(){ manaBuildAll(); buildFreeSlotsBanner(); medUpdateSyncStatus(); updateOverviewPTWaiting(); updateApptStatusCard(); checkUnlinkedDocs(); if (onDone) onDone(); }, 200);
       })
       .catch(function(e){
         console.warn('URL set ' + urlIndex + ' failed:', e.message);

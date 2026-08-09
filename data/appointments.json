@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-09T06:28:43.602252+00:00",
+  "last_updated": "2026-08-09T07:33:33.933486+00:00",
   "total": 23000,
   "appointments": [
     {
@@ -588,6 +588,27 @@
         "firstName": "ايناس",
         "lastName": "محمد شاكر",
         "phoneNumber": "+20_1005378104"
+      }
+    },
+    {
+      "id": "10a37e5f-3d3a-4955-9c22-8978ccd1066d",
+      "start": "2026-09-09T08:00:00.000Z",
+      "end": "2026-09-09T08:30:00.000Z",
+      "status": "Waiting List",
+      "status_en": "WAITING",
+      "type": "علاج طبيعي",
+      "createdAt": "2026-08-09T07:26:05.153Z",
+      "doctor": {
+        "name": "Follow up",
+        "color": null
+      },
+      "branch": {
+        "name": "FIX ZONE"
+      },
+      "patient": {
+        "firstName": "احمد",
+        "lastName": "علي احمد يونس",
+        "phoneNumber": "+2_01020828012"
       }
     },
     {
@@ -10479,27 +10500,6 @@
         "firstName": "محمد عبده مزيد",
         "lastName": "محسن",
         "phoneNumber": "+2_01101151972"
-      }
-    },
-    {
-      "id": "a9ef302e-f8c2-42a8-9a95-01226208ffff",
-      "start": "2026-08-15T10:00:00.000Z",
-      "end": "2026-08-15T11:30:00.000Z",
-      "status": "Open",
-      "status_en": "OPEN",
-      "type": "جلسة",
-      "createdAt": "2026-08-02T20:03:46.798Z",
-      "doctor": {
-        "name": "Abeer",
-        "color": null
-      },
-      "branch": {
-        "name": "BODYFIX Center"
-      },
-      "patient": {
-        "firstName": "نهله",
-        "lastName": "محمد على متولى",
-        "phoneNumber": "+2_01033342729"
       }
     }
   ],
@@ -33903,7 +33903,7 @@
         ]
       },
       "Dr. Adel Ashraf": {
-        "total": 445,
+        "total": 444,
         "appointments": [
           {
             "id": "bd1c05a5-77f3-446e-a764-a96f7ec5cb44",
@@ -74090,7 +74090,7 @@
         ]
       },
       "Follow up": {
-        "total": 3903,
+        "total": 3904,
         "appointments": [
           {
             "id": "e756338e-206e-4001-b24d-afdf6fce571a",
@@ -74190,6 +74190,17 @@
             "branch": "BODYFIX Center",
             "patient": "مريم هاني سمير مكين",
             "phone": "+2_01225858323"
+          },
+          {
+            "id": "10a37e5f-3d3a-4955-9c22-8978ccd1066d",
+            "start": "2026-09-09T08:00:00.000Z",
+            "end": "2026-09-09T08:30:00.000Z",
+            "status": "Waiting List",
+            "type": "علاج طبيعي",
+            "doctor": "Follow up",
+            "branch": "FIX ZONE",
+            "patient": "احمد علي احمد يونس",
+            "phone": "+2_01020828012"
           },
           {
             "id": "cf703572-0758-47c4-a8ca-34804a3171f3",
@@ -75955,7 +75966,7 @@
             "id": "76c5bbeb-6971-4fbb-b461-5686a3098591",
             "start": "2026-08-09T09:30:00.000Z",
             "end": "2026-08-09T10:00:00.000Z",
-            "status": "Waiting List",
+            "status": "Completed",
             "type": "علاج طبيعي",
             "doctor": "Follow up",
             "branch": "FIX ZONE",
@@ -77380,17 +77391,6 @@
             "branch": "BODYFIX Center",
             "patient": "عبد الرحمن السيد محمد ابراهيم",
             "phone": "+2_01143606066"
-          },
-          {
-            "id": "36addd9a-2b25-4c39-818b-0983f8e2c4d5",
-            "start": "2026-08-05T14:00:00.000Z",
-            "end": "2026-08-05T14:30:00.000Z",
-            "status": "Completed",
-            "type": "متابعة",
-            "doctor": "Follow up",
-            "branch": "FIX ZONE",
-            "patient": "مهية صالح يسلم بن هجان",
-            "phone": "+2_01500362271"
           }
         ]
       },
@@ -127618,7 +127618,7 @@
     },
     "by_branch": {
       "BODYFIX Center": {
-        "total": 20418,
+        "total": 20417,
         "appointments": [
           {
             "id": "e756338e-206e-4001-b24d-afdf6fce571a",
@@ -130923,7 +130923,7 @@
         ]
       },
       "FIX ZONE": {
-        "total": 2582,
+        "total": 2583,
         "appointments": [
           {
             "id": "af3940d3-7be9-4f8d-bccb-7ccb5e51f661",
@@ -130957,6 +130957,17 @@
             "branch": "FIX ZONE",
             "patient": "ايناس محمد شاكر",
             "phone": "+20_1005378104"
+          },
+          {
+            "id": "10a37e5f-3d3a-4955-9c22-8978ccd1066d",
+            "start": "2026-09-09T08:00:00.000Z",
+            "end": "2026-09-09T08:30:00.000Z",
+            "status": "Waiting List",
+            "type": "علاج طبيعي",
+            "doctor": "Follow up",
+            "branch": "FIX ZONE",
+            "patient": "احمد علي احمد يونس",
+            "phone": "+2_01020828012"
           },
           {
             "id": "754b82f6-d9d2-481f-83dc-da0c9fad92dd",
@@ -132359,7 +132370,7 @@
             "id": "76c5bbeb-6971-4fbb-b461-5686a3098591",
             "start": "2026-08-09T09:30:00.000Z",
             "end": "2026-08-09T10:00:00.000Z",
-            "status": "Waiting List",
+            "status": "Completed",
             "type": "علاج طبيعي",
             "doctor": "Follow up",
             "branch": "FIX ZONE",
@@ -134213,17 +134224,6 @@
             "branch": "FIX ZONE",
             "patient": "علي محمد محمد البابكري",
             "phone": "+20_1114899989"
-          },
-          {
-            "id": "0091d0d0-ff44-4d57-bc35-82194085d8c8",
-            "start": "2026-08-01T09:00:00.000Z",
-            "end": "2026-08-01T09:30:00.000Z",
-            "status": "Completed",
-            "type": "علاج طبيعي",
-            "doctor": "Follow up",
-            "branch": "FIX ZONE",
-            "patient": "محمد مثنى احمد عسكر",
-            "phone": "+967_782602666"
           }
         ]
       }
@@ -134361,9 +134361,9 @@
         }
       },
       "2026-09-09": {
-        "total": 2,
+        "total": 3,
         "doctors": {
-          "Follow up": 1,
+          "Follow up": 2,
           "Doaa Tarek": 1
         }
       },
@@ -135842,12 +135842,12 @@
       }
     },
     "by_type": {
-      "جلسة": 11992,
+      "جلسة": 11991,
       "متابعة": 2558,
       "استشارة": 1753,
       "حجز": 1094,
       "كشف": 978,
-      "علاج طبيعي": 813,
+      "علاج طبيعي": 814,
       "إعادة جلسة": 663,
       "استشارة أونلاين": 662,
       "Enum18": 416,
@@ -138479,7 +138479,7 @@
         "id": "76c5bbeb-6971-4fbb-b461-5686a3098591",
         "start": "2026-08-09T09:30:00.000Z",
         "end": "2026-08-09T10:00:00.000Z",
-        "status": "Waiting List",
+        "status": "Completed",
         "type": "علاج طبيعي",
         "doctor": "Follow up",
         "branch": "FIX ZONE",

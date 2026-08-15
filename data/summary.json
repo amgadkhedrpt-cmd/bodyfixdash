@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-15T15:26:02.260549+00:00",
+  "last_updated": "2026-08-15T15:44:25.395809+00:00",
   "total": 23000,
   "doctors": [
     "Abeer",
@@ -55,14 +55,14 @@
     "FIX ZONE"
   ],
   "by_type": {
-    "جلسة": 12005,
+    "جلسة": 12001,
     "متابعة": 2528,
     "استشارة": 1735,
-    "حجز": 1080,
-    "كشف": 971,
+    "حجز": 1082,
+    "كشف": 972,
     "علاج طبيعي": 829,
+    "استشارة أونلاين": 679,
     "إعادة جلسة": 678,
-    "استشارة أونلاين": 678,
     "Enum18": 433,
     "Enum31": 294,
     "Enum25": 228,
@@ -91,15 +91,15 @@
     "Enum36": 1
   },
   "by_status": {
-    "Completed": 15283,
-    "Canceled": 4027,
+    "Completed": 15284,
+    "Canceled": 4028,
     "No Show": 1187,
-    "Waiting List": 1127,
-    "Open": 742,
+    "Waiting List": 1124,
+    "Open": 734,
     "Note": 447,
-    "Confirmed": 147,
-    "In Progress": 19,
-    "Checked In": 18,
+    "Confirmed": 156,
+    "In Progress": 21,
+    "Checked In": 16,
     "Delayed": 3
   },
   "by_date": {
@@ -468,12 +468,12 @@
       }
     },
     "2026-08-23": {
-      "total": 60,
+      "total": 59,
       "doctors": {
         "Follow up": 4,
         "Dina Ahmad": 3,
         "Nada El Sayed": 1,
-        "Anwar Essam": 3,
+        "Anwar Essam": 2,
         "Dr Amgad Khedr": 1,
         "Dr. Sara Hussein": 3,
         "Amr Mohsen": 3,
@@ -520,7 +520,7 @@
       }
     },
     "2026-08-20": {
-      "total": 107,
+      "total": 106,
       "doctors": {
         "Follow up": 10,
         "Amr Mohsen": 5,
@@ -528,7 +528,7 @@
         "Dina Ahmad": 3,
         "Dr. Mohammad Reda": 5,
         "Nada El Sayed": 1,
-        "Anwar Essam": 3,
+        "Anwar Essam": 2,
         "Mohammad Osama": 3,
         "Roba": 5,
         "Mohammad Alaa": 4,
@@ -570,7 +570,7 @@
       }
     },
     "2026-08-18": {
-      "total": 139,
+      "total": 138,
       "doctors": {
         "Follow up": 21,
         "Amr Mohsen": 6,
@@ -578,7 +578,7 @@
         "Dr. Mohammad Reda": 6,
         "Dina Ahmad": 3,
         "Nada El Sayed": 1,
-        "Anwar Essam": 3,
+        "Anwar Essam": 2,
         "Mohammad Osama": 4,
         "Mohammad Alaa": 5,
         "Sarah Ahmad": 8,
@@ -623,12 +623,12 @@
       }
     },
     "2026-08-16": {
-      "total": 216,
+      "total": 219,
       "doctors": {
         "Follow up": 40,
         "Dr. Alaa Harfoush": 34,
         "Amr Mohsen": 7,
-        "Dr Amgad Khedr": 15,
+        "Dr Amgad Khedr": 18,
         "Dina Ahmad": 4,
         "Dr. Mohammad Reda": 7,
         "Nada El Sayed": 1,
@@ -652,14 +652,14 @@
       }
     },
     "2026-08-15": {
-      "total": 185,
+      "total": 186,
       "doctors": {
         "Follow up": 63,
         "Sayed Galal": 7,
         "Dr. Sara Hussein": 6,
         "Dr. Yasmin Mohamad": 8,
         "Dr. Yasmin Sakr": 10,
-        "Mahmoud El Kashef": 6,
+        "Mahmoud El Kashef": 7,
         "Rawan Wessam": 8,
         "Dr. Ahmad Mokhtar": 9,
         "Ahmad Abdelazim": 8,
@@ -1818,15 +1818,15 @@
     "Ahmad Abdelazim": 239,
     "Amr Mohsen": 296,
     "Anas Abdelwahab": 237,
-    "Anwar Essam": 151,
+    "Anwar Essam": 148,
     "Basmala": 49,
     "Dina Ahmad": 69,
     "Doaa Tarek": 134,
-    "Dr Amgad Khedr": 1860,
+    "Dr Amgad Khedr": 1863,
     "Dr. Abdelrahman Abdelbaset": 316,
     "Dr. Adel Ashraf": 445,
     "Dr. Ahmad Ibrahim": 586,
-    "Dr. Ahmad Mokhtar": 491,
+    "Dr. Ahmad Mokhtar": 490,
     "Dr. Ahmed Ashraf": 794,
     "Dr. Alaa Harfoush": 2381,
     "Dr. Manar": 24,
@@ -1844,7 +1844,7 @@
     "Hazem Ibrahim": 164,
     "Hisham": 140,
     "Ibrahim": 666,
-    "Mahmoud El Kashef": 857,
+    "Mahmoud El Kashef": 858,
     "Mai Ashraf": 46,
     "Malak Ashour": 256,
     "Mariam Emad": 26,
@@ -2450,12 +2450,23 @@
       "id": "ea2a9593-7a4e-4b7b-9114-dbcbc382a6fe",
       "start": "2026-08-15T15:30:00.000Z",
       "end": "2026-08-15T17:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Checked In",
       "type": "جلسة",
       "doctor": "Doaa Tarek",
       "branch": "FIX ZONE",
       "patient": "فاطمه محمد محمد علي",
       "phone": "+2_01118247606"
+    },
+    {
+      "id": "e7b309d8-7d21-4fc5-a97c-0d2c96659eba",
+      "start": "2026-08-15T15:15:00.000Z",
+      "end": "2026-08-15T15:30:00.000Z",
+      "status": "In Progress",
+      "type": "حجز",
+      "doctor": "Mahmoud El Kashef",
+      "branch": "FIX ZONE",
+      "patient": "عبدالسلام احمد قايد ردمان",
+      "phone": "+966_508546842"
     },
     {
       "id": "fa11000a-70f8-4682-9398-804f56604ec5",
@@ -2483,7 +2494,7 @@
       "id": "e555b9a7-f447-46ec-b2f5-131a287ec162",
       "start": "2026-08-15T15:00:00.000Z",
       "end": "2026-08-15T15:30:00.000Z",
-      "status": "Checked In",
+      "status": "Completed",
       "type": "Enum15",
       "doctor": "Dr. Adel Ashraf",
       "branch": "BODYFIX Center",
@@ -2527,7 +2538,7 @@
       "id": "cea78ed0-6fac-4ca2-84b4-860efdce2ad8",
       "start": "2026-08-15T15:00:00.000Z",
       "end": "2026-08-15T16:30:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "جلسة",
       "doctor": "Gomaa Mohammad",
       "branch": "BODYFIX Center",
@@ -2626,7 +2637,7 @@
       "id": "1a6bb8a1-e5a9-45eb-a7ec-a2642da59343",
       "start": "2026-08-15T15:00:00.000Z",
       "end": "2026-08-15T16:30:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "جلسة",
       "doctor": "Dr. Adel Ashraf",
       "branch": "BODYFIX Center",
@@ -2923,7 +2934,7 @@
       "id": "531c4931-145d-4c21-84d9-e682c02e5330",
       "start": "2026-08-15T14:00:00.000Z",
       "end": "2026-08-15T15:30:00.000Z",
-      "status": "In Progress",
+      "status": "Completed",
       "type": "جلسة",
       "doctor": "Sayed Galal",
       "branch": "BODYFIX Center",

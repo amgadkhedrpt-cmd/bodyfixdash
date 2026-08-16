@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-16T09:43:33.165989+00:00",
+  "last_updated": "2026-08-16T10:01:18.323470+00:00",
   "total": 23000,
   "doctors": [
     "Abeer",
@@ -55,10 +55,10 @@
     "FIX ZONE"
   ],
   "by_type": {
-    "جلسة": 12015,
+    "جلسة": 12014,
     "متابعة": 2521,
     "استشارة": 1733,
-    "حجز": 1078,
+    "حجز": 1079,
     "كشف": 966,
     "علاج طبيعي": 827,
     "إعادة جلسة": 681,
@@ -91,15 +91,15 @@
     "Enum36": 1
   },
   "by_status": {
-    "Completed": 15258,
-    "Canceled": 4023,
+    "Completed": 15257,
+    "Canceled": 4026,
     "No Show": 1188,
     "Waiting List": 1112,
-    "Open": 735,
+    "Open": 733,
     "Note": 450,
-    "Confirmed": 205,
-    "Checked In": 15,
-    "In Progress": 11,
+    "Confirmed": 202,
+    "Checked In": 17,
+    "In Progress": 12,
     "Delayed": 3
   },
   "by_date": {
@@ -353,9 +353,9 @@
       }
     },
     "2026-09-01": {
-      "total": 22,
+      "total": 23,
       "doctors": {
-        "Follow up": 9,
+        "Follow up": 10,
         "Anwar Essam": 1,
         "Rana Ali": 1,
         "Sarah Ahmad": 1,
@@ -634,7 +634,7 @@
       }
     },
     "2026-08-17": {
-      "total": 162,
+      "total": 163,
       "doctors": {
         "Follow up": 29,
         "Dr. Sara Hussein": 9,
@@ -654,13 +654,13 @@
         "Ahmad Abdelaal": 1,
         "Dr. Ahmed Ashraf": 7,
         "Abeer": 5,
-        "Dr. Alaa Harfoush": 28,
+        "Dr. Alaa Harfoush": 29,
         "Fatma Saeed": 1,
         "Malak Ashour": 1
       }
     },
     "2026-08-16": {
-      "total": 237,
+      "total": 238,
       "doctors": {
         "Follow up": 39,
         "Amr Mohsen": 7,
@@ -675,14 +675,14 @@
         "Mohammad Osama": 5,
         "Roba": 12,
         "Ibrahim": 9,
-        "Rana Ali": 8,
+        "Rana Ali": 9,
         "Fatma Saeed": 9,
         "Dr. Yasmin Ayman": 9,
         "Sarah Ahmad": 5,
         "Rahma": 7,
-        "Dr. Ahmad Ibrahim": 5,
+        "Dr. Ahmad Ibrahim": 6,
         "Dr. Ahmed Ashraf": 4,
-        "Dr. Sara Hussein": 10,
+        "Dr. Sara Hussein": 9,
         "Abeer": 8,
         "Malak Ashour": 4
       }
@@ -1751,9 +1751,9 @@
     "Dina Ahmad": 71,
     "Doaa Tarek": 133,
     "Dr Amgad Khedr": 1859,
-    "Dr. Abdelrahman Abdelbaset": 316,
+    "Dr. Abdelrahman Abdelbaset": 315,
     "Dr. Adel Ashraf": 443,
-    "Dr. Ahmad Ibrahim": 587,
+    "Dr. Ahmad Ibrahim": 588,
     "Dr. Ahmad Mokhtar": 485,
     "Dr. Ahmed Ashraf": 792,
     "Dr. Alaa Harfoush": 2379,
@@ -1761,7 +1761,7 @@
     "Dr. Martina": 154,
     "Dr. Mohammad Reda": 561,
     "Dr. Mona Magdy": 101,
-    "Dr. Sara Hussein": 959,
+    "Dr. Sara Hussein": 958,
     "Dr. Yasmin Ayman": 464,
     "Dr. Yasmin Mohamad": 694,
     "Dr. Yasmin Sakr": 482,
@@ -1781,7 +1781,7 @@
     "Nada El Sayed": 4,
     "Ola Mohammad": 324,
     "Rahma": 319,
-    "Rana Ali": 133,
+    "Rana Ali": 134,
     "Rawan Wessam": 371,
     "Rawan Yasser": 130,
     "Roba": 537,
@@ -2958,6 +2958,17 @@
       "phone": "+2_01202095274"
     },
     {
+      "id": "9a20cbad-c927-4766-8b6e-3658abe7c5f1",
+      "start": "2026-08-16T15:00:00.000Z",
+      "end": "2026-08-16T16:00:00.000Z",
+      "status": "Waiting List",
+      "type": "جلسة",
+      "doctor": "Rana Ali",
+      "branch": "BODYFIX Center",
+      "patient": "فاطمة الزهراء عادل محمد",
+      "phone": "+20_1068745908"
+    },
+    {
       "id": "979552da-4579-4c31-bed1-10b074bf3bc9",
       "start": "2026-08-16T15:00:00.000Z",
       "end": "2026-08-16T15:30:00.000Z",
@@ -3027,7 +3038,7 @@
       "id": "7083402e-d9e9-40c2-8058-ea3c9b9b165a",
       "start": "2026-08-16T15:00:00.000Z",
       "end": "2026-08-16T16:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Canceled",
       "type": "جلسة",
       "doctor": "Rana Ali",
       "branch": "BODYFIX Center",
@@ -4311,10 +4322,21 @@
       "phone": "+2_01091473683"
     },
     {
+      "id": "421b6634-7903-452d-91b7-118f006d61d2",
+      "start": "2026-08-16T10:45:00.000Z",
+      "end": "2026-08-16T11:00:00.000Z",
+      "status": "Confirmed",
+      "type": "حجز",
+      "doctor": "Dr. Ahmad Ibrahim",
+      "branch": "BODYFIX Center",
+      "patient": "مها محمود محمد الحكيمي",
+      "phone": "+2_01091473683"
+    },
+    {
       "id": "ebb9143a-617f-406f-b23a-d49cb628d139",
       "start": "2026-08-16T10:00:00.000Z",
       "end": "2026-08-16T11:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Checked In",
       "type": "جلسة",
       "doctor": "Ibrahim",
       "branch": "BODYFIX Center",
@@ -4322,21 +4344,10 @@
       "phone": "+20_1043094355"
     },
     {
-      "id": "9a20cbad-c927-4766-8b6e-3658abe7c5f1",
-      "start": "2026-08-16T10:00:00.000Z",
-      "end": "2026-08-16T11:00:00.000Z",
-      "status": "Waiting List",
-      "type": "جلسة",
-      "doctor": "Dr. Sara Hussein",
-      "branch": "BODYFIX Center",
-      "patient": "فاطمة الزهراء عادل محمد",
-      "phone": "+20_1068745908"
-    },
-    {
       "id": "4ec493a0-222f-4420-8d42-26640f9ccb82",
       "start": "2026-08-16T10:00:00.000Z",
       "end": "2026-08-16T11:30:00.000Z",
-      "status": "Confirmed",
+      "status": "Checked In",
       "type": "جلسة",
       "doctor": "Abeer",
       "branch": "FIX ZONE",
@@ -4347,7 +4358,7 @@
       "id": "112e4d7e-d747-4827-bd7b-1d5540bc1197",
       "start": "2026-08-16T10:00:00.000Z",
       "end": "2026-08-16T11:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Checked In",
       "type": "جلسة",
       "doctor": "Dr. Sara Hussein",
       "branch": "BODYFIX Center",
@@ -4391,7 +4402,7 @@
       "id": "0180c4ee-d2bf-4077-8f39-15fef7ce1199",
       "start": "2026-08-16T09:00:00.000Z",
       "end": "2026-08-16T10:30:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "جلسة",
       "doctor": "Dr. Sara Hussein",
       "branch": "BODYFIX Center",

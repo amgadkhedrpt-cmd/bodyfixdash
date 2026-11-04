@@ -33,26 +33,21 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-v1
+          key: playwright-chromium-${{ runner.os }}-v2
 
       - name: Install dependencies
         run: pip install playwright
 
-      - name: Install Chromium (only if not cached)
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          playwright install chromium
-          playwright install-deps chromium
-
-      - name: Install Chromium deps only (if cached)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: playwright install-deps chromium
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
 
       - name: Run scraper
         env:
           MEDICOLIZE_URL:  ${{ secrets.MEDICOLIZE_URL }}
           MEDICOLIZE_USER: ${{ secrets.MEDICOLIZE_USER }}
           MEDICOLIZE_PASS: ${{ secrets.MEDICOLIZE_PASS }}
+          GMAIL_USER:      ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
         run: python scraper.py
 
       - name: Commit & push data
@@ -60,6 +55,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add appointments.json summary.json data/
+          git add alerts.json 2>/dev/null || true
           git diff --staged --quiet || git commit -m "🔄 sync appointments $(date -u '+%Y-%m-%d %H:%M') UTC"
           git pull --rebase=false -X ours origin main
           git push origin main

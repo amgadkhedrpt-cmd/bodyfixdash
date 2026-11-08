@@ -1,8 +1,9 @@
 name: Medicolize Sync
 
+# سحب واحد لكل الأدوات: الداشبورد + التنبيهات + التحصيل — دخول واحد على Medicolize
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/30 9-19 * * *'   # كل نص ساعة من 11 الصبح لـ 9:30 بالليل بتوقيت مصر (الشتا UTC+2)
   workflow_dispatch:
 
 permissions:
@@ -15,7 +16,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repo
@@ -52,7 +53,9 @@ jobs:
           key: medicolize-session-${{ github.run_id }}
           restore-keys: medicolize-session-
 
-      - name: Run scraper
+      - name: Run scraper (dashboard + alerts)
+        id: dash
+        continue-on-error: true
         env:
           MEDICOLIZE_URL:  ${{ secrets.MEDICOLIZE_URL }}
           MEDICOLIZE_USER: ${{ secrets.MEDICOLIZE_USER }}
@@ -61,7 +64,24 @@ jobs:
           GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
         run: python scraper.py
 
+      - name: Sync collection tool (same Medicolize session)
+        id: collect
+        if: steps.dash.outcome == 'success'
+        continue-on-error: true
+        env:
+          DRY: "0"
+          REM_ONLY: "1"
+          MZ_STATE: .session/state.json
+          MEDICOLIZE_USER: ${{ secrets.MEDICOLIZE_USER }}
+          MEDICOLIZE_PASS: ${{ secrets.MEDICOLIZE_PASS }}
+          GMAIL_USER:      ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
+          SHEET_KEY:       ${{ secrets.SHEET_KEY }}
+          SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
+        run: python collect_sync.py
+
       - name: Commit & push data
+        if: steps.dash.outcome == 'success'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -70,3 +90,9 @@ jobs:
           git diff --staged --quiet || git commit -m "🔄 sync appointments $(date -u '+%Y-%m-%d %H:%M') UTC"
           git pull --rebase=false -X ours origin main
           git push origin main
+
+      - name: Report result
+        if: always()
+        run: |
+          echo "dashboard: ${{ steps.dash.outcome }} · collection: ${{ steps.collect.outcome }}"
+          test "${{ steps.dash.outcome }}" = "success" -a "${{ steps.collect.outcome }}" = "success"

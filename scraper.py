@@ -21,26 +21,20 @@ API_URL  = "https://api.medicolize.com/"
 HEADLESS = True
 TIMEOUT  = 45000
 
+# أسامي أنواع المواعيد — الحقيقية من إعدادات Medicolize (بتتحدث لوحدها أول كل سحب من load_type_names)
+# الجدول ده احتياطي بس لو القراءة فشلت — اتنقل من إعدادات Medicolize يوم 9 نوفمبر 2026
 APPOINTMENT_TYPES = {
-    "Enum1":  "كشف",
-    "Enum2":  "متابعة",
-    "Enum3":  "استشارة",
-    "Enum4":  "علاج",
-    "Enum5":  "جلسة",
-    "Enum6":  "عملية",
-    "Enum7":  "أشعة",
-    "Enum8":  "تحليل",
-    "Enum9":  "طوارئ",
-    "Enum10": "مراجعة",
-    "Enum11": "كشف",
-    "Enum12": "حجز",
-    "Enum23": "علاج طبيعي",
-    "Enum33": "متابعة",
-    "Enum34": "إعادة جلسة",
-    "Enum40": "استشارة أونلاين",
-    "Enum41": "فحص",
-    "Enum42": "تقييم",
-    "Enum50": "طوارئ",
+    "Enum1": "كشف علاج طبيعي", "Enum40": "تقييم الجلسه الأخيره", "Enum12": "اعادة تقييم",
+    "Enum5": "جلسة علاج طبيعي", "Enum11": "ج ريكفري", "Enum14": "ج حجامه", "Enum2": "كشف تغذيه",
+    "Enum3": "متابعة تغذيه", "Enum4": "متابعة تغذيه اونلاين", "Enum6": "جلسة تغذيه", "Enum7": "حقن ميزوثيرابي",
+    "Enum8": "شوك ويف منطقه واحده", "Enum15": "شوك ويف علي منطقتين", "Enum29": "شد فقرات", "Enum10": "ماجنتك",
+    "Enum13": "جلسة علاج طبيعي علي منطقتين", "Enum17": "جلسه منزليه", "Enum18": "موعد محجوز",
+    "Enum19": "العنايه بالبشره", "Enum20": "أجهزه", "Enum21": "استرداد", "Enum22": "تقرير بالحاله",
+    "Enum24": "Feedback", "Enum25": "الغاء مفاجئ", "Enum26": "Cavitation", "Enum28": "RF", "Enum16": "Cryo",
+    "Enum27": "Cryo-blade", "Enum9": "Cryo-Air", "Enum30": "Excilis", "Enum32": "علاج طبيعي اونلاين",
+    "Enum31": "حقن مونجارو", "Enum33": "متابعه", "Enum23": "متابعه انقطاع", "Enum34": "منقطع نهائي",
+    "Enum35": "شكوي", "Enum36": "تصوير", "Enum37": "مساج فقرات", "Enum38": "تيكار", "Enum39": "gym",
+    "Enum41": "ليزر", "Enum42": "جلسه تصريف ليمفاوي",
 }
 
 STATUS_NAMES = {
@@ -59,7 +53,7 @@ STATUS_NAMES = {
     "NOTE":        "Note",
 }
 
-GQL_QUERY = "query CREATED_APPOINTMENTS($orderBy:String!,$skip:Int!,$take:Int!,$searchTerm:String,$rangeDate:[DateTime!]!,$filters:Filter){createdAppointments(orderBy:$orderBy skip:$skip take:$take searchTerm:$searchTerm rangeDate:$rangeDate filters:$filters){id start end status type other doctor{id name color __typename}branch{id name __typename}patient{id firstName lastName phoneNumber __typename}createdAt __typename}}"
+GQL_QUERY = "query CREATED_APPOINTMENTS($orderBy:String!,$skip:Int!,$take:Int!,$searchTerm:String,$rangeDate:[DateTime!]!,$filters:Filter){createdAppointments(orderBy:$orderBy skip:$skip take:$take searchTerm:$searchTerm rangeDate:$rangeDate filters:$filters){id start end status type other doctor{id name color __typename}branch{id name __typename}patient{id firstName lastName phoneNumber birthDate __typename}createdAt __typename}}"
 
 def build_date_range():
     now   = datetime.now(timezone.utc)
@@ -129,6 +123,7 @@ def parse_flat_array(flat):
                     "firstName":   patient_obj.get('firstName'),
                     "lastName":    patient_obj.get('lastName'),
                     "phoneNumber": patient_obj.get('phoneNumber'),
+                    "birthDate":   patient_obj.get('birthDate'),
                 },
             })
         except Exception:
@@ -363,6 +358,153 @@ async def do_login(context, page):
     cookie_str = "; ".join([f"{c['name']}={c['value']}" for c in cookies])
     return cookie_str, captured
 
+# ══ استدعاء GraphQL عام (نفس طريقة سحب المواعيد) + فك الرد المضغوط ══
+async def gql_call(page, cookie_str, extra_headers, query, variables):
+    headers = {"Content-Type": "application/json", "Origin": "https://my.medicolize.com",
+               "Referer": "https://my.medicolize.com/", "Cookie": cookie_str}
+    headers.update(extra_headers or {})
+    res = await page.evaluate("""
+        async (args) => {
+            try {
+                const r = await fetch(args.url, {method:'POST', credentials:'include', headers: args.headers, body: JSON.stringify(args.payload)});
+                return { ok: true, text: await r.text() };
+            } catch(e) { return { ok: false, error: e.message }; }
+        }
+    """, {"url": API_URL, "payload": {"query": query, "variables": variables}, "headers": headers})
+    if not res.get("ok"):
+        raise RuntimeError(res.get("error"))
+    j = json.loads(res["text"])
+    if isinstance(j, dict) and j.get("errors"):
+        raise RuntimeError(str(j["errors"])[:200])
+    return j.get("data") if isinstance(j, dict) else j
+
+
+def gql_dec(a, key):
+    """يفك رد Medicolize المضغوط (list فيها مراجع بالأرقام) ويرجع قيمة key."""
+    if isinstance(a, dict):
+        return a.get(key)
+    if not isinstance(a, list):
+        return None
+    def r(i):
+        v = a[i]
+        if isinstance(v, dict):
+            return {k: r(x) for k, x in v.items()}
+        return [r(x) for x in v] if isinstance(v, list) else v
+    for i, v in enumerate(a):
+        if isinstance(v, dict) and key in v:
+            return r(i)[key]
+    return None
+
+
+async def load_type_names(page, cookie_str, extra_headers):
+    """أسامي أنواع المواعيد الحقيقية من إعدادات الشركة في Medicolize (Enum5 = جلسة علاج طبيعي …)."""
+    ts = lambda: datetime.now().strftime("%H:%M:%S")
+    try:
+        data = await gql_call(page, cookie_str, extra_headers, "{me{company{appointmentTypes}}}", {})
+        me = gql_dec(data, "me") or {}
+        raw = (me.get("company") or {}).get("appointmentTypes")
+        lst = json.loads(raw) if isinstance(raw, str) else (raw or [])
+        n = 0
+        for t in lst:
+            if isinstance(t, dict) and t.get("enum") and t.get("name"):
+                APPOINTMENT_TYPES[t["enum"]] = str(t["name"]).strip(); n += 1
+        print(f"[{ts()}] ✅ أسامي أنواع المواعيد من Medicolize: {n}")
+    except Exception as e:
+        print(f"[{ts()}] ⚠️ ما قدرتش أقرا أسامي الأنواع — هستخدم الجدول الاحتياطي ({str(e)[:120]})")
+
+
+# ══ الباقات وجهة التحويل من الفواتير ══
+# لستة الفواتير سريعة (فيها جهة التحويل)، بس خدمات الفاتورة (ب 6 / ب 12) بتيجي من تفاصيل كل فاتورة لوحدها،
+# فبنفتح تفاصيل الفواتير اللي قيمتها 1000 أو أكتر بس، ونحفظ النتيجة في packages.json عشان ما نكررهاش.
+PACKAGES_FILE   = "packages.json"
+PKG_MIN_TOTAL   = 1000
+PKG_BACKFILL    = 365     # أول مرة: نرجع سنة
+PKG_DETAILS_MAX = 150     # أقصى عدد تفاصيل فواتير في السحب الواحد (الباقي في اللي بعده)
+PKG_RE = __import__("re").compile(r"ب\s*(\d{1,2})(?!\d)")
+INV_LIST_Q = ("query INV($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
+              "{invoices(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate)"
+              "{id createdAt total patient{id} referralSource{name} createAppointment{start}}}")
+INV_DETAILS_Q = "query D($invoice:ID!){invoiceDetails(invoice:$invoice){id operations{name price}}}"
+
+
+def load_packages():
+    try:
+        with open(PACKAGES_FILE, encoding="utf-8") as f:
+            d = json.load(f)
+            if isinstance(d, dict) and isinstance(d.get("inv"), dict):
+                return d
+    except Exception:
+        pass
+    return {"updated": "", "inv": {}}
+
+
+async def sync_invoices(page, cookie_str, extra_headers):
+    ts = lambda: datetime.now().strftime("%H:%M:%S")
+    cache = load_packages()
+    inv = cache["inv"]
+    now = datetime.now(timezone.utc)
+    if cache.get("updated"):
+        since = datetime.fromisoformat(cache["updated"]) - timedelta(days=3)
+    else:
+        since = now - timedelta(days=PKG_BACKFILL)
+    rng = [since.strftime("%Y-%m-%dT%H:%M:%S.000Z"), now.strftime("%Y-%m-%dT%H:%M:%S.999Z")]
+    me = gql_dec(await gql_call(page, cookie_str, extra_headers, "{me{branches{id name}}}", {}), "me") or {}
+    new = 0
+    for b in me.get("branches") or []:
+        skip = 0
+        while True:
+            data = await gql_call(page, cookie_str, extra_headers, INV_LIST_Q,
+                                  {"branchId": b["id"], "orderBy": "createdAt-desc", "skip": skip, "take": 500, "rangeDate": rng})
+            rows = gql_dec(data, "invoices") or []
+            for r in rows:
+                iid = r.get("id")
+                if not iid:
+                    continue
+                cur = inv.get(iid) or {}
+                if not cur:
+                    new += 1
+                cur.update({"p": (r.get("patient") or {}).get("id") or "", "d": str(r.get("createdAt") or "")[:10],
+                            "a": str((r.get("createAppointment") or {}).get("start") or ""),
+                            "r": ((r.get("referralSource") or {}).get("name") or "").strip(),
+                            "big": 1 if float(r.get("total") or 0) >= PKG_MIN_TOTAL else 0})
+                inv[iid] = cur
+            if len(rows) < 500:
+                break
+            skip += 500
+            await asyncio.sleep(0.3)
+    todo = [i for i, v in inv.items() if v.get("big") and "s" not in v]
+    todo.sort(key=lambda i: inv[i].get("d", ""), reverse=True)     # الأحدث الأول
+    done = 0
+    for iid in todo[:PKG_DETAILS_MAX]:
+        try:
+            det = gql_dec(await gql_call(page, cookie_str, extra_headers, INV_DETAILS_Q, {"invoice": iid}), "invoiceDetails") or {}
+            size = 0
+            for o in det.get("operations") or []:
+                m = PKG_RE.search(str(o.get("name") or ""))
+                if m:
+                    size = max(size, int(m.group(1)))
+            inv[iid]["s"] = size
+            done += 1
+        except Exception as e:
+            print(f"[{ts()}] ⚠️ invoice details: {str(e)[:100]}")
+            break
+        await asyncio.sleep(0.15)
+    # الفواتير الصغيرة (مش باقات) محتاجين منها آخر فاتورة لكل مريض بس (عشان جهة التحويل)
+    latest = {}
+    for i, v in inv.items():
+        if not v.get("big") and (v["p"] not in latest or v.get("d", "") > inv[latest[v["p"]]].get("d", "")):
+            latest[v["p"]] = i
+    keep = set(latest.values())
+    for i in [i for i, v in inv.items() if not v.get("big") and i not in keep]:
+        del inv[i]
+    cache["updated"] = now.isoformat()
+    with open(PACKAGES_FILE, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False, separators=(",", ":"))
+    pk = sum(1 for v in inv.values() if v.get("s"))
+    print(f"[{ts()}] ✅ الفواتير: {len(inv)} متخزنة · {new} جديدة · فتحنا تفاصيل {done} (فاضل {max(0, len(todo) - done)}) · باقات معروفة: {pk}")
+    return cache
+
+
 async def fetch_all_appointments(cookie_str, page, extra_headers=None):
     ts         = lambda: datetime.now().strftime("%H:%M:%S")
     range_date = build_date_range()
@@ -487,6 +629,8 @@ def analyze(appointments):
         "today_appointments": today_appointments,
     }
 
+AUTH_CTX = {}
+
 async def main():
     print("=" * 55)
     print("   BODYFIX — Medicolize Sync")
@@ -508,7 +652,9 @@ async def main():
             )
             pg = await ctx.new_page()
             cookie_str, auth_headers = await do_login(ctx, pg)
+            await load_type_names(pg, cookie_str, auth_headers)
             appts = await fetch_all_appointments(cookie_str, pg, auth_headers)
+            AUTH_CTX.update(cookie=cookie_str, headers=auth_headers)
             return ctx, pg, appts
         try:
             use_state = os.path.exists(SESSION_FILE)
@@ -545,7 +691,7 @@ async def main():
                 json.dump({
                     "last_updated": now_str,
                     "total": len(appointments),
-                    "appointments": appointments[:500],
+                    "appointments": [{**a, "patient": {k: v for k, v in (a.get("patient") or {}).items() if k != "birthDate"}} for a in appointments[:500]],   # تاريخ الميلاد ما يتنشرش
                     "analysis": analysis
                 }, f, ensure_ascii=False, indent=2)
 
@@ -564,10 +710,17 @@ async def main():
                     "doc_map":            doc_map,  # ← بنضيف الـ map هنا كمان
                 }, f, ensure_ascii=False, indent=2)
 
+            # ── الباقات وجهة التحويل من الفواتير (لو فشلت ما توقفش المزامنة) ──
+            packages = load_packages()
+            try:
+                packages = await sync_invoices(page, AUTH_CTX.get("cookie", ""), AUTH_CTX.get("headers"))
+            except Exception as e:
+                print(f"   ⚠️ invoices/packages failed: {e}")
+
             # ── تنبيهات اللوحة الرئيسية (محسوبة على التاريخ كله) ──
             try:
                 from alerts import build_alerts
-                alerts = build_alerts(appointments)
+                alerts = build_alerts(appointments, packages=packages)
                 alerts["last_updated"] = now_str
                 with open("alerts.json", "w", encoding="utf-8") as f:
                     json.dump(alerts, f, ensure_ascii=False, separators=(",", ":"))

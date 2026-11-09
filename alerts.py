@@ -52,6 +52,8 @@ def _svc_name(t):
     """اسم الخدمة الموحّد، أو "" لو مش خدمة علاجية."""
     t = (t or "").strip()
     tl = t.lower()
+    if "متابع" in t and "تغذ" in t:
+        return "متابعة تغذيه"                     # عادي أو أونلاين
     if not t or any(k in tl for k in NOT_SERVICE):
         return ""
     if "علاج طبيع" in t:
@@ -66,6 +68,14 @@ def _svc_name(t):
         return "حجامه"
     return t
 
+
+# نظام كل خدمة (لو مش متسجلة هنا: بنحسب من نظام المريض نفسه في آخر أسبوعين)
+SVC_RULES = {
+    "شوك ويف":      {"every": 2},                  # 3 مرات في الأسبوع → لو عدّى يومين من آخر مرة يبقى عليه
+    "ماجنتك":       {"with_pt": True},             # مع كل جلسة علاج طبيعي
+    "ليزر":         {"with_pt": True},             # مع كل جلسة علاج طبيعي
+    "متابعة تغذيه": {"every": 7, "any_day": True}, # مرة في الأسبوع — مش لازم تكون في نفس يوم الجلسة
+}
 
 def _pt_counts(att):
     """(إجمالي جلسات PT، جلسات الكورس الحالي، أول جلسة في الكورس) — يوم واحد = جلسة واحدة."""
@@ -389,18 +399,30 @@ def build_alerts(appointments, now=None, packages=None):
         missing = []
         cands = {x for svs in hist.values() for x in svs} - today_svcs - soon
         for b in sorted(cands):
+            rule = SVC_RULES.get(b, {})
             together = [d for d, svs in hist.items() if b in svs and svs & today_svcs]
-            if not together:
+            if rule.get("with_pt"):
+                if "علاج طبيعي" not in today_svcs:
+                    continue
+                together = [d for d, svs in hist.items() if b in svs and "علاج طبيعي" in svs]
+            if not together and not rule.get("any_day"):
                 continue                                            # عمرها ما اتعملت مع خدمة النهارده
             bdays = sorted(d for d, svs in hist.items() if b in svs)
-            gaps = [(bdays[i] - bdays[i - 1]).days for i in range(1, len(bdays))]
-            every = sorted(gaps)[len(gaps) // 2] if gaps else 0      # بيعملها كل كام يوم (الوسيط)
             since = (today - bdays[-1]).days
-            if every and since < every:
-                continue                                            # لسه مش ميعادها (زي شوك ويف كل أسبوع)
-            if not every and since < SVC_SINGLE_WAIT:
-                continue                                            # عملها مرة واحدة بس من قريب — مش عارفين نظامها
-            missing.append({"svc": b, "times": len(bdays), "together": len(together),
+            if rule.get("with_pt"):
+                every, why = 0, "with_pt"                           # المفروض مع كل جلسة علاج طبيعي
+            elif rule.get("every"):
+                every, why = rule["every"], "rule"
+                if since < every:
+                    continue
+            else:
+                gaps = [(bdays[i] - bdays[i - 1]).days for i in range(1, len(bdays))]
+                every, why = (sorted(gaps)[len(gaps) // 2] if gaps else 0), "pattern"   # بيعملها كل كام يوم (الوسيط)
+                if every and since < every:
+                    continue                                        # لسه مش ميعادها
+                if not every and since < SVC_SINGLE_WAIT:
+                    continue                                        # عملها مرة واحدة بس من قريب — مش عارفين نظامها
+            missing.append({"svc": b, "times": len(bdays), "together": len(together), "why": why,
                             "last": bdays[-1].isoformat(), "every": every, "days_since": since})
         if not missing:
             continue

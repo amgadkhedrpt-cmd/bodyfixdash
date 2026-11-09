@@ -1,0 +1,39 @@
+name: Invoice Probe (one-time test)
+# تشغيلة تجربة بتشتغل بإيدك بس: بتكتب في اللوج شكل بيانات الفواتير (من غير أسامي مرضى)
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: medicolize-sync
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-v2
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - name: Restore Medicolize session
+        uses: actions/cache@v4
+        with:
+          path: .session
+          key: medicolize-session-${{ github.run_id }}
+          restore-keys: medicolize-session-
+      - name: Probe invoices
+        env:
+          MZ_STATE: .session/state.json
+          MEDICOLIZE_USER: ${{ secrets.MEDICOLIZE_USER }}
+          MEDICOLIZE_PASS: ${{ secrets.MEDICOLIZE_PASS }}
+          GMAIL_USER:      ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
+          SHEET_KEY:       ${{ secrets.SHEET_KEY }}
+          SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
+        run: python invoice_probe.py

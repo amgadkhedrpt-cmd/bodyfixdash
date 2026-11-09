@@ -2800,7 +2800,7 @@ function fetchAttData(quarterOnly){
   var qToLoad = (quarterOnly!==undefined) ? quarterOnly : currentQ;
   if(el)el.style.display='block';
   if(status)status.textContent='جاري التحميل...';
-  function doFetch(q, isBackground){
+  function doFetch(q, isBackground, isRetry){
     var cb='_att_'+Date.now()+'_'+(q||'all');
     var sc=document.createElement('script');
     var done=false;
@@ -2808,13 +2808,15 @@ function fetchAttData(quarterOnly){
     var t=setTimeout(function(){
       if(done)return;done=true;
       try{document.head.removeChild(sc);}catch(e){}
-      delete window[cb];
+      window[cb]=function(){};   /* لو الرد وصل متأخر ما يعملش error */
+      if(!isRetry){ if(status)status.textContent='⏳ الحضور بطيء — بنحاول تاني...'; doFetch(q, isBackground, true); return; }
       if(!isBackground){
         if(el)el.style.display='none';
         if(status)status.textContent='⚠️ تعذر الاتصال';
         renderAttView();
+        try{ ['att-today-content','att-tomorrow-content','att-dayafter-content'].forEach(function(id){ var e=document.getElementById(id); if(e&&/لا توجد بيانات حضور/.test(e.textContent)) e.innerHTML='<p style="color:var(--am);font-size:.62rem">⚠️ شيت الحضور ما ردّش — اعمل ريفريش للصفحة</p>'; }); }catch(e){}
       }
-    },20000);
+    },40000);
     window[cb]=function(data){
       if(done)return;done=true;clearTimeout(t);
       try{document.head.removeChild(sc);}catch(e){}
@@ -4194,6 +4196,7 @@ window.addEventListener('load',function(){
     Object.keys(BRANCHES).forEach(function(b){var u=localStorage.getItem('scriptUrl_'+b);if(u)BRANCHES[b].url=u;});
     var lb=localStorage.getItem('activeBranch')||'haram';
     CURRENT_BRANCH=lb;SCRIPT_URL=BRANCHES[lb].url;
+    try{ if(typeof GF!=='undefined'&&GF) GF.branch=lb==='haram'?'BODYFIX Center':lb==='dokki'?'FIX ZONE':'all'; }catch(e){}
     Object.keys(BRANCHES).forEach(function(b){var btn=document.getElementById('btn-'+b);if(!btn)return;if(b===lb){btn.style.background=BRANCHES[b].color;btn.style.color='#fff';btn.style.borderColor=BRANCHES[b].color;}else{btn.style.background='transparent';btn.style.color='var(--mute)';btn.style.borderColor='var(--brd)';}});
     var tel=document.getElementById('branch-title');if(tel)tel.textContent=BRANCHES[lb].label;
     var inp=document.getElementById('script-url-'+lb);if(inp)inp.value=BRANCHES[lb].url||'';
@@ -5648,6 +5651,8 @@ function manaFreeSlots() {
   var tt = window._freeTT || '';
   var gen = (typeof GF !== 'undefined') ? GF.gender : 'all';
   var br  = (typeof GF !== 'undefined' && GF.branch !== 'all') ? GF.branch : 'all';
+  /* مفيش فلتر فرع → الفرع اللي فاتح عليه (هرم/دقي) — عشان دكاترة الدقي ما يظهروش في الهرم */
+  if (br === 'all') br = CURRENT_BRANCH === 'haram' ? 'BODYFIX Center' : (CURRENT_BRANCH === 'dokki' ? 'FIX ZONE' : 'all');
   var html = '';
   var allAppts = [];
   if (MED_SUMMARY && MED_SUMMARY.today_appointments && MED_SUMMARY.today_date === selDate) {

@@ -425,6 +425,30 @@ PKG_DETAILS_MAX = 4000    # أقصى عدد تفاصيل فواتير في ال�
 PKG_PARALLEL    = 8       # كام فاتورة نفتحها في نفس الوقت
 PKG_TIME_BUDGET = 300     # أقصى 5 دقايق للتفاصيل في السحب الواحد
 PKG_RE = __import__("re").compile(r"ب\s*(\d{1,2})(?!\d)")
+PKG_RE2 = __import__("re").compile(r"(?:باق[ةه]\s*(\d{1,2})(?!\d))|(?:(?<!\d)(\d{1,2})\s*(?:جلس|ج\b))")
+PKG_VER = 2   # لما نغيّر طريقة القراية: الفواتير اللي اتقرت قبل كده من غير باقة بتتقري تاني
+_BIDI = dict.fromkeys(map(ord, "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u061c\u00a0\u0640"), " ")
+_ARDIG = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+
+
+def pkg_size_of(name, price):
+    """(حجم الباقة، طريقة) من اسم خدمة الفاتورة. 'ب 12 ع ط 12 جلسه علاج طبيعي' → 12."""
+    nm = " ".join(str(name or "").translate(_BIDI).translate(_ARDIG).split())
+    m = PKG_RE.search(nm)
+    if m and int(m.group(1)) in (3, 4, 5, 6, 8, 10, 12, 15, 18, 20, 24):
+        return int(m.group(1)), "name"
+    m = PKG_RE2.search(nm)
+    if m:
+        n = int(m.group(1) or m.group(2))
+        if n in (6, 12, 10, 8, 18, 24):
+            return n, "name"
+    try:
+        pr = float(price or 0)
+    except Exception:
+        pr = 0
+    if ("علاج" in nm or "ع ط" in nm) and pr >= 1000:      # من غير رقم: من السعر (6: لحد 2200 — 12: من 2500)
+        return (12 if pr >= 2400 else 6), "price"
+    return 0, ""
 INV_LIST_Q = ("query INV($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
               "{invoices(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate)"
               "{id createdAt total patient{id} referralSource{name} createAppointment{start}}}")
@@ -485,7 +509,7 @@ async def sync_invoices(page, cookie_str, extra_headers):
     for p, ids in by_p.items():
         ids.sort(key=lambda i: (inv[i].get("a") or inv[i].get("d", "")), reverse=True)
         for rank, i in enumerate(ids):
-            if "s" not in inv[i]:
+            if "s" not in inv[i] or (not inv[i].get("s") and inv[i].get("v", 1) < PKG_VER):
                 ranked.append((rank, inv[i].get("d", ""), i))
     ranked.sort(key=lambda t: t[1], reverse=True)                     # الأحدث الأول
     ranked.sort(key=lambda t: t[0])                                   # وآخر فاتورة لكل مريض قبل أي حاجة
@@ -496,14 +520,19 @@ async def sync_invoices(page, cookie_str, extra_headers):
 
     async def one(iid):
         det = gql_dec(await gql_call(page, cookie_str, extra_headers, INV_DETAILS_Q, {"invoice": iid}), "invoiceDetails") or {}
-        size = 0
+        size, how = 0, ""
         for o in det.get("operations") or []:
             nm = str(o.get("name") or "").strip()
             names[nm] += 1
-            m = PKG_RE.search(nm)
-            if m:
-                size = max(size, int(m.group(1)))
+            n, h = pkg_size_of(nm, o.get("price"))
+            if n and (n > size or (h == "name" and how == "price")):
+                size, how = n, h
         inv[iid]["s"] = size
+        inv[iid]["v"] = PKG_VER
+        if how == "price":
+            inv[iid]["sp"] = 1
+        else:
+            inv[iid].pop("sp", None)
 
     errors = 0
     for k in range(0, min(len(todo), PKG_DETAILS_MAX), PKG_PARALLEL):
@@ -524,9 +553,9 @@ async def sync_invoices(page, cookie_str, extra_headers):
     # أسماء الخدمات بس (من غير أي بيانات مرضى) — عشان نتأكد إن "ب 6 / ب 12" بيتقري صح
     if names:
         print(f"[{ts()}] 🧾 أكتر أسماء خدمات في الفواتير اللي اتفتحت:")
-        for nm, c in names.most_common(20):
-            m = PKG_RE.search(nm)
-            print(f"      {c:>4} × {nm[:60]}  →  {('باقة ' + m.group(1)) if m else '-'}")
+        for nm, c in names.most_common(25):
+            n, h = pkg_size_of(nm, 0)
+            print(f"      {c:>4} × {nm[:60]!r}  →  {('باقة ' + str(n)) if n else '-'}")
     # الفواتير الصغيرة (مش باقات) محتاجين منها آخر فاتورة لكل مريض بس (عشان جهة التحويل)
     latest = {}
     for i, v in inv.items():

@@ -45,6 +45,28 @@ def _is_pt(t):
     return (t or "").strip() in PT_TYPES
 
 
+# ── الخدمات العلاجية (عشان نعرف المريض بيعمل أكتر من خدمة) ──
+NOT_SERVICE = ("متابع", "تقييم", "كشف", "منقطع", "موعد محجوز", "الغاء", "إلغاء", "تقرير", "استرداد", "feedback",
+               "شكو", "تصوير", "تغذ", "مونجارو", "اونلاين", "أونلاين", "منزلي", "gym")
+def _svc_name(t):
+    """اسم الخدمة الموحّد، أو "" لو مش خدمة علاجية."""
+    t = (t or "").strip()
+    tl = t.lower()
+    if not t or any(k in tl for k in NOT_SERVICE):
+        return ""
+    if "علاج طبيع" in t:
+        return "علاج طبيعي"
+    if "شوك" in t:
+        return "شوك ويف"
+    if tl.startswith("cryo"):
+        return "Cryo"
+    if "ريكفر" in t:
+        return "ريكفري"
+    if "حجام" in t:
+        return "حجامه"
+    return t
+
+
 def _pt_counts(att):
     """(إجمالي جلسات PT، جلسات الكورس الحالي، أول جلسة في الكورس) — يوم واحد = جلسة واحدة."""
     days = sorted({a["start"].date() for a in att if _is_pt(a["type"])})
@@ -57,6 +79,13 @@ def _pt_counts(att):
     return len(days), len(days) - start, days[start].isoformat()
 
 
+MISS_WINDOW     = 14    # بييجي بانتظام: نبص على آخر أسبوعين
+MISS_DAILY_MIN  = 6     # "بييجي يوميًا": 6 أيام حضور على الأقل في الأسبوعين
+MISS_DAILY_RATIO = 0.7  # ... و70% من أيام شغل الفرع
+SVC_WINDOW      = 14    # الخدمات اللي عملها في آخر أسبوعين
+SVC_SINGLE_WAIT = 7     # لو عملها مرة واحدة بس: ننبّه بعد أسبوع
+SVC_SOON        = 3     # لو الخدمة الناقصة محجوزة في خلال 3 أيام → مش ناقصة
+MISS_NEXT_MAX   = 2     # حاجز بكره (أو بعده لو بكره جمعة)
 STREAK_MIN     = 2    # إلغاء / غياب ورا بعض
 STREAK_RECENT  = 14   # آخر إلغاء لازم يكون في آخر 14 يوم
 MISS_ONLY = {"canceled", "cancelled", "no show", "noshow"}   # Waiting List بيتجاهل
@@ -271,6 +300,121 @@ def build_alerts(appointments, now=None, packages=None):
         })
     no_next.sort(key=lambda x: x["time"], reverse=True)
 
+    # ── بييجي بانتظام ومالوش ميعاد النهارده، بس حاجز بكره/بعده (غالبًا السكرتارية نسيت تحجزله) ──
+    WD_AR = ["الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت", "الحد"]
+    def _svc(t):
+        t = t or ""
+        return _is_pt(t) or "ريكفر" in t or "حجام" in t
+    win_from = today - timedelta(days=MISS_WINDOW)
+    br_days = defaultdict(lambda: defaultdict(int))      # فرع → يوم → عدد الحضور (عشان نعرف أيام الشغل)
+    br_today = defaultdict(int)                          # فرع → مواعيد النهارده
+    for v in patients.values():
+        for a in v:
+            d = a["start"].date()
+            if win_from <= d < today and a["status"] in ATTENDED:
+                br_days[a["branch"]][d] += 1
+            if d == today and a["status"] not in NOT_FUTURE:
+                br_today[a["branch"]] += 1
+    missing_today = []
+    for appts in patients.values():
+        if any(a["start"].date() == today for a in appts):
+            continue                                     # عنده أي ميعاد النهارده (حتى لو ملغي/Waiting) → مش منسي
+        fut = sorted([a for a in appts if today < a["start"].date() <= today + timedelta(days=MISS_NEXT_MAX)
+                      and a["status"] not in NOT_FUTURE], key=lambda a: a["start"])
+        if not fut:
+            continue
+        att = [a for a in appts if win_from <= a["start"].date() < today and a["status"] in ATTENDED and _svc(a["type"])]
+        if not att:
+            continue
+        br = Counter(a["branch"] for a in att).most_common(1)[0][0]
+        if br_today.get(br, 0) < 5:
+            continue                                     # الفرع مش شغال النهارده (إجازة/جمعة)
+        work = {d for d, n in br_days[br].items() if n >= 5}
+        days = {a["start"].date() for a in att}
+        last = max(days)
+        if (today - last).days > 4:
+            continue
+        n_work = len(work) or 1
+        daily = len(days) >= MISS_DAILY_MIN and len(days) >= MISS_DAILY_RATIO * n_work
+        weekly = (today - timedelta(days=7)) in days and (today - timedelta(days=14)) in days
+        # يومين شغل ورا بعض (الخميس ← السبت يتحسبوا ورا بعض لو الجمعة إجازة)
+        wl = sorted(work | days)
+        runs, cur = [], 0                                 # أطوال فترات الحضور ورا بعض
+        for d in wl:
+            if d in days:
+                cur += 1
+            else:
+                if cur: runs.append(cur)
+                cur = 0
+        if cur: runs.append(cur)
+        pairs = sum(r - 1 for r in runs if r >= 2)        # عدد مرات "يومين ورا بعض"
+        max_run = max(runs or [0])
+        runs2 = sum(1 for r in runs if r >= 2)            # كام مرة جه يومين أو أكتر ورا بعض
+        consec = max_run >= 3 or runs2 >= 2               # 3 أيام ورا بعض، أو يومين ورا بعض مرتين
+        if not (daily or consec):
+            continue
+        doc = Counter(a["doctor"] for a in att).most_common(1)[0][0]
+        hr = Counter(a["start"].hour for a in att).most_common(1)[0][0]
+        ref = max(att, key=lambda a: a["start"])
+        nx = fut[0]
+        missing_today.append({
+            "name": ref["name"], "phone": ref["phone"], "pid": ref["pid"],
+            "doctor": doc, "branch": br,
+            "why": "daily" if daily else "consec" if consec else "weekly",
+            "consec_pairs": pairs, "max_run": max_run, "runs2": runs2, "weekly_too": weekly,
+            "att_days": len(days), "work_days": len(work), "weekday": WD_AR[today.weekday()],
+            "usual_hour": hr, "last_attended": last.isoformat(),
+            "next_appt": nx["start"].isoformat(), "next_doctor": nx["doctor"],
+            "next_status": nx["status"].title(), "next_type": nx["type"],
+            **info(appts),
+        })
+
+    # ── محجوز النهارده خدمة، وناقصه خدمة تانية بيعملها معاها (مثلاً علاج طبيعي من غير شوك ويف) ──
+    svc_gap = []
+    sg_from = today - timedelta(days=SVC_WINDOW)
+    for appts in patients.values():
+        tday = [a for a in appts if a["start"].date() == today and a["status"] not in NOT_FUTURE and _svc_name(a["type"])]
+        if not tday:
+            continue
+        today_svcs = {_svc_name(a["type"]) for a in tday}
+        hist = defaultdict(set)                                     # يوم → الخدمات اللي اتعملت
+        for a in appts:
+            d = a["start"].date()
+            if sg_from <= d < today and a["status"] in ATTENDED and _svc_name(a["type"]):
+                hist[d].add(_svc_name(a["type"]))
+        if not hist:
+            continue
+        soon = {_svc_name(a["type"]) for a in appts
+                if today < a["start"].date() <= today + timedelta(days=SVC_SOON) and a["status"] not in NOT_FUTURE}
+        missing = []
+        cands = {x for svs in hist.values() for x in svs} - today_svcs - soon
+        for b in sorted(cands):
+            together = [d for d, svs in hist.items() if b in svs and svs & today_svcs]
+            if not together:
+                continue                                            # عمرها ما اتعملت مع خدمة النهارده
+            bdays = sorted(d for d, svs in hist.items() if b in svs)
+            gaps = [(bdays[i] - bdays[i - 1]).days for i in range(1, len(bdays))]
+            every = sorted(gaps)[len(gaps) // 2] if gaps else 0      # بيعملها كل كام يوم (الوسيط)
+            since = (today - bdays[-1]).days
+            if every and since < every:
+                continue                                            # لسه مش ميعادها (زي شوك ويف كل أسبوع)
+            if not every and since < SVC_SINGLE_WAIT:
+                continue                                            # عملها مرة واحدة بس من قريب — مش عارفين نظامها
+            missing.append({"svc": b, "times": len(bdays), "together": len(together),
+                            "last": bdays[-1].isoformat(), "every": every, "days_since": since})
+        if not missing:
+            continue
+        first = min(tday, key=lambda a: a["start"])
+        svc_gap.append({
+            "name": first["name"], "phone": first["phone"], "pid": first["pid"],
+            "doctor": first["doctor"], "branch": first["branch"],
+            "time": first["start"].isoformat(), "status": first["status"].title(),
+            "today_svcs": sorted(today_svcs), "missing": missing,
+            **info(appts),
+        })
+    svc_gap.sort(key=lambda x: x["time"])
+    missing_today.sort(key=lambda x: (-x["consec_pairs"], x["usual_hour"], x["name"]))   # الأقوى (يومين ورا بعض أكتر) فوق
+
     def pkg_state(appts, upto_incl=False):
         """حالة الباقة الحالية: حجمها، رقمها، اتحضر منها كام، وبدأت إمتى. upto_incl = نحسب حضور النهارده كمان."""
         days = sorted({a["start"].date() for a in appts
@@ -416,6 +560,8 @@ def build_alerts(appointments, now=None, packages=None):
         "dropped": dropped,
         "streaks": streaks,
         "today_no_next": no_next,
+        "missing_today": missing_today,
+        "svc_gap": svc_gap,
         "milestones": milestones,
         "pt_index": pt_index,
         "renew_today": renew_today,

@@ -483,6 +483,19 @@ padding:7px 11px;font-family:'Cairo',sans-serif;font-size:.74rem;color:var(--txt
     </div>
   </div>
 
+  <!-- ══ Waiting + دكتور فاضي من نفس النوع ══ -->
+  <div id="ov-wf-card" style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:13px 15px;margin-bottom:10px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--am),var(--g))"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:1rem">🔁</span>
+      <span style="font-weight:700;font-size:.76rem;flex:1">Waiting وفيه دكتور فاضي النهارده<span style="display:block;font-weight:400;font-size:.55rem;color:var(--mute)">علاج طبيعي + ريكفري + حجامه · دكاترة من نفس نوع دكتور المريض (ذكر/أنثى) · الأقرب لميعاده الأول</span></span>
+      <span id="ov-wf-badge" style="display:none;background:rgba(16,185,129,.15);color:var(--g);font-size:.62rem;font-weight:900;padding:2px 8px;border-radius:20px"></span>
+    </div>
+    <div id="ov-wf-list" style="display:flex;flex-direction:column;gap:6px">
+      <p style="color:var(--mute);font-size:.68rem">⏳ جاري التحميل...</p>
+    </div>
+  </div>
+
   <div class="chrow">
     <div class="chbox ov-card-link" onclick="swTab('doctors')" style="cursor:pointer"><h3>📊 الانشغال الكلي <span style="font-size:.5rem;color:var(--mute);font-weight:400">← جميع الجداول</span></h3><div id="c-total" style="height:170px"></div></div>
     <div class="chbox ov-card-link" onclick="swTab('doctors',{gender:'male'})" style="cursor:pointer"><h3>👨 الذكور <span style="font-size:.5rem;color:var(--mute);font-weight:400">← جدول الذكور</span></h3><div id="c-male" style="height:170px"></div></div>
@@ -6940,6 +6953,7 @@ function manaWaitingPT() {
 }
 /* يستقبل results جاهزة من buildFreeSlotsBanner (نفس مصدر Medicolize) */
 function updateOverviewFreeSlots(results) {
+  if (results && Array.isArray(results)) { OV_FREE = results; setTimeout(wfRender, 0); }
   var card    = document.getElementById('ov-free-list');
   var summary = document.getElementById('ov-free-summary');
   var badge   = document.getElementById('ov-free-badge');
@@ -7212,6 +7226,62 @@ function asStatusLabel(a){
   for (var i=0;i<AS_DEFS.length;i++){ if (AS_DEFS[i].match(s)) return AS_DEFS[i].label; }
   return s || 'غير محدد';
 }
+var OV_FREE = null;
+function wfIsWaiting(a){ var st=(a.status||'').trim(); return /waiting/i.test(st) || st==='قائمة انتظار'; }
+function wfFmtH(h){ return (h%12||12)+':00 '+(h>=12?'م':'ص'); }
+/* الدكاترة الفاضيين لمريض Waiting: نفس نوع دكتوره، ساعات لسه ما عدّتش، الأقرب لميعاده الأول */
+function wfSuggest(a){
+  if (!OV_FREE || !OV_FREE.length) return [];
+  var g = resolveDocGender(a.doctor);
+  var wantH = a.start ? new Date(a.start).getHours() : null;
+  var nowH = new Date().getHours();
+  var out = [];
+  OV_FREE.forEach(function(r){
+    if (g && r.gender && r.gender!==g) return;
+    var hrs = (r.freeHours||[]).filter(function(h){ return h>=nowH; }).slice().sort(function(x,y){
+      if (wantH===null) return x-y;
+      return Math.abs(x-wantH)-Math.abs(y-wantH) || x-y;
+    });
+    if (!hrs.length) return;
+    var same = (r.name && r.name===a.doctor) || (typeof DOC_MAP!=='undefined' && DOC_MAP[a.doctor] && DOC_MAP[a.doctor]===r.nameAr);
+    out.push({name: r.nameAr||r.name, gender: r.gender, hours: hrs, same: same,
+              dist: wantH===null ? 0 : Math.abs(hrs[0]-wantH)});
+  });
+  out.sort(function(x,y){ return x.dist-y.dist || (y.same?1:0)-(x.same?1:0) || y.hours.length-x.hours.length; });
+  return out;
+}
+function wfChips(sug, max){
+  return sug.slice(0, max||4).map(function(d){
+    var col = d.gender==='female' ? 'var(--fem)' : 'var(--male)';
+    return '<span style="display:inline-flex;gap:4px;align-items:center;border:1px solid rgba(16,185,129,.25);background:rgba(16,185,129,.06);border-radius:6px;padding:2px 7px;font-size:.58rem">'+
+      '<b style="color:'+col+'">'+(d.gender==='female'?'♀':'♂')+' '+alEsc(d.name)+(d.same?' ⭐ نفس الدكتور':'')+'</b>'+
+      '<span style="color:var(--g);font-weight:800">'+d.hours.slice(0,4).map(wfFmtH).join(' · ')+(d.hours.length>4?' +'+(d.hours.length-4):'')+'</span></span>';
+  }).join(' ') + (sug.length>(max||4) ? ' <span style="font-size:.56rem;color:var(--mute)">+ '+(sug.length-(max||4))+' دكاترة</span>' : '');
+}
+function wfRender(){
+  var el = document.getElementById('ov-wf-list'), badge = document.getElementById('ov-wf-badge');
+  if (!el) return;
+  var w = (AS_APPTS||[]).filter(wfIsWaiting).sort(function(a,b){ return (a.start||'')>(b.start||'')?1:-1; });
+  if (!w.length){ el.innerHTML='<p style="color:var(--mute);font-size:.68rem">✅ مفيش حد Waiting النهارده</p>'; if(badge) badge.style.display='none'; return; }
+  if (!OV_FREE){ el.innerHTML='<p style="color:var(--mute);font-size:.68rem">⏳ مستني المواعيد الفاضية...</p>'; return; }
+  var fit = 0;
+  el.innerHTML = w.map(function(a){
+    var sug = wfSuggest(a); if (sug.length) fit++;
+    var g = resolveDocGender(a.doctor);
+    var doc = String((typeof DOC_MAP!=='undefined' && DOC_MAP[a.doctor]) ? DOC_MAP[a.doctor] : (a.doctor||'—')).replace(/^د\.\s*/,'');
+    var t = a.start ? wfFmtH(new Date(a.start).getHours()).replace(':00','') : '—';
+    var ph = String(a.phone||'').replace(/^\+?2_?(?=0)/,'');
+    return '<div style="border:1px solid var(--brd);border-inline-start:3px solid '+(sug.length?'var(--g)':'var(--r)')+';border-radius:9px;padding:7px 10px;background:rgba(0,0,0,.15)">'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+        '<b style="font-size:.72rem">⏳ '+alEsc(a.patient||'—')+'</b>'+
+        '<span style="font-size:.6rem;color:var(--mute)">'+t+' · د. '+alEsc(doc)+(g?(g==='female'?' ♀':' ♂'):'')+' · '+alEsc(a.type||'')+'</span>'+
+        (ph?'<a href="tel:'+alEsc(ph)+'" style="font-size:.6rem;color:var(--g);text-decoration:none;margin-inline-start:auto">📞 '+alEsc(ph)+'</a>':'')+
+      '</div>'+
+      '<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:4px">'+(sug.length ? wfChips(sug,4) : '<span style="font-size:.6rem;color:var(--r)">❌ مفيش دكتور '+(g==='female'?'أنثى':g==='male'?'ذكر':'')+' فاضي باقي النهارده</span>')+'</div>'+
+    '</div>';
+  }).join('');
+  if (badge){ badge.style.display='inline'; badge.textContent = fit+' من '+w.length+' ليهم مكان'; }
+}
 function asClose(){ var m=document.getElementById('as-modal'); if(m) m.remove(); document.removeEventListener('keydown', asEsc); }
 function asEsc(e){ if(e.key==='Escape') asClose(); }
 function asOpen(st, g){
@@ -7245,6 +7315,7 @@ function asOpen(st, g){
         '<div style="flex:1;min-width:0">'+
           '<div style="font-weight:800;font-size:.74rem">'+esc(a.patient||'—')+'</div>'+
           '<div style="font-size:.6rem;color:var(--mute)">د. '+esc(doc)+' · '+esc(a.type||'')+' · <span style="color:'+d.color+'">'+d.icon+' '+esc(asStatusLabel(a))+'</span></div>'+
+          (wfIsWaiting(a) ? (function(){ var sg=wfSuggest(a); return '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px"><span style="font-size:.58rem;color:var(--mute)">🔓 فاضي:</span>'+(sg.length?wfChips(sg,3):'<span style="font-size:.58rem;color:var(--r)">مفيش</span>')+'</div>'; })() : '')+
         '</div>'+
         (ph ? '<a href="tel:'+esc(ph)+'" style="font-size:.62rem;color:var(--g);text-decoration:none;white-space:nowrap">📞 '+esc(ph)+'</a>' : '')+
       '</div>';
@@ -7304,6 +7375,7 @@ function updateApptStatusCard() {
 
   /* الخدمات بس: جلسة علاج طبيعي (ومنطقتين) + ريكفري + حجامه */
   allAppts = allAppts.filter(asIsService);
+  AS_APPTS = allAppts; setTimeout(wfRender, 0);
 
   if (!allAppts.length) {
     if (badge) badge.textContent = 'لا توجد بيانات اليوم';

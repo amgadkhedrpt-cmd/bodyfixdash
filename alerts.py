@@ -14,7 +14,7 @@ BODYFIX — حساب تنبيهات اللوحة الرئيسية
 2) day_counts : عدد المواعيد لكل دكتور ولكل فرع في النهارده ونفس اليوم الأسبوع اللي فات
    (من غير الملغي وقائمة الانتظار والملاحظات) — الصفحة بتحدد الفرع من شيت الدكاترة
 """
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from collections import defaultdict, Counter
 import re
 
@@ -30,7 +30,10 @@ REGULAR_MIN    = 4    # أقل عدد أيام حضور في النافذة (= �
 RECENT_DAYS    = 7    # القايمة الأساسية: آخر حضور من 4 لـ 7 أيام
 LOOKBACK_DAYS  = 30   # قسم "أقدم" مقفول: من 8 لـ 30 يوم
 
-PT_TYPES       = {"جلسة", "جلسة علاج طبيعي"}   # جلسة علاج طبيعي بس (Enum5 في Medicolize)
+# أنواع المواعيد بالأسامي الحقيقية من Medicolize (Enum5 = جلسة علاج طبيعي · Enum13 = على منطقتين)
+PT_TYPES       = {"جلسة علاج طبيعي", "جلسة علاج طبيعي علي منطقتين", "جلسة علاج طبيعي على منطقتين",
+                  "جلسة"}   # "جلسة" = الاسم القديم من الجدول الاحتياطي، احتياطي بس
+EVAL_TYPES     = {"تقييم الجلسه الأخيره", "تقييم الجلسة الأخيرة", "اعادة تقييم", "إعادة تقييم"}
 CYCLE          = 12   # عدد جلسات الدورة — بعد 12 العد يرجع 1
 MILESTONES     = {3, 6, 9, 12}   # الجلسات اللي تظهر في قايمة النهارده
 RENEW_AT       = {11, 12}        # جلسة النهارده دي = الباقة بتخلص — اعرض التجديد (بيظهر في أداة التحصيل)
@@ -76,7 +79,9 @@ def _norm(a):
         name = f"{pat.get('firstName') or ''} {pat.get('lastName') or ''}".strip()
         phone = pat.get("phoneNumber") or ""
         pid = pat.get("id") or ""
+        bdate = pat.get("birthDate") or ""
     else:
+        bdate = ""
         name, phone, pid = (pat or "").strip(), a.get("phone") or "", a.get("patient_id") or ""
     try:
         start = datetime.fromisoformat(str(a.get("start")).replace("Z", "+00:00")).astimezone(CAIRO)
@@ -86,7 +91,7 @@ def _norm(a):
         "doctor": (doc or "").strip(), "branch": (br or "").strip(), "pid": str(pid or ""),
         "name": name, "phone": phone, "start": start,
         "status": str(a.get("status") or "").strip().lower(),
-        "type": str(a.get("type") or ""),
+        "type": str(a.get("type") or "").strip(), "bdate": str(bdate or "")[:10],
     }
 
 
@@ -155,7 +160,7 @@ def build_analysis(patients, today, window_days=28, weeks=8, daily_days=90):
     }
 
 
-def build_alerts(appointments, now=None):
+def build_alerts(appointments, now=None, packages=None):
     now = (now or datetime.now(timezone.utc)).astimezone(CAIRO)
     today = now.date()
     last_week = today - timedelta(days=7)
@@ -176,6 +181,39 @@ def build_alerts(appointments, now=None):
         if a["doctor"].lower() in SKIP_DOCS or not (a["name"] or a["phone"]):
             continue
         patients[_pkey(a["name"], a["phone"], a["pid"])].append(a)
+
+    # ── الباقات (من الفواتير) + جهة التحويل + السن ──
+    LIVE_TODAY = {"open", "confirmed", "checked in", "checkedin", "in progress", "inprogress", "completed", "delayed"}
+    hist_start = min((a["start"].date() for v in patients.values() for a in v), default=today)
+    pk_by_pid, ref_by_pid = defaultdict(list), {}
+    for iid, v in ((packages or {}).get("inv") or {}).items():
+        pid = v.get("p")
+        if not pid:
+            continue
+        if v.get("s"):
+            try:
+                st = datetime.fromisoformat(v["a"].replace("Z", "+00:00")).astimezone(CAIRO).date() if v.get("a") else date.fromisoformat(v["d"])
+            except Exception:
+                continue
+            pk_by_pid[pid].append((st, int(v["s"])))
+        if v.get("r") and (pid not in ref_by_pid or v.get("d", "") > ref_by_pid[pid][0]):
+            ref_by_pid[pid] = (v.get("d", ""), v["r"])
+    for pid in pk_by_pid:
+        pk_by_pid[pid].sort()
+
+    def info(appts):
+        pid = appts[0]["pid"]
+        bd = next((a["bdate"] for a in appts if a.get("bdate")), "")
+        age = None
+        try:
+            if bd:
+                b0 = date.fromisoformat(bd)
+                age = today.year - b0.year - ((today.month, today.day) < (b0.month, b0.day))
+                if age < 0 or age > 110:
+                    age = None
+        except Exception:
+            age = None
+        return {"referral": (ref_by_pid.get(pid) or ("", ""))[1], "age": age}
 
     dropped = []
     for appts in patients.values():
@@ -210,6 +248,7 @@ def build_alerts(appointments, now=None):
             "next_appt": nxt[0]["start"].isoformat() if nxt else "",
             "next_doctor": nxt[0]["doctor"] if nxt else "",
             "next_status": nxt[0]["status"].title() if nxt else "",
+            **info(appts),
         })
     dropped.sort(key=lambda x: (x["next_appt"] != "", x["days_since"]))   # الأحدث انقطاعًا فوق
 
@@ -228,76 +267,105 @@ def build_alerts(appointments, now=None):
             "name": last["name"], "phone": last["phone"], "pid": last["pid"],
             "doctor": last["doctor"], "branch": last["branch"],
             "time": last["start"].isoformat(), "type": last["type"], "status": last["status"].title(),
+            **info(appts),
         })
     no_next.sort(key=lambda x: x["time"], reverse=True)
 
-    # ── جلسة رقم 3 / 6 / 9 / 12 النهارده: العد من أول جلسة خالص، وبعد 12 يرجع 1 (ومعاه عدد الـ 12 اللي خلصت) ──
-    LIVE_TODAY = {"open", "confirmed", "checked in", "checkedin", "in progress", "inprogress", "completed", "delayed"}
+    def pkg_state(appts, upto_incl=False):
+        """حالة الباقة الحالية: حجمها، رقمها، اتحضر منها كام، وبدأت إمتى. upto_incl = نحسب حضور النهارده كمان."""
+        days = sorted({a["start"].date() for a in appts
+                       if (a["start"].date() <= today if upto_incl else a["start"].date() < today)
+                       and _is_pt(a["type"]) and a["status"] in ATTENDED})
+        pid = appts[0]["pid"]
+        pks = [p for p in pk_by_pid.get(pid, []) if p[0] <= today]
+        if pks:
+            st, size = pks[-1]
+            done = sum(1 for d in days if d >= st)
+            return {"src": "inv", "size": size, "pkg_no": len(pks), "done": done, "start": st.isoformat(),
+                    "total": len(days), "first": days[0].isoformat() if days else st.isoformat(),
+                    "approx": st < hist_start + timedelta(days=3), "last": days[-1] if days else None}
+        total = len(days)
+        return {"src": "est", "size": CYCLE, "pkg_no": total // CYCLE + 1, "done": total % CYCLE,
+                "start": "", "total": total, "first": days[0].isoformat() if days else today.isoformat(),
+                "approx": bool(days) and days[0] <= hist_start + timedelta(days=7), "last": days[-1] if days else None,
+                "est_full": total > 0 and total % CYCLE == 0}
+
+    # ── جلسة النهارده رقم كام في الباقة (3 / 6 / 9 / 12) ──
     milestones_all = []
     for appts in patients.values():
         today_pt = [a for a in appts if a["start"].date() == today and _is_pt(a["type"]) and a["status"] in LIVE_TODAY]
         if not today_pt:
             continue
-        prior_days = {a["start"].date() for a in appts
-                      if a["start"].date() < today and _is_pt(a["type"]) and a["status"] in ATTENDED}
-        total = len(prior_days) + 1                 # جلسة النهارده
-        cycle_no = (total - 1) % CYCLE + 1          # رقمها جوه الـ 12
+        ps = pkg_state(appts)
         t = min(today_pt, key=lambda a: a["start"])
-        milestones_all.append({
+        m = {
             "name": t["name"], "phone": t["phone"], "pid": t["pid"],
             "doctor": t["doctor"], "branch": t["branch"],
             "time": t["start"].isoformat(), "status": t["status"].title(),
-            "session_no": cycle_no, "total": total, "cycles_done": (total - 1) // CYCLE,
-            "first_session": min(prior_days).isoformat() if prior_days else today.isoformat(),
-        })
+            "session_no": ps["done"] + 1, "size": ps["size"], "pkg_no": ps["pkg_no"], "pkg_src": ps["src"],
+            "pkg_start": ps["start"], "total": ps["total"] + 1,
+            "cycles_done": ps["pkg_no"] - 1, "first_session": ps["first"], "approx": ps["approx"],
+        }
+        m.update(info(appts))
+        milestones_all.append(m)
     milestones_all.sort(key=lambda x: x["time"])
-
-    # ── فهرس كل المرضى للبحث: عدد جلسات العلاج الطبيعي اللي حضرها + جلسته الجاية رقم كام وفي أنهي باقة ──
-    # كل صف: [الاسم, التليفون, جلسات حضرها قبل النهارده, أول جلسة, آخر جلسة, ميعاد النهارده أو الجاي, دكتوره, حالته]
-    pt_index = []
-    for appts in patients.values():
-        done_days = sorted({a["start"].date() for a in appts
-                            if a["start"].date() < today and _is_pt(a["type"]) and a["status"] in ATTENDED})
-        upcoming = sorted([a for a in appts if a["start"].date() >= today and _is_pt(a["type"]) and a["status"] in LIVE_TODAY],
-                          key=lambda a: a["start"])
-        if not done_days and not upcoming:
-            continue
-        ref = upcoming[0] if upcoming else max(appts, key=lambda a: a["start"])
-        pt_index.append([
-            ref["name"], (ref["phone"] or "").replace("+2_", "").replace("_", ""), len(done_days),
-            done_days[0].isoformat() if done_days else "", done_days[-1].isoformat() if done_days else "",
-            upcoming[0]["start"].isoformat() if upcoming else "", upcoming[0]["doctor"] if upcoming else ref["doctor"],
-            upcoming[0]["status"].title() if upcoming else "",
-        ])
-    pt_index.sort(key=lambda r: r[0])
-    # التاريخ اللي معانا بيبدأ من أول يوم في البيانات — اللي أول جلسة ليه قريبة منه غالبًا بدأ قبلها، فرقمه تقريبي
-    hist_start = min((a["start"].date() for v in patients.values() for a in v), default=today)
-    for m in milestones_all:
-        m["approx"] = m["first_session"] <= (hist_start + timedelta(days=7)).isoformat()
     milestones = [m for m in milestones_all if m["session_no"] in MILESTONES]
 
-    # ── تجديد الباقة: (1) جلسته النهارده 11 أو 12  (2) خلص الجلسة 12 ومالوش ميعاد جاي ──
-    renew_today = [m for m in milestones_all if m["session_no"] in RENEW_AT]
+    # ── فهرس كل المرضى للبحث ──
+    # كل صف: [الاسم, التليفون, جلسات حضرها قبل النهارده, أول جلسة, آخر جلسة, ميعاد النهارده أو الجاي, دكتوره, حالته,
+    #          حجم الباقة, اتحضر من الباقة, رقم الباقة, مصدر الباقة (inv/est), جهة التحويل, السن, بداية الباقة]
+    pt_index = []
+    for appts in patients.values():
+        upcoming = sorted([a for a in appts if a["start"].date() >= today and _is_pt(a["type"]) and a["status"] in LIVE_TODAY],
+                          key=lambda a: a["start"])
+        ps = pkg_state(appts)
+        if not ps["total"] and not upcoming:
+            continue
+        ref = upcoming[0] if upcoming else max(appts, key=lambda a: a["start"])
+        inf = info(appts)
+        pt_index.append([
+            ref["name"], (ref["phone"] or "").replace("+2_", "").replace("_", ""), ps["total"],
+            ps["first"] if ps["total"] else "", ps["last"].isoformat() if ps["last"] else "",
+            upcoming[0]["start"].isoformat() if upcoming else "", upcoming[0]["doctor"] if upcoming else ref["doctor"],
+            upcoming[0]["status"].title() if upcoming else "",
+            ps["size"], ps["done"], ps["pkg_no"], ps["src"], inf["referral"], inf["age"], ps["start"],
+        ])
+    pt_index.sort(key=lambda r: r[0])
+
+    # ── تجديد الباقة: (1) جلسته النهارده آخر جلستين في باقته  (2) خلص باقته ومالوش ميعاد جاي ──
+    renew_today = [m for m in milestones_all if m["session_no"] >= m["size"] - 1]
     finished = []
     for appts in patients.values():
-        done_days = sorted({a["start"].date() for a in appts
-                            if a["start"].date() <= today and _is_pt(a["type"]) and a["status"] in ATTENDED})
-        if not done_days or len(done_days) % CYCLE:
+        ps = pkg_state(appts, upto_incl=True)
+        if not ps["last"]:
             continue
-        last = done_days[-1]
+        full = (ps["done"] >= ps["size"]) if ps["src"] == "inv" else ps.get("est_full")
+        if not full:
+            continue
+        last = ps["last"]
         gap = (today - last).days
         if gap > FINISHED_DAYS or gap == 0:            # اللي خلص النهارده بيظهر في تنبيه التجديد في أداة التحصيل
             continue
         if any(a["start"] > now and a["status"] in LIVE_TODAY for a in appts):
             continue                                   # حاجز ميعاد جاي = جدد أو راجع
         ref = max((a for a in appts if a["start"].date() == last and _is_pt(a["type"])), key=lambda a: a["start"])
-        finished.append({
+        ev = sorted([a for a in appts if a["type"] in EVAL_TYPES and a["start"].date() >= last - timedelta(days=3)],
+                    key=lambda a: a["start"])
+        ev_done = [a for a in ev if a["status"] in ATTENDED]
+        ev_book = [a for a in ev if a["start"] > now and a["status"] in LIVE_TODAY]
+        f = {
             "name": ref["name"], "phone": ref["phone"], "pid": ref["pid"],
             "doctor": ref["doctor"], "branch": ref["branch"],
             "last_session": last.isoformat(), "days_since": gap,
-            "total": len(done_days), "packages": len(done_days) // CYCLE,
-            "approx": done_days[0] <= hist_start + timedelta(days=7),
-        })
+            "total": ps["total"], "packages": ps["pkg_no"] if ps["src"] == "inv" else ps["total"] // CYCLE,
+            "size": ps["size"], "pkg_src": ps["src"], "done_in_pkg": ps["done"],
+            "approx": ps["approx"],
+            "eval": "done" if ev_done else "booked" if ev_book else "none",
+            "eval_date": (ev_done or ev_book)[-1]["start"].date().isoformat() if (ev_done or ev_book) else "",
+            "eval_type": (ev_done or ev_book)[-1]["type"] if (ev_done or ev_book) else "",
+        }
+        f.update(info(appts))
+        finished.append(f)
     finished.sort(key=lambda x: x["days_since"])
 
     # ── إلغاء / غياب ورا بعض (الصفحة بتطابقهم مع شيت التثبيتات بالاسم) ──
@@ -331,6 +399,7 @@ def build_alerts(appointments, now=None):
             "last_attended": att[0]["start"].date().isoformat() if att else "",
             "next_appt": nxt[0]["start"].isoformat() if nxt else "",
             "next_status": nxt[0]["status"].title() if nxt else "",
+            **info(appts),
         })
     streaks.sort(key=lambda x: (x["misses"][0]["date"], x["streak"]), reverse=True)   # آخر إلغاء الأحدث فوق
 

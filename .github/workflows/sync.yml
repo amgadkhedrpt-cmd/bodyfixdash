@@ -87,6 +87,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add appointments.json summary.json data/
           git add alerts.json 2>/dev/null || true
+          git add packages.json 2>/dev/null || true
           git diff --staged --quiet || git commit -m "🔄 sync appointments $(date -u '+%Y-%m-%d %H:%M') UTC"
           git pull --rebase=false -X ours origin main
           git push origin main

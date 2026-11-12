@@ -611,15 +611,22 @@ def build_alerts(appointments, now=None, packages=None):
                              and not _fu_kind(x["type"])], key=lambda x: x["start"])
                 nf = sorted([x for x in srt if x["start"] > a["start"] and x["status"] not in ("canceled", "cancelled", "no show", "noshow")],
                             key=lambda x: x["start"])   # أي خطوة جاية محجوزة (متابعة تانية / منقطع نهائي / ميعاد)
+                unreach_ = (unr or len(times) >= 2) and not reached and not cb
+                lim_ = today + timedelta(days=2)
+                if lim_.weekday() == 4:   # الجمعة إجازة
+                    lim_ += timedelta(days=1)
+                fu_ok_date = bool(nf) and nf[0]["start"].date() <= lim_
                 res = ("حجز: " + nb[0]["type"] + " يوم " + nb[0]["start"].strftime("%d/%m") + " " + nb[0]["start"].strftime("%H:%M")
                        + " مع " + nb[0]["doctor"] + " (" + nb[0]["status"].title() + ")") if nb else ""
                 calls_today.append({"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
                                     "time": a["start"].isoformat(), "type": a["type"], "step": step(a), "status": a["status"].title(),
                                     "note": note[:300], "times": times, "verdict": verdict, "reached": reached or cb, "result": res,
                                     "next_fu": (nf[0]["type"] + " يوم " + nf[0]["start"].strftime("%d/%m")) if nf else "",
+                                    "next_late": bool(nf) and unreach_ and not fu_ok_date,
                                     # تمت: (1) المريض حجز ميعاد بعد المتابعة، أو (2) ملحوظة باللي حصل (أو اتصالين بوقتهم) + الخطوة الجاية محجوزة
                                     #       (متابعة تانية / منقطع نهائي) — «هيتوقف شوية» مش عذر، لازم يتحجز ميعاد نتابعه فيه
-                                    "done": bool(nb) or ((a["status"] in ATTENDED and bool(note.strip()) or len(times) >= 2) and bool(nf))})
+                                    #       ما ردش / مش عارفين نوصله → المتابعة الجاية لازم تبقى خلال يومين (بعد بكره، ولو جمعة اليوم اللي بعده)
+                                    "done": bool(nb) or ((a["status"] in ATTENDED and bool(note.strip()) or len(times) >= 2) and bool(nf) and (not unreach_ or fu_ok_date))})
             if verdict in ("ok", "callback_ok"):
                 continue
             rec = base(a, {"date": a["start"].isoformat(), "kind": _fu_kind(a["type"]), "step": step(a), "type": a["type"],

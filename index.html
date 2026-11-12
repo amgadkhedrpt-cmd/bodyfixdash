@@ -11586,7 +11586,8 @@ function planTasks(useAll){
     // اللي اتعمل على السيستم: حجز بعد المتابعة / الحالة / الملحوظة / عدد الاتصالات
     var why=x.result?'المريض حجز بعد المتابعة':((/completed|checked|progress/i.test(x.status||'')&&(x.note||'').trim())?'الموعد Completed وفيه ملحوظة':tm.length>=2?'اتكتب '+tm.length+' اتصالات بوقتها':'')+(x.next_fu&&!x.result?' + اتحجز '+x.next_fu:'');
     var miss=[]; if(!x.result){ if(!/completed|checked|progress/i.test(x.status||'')) miss.push('الموعد لسه <b>'+alEsc(x.status||'')+'</b> — يتقفل Completed بعد الاتصال'); if(!(x.note||'').trim()) miss.push('مفيش ملحوظة باللي حصل'); else if(tm.length<2&&!/completed|checked|progress/i.test(x.status||'')) miss.push('لو ما ردش: اكتبي وقت كل محاولة (محتاجين محاولتين على الأقل)');
-      if(!x.next_fu) miss.push('<b>لازم يتحجز ميعاد متابعة جاي</b> — حتى لو قال هيتوقف شوية / مسافر، نحدد يوم نكلمه فيه'); }
+      if(!x.next_fu) miss.push('<b>لازم يتحجز ميعاد متابعة جاي</b> — حتى لو قال هيتوقف شوية / مسافر، نحدد يوم نكلمه فيه');
+      else if(x.next_late) miss.push('<b>المتابعة الجاية متأخرة ('+alEsc(x.next_fu)+')</b> — ما ردش، فالمتابعة التانية المفروض تتحجز بعد بكره'); }
     add('morning',{grp:['call'], sys:ok?why:'', what:ok?((x.result?'📅 '+x.result+' · ':'')+(x.note?'📝 '+x.note:'')):'', key:today+'|call|'+x.pid, icon:'📞', kind:'مكالمة متابعة — '+alEsc(x.type||'')+(x.step?' '+x.step:''), name:x.name, phone:x.phone, br:brOf(x),
       lines:['الموعد على Medicolize: <b style="color:'+(/completed|checked|progress/i.test(x.status||'')?'var(--g)':'var(--am)')+'">'+alEsc(x.status||'')+'</b>'+(tm.length?' · اتصالات مكتوبة: '+tm.map(alEsc).join('، '):''),
              x.note?'📝 '+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة لسه</span>',

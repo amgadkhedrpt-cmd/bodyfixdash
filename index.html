@@ -11667,11 +11667,12 @@ var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView'
 /* 🧾 «حصّل فلوس» مسئوليتها على اللي على الخزنة (من تاب التحصيل: «مين على الخزنة») وقت ميعاد المريض */
 var PLAN_SHIFTS=null, PLAN_SHIFTS_AT=0, PLAN_SHIFTS_NOCFG=false;
 function planShiftsLoad(){
-  if(Date.now()-PLAN_SHIFTS_AT<120000) return; PLAN_SHIFTS_AT=Date.now();
-  var c=(typeof bfSheetCfg==='function')?bfSheetCfg():null; if(!ALERTS_DATA) return;
+  if(!ALERTS_DATA) return;                                   // نستنى التنبيهات تحمّل (عشان تاريخ النهارده)
+  if(Date.now()-PLAN_SHIFTS_AT<60000) return; PLAN_SHIFTS_AT=Date.now();
+  var c=(typeof bfSheetCfg==='function')?bfSheetCfg():null;
   if(!c||!c.url||!c.key){ try{ var ls=JSON.parse(localStorage.getItem('bf_shifts_'+ALERTS_DATA.today)||'null'); if(ls){ PLAN_SHIFTS=ls; planRender(); return; } }catch(e){} PLAN_SHIFTS=[]; PLAN_SHIFTS_NOCFG=true; return; }
   fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'get',path:'days/'+ALERTS_DATA.today+'/meta/shifts',key:c.key})})
-    .then(function(r){ return r.json(); }).then(function(j){ var d=j&&j.doc; PLAN_SHIFTS=(d&&(d.list||(d.data&&d.data.list)))||[]; planRender(); }).catch(function(){});
+    .then(function(r){ return r.json(); }).then(function(j){ var d=j&&j.doc; PLAN_SHIFTS_NOCFG=false; PLAN_SHIFTS=(d&&(d.list||(d.data&&d.data.list)))||[]; planRender(); }).catch(function(){ PLAN_SHIFTS_AT=0; });
 }
 function planCashOwner(t){
   if(!PLAN_SHIFTS||!PLAN_SHIFTS.length) return '';
@@ -11834,6 +11835,7 @@ function planRow(t){
 }
 function planRender(){
   var box=document.getElementById('planBox'); if(!box) return;
+  if(PLAN_SHIFTS===null||PLAN_SHIFTS_NOCFG){ try{ planShiftsLoad(); }catch(e){} }
   var T; try{ T=planTasks(); }catch(err){ box.innerHTML='<div style="padding:24px;text-align:center;color:var(--r)">⚠️ حصلت مشكلة في عرض خطة اليوم — اعمل Refresh. لو فضلت، ابعت الرسالة دي: '+alEsc(String(err&&err.message||err))+'</div>'; return; }
   if(!T){ box.innerHTML='<div style="padding:30px;text-align:center;color:var(--mute)">⏳ بيحمل التنبيهات...</div>'; if(typeof alertsLoad==='function'&&!ALERTS_DATA) alertsLoad(); return; }
   var all=[].concat(T.mgr,T.morning,T.rec,T.office,T.evening), today=(ALERTS_DATA&&ALERTS_DATA.today)||'';

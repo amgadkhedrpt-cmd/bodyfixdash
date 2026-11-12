@@ -7,8 +7,6 @@
 <title>BODYFIX — التحليلات المالية</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{color-scheme:light;--bg:#f4f3ef;--s1:#fcfcfb;--s2:#f0efea;--brd:#e1dfd8;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;
 --c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--c5:#e87ba4;--c6:#008300;--c7:#6250d6;--c8:#e34948;
@@ -129,6 +127,18 @@ const BRN={haram:'الهرم',dokki:'الدقي',both:'الفرعين'};
 let RAW=null, D=null, S={tab:'sum',b:'haram',from:'',to:''}, CH={};
 try{const t=localStorage.getItem('fin_tab');if(t)S.tab=t;const b=localStorage.getItem('fin_b');if(b)S.b=b}catch(e){}
 
+// ---------------- libraries: several sources, loaded without blocking the page ----------------
+const LIBS={Chart:['https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js','https://unpkg.com/chart.js@4.4.1/dist/chart.umd.min.js'],
+  XLSX:['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js']};
+const LIBP={};
+function loadLib(name){if(window[name])return Promise.resolve(true);if(LIBP[name])return LIBP[name];
+  LIBP[name]=new Promise(res=>{const urls=LIBS[name].slice();const next=()=>{if(window[name])return res(true);const u=urls.shift();if(!u){delete LIBP[name];return res(false)}
+    const sc=document.createElement('script');sc.src=u;sc.async=true;const t=setTimeout(()=>{sc.onload=sc.onerror=null;next()},12000);
+    sc.onload=()=>{clearTimeout(t);window[name]?res(true):next()};sc.onerror=()=>{clearTimeout(t);next()};document.head.appendChild(sc)};next()});
+  return LIBP[name]}
+let CHW=0;function chartReady(){if(CHW)return;CHW=1;loadLib('Chart').then(ok=>{if(ok&&D)render()})}
+chartReady();
+
 // ---------------- decrypt ----------------
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 async function deriveKey(pw,salt,iter){
@@ -141,8 +151,8 @@ async function openWith(key,j){
   return JSON.parse(await new Response(ds).text());
 }
 async function fetchEnc(name){
-  const urls=['https://raw.githubusercontent.com/amgadkhedrpt-cmd/bodyfixdash/main/data/'+name+'?t='+Date.now(),'data/'+name+'?t='+Date.now()];
-  for(const u of urls){try{const r=await fetch(u,{cache:'no-store'});if(r.ok)return await r.json()}catch(e){}}
+  const urls=['https://raw.githubusercontent.com/amgadkhedrpt-cmd/bodyfixdash/main/data/'+name,'data/'+name];
+  for(const u of urls){try{const r=await fetch(u,{cache:'no-cache'});if(r.ok)return await r.json()}catch(e){}}
   return null;
 }
 function merge(parts){const out={v:1,start:'2024-06',branches:{},kinds:{},at:''};
@@ -150,7 +160,8 @@ function merge(parts){const out={v:1,start:'2024-06',branches:{},kinds:{},at:''}
     for(const kd in o.kinds||{})for(const b in o.kinds[kd]){const t=((out.kinds[kd]=out.kinds[kd]||{})[b]=out.kinds[kd][b]||{});Object.assign(t,o.kinds[kd][b])}}
   return out}
 async function unlock(pw,saved){
-  const files=await Promise.all(['fin.enc','fin_c.enc'].map(fetchEnc));
+  const say=t=>{const b=$('#unlockBtn');if(b&&pw)b.textContent=t};say('بيحمّل البيانات…');
+  const files=await Promise.all(['fin.enc','fin_c.enc'].map(fetchEnc));say('بيفك التشفير…');
   if(!files.some(Boolean))throw new Error('nofile');
   const keys={},parts=[];
   for(const j of files){if(!j)continue;let key;
@@ -164,7 +175,7 @@ async function unlock(pw,saved){
 }
 $('#lockForm').addEventListener('submit',async e=>{e.preventDefault();const pw=$('#pw').value;if(!pw)return;
   const btn=$('#unlockBtn');btn.disabled=true;btn.textContent='بيفك التشفير…';$('#lockErr').textContent='';
-  try{RAW=await unlock(pw);$('#pw').value='';start()}
+  try{RAW=await unlock(pw);$('#pw').value='';btn.textContent='بيجهّز الأرقام…';await new Promise(r=>setTimeout(r,20));start()}
   catch(err){$('#lockErr').textContent=err.message==='nofile'?'ملف البيانات لسه ما اتعملش — اتأكد إنك ضفت FIN_PASS وإن المزامنة اشتغلت.':'الباسورد غلط.'}
   finally{btn.disabled=false;btn.textContent='افتح'}});
 $('#lockBtn').onclick=()=>{try{sessionStorage.removeItem('fin_k')}catch(e){}RAW=null;D=null;location.reload()};
@@ -256,6 +267,8 @@ function curK(){const s=new Date().toLocaleString('sv-SE',{timeZone:'Africa/Cair
 
 // ---------------- charts ----------------
 function chart(id,cfg){if(CH[id])CH[id].destroy();const el=document.getElementById(id);if(!el)return;
+  if(!window.Chart){const w=el.parentElement;if(w&&!w.querySelector('.nolib'))w.insertAdjacentHTML('beforeend','<div class="nolib muted" style="position:absolute;inset:0;display:grid;place-items:center;font-size:.8rem">الرسم بيتحمّل… لو ما ظهرش اعمل تحديث للصفحة</div>');
+    return}
   const t1=css('--t2'),grid=css('--brd');
   cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
     plugins:{legend:{position:'top',align:'start',rtl:true,labels:{color:t1,boxWidth:10,boxHeight:10,font:{family:'Cairo'}}},
@@ -452,7 +465,7 @@ function vDL(){return `<div class="card"><h3>تنزيل Excel<small>${BRN[S.b]} 
   <div class="bar"><button class="pri" id="dFull">📗 التقرير الكامل</button><button id="dRev">الإيرادات تفصيلي</button><button id="dExp">المصروفات تفصيلي</button><button id="dApt">المواعيد شهري</button><button onclick="window.print()">🖨 اطبع الصفحة</button></div>
   <div class="note">التقرير الكامل فيه: ملخص، الأرباح والخسائر، المصروفات حسب البند، الإيرادات حسب الطريقة والدكتور، الإيرادات تفصيلي، المصروفات تفصيلي، المواعيد شهري، المرضى الجداد حسب المصدر. الملف بيتعمل على جهازك ومحدش غيرك بيشوفه.</div></div>`}
 function sheetOf(aoa){const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=aoa[0].map((_,i)=>({wch:Math.min(40,Math.max(10,...aoa.slice(0,200).map(r=>String(r[i]??'').length+2)))}));ws['!views']=[{RTL:true}];return ws}
-function wbSave(sheets,name){if(!window.XLSX){alert('مكتبة Excel ما اتحملتش — اعمل تحديث');return}const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};
+async function wbSave(sheets,name){if(!window.XLSX&&!(await loadLib('XLSX'))){alert('مكتبة Excel ما اتحملتش — جرّب تاني أو غيّر الشبكة');return}const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};
   for(const [n,a] of sheets)XLSX.utils.book_append_sheet(wb,sheetOf(a),n.slice(0,31));XLSX.writeFile(wb,name)}
 const per=()=>`${BRN[S.b]} ${S.from} الى ${S.to}`;
 const revAoa=()=>[['التاريخ','الساعة','المريض','رقم المريض','المبلغ','طريقة الدفع','الدكتور','الفاتورة','سجّلها','مردود','الفرع']].concat(D.pay.filter(p=>inB(p)&&inR(p)).sort((a,b)=>a.d<b.d?-1:1).map(p=>[p.d,pad(p.h)+':00',p.pn,p.pid,p.amt,p.meth,p.doc,p.inv,p.by,p.ref?'نعم':'',BRN[p.b]||p.b]));

@@ -534,6 +534,7 @@ def build_alerts(appointments, now=None, packages=None):
     # ── المتابعات ──
     fu_from = today - timedelta(days=FU_WINDOW)
     fu_return, fu_calls, fu_order, fu_pool = [], [], [], []
+    calls_today = []   # كل متابعات النهارده (للخطة): الحالة + الملحوظة + أوقات الاتصال
     fu_patients = 0
     for appts in patients_all.values():
         srt = sorted(appts, key=lambda a: a["start"])
@@ -589,6 +590,12 @@ def build_alerts(appointments, now=None, packages=None):
                 verdict = "unclear"
             else:
                 verdict = "ok"
+            if a["start"].date() == today:
+                calls_today.append({"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
+                                    "time": a["start"].isoformat(), "type": a["type"], "step": step(a), "status": a["status"].title(),
+                                    "note": note[:300], "times": times, "verdict": verdict, "reached": reached or cb,
+                                    # تمت: الموعد Completed + فيه ملحوظة باللي حصل، أو اتصال مرتين على الأقل مكتوب وقتهم ونتيجتهم
+                                    "done": a["status"] in ATTENDED and bool(note.strip()) and (verdict in ("ok", "callback_ok") or reached or cb or len(times) >= 2)})
             if verdict in ("ok", "callback_ok"):
                 continue
             rec = base(a, {"date": a["start"].isoformat(), "kind": _fu_kind(a["type"]), "step": step(a), "type": a["type"],
@@ -1001,7 +1008,8 @@ def build_alerts(appointments, now=None, packages=None):
                 plan["today"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
                                       "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "status": a0["status"].title(),
                                       "types": sorted({a["type"] for a in tod}), "risk": risk, "note": (a0.get("note") or "")[:200]})
-            tmr = sorted([a for a in appts if a["start"].date() == tomorrow_ and a["status"] in LIVE_TODAY], key=lambda a: a["start"])
+            tmr = sorted([a for a in appts if a["start"].date() == tomorrow_ and (a["status"] in LIVE_TODAY or a["status"] in ("canceled", "cancelled"))],
+                         key=lambda a: (a["status"] in ("canceled", "cancelled"), a["start"]))
             if tmr:
                 a0 = tmr[0]
                 pt_before = [a for a in appts if _is_pt(a["type"]) and a["status"] in ATTENDED and a["start"].date() <= today]
@@ -1012,7 +1020,7 @@ def build_alerts(appointments, now=None, packages=None):
                 if why:
                     plan["tomorrow_confirm"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
                                                      "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "why": why,
-                                                     "status": a0["status"].title(), "auto": a0["status"] == "confirmed"})
+                                                     "status": a0["status"].title(), "auto": a0["status"] in ("confirmed", "canceled", "cancelled")})
             for a in appts:   # مواعيد عدت وما اتقفلتش (لسه Open / Confirmed / Delayed) — آخر 14 يوم
                 if today - timedelta(days=14) <= a["start"].date() < today and a["status"] in ("open", "confirmed", "delayed"):
                     plan["stale_open"].append({"pid": a["pid"], "name": a["name"], "time": a["start"].isoformat(), "doctor": a["doctor"],
@@ -1030,6 +1038,27 @@ def build_alerts(appointments, now=None, packages=None):
                     ref = max((a for a in appts if a["start"].date() == course[-1] and _is_pt(a["type"])), key=lambda a: a["start"])
                     plan["early_drop"].append({"pid": ref["pid"], "name": ref["name"], "phone": ref["phone"], "doctor": ref["doctor"],
                                                "branch": ref["branch"], "sessions": len(course), "last": course[-1].isoformat(), "days": gap})
+        # 👔 ملحوظات محتاجة المدير: شكوى / فلوس / الدكتور / الألم زاد … في ملحوظة الموعد أو سبب الإلغاء (آخر 3 أيام)
+        MGR = _re.compile(r"شكو[يى]|بيشتكي|اشتك|زعلان|زعلانه|متضايق|متضايقه|مستاء|مش ?راضي|مش ?راضيه|غير ?راض|"
+                          r"المدير|الادار[هة]|الإدار[هة]|د\.? ?امجد|دكتور ?امجد|"
+                          r"استرداد|يسترد|ترجع ?(?:له|لها)? ?فلوس|فلوسه|فلوسها|رجوع ?الفلوس|يرجع ?الفلوس|"
+                          r"غلط ?في ?(?:الحساب|الفاتور)|اتخصم ?غلط|زياد[هة] ?في ?السعر|غالي|السعر|خصم|"
+                          r"يغير ?الدكتور|تغيير ?الدكتور|مش ?مرتاح|مش ?مرتاحه|معامل[هة]|اسلوب|أسلوب|وحش|سيئ|"
+                          r"اتأخر ?عليه|اتاخر ?عليه|استنى ?كتير|استنت ?كتير|التأخير|"
+                          r"الوجع ?زاد|الألم ?زاد|الالم ?زاد|تعب ?بعد ?الجلس|اتعور|اصاب[هة]|إصاب[هة]|حرق|كدمه|التهاب", _re.I)
+        mgr = []
+        for appts in patients_all.values():
+            for a in appts:
+                n = (a.get("note") or "").strip()
+                if not n or not (today - timedelta(days=3) <= a["start"].date() <= today):
+                    continue
+                m = MGR.search(n)
+                if not m:
+                    continue
+                mgr.append({"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
+                            "time": a["start"].isoformat(), "type": a["type"], "status": a["status"].title(), "note": n[:400], "hit": m.group(0)})
+        mgr.sort(key=lambda x: x["time"], reverse=True)
+        plan["manager"] = mgr
         plan["today"].sort(key=lambda x: x["time"])
         # المهام اللي ظهرت النهارده واختفت = اتعملت على السيستم (حجز / تقييم / قفل الموعد …) → تتحسب في الإنجاز
         try:
@@ -1130,7 +1159,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
-        "plan": plan,
+        "plan": dict(plan, calls_today=calls_today),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),
         "doc_perf": perf,

@@ -179,6 +179,7 @@ def _norm(a):
         "pnote": str(pnote or "").strip(),
         "cancel_at": _parse_dt(a.get("cancel_at")),
         "by": str(a.get("by") or "").strip(),
+        "reason": str(a.get("reason") or "").strip(),
     }
 
 
@@ -698,7 +699,7 @@ def build_alerts(appointments, now=None, packages=None):
                 "name": a["name"], "phone": a["phone"], "pid": a["pid"], "doctor": a["doctor"], "branch": a["branch"],
                 "date": a["start"].isoformat(), "type": a["type"], "kind": kind, "hours_before": hrs,
                 "cancel_at": a["cancel_at"].isoformat() if a.get("cancel_at") else None,
-                "note": a.get("note") or "",
+                "note": " · ".join(t for t in ((a.get("reason") and "سبب الإلغاء: " + a["reason"]), a.get("note")) if t),
                 "prior_sudden": [m["start"].date().isoformat() for m in prior][-10:],
                 "prior_noshow": len(prior_ns),
                 "recorded": recorded,

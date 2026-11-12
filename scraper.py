@@ -1217,7 +1217,7 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
     op_fields = None
     for f in STEPS_OP_FIELDS:          # نشوف Medicolize بيقبل المتبقي على العملية ولا لا
         try:
-            await gql_call(page, cookie_str, extra_headers, STEPS_Q % f, {"orderBy": "createdAt", "skip": 0, "take": 3, "rangeDate": rng})
+            await gql_call(page, cookie_str, extra_headers, STEPS_Q % f, {"orderBy": "createdAt", "skip": 0, "take": 5, "rangeDate": rng})
             op_fields = f; break
         except Exception as e:
             print(f"[{ts()}] ℹ️ step field '{f}': {str(e)[:120]}")

@@ -1009,7 +1009,8 @@ def build_alerts(appointments, now=None, packages=None):
                 if kashf and not pt_before and _is_pt(a0["type"]): why.append("أول جلسة بعد الكشف")
                 if why:
                     plan["tomorrow_confirm"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
-                                                     "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "why": why})
+                                                     "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "why": why,
+                                                     "status": a0["status"].title(), "auto": a0["status"] == "confirmed"})
             for a in appts:   # مواعيد عدت وما اتقفلتش (لسه Open / Confirmed / Delayed) — آخر 14 يوم
                 if today - timedelta(days=14) <= a["start"].date() < today and a["status"] in ("open", "confirmed", "delayed"):
                     plan["stale_open"].append({"pid": a["pid"], "name": a["name"], "time": a["start"].isoformat(), "doctor": a["doctor"],
@@ -1028,6 +1029,41 @@ def build_alerts(appointments, now=None, packages=None):
                     plan["early_drop"].append({"pid": ref["pid"], "name": ref["name"], "phone": ref["phone"], "doctor": ref["doctor"],
                                                "branch": ref["branch"], "sessions": len(course), "last": course[-1].isoformat(), "days": gap})
         plan["today"].sort(key=lambda x: x["time"])
+        # المهام اللي ظهرت النهارده واختفت = اتعملت على السيستم (حجز / تقييم / قفل الموعد …) → تتحسب في الإنجاز
+        try:
+            import os as _os, json as _json
+            act = {
+                "miss":   {x["pid"]: x for x in missing_today},
+                "kashf":  {x["pid"]: x for x in kashf_pending if 1 <= (x.get("days_since") or 0) <= 3 and not x.get("next_pt") and not x.get("sessions_after")},
+                "kashf0": {x["pid"]: x for x in kashf_pending if (x.get("days_since") or 0) == 0 and not x.get("next_pt") and not x.get("sessions_after")},
+                "drop":   {x["pid"]: x for x in plan["early_drop"]},
+                "nonext": {x["pid"]: x for x in no_next if "waiting" not in str(x.get("status", "")).lower()},
+                "eval":   {x["pid"]: x for x in eval_due if x.get("day") == "today"},
+                "stale":  {x["pid"] + "|" + x["time"]: x for x in plan["stale_open"]},
+            }
+            fn = _os.path.join(".session", "plan_seen.json")
+            seen = {}
+            if _os.path.exists(fn):
+                try:
+                    seen = _json.load(open(fn, encoding="utf-8"))
+                except Exception:
+                    seen = {}
+            if seen.get("date") != today.isoformat():
+                seen = {"date": today.isoformat(), "items": {}}
+            items = seen.setdefault("items", {})
+            resolved = []
+            for typ, cur in act.items():
+                old_ = items.setdefault(typ, {})
+                for k, x in cur.items():
+                    old_[k] = {f: x.get(f) for f in ("pid", "name", "phone", "doctor", "branch", "time", "type", "status") if x.get(f) is not None}
+                for k, x in old_.items():
+                    if k not in cur:
+                        resolved.append(dict(x, kind=typ, key=k))
+            plan["resolved"] = resolved
+            _os.makedirs(".session", exist_ok=True)
+            _json.dump(seen, open(fn, "w", encoding="utf-8"), ensure_ascii=False)
+        except Exception as e:
+            print(f"⚠️ plan resolved: {e}")
         plan["stale_open"].sort(key=lambda x: x["time"], reverse=True)
     except Exception as e:
         print(f"⚠️ plan: {e}")

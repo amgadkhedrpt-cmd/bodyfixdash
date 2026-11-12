@@ -11485,13 +11485,19 @@ function planTasks(){
       lines:['الكشف مع '+alEsc(doc(x.doctor))+' يوم '+alEsc(alFmtDay(String(x.kashf_date).slice(0,10)))+' — اتصل واعرض الباقة']});
   });
   (P.tomorrow_confirm||[]).filter(inb).forEach(function(x){
-    add('morning',{grp:['conf'], key:today+'|conf|'+x.pid, icon:'✔️', kind:'أكّد ميعاده الجاي', name:x.name, phone:x.phone, br:brOf(x),
+    add('morning',{grp:['conf'], sys:x.auto?'اتأكد على السيستم':'', key:today+'|conf|'+x.pid, icon:'✔️', kind:'أكّد ميعاده الجاي', name:x.name, phone:x.phone, br:brOf(x),
       lines:[alEsc(alFmtDay(String(x.time).slice(0,10)))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' · '+x.why.map(alEsc).join(' · ')]});
   });
   (P.early_drop||[]).filter(inb).forEach(function(x){
     add('morning',{grp:['drop'], key:today+'|drop|'+x.pid, icon:'🚶', kind:'مريض جديد حضر '+x.sessions+' جلسة ووقف', name:x.name, phone:x.phone, br:brOf(x),
       lines:['آخر جلسة '+alEsc(alFmtDay(x.last))+' (من '+x.days+' يوم) مع '+alEsc(doc(x.doctor))+' ومالوش ميعاد — اتصل قبل ما نخسره']});
   });
+  var RES={}; (P.resolved||[]).filter(inb).forEach(function(x){ (RES[x.kind]=RES[x.kind]||[]).push(x); });
+  var sysAdd=function(sec,kind,grp,label,icon,keyf,line){ (RES[kind]||[]).forEach(function(x){
+    add(sec,{grp:[grp], sys:label, key:keyf(x), icon:icon, kind:PLAN_GT[grp]?PLAN_GT[grp][1]:'', name:x.name, phone:x.phone, br:brOf(x), lines:[line(x)]}); }); };
+  sysAdd('morning','miss','miss','اتحجزله / جه','🙋',function(x){return today+'|miss|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
+  sysAdd('morning','kashf','kashf','حجز جلسات','🩺',function(x){return today+'|kashf|'+x.pid;},function(x){ return 'الكشف مع '+alEsc(doc(x.doctor)); });
+  sysAdd('morning','drop','drop','اتحجزله ميعاد','🚶',function(x){return today+'|drop|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
   // 🧾 عند الاستقبال
   var by=function(arr,f){ var m={}; (arr||[]).forEach(function(x){ if(f(x)) m[x.pid]=x; }); return m; };
   var renew=by(D.renew_today,function(x){ return x.session_no>=(x.size||12)-1; });
@@ -11515,11 +11521,20 @@ function planTasks(){
     add('rec',{grp:G, key:today+'|rec|'+x.pid, icon:arrived?'🟢':'🕐', kind:alEsc(planT(x.time))+' · '+alEsc((x.types||[x.type]).join(' + '))+' مع '+alEsc(doc(x.doctor))+(arrived?' · <span style="color:var(--g);font-weight:800">وصل</span>':''),
       name:x.name, phone:x.phone, br:brOf(x), lines:R, note0:x.note, time:x.time});
   });
+  var recByPid={}; T.rec.forEach(function(t){ recByPid[t.key.split('|').pop()]=t; });
+  [['eval','🩺 ✅ اتحجزله تقييم على السيستم','اتحجز تقييم'],['nonext','📅 ✅ اتحجزله ميعاد جاي على السيستم','اتحجزله ميعاد']].forEach(function(z){
+    (RES[z[0]]||[]).forEach(function(x){
+      var ex=recByPid[x.pid];
+      if(ex){ ex.lines.push('<span style="color:var(--g)">'+z[1]+'</span>'); return; }
+      add('rec',{grp:[z[0]], sys:z[2], key:today+'|rec|'+x.pid, icon:'🟢', kind:alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)), name:x.name, phone:x.phone, br:brOf(x), lines:['<span style="color:var(--g)">'+z[1]+'</span>'], time:x.time});
+    });
+  });
   // 📋 شغل مكتب
   (P.stale_open||[]).filter(inb).forEach(function(x){
     add('office',{grp:['stale'], key:'stale|'+x.pid+'|'+x.time, icon:'🧹', kind:'موعد عدى ولسه '+alEsc(x.status)+' — اقفله في Medicolize', name:x.name, br:brOf(x),
       lines:[alEsc(x.type)+' يوم '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' — Completed ولا No Show؟']});
   });
+  sysAdd('office','stale','stale','اتقفل على السيستم','🧹',function(x){return 'stale|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
   if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.appts){
     var y=new Date(Date.now()-864e5), ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
     var Lm=audMapLook(), brName={haram:'BODYFIX Center', dokki:'FIX ZONE'};
@@ -11542,6 +11557,8 @@ function planTasks(){
         lines:['عليه <b style="color:var(--r)">'+planMoney(o.sum)+' ج</b> — '+o.n+' خدمة، آخرها '+alEsc(o.r.s)+' مع '+alEsc(doc(o.r.dr))]}); });
   }
   // 🌙 آخر اليوم
+  sysAdd('evening','nonext','nonext','اتحجزله ميعاد','📅',function(x){return today+'|nonext|'+x.pid;},function(x){ return alEsc(x.type||'')+' مع '+alEsc(doc(x.doctor)); });
+  sysAdd('evening','kashf0','kashf0','حجز جلسات','🩺',function(x){return today+'|kashf0|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
   (D.today_no_next||[]).filter(function(x){ return inb(x)&&!/waiting/i.test(x.status||''); }).forEach(function(x){
     add('evening',{grp:['nonext'], key:today+'|nonext|'+x.pid, icon:'📅', kind:'حضر النهارده ومالوش ميعاد جاي', name:x.name, phone:x.phone, br:brOf(x),
       lines:[alEsc(x.type)+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' — احجزله أو اتصل']});
@@ -11565,13 +11582,13 @@ var PLAN_OPEN_G={};
 function planState(t){
   var st=PLAN_ST[t.key]||{}, today=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   if(st.s==='later'&&st.until&&st.until>today) return 'snz';
-  if(st.s==='done') return 'done';
+  if(st.s==='done'||(t.sys&&st.s!=='undo_sys')) return 'done';
   if(st.s==='nr') return 'nr';
   return 'open';
 }
 function planRow(t){
   var st=PLAN_ST[t.key]||{}, h=planHash(t.key), state=planState(t), phone=(t.phone||'').replace(/_/g,'');
-  var badge=state==='done'?'<span style="color:var(--g);font-weight:800">✅ اتعمل</span>':state==='nr'?'<span style="color:var(--am);font-weight:800">📞 ما ردش</span>':state==='snz'?'<span style="color:var(--mute);font-weight:800">⏭ متأجل لـ '+alEsc(st.until)+'</span>':'';
+  var badge=(state==='done'&&t.sys&&st.s!=='done')?'<span style="color:var(--g);font-weight:800">✅ '+alEsc(t.sys)+'</span>':state==='done'?'<span style="color:var(--g);font-weight:800">✅ اتعمل</span>':state==='nr'?'<span style="color:var(--am);font-weight:800">📞 ما ردش</span>':state==='snz'?'<span style="color:var(--mute);font-weight:800">⏭ متأجل لـ '+alEsc(st.until)+'</span>':'';
   var btn=function(s,txt,col){ return '<button onclick="planAct(\''+t.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',\''+s+'\')" style="background:'+col+';border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">'+txt+'</button>'; };
   return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:10px;padding:9px 11px;margin-bottom:7px;'+(state==='done'?'opacity:.55':'')+'">'+
     '<div style="display:flex;gap:8px;align-items:flex-start"><span style="font-size:1rem">'+t.icon+'</span><div style="flex:1;min-width:0">'+
@@ -11581,7 +11598,7 @@ function planRow(t){
       (phone?'<a href="tel:'+alEsc(phone)+'" dir="ltr" style="display:inline-block;margin-top:5px;background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 8px;font-size:.6rem;text-decoration:none">📞 '+alEsc(phone)+'</a>':'')+
     '</div></div>'+
     '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">'+
-      (state==='open'||state==='nr'?btn('done','✅ اتعمل','rgba(16,185,129,.15)')+btn('nr','📞 ما ردش','rgba(245,158,11,.12)')+btn('later','⏭ أجّل','transparent'):btn('undo','↩️ رجّعها','transparent'))+
+      (state==='open'||state==='nr'?btn('done','✅ اتعمل','rgba(16,185,129,.15)')+btn('nr','📞 ما ردش','rgba(245,158,11,.12)')+btn('later','⏭ أجّل','transparent'):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
       '<input id="pn_'+h+'" value="'+alEsc(st.note||'')+'" placeholder="💬 ملحوظة…" onchange="planNote(\''+t.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" onkeydown="if(event.key===\'Enter\')this.blur()" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--brd);border-radius:7px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.62rem;padding:5px 8px">'+
       '<span id="pst_'+h+'" style="font-size:.56rem;color:var(--mute)"></span></div></div>';
 }

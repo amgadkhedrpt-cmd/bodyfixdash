@@ -11748,8 +11748,9 @@ function planTasks(useAll){
     var why=x.result?'المريض حجز بعد المتابعة':((/completed|checked|progress/i.test(x.status||'')&&(x.note||'').trim())?'الموعد Completed وفيه ملحوظة':tm.length>=2?'اتكتب '+tm.length+' اتصالات بوقتها':'')+(x.next_fu&&!x.result?' + اتحجز '+x.next_fu:'');
     var miss=[]; if(!x.result){ if(!/completed|checked|progress/i.test(x.status||'')) miss.push('الموعد لسه <b>'+alEsc(x.status||'')+'</b> — يتقفل Completed بعد الاتصال'); if(!(x.note||'').trim()) miss.push('مفيش ملحوظة باللي حصل'); else if(tm.length<2&&!/completed|checked|progress/i.test(x.status||'')) miss.push('لو ما ردش: اكتبي وقت كل محاولة (محتاجين محاولتين على الأقل)');
       if(!x.next_fu) miss.push('<b>لازم يتحجز ميعاد متابعة جاي</b> — حتى لو قال هيتوقف شوية / مسافر، نحدد يوم نكلمه فيه');
-      else if(x.next_late) miss.push('<b>المتابعة الجاية متأخرة ('+alEsc(x.next_fu)+')</b> — ما ردش، فالمتابعة التانية المفروض تتحجز بعد بكره'); }
-    add('morning',{grp:['call'], sys:ok?why:'', what:ok?((x.result?'📅 '+x.result+' · ':'')+(x.note?'📝 '+x.note:'')):'', key:today+'|call|'+x.pid, icon:'📞', kind:'مكالمة متابعة — '+alEsc(x.type||'')+(x.step?' '+x.step:''), name:x.name, phone:x.phone, br:brOf(x),
+      else if(x.next_late) miss.push('<b>المتابعة الجاية متأخرة ('+alEsc(x.next_fu)+')</b> — ما ردش، فالمتابعة التانية المفروض تتحجز بعد يومين شغل (سبت/اتنين/أربع أو حد/تلات/خميس)'); }
+    var cs=ok?'done':(((x.note||'').trim()||/completed|checked|progress/i.test(x.status||'')||tm.length)?'half':'none');
+    add('morning',{grp:['call'], _cs:cs, sys:ok?why:'', what:ok?((x.result?'📅 '+x.result+' · ':'')+(x.note?'📝 '+x.note:'')):'', key:today+'|call|'+x.pid, icon:'📞', kind:'مكالمة متابعة — '+alEsc(x.type||'')+(x.step?' '+x.step:''), name:x.name, phone:x.phone, br:brOf(x),
       lines:['الموعد على Medicolize: <b style="color:'+(/completed|checked|progress/i.test(x.status||'')?'var(--g)':'var(--am)')+'">'+alEsc(x.status||'')+'</b>'+(tm.length?' · اتصالات مكتوبة: '+tm.map(alEsc).join('، '):''),
              x.note?'📝 '+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة لسه</span>',
              x.result?'<span style="color:var(--g)">📅 '+alEsc(x.result)+'</span>':'',
@@ -12323,7 +12324,7 @@ function planSummarySave(){
 }
 
 /* 📈 نتيجة المتابعة (أرقام بس — مش مهام): اللي اتتابعوا آخر 14 يوم · حجزوا · جم فعلاً · مين كانت مسئولة عن المتابعة ومين حجز */
-var PLAN_FU_OPEN=false, PLAN_FU_F='', PLAN_CONF_F='', PLAN_FU_P='today', PLAN_FUT_F='';
+var PLAN_CALL_F='', PLAN_FU_OPEN=false, PLAN_FU_F='', PLAN_CONF_F='', PLAN_FU_P='today', PLAN_FUT_F='';
 /* 📅 متابعات النهارده: كل متابعة عليها النهارده — اتعمل فيها إيه على Medicolize */
 function planFuToday(){
   var D=ALERTS_DATA; if(!D) return '';
@@ -12337,10 +12338,10 @@ function planFuToday(){
   var ch=function(f,txt,col){ var on=PLAN_FU_OPEN&&PLAN_FUT_F===f; return '<span onclick="event.stopPropagation();PLAN_FU_OPEN=true;PLAN_FUT_F=\''+f+'\';planRender()" style="cursor:pointer;font-size:.62rem;padding:3px 9px;border-radius:9px;border:1px solid '+(on?col:'var(--brd)')+';color:'+col+'">'+txt+'</span>'; };
   var h=ch('','متابعات النهارده <b>'+CT.length+'</b> · اتقفل <b>'+closed+'</b> ('+(CT.length?Math.round(closed*100/CT.length):0)+'%)','var(--txt)')+
         ch('booked','📅 حجزوا <b>'+C.booked+'</b>','var(--g)')+ch('done','✅ اتعملت صح <b>'+C.done+'</b>','#10b981')+
-        ch('half','⚠️ اتعملت ناقصة <b>'+C.half+'</b>','var(--am)')+ch('none','⬜ محدش اتعامل معاها <b>'+C.none+'</b>','var(--r)');
+        ch('half','⚠️ فيه مشكلة <b>'+C.half+'</b>','var(--am)')+ch('none','⬜ ما اتعملش خالص <b>'+C.none+'</b>','var(--r)');
   if(!PLAN_FU_OPEN) return {chips:h, body:''};
   var L=CT.filter(function(x){ return !PLAN_FUT_F||stOf(x)===PLAN_FUT_F; }).sort(function(a,b){ var o={none:0,half:1,done:2,booked:3}; return o[stOf(a)]-o[stOf(b)]||String(a.time).localeCompare(String(b.time)); });
-  var lab={booked:['📅 حجز','var(--g)'],done:['✅ اتعملت صح','#10b981'],half:['⚠️ ناقصة','var(--am)'],none:['⬜ محدش اتعامل معاها','var(--r)']};
+  var lab={booked:['📅 حجز','var(--g)'],done:['✅ اتعملت صح','#10b981'],half:['⚠️ فيه مشكلة','var(--am)'],none:['⬜ ما اتعملش خالص','var(--r)']};
   var body='<div style="margin-top:6px">'+L.map(function(x){ var k=stOf(x), lb=lab[k];
     return '<div style="border-top:1px solid var(--brd);padding:6px 2px;font-size:.62rem"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>'+alEsc(x.name)+'</b>'+
       '<span style="color:var(--mute)">'+alEsc(x.type||'')+(x.step?' '+x.step:'')+' · '+alEsc(planT(x.time))+'</span><b style="color:'+lb[1]+'">'+lb[0]+'</b></div>'+
@@ -12489,6 +12490,14 @@ function planRender(){
       if(!isOpen) return head;
       open.sort(function(a,b){ return (b.risk?1:0)-(a.risk?1:0) || (planState(a)==='nr')-(planState(b)==='nr') || String(a.time||'').localeCompare(String(b.time||'')); });
       var cfBar='';
+      if(g==='call'){   // فلتر: اتعمل / فيه مشكلة / ما اتعملش خالص
+        var cc={done:0,half:0,none:0}; A.forEach(function(t){ var k=planState(t)==='done'?'done':(t._cs||'none'); cc[k==='done'?'done':k]++; });
+        var cf=function(t){ return planState(t)==='done'?'done':(t._cs==='done'?'half':(t._cs||'none')); };
+        var fb2=function(v,l,col){ var on=PLAN_CALL_F===v; return '<span onclick="PLAN_CALL_F=\''+v+'\';planRender()" style="cursor:pointer;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:8px;color:'+col+';border:1px solid '+(on?col:'var(--brd)')+';background:'+(on?'rgba(255,255,255,.06)':'transparent')+'">'+l+'</span>'; };
+        cfBar='<div style="display:flex;gap:6px;flex-wrap:wrap;padding:4px 2px 8px">'+fb2('','الكل ('+A.length+')','var(--txt)')+fb2('done','✅ اتعمل ('+cc.done+')','var(--g)')+fb2('half','⚠️ فيه مشكلة ('+cc.half+')','var(--am)')+fb2('none','⬜ ما اتعملش خالص ('+cc.none+')','var(--r)')+'</div>';
+        var fk2=function(t){ return !PLAN_CALL_F||cf(t)===PLAN_CALL_F; };
+        open=open.filter(fk2); done=done.filter(fk2); snz=snz.filter(fk2);
+      }
       if(g==='conf'){   // فلتر: أكّد ضروري / تأكيد عادي
         var nR=A.filter(function(t){ return t.risk; }), nN=A.filter(function(t){ return !t.risk; });
         var cnt2=function(L){ var d=L.filter(function(t){ return planState(t)==='done'; }).length; return d+'/'+L.length; };

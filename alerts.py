@@ -612,9 +612,12 @@ def build_alerts(appointments, now=None, packages=None):
                 nf = sorted([x for x in srt if x["start"] > a["start"] and x["status"] not in ("canceled", "cancelled", "no show", "noshow")],
                             key=lambda x: x["start"])   # أي خطوة جاية محجوزة (متابعة تانية / منقطع نهائي / ميعاد)
                 unreach_ = (unr or len(times) >= 2) and not reached and not cb
-                lim_ = today + timedelta(days=2)
-                if lim_.weekday() == 4:   # الجمعة إجازة
+                # بعد يومين شغل (الجمعة إجازة): سبت/اتنين/أربع أو حد/تلات/خميس — الخميس → الحد · الأربع → السبت
+                lim_, wd_ = today, 0
+                while wd_ < 2:
                     lim_ += timedelta(days=1)
+                    if lim_.weekday() != 4:
+                        wd_ += 1
                 fu_ok_date = bool(nf) and nf[0]["start"].date() <= lim_
                 res = ("حجز: " + nb[0]["type"] + " يوم " + nb[0]["start"].strftime("%d/%m") + " " + nb[0]["start"].strftime("%H:%M")
                        + " مع " + nb[0]["doctor"] + " (" + nb[0]["status"].title() + ")") if nb else ""

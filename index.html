@@ -11392,6 +11392,13 @@ function alFinished(){
   return out;
 }
 
+/* الفرع اللي ظاهر فوق (Haram / Dokki) — الخطة بتمشي عليه دايماً */
+function planBR(){
+  var g=(typeof GF!=='undefined'&&GF.branch)?GF.branch:'all';
+  if(g==='all'&&typeof CURRENT_BRANCH!=='undefined'&&CURRENT_BRANCH){ g=CURRENT_BRANCH==='dokki'?'FIX ZONE':CURRENT_BRANCH==='haram'?'BODYFIX Center':'all'; }
+  return AL_BRANCHES.filter(function(x){ return g==='all'||x.key===g; });
+}
+(function(){ var _sb=window.switchBranch; if(typeof _sb==='function') window.switchBranch=function(b){ _sb.apply(this,arguments); try{ var t=document.getElementById('tab-plan'); if(t&&t.classList.contains('active')) planRender(); }catch(e){} }; })();
 /* ══════════ 📋 خطة اليوم ══════════
    المصادر: alerts.json (plan / followups / renew_today / eval_due / svc_gap / today_no_next / kashf_pending / sudden / missing_today)
             + data/audit.json (خدمات مش مدفوعة · أخطاء كومبليت امبارح)
@@ -11441,7 +11448,7 @@ function planSetMe(v){
   }
   PLAN_ME=v; try{ localStorage.setItem('planMe',v); }catch(e){}
   if(v&&ALERTS_DATA){ var td=ALERTS_DATA.today||'';
-    alActiveBranches().forEach(function(b){ var k='resp|'+td+'|'+b.key, cur=PLAN_ST[k]||{};
+    planBR().forEach(function(b){ var k='resp|'+td+'|'+b.key, cur=PLAN_ST[k]||{};
       if(cur.by===v) return; var o={s:'resp', by:v, at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
       PLAN_ST[k]=o; planSaveRaw('PLAN|'+k, JSON.stringify(o)); }); try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} }
   planRender();
@@ -11475,7 +11482,7 @@ function planT(iso){ try{ return new Date(iso).toLocaleTimeString('ar-EG',{hour:
 function planMoney(v){ return Number(v||0).toLocaleString('en-US',{maximumFractionDigits:0}); }
 function planTasks(useAll){
   var D=ALERTS_DATA; if(!D) return null;
-  var BRS=useAll?AL_BRANCHES:alActiveBranches();
+  var BRS=useAll?AL_BRANCHES:planBR();
   var today=D.today||'', act=BRS.map(function(b){return b.key;});
   var inb=function(x){ return act.indexOf(alBranchOf(x.doctor,x.branch))>=0; };
   var brOf=function(x){ return alBranchOf(x.doctor,x.branch); };
@@ -11501,10 +11508,11 @@ function planTasks(useAll){
       lines:[x.note?(x.note_today?'📝 ':'<span style="color:var(--am)">📝 ملحوظة قديمة (مش النهارده): </span>')+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة</span>', sug]});
   });
   var stk=(typeof alStreaks==='function')?alStreaks():null;
-  if(stk&&stk.gone) stk.gone.filter(function(x){ return x.removed_on===today; }).forEach(function(x){ var f0=x.fixed[0]||{};
+  if(stk&&stk.gone) stk.gone.filter(function(x){ return x.removed_on===today&&act.indexOf((x.fixed[0]||{}).branch||brOf(x))>=0; }).forEach(function(x){ var f0=x.fixed[0]||{};
     add('morning',{grp:['streak'], sys:'اتشال من الشيت', what:'اتشال من شيت التثبيت (كان عند '+(f0.doctor||'')+(x.removed_on?' — اتشال '+x.removed_on:'')+')', key:today+'|streak|'+x.pid, icon:'⚠️', kind:'مثبت وبيلغي — اتشال من التثبيت', name:x.name, phone:x.phone, br:f0.branch||brOf(x),
       lines:['كان مثبت عند '+alEsc(f0.doctor||'')+(x.removed_on?' · اتشال '+alEsc(alFmtDay(x.removed_on)):'')]}); });
   if(stk&&stk.rows) stk.rows.forEach(function(x){
+    if(act.indexOf((x.fixed[0]||{}).branch||brOf(x))<0) return;
     var nk=today+'|streak|'+x.pid, noted=hasNote(x,nk);
     var f0=x.fixed[0]||{}, ms=(x.misses||[]).slice(0,4).map(function(m){ return alFmtDay(m.date)+' ('+(/no ?show/i.test(m.status)?'No Show':'إلغاء')+')'; }).join(' · ');
     add('morning',{grp:['streak'], sys:noted?'فيه ملحوظة':'', what:noted?planNoteText(x,nk):'', key:nk, icon:'⚠️', kind:'مثبت وبيلغي ورا بعض — '+x.streak+' مرات', name:x.name, phone:x.phone, br:f0.branch||brOf(x),
@@ -11674,7 +11682,7 @@ function planOwner(t,g){ if(g==='debt'){ var co=planCashOwner(t); if(co) return 
 function planAssign(gk, v, bkey){
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   if(v==='__add'){ var n=prompt('اسم السكرتيرة الجديدة:'); if(!n||!n.trim()){ planRender(); return; } n=n.trim(); if(PLAN_NAMES.indexOf(n)<0){ PLAN_NAMES.push(n); try{ localStorage.setItem('planNames',JSON.stringify(PLAN_NAMES)); }catch(e){} planSaveRaw('PLANCFG|names', JSON.stringify(PLAN_NAMES)); } v=n; }
-  alActiveBranches().filter(function(b){ return !bkey||b.key===bkey; }).forEach(function(b){ var k='asg|'+td+'|'+gk+'|'+b.key, o={s:'asg', by:v, set:PLAN_ME||'', at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
+  planBR().filter(function(b){ return !bkey||b.key===bkey; }).forEach(function(b){ var k='asg|'+td+'|'+gk+'|'+b.key, o={s:'asg', by:v, set:PLAN_ME||'', at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
     PLAN_ST[k]=o; planSaveRaw('PLAN|'+k, JSON.stringify(o)); });
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender();
 }
@@ -11757,10 +11765,10 @@ function planSummarySave(){
 }
 
 /* 📈 نتيجة المتابعة (أرقام بس — مش مهام): اللي اتتابعوا آخر 14 يوم · حجزوا · جم فعلاً · مين كانت مسئولة عن المتابعة ومين حجز */
-var PLAN_FU_OPEN=false;
+var PLAN_FU_OPEN=false, PLAN_FU_F='';
 function planFuPanel(){
   var D=ALERTS_DATA; if(!D||!D.followups) return '';
-  var act=alActiveBranches().map(function(b){return b.key;}), inb=function(x){ return act.indexOf(alBranchOf(x.doctor,x.branch))>=0; };
+  var act=planBR().map(function(b){return b.key;}), inb=function(x){ return act.indexOf(alBranchOf(x.doctor,x.branch))>=0; };
   var F=D.followups, pool=(Array.isArray(F.pool)?F.pool:[]).filter(inb), R=(F.returned||[]).filter(inb), td=D.today||'';
   var bk=R.filter(function(x){return x.state==='booked';}), cm=R.filter(function(x){return x.state==='came';});
   var pc=function(a){ return pool.length?Math.round(a*100/pool.length)+'%':'—'; };
@@ -11773,14 +11781,17 @@ function planFuPanel(){
   var cmT=cm.filter(function(x){ return String(x.ret_date).slice(0,10)===td; }).length;
   var h='<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
     '<div onclick="PLAN_FU_OPEN=!PLAN_FU_OPEN;planRender()" style="display:flex;gap:10px;align-items:center;cursor:pointer;flex-wrap:wrap"><b style="font-size:.72rem;flex:1">📈 نتيجة المتابعة — آخر '+(F.window||14)+' يوم</b>'+
-      '<span style="font-size:.64rem">اتتابعوا <b>'+pool.length+'</b></span>'+
-      '<span style="font-size:.64rem;color:var(--am)">📅 حجزوا <b>'+bk.length+'</b> ('+pc(bk.length)+')</span>'+
-      '<span style="font-size:.64rem;color:var(--g)">✅ جم فعلاً <b>'+cm.length+'</b> ('+pc(cm.length)+')</span>'+
-      '<span style="font-size:.6rem;color:var(--mute)">النهارده جه '+cmT+' · '+(PLAN_FU_OPEN?'▾':'◂')+'</span></div>';
+      (function(ch){ return ch('','اتتابعوا <b>'+pool.length+'</b> · رجعوا <b>'+R.length+'</b>','var(--txt)')+
+        ch('booked','📅 حجزوا ولسه ما جوش <b>'+bk.length+'</b> ('+pc(bk.length)+')','var(--am)')+
+        ch('came','✅ جم فعلاً <b>'+cm.length+'</b> ('+pc(cm.length)+')','var(--g)')+
+        ch('today','🟢 أول رجوع ليهم النهارده <b>'+cmT+'</b>','var(--acc,#00c6ff)'); })(function(f,txt,col){ var on=PLAN_FU_OPEN&&PLAN_FU_F===f; return '<span onclick="event.stopPropagation();PLAN_FU_F=\''+f+'\';PLAN_FU_OPEN=!(PLAN_FU_OPEN&&PLAN_FU_F===\''+f+'\'&&'+(on?'true':'false')+');planRender()" style="font-size:.64rem;color:'+col+';cursor:pointer;border:1px solid '+(on?col:'var(--brd)')+';border-radius:12px;padding:2px 9px">'+txt+'</span>'; })+
+      '<span style="font-size:.6rem;color:var(--mute)">'+(PLAN_FU_OPEN?'▾':'◂')+'</span></div>';
   if(!PLAN_FU_OPEN) return h+'</div>';
   if(names.length) h+='<table style="width:100%;border-collapse:collapse;font-size:.62rem;margin-top:8px"><tr style="color:var(--mute);font-size:.55rem"><th style="text-align:right;padding:3px">السكرتيرة</th><th>رجعوا من متابعتها</th><th>منهم جم</th><th>منهم حجزوا</th><th>حجزت هي على Medicolize</th></tr>'+
     names.map(function(n){ var o=per[n]; return '<tr style="border-top:1px solid var(--brd)"><td style="padding:5px 4px;font-weight:800">'+alEsc(n)+'</td><td style="text-align:center">'+(o.resp||'—')+'</td><td style="text-align:center;color:var(--g)">'+(o.came||'—')+'</td><td style="text-align:center;color:var(--am)">'+(o.booked||'—')+'</td><td style="text-align:center">'+(o.bookedBy||'—')+'</td></tr>'; }).join('')+'</table>';
-  h+='<div style="margin-top:8px">'+R.slice().sort(function(a,b){ return String(b.ret_date).localeCompare(String(a.ret_date)); }).map(function(x){
+  var RL=R.filter(function(x){ return !PLAN_FU_F||(PLAN_FU_F==='today'?(x.state==='came'&&String(x.ret_date).slice(0,10)===td):x.state===PLAN_FU_F); });
+  h+='<div style="font-size:.62rem;color:var(--mute);margin-top:8px">'+({'':'كل اللي رجعوا','booked':'حجزوا ولسه ما جوش','came':'جم فعلاً','today':'أول رجوع ليهم النهارده'})[PLAN_FU_F]+' ('+RL.length+')</div>';
+  h+='<div style="margin-top:4px">'+RL.slice().sort(function(a,b){ return String(b.ret_date).localeCompare(String(a.ret_date)); }).map(function(x){
     var rs=respOf(x), by=x.ret_by||'', diff=rs&&by&&first(rs)!==first(by);
     return '<div style="border-top:1px solid var(--brd);padding:6px 2px;font-size:.62rem">'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>'+alEsc(x.name)+'</b>'+
@@ -11835,7 +11846,7 @@ function planRender(){
   var opts=PLAN_NAMES.map(function(n){ return '<option'+(n===PLAN_ME?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('');
   var mine=all.filter(function(t){ var s=PLAN_ST[t.key]; return s&&s.by===PLAN_ME&&(s.s==='done'||s.s==='nr'); }).length;
   var h='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:5">'+
-    '<b style="font-size:.85rem">📋 خطة اليوم</b><span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+alActiveBranches().map(function(b){return b.label;}).join(' + ')+'</span>'+
+    '<b style="font-size:.85rem">📋 خطة اليوم</b><span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){return b.label;}).join(' + ')+'</span>'+
     '<span style="flex:1"></span><label style="font-size:.62rem;color:var(--mute)">السكرتيرة المسئولة '+
     '<select id="planMeSel" onchange="planSetMe(this.value)" style="background:var(--bg);border:1px solid '+(PLAN_ME?'var(--brd)':'var(--r)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
       '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'<option value="__add">➕ اسم جديد</option></select></label>'+
@@ -11862,7 +11873,7 @@ function planRender(){
       var head='<div onclick="PLAN_OPEN_G[\''+gk+'\']=!PLAN_OPEN_G[\''+gk+'\'];planRender()" style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid '+(isOpen?'var(--acc,#00c6ff)':'var(--brd)')+';border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer'+(allDone?';opacity:.6':'')+'">'+
         '<span style="font-size:1rem">'+gt[0]+'</span><b style="font-size:.7rem;flex:1">'+gt[1]+'</b>'+
         (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'<span title="المسئولة = اللي على الخزنة وقت ميعاد المريض (من تاب التحصيل)" style="font-size:.6rem;color:var(--mute);border:1px solid var(--brd);border-radius:7px;padding:2px 6px">🧾 حسب الخزنة</span>':'')+
-        (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', brs=alActiveBranches(), many=brs.length>1;
+        (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', brs=planBR(), many=brs.length>1;
           var brsHere=brs.filter(function(bb){ return A.some(function(t){ return t.br===bb.key; }); }); if(!brsHere.length) brsHere=brs;
           return brsHere.map(function(bb){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+bb.key], cur=a&&a.by||'';
             return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value,\''+bb.key+'\')" title="المسئولة عن المهمة دي في '+bb.label+'" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:'+(many?'120':'110')+'px">'+

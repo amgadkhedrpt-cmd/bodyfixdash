@@ -1,6 +1,7 @@
 {
- "at": "2026-11-12T22:27:33.691Z",
+ "at": "2026-11-12T22:42:22.349Z",
  "errors": [],
+ "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
  "pay_pages": {
   "/finances/payments": {
@@ -14,6 +15,12 @@
    "op": "EXPENSE_PAYMENTS"
   }
  },
+ "exp_page_ops": [
+  "query BRANCH_DETAILS($branch: ID!, $token: String) { branchDetails(branch: $branch, token: $token) { id name opens closes openDays viewClosedTimes rooms disabled address location phones specialities appointmentTypes firstDay breaks holidays nphiesCode users { id name color order isDoctor disabled ca",
+  "query CURRENT_USER_QUERY { me { id sessionIdleMinutes email username name phoneNumber hasValidNumber twoFactorAuth language isDoctor showAttendance requireScreenshot isOwner color showOverdue shouldResetPassword order medicalNumber job specialityCode dentalNotation doctorPercentage diagnosticFee dia",
+  "query EXPENSE_PAYMENTS($expense: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $filters: Filter, $branchId: ID, $userId: ID, $assignedToId: ID, $supplier: ID, $searchTerm: String, $lab: ID, $labItem: ID) { expensePayments( expense: $expense orderBy: $orderBy skip: $skip ",
+  "query GET_NOTIFICATIONS($branch: ID!, $rangeDate: [DateTime!]!, $alertSettings: [String!]!, $alertBeforeInventory: Int, $alertBeforeMaster: Int, $alertBeforeOperations: Int) { getNotifications( branch: $branch rangeDate: $rangeDate alertSettings: $alertSettings alertBeforeInventory: $alertBeforeInve"
+ ],
  "pay_op": {
   "name": "PAYMENTS",
   "vars": [
@@ -315,12 +322,12 @@
  },
  "stripped": {},
  "hash": {
-  "data/fin.enc": "4613259d02eda8f2",
-  "data/fin_c.enc": "622c892ea23f0ea0"
+  "data/fin.enc": "afbc2d3dcacb75c2",
+  "data/fin_c.enc": "5587a0acfa2ee66f"
  },
  "written": [
   "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 34
+ "secs": 38
 }

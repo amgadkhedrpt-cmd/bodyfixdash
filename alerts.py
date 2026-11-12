@@ -1010,14 +1010,14 @@ def build_alerts(appointments, now=None, packages=None):
     try:
         CLOSED_BAD = {"canceled", "cancelled", "no show", "noshow", "note", "waiting list", "waiting"}
         tomorrow_ = next_work
-        # قسم التغذية / التخسيس ليهم أيام شغل لوحدهم (التغذية مثلاً مش بتشتغل السبت) → يوم الشغل الجاي بتاعهم = أول يوم بعد النهارده فيه 3 مواعيد أو أكتر منهم
+        # قسم التغذية / التخسيس → مهمة تأكيد لوحدها ليوم الشغل الجاي
         _dep = lambda a: ("nut" if (a["doctor"].strip().lower() in CONF_SP_DOCS or "تغذ" in a["type"]) else
                           "slim" if a["type"].strip().lower() in CONF_SP_TYPES else "")
         _isp = lambda a: bool(_dep(a))
         _spc = Counter((_dep(a), a["start"].date()) for v in patients.values() for a in v
                        if _isp(a) and a["start"].date() > today and a["status"] in LIVE_TODAY)
-        sp_days = {dp: min((d for (k, d), c in _spc.items() if k == dp and c >= 3), default=tomorrow_) for dp in ("nut", "slim")}
-        plan["confirm_special_day"] = {k: v.isoformat() for k, v in sp_days.items()}
+        sp_days = {"nut": tomorrow_, "slim": tomorrow_}   # نفس يوم الشغل الجاي للعيادة (لو مفيش مواعيد تغذية فيه الصفحة بتكتب كده)
+        plan["confirm_special_day"] = tomorrow_.isoformat()
         R_FROM = today - timedelta(days=90)
         for appts in patients.values():
             risk = sum(1 for a in appts if R_FROM <= a["start"].date() < today and

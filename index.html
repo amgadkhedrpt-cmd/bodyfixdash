@@ -12034,7 +12034,11 @@ function planRender(){
     return out;
   };
   h+=sec('mgr','👔 محتاج المدير','ملحوظات في المواعيد أو سبب الإلغاء آخر 3 أيام فيها شكوى أو فلوس أو الدكتور أو الألم',T.mgr,true);
+  var spD=(ALERTS_DATA.plan||{}).confirm_special_day, spT=T.morning.filter(function(t){ return (t.grp||[]).indexOf('confsp')>=0; });
+  var spMiss=typeof spD==='string'?[['تغذية','مواعيد تغذية'],['تخسيس','جلسات تخسيس']].filter(function(z){ return !spT.some(function(t){ return String(t.kind||'').indexOf(z[0]+':')>=0; }); }).map(function(z){ return z[1]; }):[];
+  var spNo=spMiss.length>0;
   h+=sec('morning','☀️ أول الشيفت','مكالمات وتأكيدات قبل المرضى ما ييجوا',T.morning,false)+
+     (spNo?'<div style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px dashed var(--brd);border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:.66rem;color:var(--mute)"><span style="font-size:1rem">💜</span>تأكيد قسم التغذية وجلسات التخسيس — <b style="color:var(--txt)">لا توجد '+spMiss.join(' ولا ')+' '+alEsc(alFmtDay(spD))+'</b></div>':'')+
      sec('rec','🧾 عند الاستقبال','كل مريض جاي النهارده وعليه حاجة — مترتبين بالميعاد',T.rec,false)+
      sec('office','📋 شغل مكتب','مواعيد تتقفل · أخطاء كومبليت امبارح · تحصيل بالتليفون',T.office,false)+
      sec('evening','🌙 آخر اليوم','قبل ما تقفلي'+(hr>=21?' — <b style="color:var(--r)">الساعة عدت 9</b>':''),T.evening,hr>=21);

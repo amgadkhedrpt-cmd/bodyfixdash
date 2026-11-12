@@ -729,8 +729,8 @@ def build_alerts(appointments, now=None, packages=None):
                 "prior_sudden": [m["start"].date().isoformat() for m in prior][-10:],
                 "prior_noshow": len(prior_ns),
                 "recorded": recorded,
-                # الإجراء: الموعد اتحول لـ "الغاء مفاجئ" وبقى Completed
-                "converted": any(m["start"].date() == d and m["status"] in ATTENDED for m in marks),
+                # الإجراء: الموعد اتسمّى "الغاء مفاجئ" (بأي حالة: Canceled / No Show / Completed)
+                "converted": recorded,
                 **info(appts),
             })
     sudden.sort(key=lambda x: x["date"], reverse=True)

@@ -11894,13 +11894,13 @@ function planTasks(useAll){
     var msg=planSuddenMsg(x.name, br, x.kind==='noshow', second);
     var waBtn=digits?'<a href="https://wa.me/'+digits+'?text='+encodeURIComponent(msg)+'" target="_blank" onclick="planWa(\''+k+'\')" style="display:inline-block;margin-top:4px;background:#25D366;color:#06281a;border-radius:7px;padding:3px 10px;font-size:.62rem;font-weight:800;text-decoration:none">📲 ابعت رسالة واتساب '+(second?'(تاني مرة — خصم)':'(أول مرة)')+'</a>':'';
     var done=conv&&(!second||ded);   // من Medicolize بس — الواتساب زرار مساعد ومش شرط
-    add('office',{grp:['sudden'], sys:done?'كل الخطوات اتعملت':'', what:done?('اتسجل الغاء مفاجئ Completed على Medicolize'+(second?' + اتخصمت الجلسة':'')):'', key:k, icon:'⚡',
+    add('office',{grp:['sudden'], sys:done?'كل الخطوات اتعملت':'', what:done?('اسم الموعد اتغير لـ الغاء مفاجئ على Medicolize'+(second?' + اتخصمت الجلسة':'')):'', key:k, icon:'⚡',
       kind:(x.kind==='noshow'?'No Show':'اعتذار مفاجئ')+' النهارده — '+(second?'<b style="color:var(--r)">مرة '+(n+1)+' (خصم جلسة)</b>':'<b>أول مرة</b>'),
       name:x.name, phone:x.phone, br:brOf(x),
       lines:[alEsc(x.type)+' '+alEsc(planT(x.date))+' مع '+alEsc(doc(x.doctor))+(n?' · مرات قبل كده: '+x.prior_sudden.map(alFmtDay).join('، '):''),
              x.note?'📝 '+alEsc(x.note):'',
              waBtn+(wa?' <span style="font-size:.58rem;color:var(--mute)">اتفتح '+alEsc(wa.by||'')+' '+alEsc(wa.at||'')+'</span>':''),
-             ok(conv,'الموعد اتحول لـ «الغاء مفاجئ» وبقى Completed على Medicolize'),
+             ok(conv,'اسم الموعد اتغير لـ «الغاء مفاجئ» على Medicolize (الحالة Canceled أو No Show أو Completed — أي واحدة)'),
              second?ok(ded,'الجلسة اتخصمت (خطوة عملية Completed النهارده)'):'']});
   });
   // ⏸ متأجل من يوم فات (بسبب غياب) ولسه ما ظهرش تاني لوحده → يرجع النهارده
@@ -12327,7 +12327,7 @@ function planState(t){
 }
 /* المهام اللي بتتقفل لوحدها من Medicolize — مفيش زرار ✅ (الملحوظة / ما ردش / أجّل موجودين) */
 var PLAN_AUTO_G={idle:'يتحجزله ميعاد أو تتكتب ملحوظة (ولو قال هييجي يوم وما جاش ترجع تتفتح)', conftoday:'الموعد يبقى Confirmed أو Cancelled أو يوصل', late:'تتكتب ملحوظة على الموعد في Medicolize (هيوصل امتى / ما ردش)', waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'المريض يحجز، أو الموعد يتقفل Completed بملحوظة باللي حصل، أو يتكتب اتصالين بوقتهم', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
-  eval:'يتحجز تقييم', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'الموعد يتحول «الغاء مفاجئ» Completed على Medicolize + خصم الجلسة من تاني مرة'};
+  eval:'يتحجز تقييم', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'اسم الموعد يتغير لـ «الغاء مفاجئ» على Medicolize (أي حالة) + خصم الجلسة من تاني مرة'};
 function planIsAuto(t){ if(t.carry) return false; var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_AUTO_G[x]; }); }
 function planRow(t){
   var st=PLAN_ST[t.key]||{}, h=planHash(t.key), state=planState(t), phone=(t.phone||'').replace(/_/g,'');

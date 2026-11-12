@@ -11901,7 +11901,11 @@ function planTasks(useAll){
              x.note?'📝 '+alEsc(x.note):'',
              waBtn+(wa?' <span style="font-size:.58rem;color:var(--mute)">اتفتح '+alEsc(wa.by||'')+' '+alEsc(wa.at||'')+'</span>':''),
              ok(conv,'اسم الموعد اتغير لـ «الغاء مفاجئ» على Medicolize (الحالة Canceled أو No Show أو Completed — أي واحدة)'),
-             second?ok(ded,'الجلسة اتخصمت (خطوة عملية Completed النهارده)'):'']});
+             second?ok(ded,'الجلسة اتخصمت (خطوة عملية Completed النهارده)'):'',
+             done?'':'<div style="margin-top:5px;border:1px solid var(--r);border-radius:7px;padding:5px 8px;font-size:.64rem;color:var(--r)"><b>⬜ ناقص علشان المهمة تتقفل:</b><br>'+
+               [!conv?'• على Medicolize غيّري اسم موعد '+alEsc(planT(x.date))+' ('+alEsc(x.type)+') لـ <b>«الغاء مفاجئ»</b> — الحالة تفضل Canceled أو No Show عادي':'',
+                second&&!ded?'• دي مرة '+(n+1)+': اعملي <b>خطوة عملية Completed النهارده</b> من باقته (خصم الجلسة)':''].filter(Boolean).join('<br>')+
+               '<br><span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها بعد الـ Sync الجاي (كل نص ساعة) — رسالة الواتساب مش شرط</span></div>']});
   });
   // ⏸ متأجل من يوم فات (بسبب غياب) ولسه ما ظهرش تاني لوحده → يرجع النهارده
   var cdays=Object.keys(PLAN_ST).filter(function(k){ return k.indexOf('carry|')===0&&k.split('|')[1]<today; }).map(function(k){ return k.split('|')[1]; }).sort(), dd=cdays.pop();

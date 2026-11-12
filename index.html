@@ -12199,6 +12199,8 @@ function planRender(){
   PLAN_TASKIDX={}; all.forEach(function(t){ PLAN_TASKIDX[t.key]=t; });
   try{ planAutoSave(all); planSummarySave(); }catch(e){}
   var cnt=function(arr,s){ return arr.filter(function(t){ return planState(t)===s; }).length; };
+  // فلتر «عرض مهام» على سكرتيرة مش من الفرع ده (مثلاً Mariam وإنت فاتح الدقي) → يرجع «كل السكرتيرات»
+  if(PLAN_VIEW&&planNamesAll().indexOf(PLAN_VIEW)<0&&!all.some(function(t){ return (t.grp||[]).some(function(g){ return planOwner(t,g)===PLAN_VIEW; }); })){ PLAN_VIEW=''; try{ localStorage.setItem('planView',''); }catch(e){} }
   var mineT=PLAN_VIEW?all.filter(function(t){ return (t.grp&&t.grp.length?t.grp:['other']).some(function(g){ return planOwner(t,g)===PLAN_VIEW; }); }):all;
   var vis=mineT.filter(function(t){ return planState(t)!=='snz'; }), dn=cnt(vis,'done');
   var pc=vis.length?Math.round(dn*100/vis.length):0;
@@ -12281,7 +12283,7 @@ function planRender(){
      sec('office','📋 شغل مكتب','مواعيد تتقفل · أخطاء كومبليت امبارح · تحصيل بالتليفون',T.office,false)+
      sec('evening','🌙 آخر اليوم','قبل ما تقفلي'+(hr>=21?' — <b style="color:var(--r)">الساعة عدت 9</b>':''),T.evening,hr>=21);
   if(!all.length) h+='<div style="padding:30px;text-align:center;color:var(--mute)">مفيش مهام النهارده 🎉</div>';
-  else if(PLAN_VIEW&&!mineT.length) h+='<div style="padding:24px;text-align:center;color:var(--mute)">مفيش مهام متعيّنة على '+alEsc(PLAN_VIEW)+' النهارده — المهام بتتعيّن من «👤 المسئولة» جنب كل مهمة، أو لو هي اختارت اسمها فوق بتبقى مسئولة عن مهام الفرع اللي مش متعيّنة لحد</div>';
+  else if(PLAN_VIEW&&!mineT.length) h+='<div style="padding:24px;text-align:center;color:var(--mute)">مفيش مهام متعيّنة على '+alEsc(PLAN_VIEW)+' النهارده — المهام بتتعيّن من «👤 المسئولة» جنب كل مهمة، أو لو هي اختارت اسمها فوق بتبقى مسئولة عن مهام الفرع اللي مش متعيّنة لحد<br><button onclick="PLAN_VIEW='';try{localStorage.setItem('planView','')}catch(e){};planRender()" style="margin-top:10px;background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px 14px;font-family:Cairo,sans-serif">عرض مهام كل السكرتيرات</button></div>';
   var sc=window.scrollY; box.innerHTML=h; window.scrollTo(0,sc);
 }
 /* ══ التقييم والتجديد (alerts.eval_renew) ══ */

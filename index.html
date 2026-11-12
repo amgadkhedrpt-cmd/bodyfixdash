@@ -11465,6 +11465,7 @@ function planNote(key){
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   var e=document.getElementById('pst_'+planHash(key)); if(e) e.textContent='⏳';
   planSaveRaw('PLAN|'+key, JSON.stringify(o), function(ok){ if(e) e.innerHTML=ok?'<span style="color:var(--g)">✅ اتحفظت الملحوظة</span>':'<span style="color:var(--r)">⚠️ على الجهاز ده بس</span>'; });
+  var tk=PLAN_TASKIDX[key]; if(tk&&(tk.grp||[]).some(function(g){ return g==='streak'||g==='drop'; })) setTimeout(planRender,400);
 }
 function planHash(s){ var h=0; s=String(s); for(var i=0;i<s.length;i++){ h=((h<<5)-h)+s.charCodeAt(i); h|=0; } return 'p'+(h>>>0).toString(36); }
 function planT(iso){ try{ return new Date(iso).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
@@ -11746,6 +11747,10 @@ function planState(t){
   if(st.s==='nr') return 'nr';
   return 'open';
 }
+/* المهام اللي بتتقفل لوحدها من Medicolize — مفيش زرار ✅ (الملحوظة / ما ردش / أجّل موجودين) */
+var PLAN_AUTO_G={call:'الموعد Completed + ملحوظة باللي حصل (أو اتصالين بالوقت والنتيجة)', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
+  eval:'يتحجز تقييم', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'رسالة الواتساب + الموعد «الغاء مفاجئ» Completed + الخصم من تاني مرة'};
+function planIsAuto(t){ var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_AUTO_G[x]; }); }
 function planRow(t){
   var st=PLAN_ST[t.key]||{}, h=planHash(t.key), state=planState(t), phone=(t.phone||'').replace(/_/g,'');
   var badge=(state==='done'&&t.sys&&st.s!=='done')?'<span style="color:var(--g);font-weight:800">✅ '+alEsc(t.sys)+'</span>':state==='done'?'<span style="color:var(--g);font-weight:800">✅ اتعمل</span>':state==='nr'?'<span style="color:var(--am);font-weight:800">📞 ما ردش</span>':state==='snz'?'<span style="color:var(--mute);font-weight:800">⏭ متأجل لـ '+alEsc(st.until)+'</span>':'';
@@ -11760,7 +11765,7 @@ function planRow(t){
       (phone?'<a href="tel:'+alEsc(phone)+'" dir="ltr" style="display:inline-block;margin-top:5px;background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 8px;font-size:.6rem;text-decoration:none">📞 '+alEsc(phone)+'</a>':'')+
     '</div></div>'+
     '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">'+
-      (state==='open'||state==='nr'?btn('done','✅ اتعمل','rgba(16,185,129,.15)')+btn('nr','📞 ما ردش','rgba(245,158,11,.12)')+btn('later','⏭ أجّل','transparent'):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
+      (state==='open'||state==='nr'?(planIsAuto(t)?'<span title="'+alEsc((t.grp||[]).map(function(g){return PLAN_AUTO_G[g];}).join(' · '))+'" style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">🤖 بتتقفل لوحدها لما '+alEsc(PLAN_AUTO_G[(t.grp||[])[0]]||'')+'</span>':btn('done','✅ اتعمل','rgba(16,185,129,.15)'))+btn('nr','📞 ما ردش','rgba(245,158,11,.12)')+btn('later','⏭ أجّل','transparent'):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
       '<input id="pn_'+h+'" value="'+alEsc(st.note||'')+'" placeholder="💬 ملحوظة…" onchange="planNote(\''+t.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" onkeydown="if(event.key===\'Enter\')this.blur()" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--brd);border-radius:7px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.62rem;padding:5px 8px">'+
       '<span id="pst_'+h+'" style="font-size:.56rem;color:var(--mute)"></span></div></div>';
 }

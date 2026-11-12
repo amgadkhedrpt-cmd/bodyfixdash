@@ -10799,11 +10799,14 @@ function alNoteSetSilent(id, text, by){
 /* 📅 وعد في الملحوظة: «هتيجي 11/11» / «جاي بكره» / «النهارده» → تاريخ الوعد (ISO) */
 function alPromiseDate(text, at){
   var t=String(text||'').replace(/[٠-٩]/g,function(c){ return '٠١٢٣٤٥٦٧٨٩'.indexOf(c); });
-  if(!/(هيجي|هتيجي|هييجي|جاي|جايه|جاية|هيحضر|هتحضر|حجز|اتحجز|هيكمل|هتكمل|ميعاد|معاد)/.test(t)) return '';
+  if(!/(هيجي|هتيجي|هييجي|هتيجى|هيجى|جاي|جايه|جاية|(^|\s)جي(\s|$)|(^|\s)جى(\s|$)|يجي|تيجي|هيحضر|هتحضر|حجز|اتحجز|هيكمل|هتكمل|ميعاد|معاد|موعد)/.test(t)) return '';
   var base=String(at||'').slice(0,10)||((ALERTS_DATA&&ALERTS_DATA.today)||''); if(!base) return '';
   var b=new Date(base+'T12:00:00'), iso=function(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
   var m=/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})/.exec(t);
-  if(m){ var d=new Date(b.getFullYear(), (+m[2])-1, +m[1], 12); if(d<b-864e5*20) d.setFullYear(d.getFullYear()+1); return iso(d); }
+  if(m){ var mk=function(dd,mm){ if(mm<1||mm>12||dd<1||dd>31) return null; var d=new Date(b.getFullYear(), mm-1, dd, 12); if(d<b-864e5*20) d.setFullYear(d.getFullYear()+1); return d; };
+    var lim=+b+864e5*60, d1=mk(+m[1],+m[2]), d2=mk(+m[2],+m[1]);
+    // يوم/شهر — ولو طلع بعيد أوي (أكتر من شهرين) نجرب العكس (شهر/يوم)
+    var d=(d1&&+d1<=lim)?d1:(d2&&+d2<=lim)?d2:null; return d?iso(d):''; }
   if(/بعد ?بكر[هة]/.test(t)){ b.setDate(b.getDate()+2); return iso(b); }
   if(/بكر[هة]/.test(t)){ b.setDate(b.getDate()+1); return iso(b); }
   if(/النهارد[هة]|انهارد[هة]/.test(t)) return iso(b);
@@ -10814,7 +10817,8 @@ function alPromiseState(x){
   var n=(typeof AL_NOTES!=='undefined'&&AL_NOTES[alNoteId(x)])||{}, p=alPromiseDate(n.text, n.at), td=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   if(!p) return null;
   var nx=String(x.next_appt||'').slice(0,10);
-  if(p<td) return {k:'broken', p:p, txt:'❌ قال هييجي '+alFmtDay(p)+' وما جاش — لازم مكالمة تانية · لو ما جاش أو مش عايز يكمل يتشال من شيت التثبيت'};
+  if(p<td) return (nx&&nx>p)?{k:'rebooked', p:p, txt:'🔁 قال هييجي '+alFmtDay(p)+' وما جاش — واتحجزله موعد تاني '+alFmtDay(nx)+(x.next_status?' ('+x.next_status+')':'')+' · لو ما جاش تاني يتشال من شيت التثبيت'}
+                 :{k:'broken', p:p, txt:'❌ قال هييجي '+alFmtDay(p)+' وما جاش ومفيش موعد تاني — لازم مكالمة تانية · لو ما جاش أو مش عايز يكمل يتشال من شيت التثبيت'};
   if(p===td) return nx===td?{k:'today', p:p, txt:'📅 قال هييجي النهارده — عنده موعد النهارده'}:{k:'nobook', p:p, txt:'📅 قال هييجي النهارده — بس مفيش موعد له على Medicolize'};
   return nx===p?{k:'booked', p:p, txt:'📅 قال هييجي '+alFmtDay(p)+' — الموعد محجوز'}:{k:'nobook', p:p, txt:'⚠️ قال هييجي '+alFmtDay(p)+' — بس مفيش موعد يومها على Medicolize'+(nx?' (الموعد المحجوز '+alFmtDay(nx)+')':'')};
 }
@@ -10855,18 +10859,19 @@ function alHistToggle(id, el){
 /* ⚠️ تحذيرات فوق كارت «مثبتين بيلغوا»: وعدوا ييجوا وما جوش / قالوا هييجوا ومفيش موعد / ما اتكلّموش */
 function alStreakWarns(rows){
   var W={broken:[], nobook:[], nonote:[]};
-  (rows||[]).forEach(function(x){ if(x.removed) return; var ps=alPromiseState(x); if(ps&&ps.k==='broken') W.broken.push([x,ps]); else if(ps&&ps.k==='nobook') W.nobook.push([x,ps]);
+  (rows||[]).forEach(function(x){ if(x.removed) return; var ps=alPromiseState(x); if(ps&&ps.k==='broken') W.broken.push([x,ps]); else if(ps&&ps.k==='rebooked') (W.rebooked=W.rebooked||[]).push([x,ps]); else if(ps&&ps.k==='nobook') W.nobook.push([x,ps]);
     else if(x.idle&&!((AL_NOTES[alNoteId(x)]||{}).text||'').trim()) (W.idle=W.idle||[]).push([x,null]);
     else if(!x.idle&&!((AL_NOTES[alNoteId(x)]||{}).text||'').trim()) W.nonote.push([x,null]); });
   return W;
 }
 function alStreakWarnBox(rows){
-  var W=alStreakWarns(rows); var tot=W.broken.length+W.nobook.length+W.nonote.length; if(!tot) return '';   // «مالوش ميعاد 3 أيام+» ظاهرين في مجموعتهم تحت
+  var W=alStreakWarns(rows); W.rebooked=W.rebooked||[]; var tot=W.broken.length+W.rebooked.length+W.nobook.length+W.nonote.length; if(!tot) return '';   // «مالوش ميعاد 3 أيام+» ظاهرين في مجموعتهم تحت
   var sec=function(L,col,title,f){ if(!L.length) return ''; return '<div style="margin-top:5px"><b style="color:'+col+';font-size:.64rem">'+title+' ('+L.length+')</b><div style="font-size:.6rem;margin-top:2px">'+
     L.map(function(z){ return '• <b>'+alEsc(z[0].name)+'</b> — '+f(z); }).join('<br>')+'</div></div>'; };
   return '<div style="border:1px solid var(--r);background:rgba(239,68,68,.06);border-radius:9px;padding:8px 10px;margin-bottom:10px">'+
     '<div style="font-weight:900;font-size:.7rem;color:var(--r)">⚠️ '+tot+' تحذير</div>'+
     sec(W.broken,'var(--r)','❌ قالوا هييجوا وما جوش — مكالمة تانية، ولو مش هيكمل يتشال من التثبيت',function(z){ return 'وعد '+alEsc(alFmtDay(z[1].p))+' · '+alEsc((AL_NOTES[alNoteId(z[0])]||{}).text||''); })+
+    sec(W.rebooked,'#f59e0b','🔁 قالوا هييجوا وما جوش — واتحجزلهم موعد تاني (أكّد عليه)',function(z){ return 'وعد '+alEsc(alFmtDay(z[1].p))+' · الموعد الجديد '+alEsc(alFmtDay(String(z[0].next_appt).slice(0,10)))+(z[0].next_status?' ('+alEsc(z[0].next_status)+')':''); })+
     sec(W.nobook,'var(--am)','📅 قالوا هييجوا بس مفيش موعد يومها على Medicolize — احجزله',function(z){ return 'وعد '+alEsc(alFmtDay(z[1].p))+(z[0].next_appt?' · المحجوز '+alEsc(alFmtDay(String(z[0].next_appt).slice(0,10))):' · مالوش ميعاد'); })+
     sec(W.nonote,'var(--mute)','💬 محدش كتب عنهم حاجة لسه — اتصل واكتب',function(z){ return z[0].streak+' مرات ورا بعض · آخر حضور '+alEsc(alFmtDay(z[0].last_attended)); })+'</div>';
 }
@@ -10991,7 +10996,7 @@ function alertsOpenStreaks(fromNotes){
       '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">'+
         (phone?'<a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a>':'')+nx+
         (x.last_attended?'<span style="font-size:.56rem;color:var(--mute)">آخر حضور '+alEsc(alFmtDay(x.last_attended))+'</span>':'')+
-      '</div>'+(function(){ var ps=alPromiseState(x); if(!ps) return ''; var col=ps.k==='broken'?'var(--r)':ps.k==='nobook'?'var(--am)':'var(--g)';
+      '</div>'+(function(){ var ps=alPromiseState(x); if(!ps) return ''; var col=ps.k==='broken'?'var(--r)':(ps.k==='nobook'||ps.k==='rebooked')?'var(--am)':'var(--g)';
         return '<div style="margin-top:6px;font-size:.62rem;font-weight:800;color:'+col+';border:1px solid currentColor;border-radius:7px;padding:4px 8px">'+alEsc(ps.txt)+'</div>'; })()+
       (function(){ var FN=(ALERTS_DATA&&ALERTS_DATA.plan&&ALERTS_DATA.plan.fu_notes)||{}, ph9=String(x.phone||'').replace(/\D/g,'').slice(-9), f=FN[ph9]||x.fu_note, cn=x.removed?(x.note_snap||''):'';
         return (f?'<div style="font-size:.6rem;margin-top:5px;color:#fbbf24">📝 آخر ملحوظة متابعة ('+alEsc(f.type||'')+' '+alEsc(alFmtDay(f.d))+(f.by?' · '+alEsc(f.by):'')+'): '+alEsc(f.note)+'</div>':'')+
@@ -11720,21 +11725,21 @@ function planTasks(useAll){
     if(x.idle) return;   // ليهم مهمة «😶» لوحدها
     if(act.indexOf((x.fixed[0]||{}).branch||brOf(x))<0) return;
     var nk=today+'|streak|'+x.pid, noted=hasNote(x,nk), ps=(typeof alPromiseState==='function')?alPromiseState(x):null;
-    if(ps&&ps.k==='broken'){ var an=(AL_NOTES[alNoteId(x)]||{}), pn=(PLAN_ST[nk]||{}).note; noted=!!((pn||'').trim()||String(an.at||'').slice(0,10)>ps.p); if(String(an.at||'').slice(0,10)<=ps.p&&!(pn||'').trim()) noted=false; }
+    if(ps&&(ps.k==='broken'||ps.k==='rebooked')){ var an=(AL_NOTES[alNoteId(x)]||{}), pn=(PLAN_ST[nk]||{}).note; noted=!!((pn||'').trim()||String(an.at||'').slice(0,10)>ps.p); if(String(an.at||'').slice(0,10)<=ps.p&&!(pn||'').trim()) noted=false; }
     var f0=x.fixed[0]||{}, ms=(x.misses||[]).slice(0,4).map(function(m){ return alFmtDay(m.date)+' ('+(/no ?show/i.test(m.status)?'No Show':'إلغاء')+')'; }).join(' · ');
     add('morning',{_src:x, grp:['streak'], sys:noted?'فيه ملحوظة':'', what:noted?planNoteText(x,nk):'', key:nk, icon:'⚠️', kind:'مثبت وبيلغي ورا بعض — '+x.streak+' مرات', name:x.name, phone:x.phone, br:f0.branch||brOf(x),
       lines:['مثبت عند <b>'+alEsc(f0.doctor||'')+'</b>'+(f0.slot!=null?' الساعة '+alEsc(alSlotTxt(f0.slot)):''), '<span style="color:var(--r)">'+alEsc(ms)+'</span>',
              'آخر حضور '+alEsc(alFmtDay(x.last_attended))+(x.next_appt?' · ميعاده الجاي '+alEsc(alFmtDay(String(x.next_appt).slice(0,10))):' · <b>مالوش ميعاد جاي</b>')+' — اتصل واعرف هيكمّل ولا نفضّي التثبيت',
-             ps?'<b style="color:'+(ps.k==='broken'?'var(--r)':ps.k==='nobook'?'var(--am)':'var(--g)')+'">'+alEsc(ps.txt)+'</b>':'',
+             ps?'<b style="color:'+(ps.k==='broken'?'var(--r)':(ps.k==='nobook'||ps.k==='rebooked')?'var(--am)':'var(--g)')+'">'+alEsc(ps.txt)+'</b>':'',
              (AL_NOTES[alNoteId(x)]||{}).text?'<span style="font-size:.6rem;color:var(--mute)">💬 تعليق الكارت: '+alEsc(AL_NOTES[alNoteId(x)].text)+' ('+alEsc(AL_NOTES[alNoteId(x)].at||'')+')</span>':'']});
   });
   if(stk&&stk.idle) stk.idle.forEach(function(x){   // 😶 مثبّت ومالوش ميعاد من 3 أيام+
     if(act.indexOf(x.branch)<0) return;
     var ik=today+'|idle|'+alPatNorm(x.name), ino=hasNote(x,ik), ps=alPromiseState(x);
-    if(ps&&ps.k==='broken'){ var an2=(AL_NOTES[alNoteId(x)]||{}); ino=!!(((PLAN_ST[ik]||{}).note||'').trim()||String(an2.at||'').slice(0,10)>ps.p); }
+    if(ps&&(ps.k==='broken'||ps.k==='rebooked')){ var an2=(AL_NOTES[alNoteId(x)]||{}); ino=!!(((PLAN_ST[ik]||{}).note||'').trim()||String(an2.at||'').slice(0,10)>ps.p); }
     add('morning',{_src:x, grp:['idle'], sys:ino?'فيه ملحوظة':'', what:ino?planNoteText(x,ik):'', key:ik, icon:'😶', kind:'مثبّت ومالوش ميعاد من '+x.days+' يوم', name:x.name, phone:x.phone, br:x.branch,
       lines:['مثبّت عند <b>'+alEsc(x.fixed[0].doctor)+'</b> الساعة '+alEsc(alSlotTxt(x.fixed[0].slot))+' · آخر جلسة '+alEsc(alFmtDay(x.last_attended))+' — اتصل واحجزله، ولو مش هيكمل فضّي التثبيت',
-             ps?'<b style="color:'+(ps.k==='broken'?'var(--r)':ps.k==='nobook'?'var(--am)':'var(--g)')+'">'+alEsc(ps.txt)+'</b>':'']});
+             ps?'<b style="color:'+(ps.k==='broken'?'var(--r)':(ps.k==='nobook'||ps.k==='rebooked')?'var(--am)':'var(--g)')+'">'+alEsc(ps.txt)+'</b>':'']});
   });
   var CT=P.calls_today||(FU.calls||[]).filter(function(x){ return x.is_today; });
   CT.filter(inb).forEach(function(x){
@@ -12318,7 +12323,33 @@ function planSummarySave(){
 }
 
 /* 📈 نتيجة المتابعة (أرقام بس — مش مهام): اللي اتتابعوا آخر 14 يوم · حجزوا · جم فعلاً · مين كانت مسئولة عن المتابعة ومين حجز */
-var PLAN_FU_OPEN=false, PLAN_FU_F='', PLAN_CONF_F='';
+var PLAN_FU_OPEN=false, PLAN_FU_F='', PLAN_CONF_F='', PLAN_FU_P='today', PLAN_FUT_F='';
+/* 📅 متابعات النهارده: كل متابعة عليها النهارده — اتعمل فيها إيه على Medicolize */
+function planFuToday(){
+  var D=ALERTS_DATA; if(!D) return '';
+  var act=planBR().map(function(b){return b.key;}), KEYS=AL_BRANCHES.map(function(b){return b.key;});
+  var brO=function(x){ return KEYS.indexOf(x.branch)>=0?x.branch:alBranchOf(x.doctor,x.branch); };
+  var CT=((D.plan||{}).calls_today||[]).filter(function(x){ return act.indexOf(brO(x))>=0; });
+  var att=function(x){ return /completed|checked|progress/i.test(x.status||''); };
+  var stOf=function(x){ return x.result?'booked':x.done?'done':((x.note||'').trim()||att(x))?'half':'none'; };
+  var C={booked:0,done:0,half:0,none:0}; CT.forEach(function(x){ C[stOf(x)]++; });
+  var closed=C.booked+C.done;
+  var ch=function(f,txt,col){ var on=PLAN_FU_OPEN&&PLAN_FUT_F===f; return '<span onclick="event.stopPropagation();PLAN_FU_OPEN=true;PLAN_FUT_F=\''+f+'\';planRender()" style="cursor:pointer;font-size:.62rem;padding:3px 9px;border-radius:9px;border:1px solid '+(on?col:'var(--brd)')+';color:'+col+'">'+txt+'</span>'; };
+  var h=ch('','متابعات النهارده <b>'+CT.length+'</b> · اتقفل <b>'+closed+'</b> ('+(CT.length?Math.round(closed*100/CT.length):0)+'%)','var(--txt)')+
+        ch('booked','📅 حجزوا <b>'+C.booked+'</b>','var(--g)')+ch('done','✅ اتعملت صح <b>'+C.done+'</b>','#10b981')+
+        ch('half','⚠️ اتعملت ناقصة <b>'+C.half+'</b>','var(--am)')+ch('none','⬜ محدش اتعامل معاها <b>'+C.none+'</b>','var(--r)');
+  if(!PLAN_FU_OPEN) return {chips:h, body:''};
+  var L=CT.filter(function(x){ return !PLAN_FUT_F||stOf(x)===PLAN_FUT_F; }).sort(function(a,b){ var o={none:0,half:1,done:2,booked:3}; return o[stOf(a)]-o[stOf(b)]||String(a.time).localeCompare(String(b.time)); });
+  var lab={booked:['📅 حجز','var(--g)'],done:['✅ اتعملت صح','#10b981'],half:['⚠️ ناقصة','var(--am)'],none:['⬜ محدش اتعامل معاها','var(--r)']};
+  var body='<div style="margin-top:6px">'+L.map(function(x){ var k=stOf(x), lb=lab[k];
+    return '<div style="border-top:1px solid var(--brd);padding:6px 2px;font-size:.62rem"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>'+alEsc(x.name)+'</b>'+
+      '<span style="color:var(--mute)">'+alEsc(x.type||'')+(x.step?' '+x.step:'')+' · '+alEsc(planT(x.time))+'</span><b style="color:'+lb[1]+'">'+lb[0]+'</b></div>'+
+      '<div style="margin-top:2px">الموعد على Medicolize: <b style="color:'+(att(x)?'var(--g)':'var(--am)')+'">'+alEsc(x.status||'')+'</b>'+((x.times||[]).length?' · اتصالات: '+x.times.map(alEsc).join('، '):'')+'</div>'+
+      (x.note?'<div style="color:#fbbf24;margin-top:2px">📝 '+alEsc(x.note)+'</div>':'<div style="color:var(--r);margin-top:2px">مفيش ملحوظة</div>')+
+      (x.result?'<div style="color:var(--g);margin-top:2px">📅 '+alEsc(x.result)+'</div>':x.next_fu?'<div style="color:'+(x.next_late?'var(--r)':'var(--mute)')+';margin-top:2px">الخطوة الجاية: '+alEsc(x.next_fu)+(x.next_late?' (متأخرة)':'')+'</div>':'<div style="color:var(--r);margin-top:2px">مفيش ميعاد جاي محجوز</div>')+
+      (typeof alHistBtn==='function'?alHistBtn(x.name,x.phone):'')+'</div>'; }).join('')+(L.length?'':'<div style="font-size:.62rem;color:var(--mute);padding:6px">مفيش</div>')+'</div>';
+  return {chips:h, body:body};
+}
 function planFuPanel(){
   var D=ALERTS_DATA; if(!D||!D.followups) return '';
   var act=planBR().map(function(b){return b.key;}), inb=function(x){ return act.indexOf(alBranchOf(x.doctor,x.branch))>=0; };
@@ -12333,6 +12364,8 @@ function planFuPanel(){
   var names=Object.keys(per).sort(function(a,b){ return (per[b].resp+per[b].bookedBy)-(per[a].resp+per[a].bookedBy); });
   var cmT=cm.filter(function(x){ return String(x.ret_date).slice(0,10)===td; }).length;
   var h='<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
+    '<div style="display:flex;gap:6px;margin-bottom:6px">'+[['today','📅 النهارده'],['14','آخر 14 يوم']].map(function(z){ var on=PLAN_FU_P===z[0]; return '<span onclick="PLAN_FU_P=\''+z[0]+'\';planRender()" style="cursor:pointer;font-size:.62rem;font-weight:800;padding:3px 10px;border-radius:9px;border:1px solid '+(on?'#38bdf8':'var(--brd)')+';background:'+(on?'#38bdf8':'transparent')+';color:'+(on?'#06121f':'var(--txt)')+'">'+z[1]+'</span>'; }).join('')+'</div>'+
+    (PLAN_FU_P==='today'?(function(){ var ft=planFuToday(); return '<div onclick="PLAN_FU_OPEN=!PLAN_FU_OPEN;planRender()" style="display:flex;gap:10px;align-items:center;cursor:pointer;flex-wrap:wrap"><b style="font-size:.72rem;flex:1">📞 متابعات النهارده — اتعمل فيها إيه</b>'+ft.chips+'<span style="font-size:.6rem;color:var(--mute)">'+(PLAN_FU_OPEN?'▾':'◂')+'</span></div>'+ft.body+'</div>'; })():'')+
     '<div onclick="PLAN_FU_OPEN=!PLAN_FU_OPEN;planRender()" style="display:flex;gap:10px;align-items:center;cursor:pointer;flex-wrap:wrap"><b style="font-size:.72rem;flex:1">📈 نتيجة المتابعة — آخر '+(F.window||14)+' يوم</b>'+
       (function(ch){ return ch('','اتتابعوا <b>'+pool.length+'</b> · رجعوا <b>'+R.length+'</b>','var(--txt)')+
         ch('booked','📅 حجزوا ولسه ما جوش <b>'+bk.length+'</b> ('+pc(bk.length)+')','var(--am)')+

@@ -1130,7 +1130,7 @@ AUDIT_DAYS = 35
 STEPS_LOOKBACK = 365   # بنسحب سنة عشان نشوف الفلوس المدفوعة على خطوات Planned اتعملت من بدري (باقات)
 STEPS_Q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
            "{createdOperationSteps(orderBy:$orderBy skip:$skip take:$take rangeDate:$rangeDate)"
-           "{id name end createdAt status total paid %s operation{id name} doctor{name} patient{id firstName lastName} branch{name}}}")
+           "{id name end createdAt status total paid %s operation{id name} doctor{name} patient{id firstName lastName phoneNumber} branch{name}}}")
 STEPS_OP_FIELDS = ["discount", ""]   # خصم الخطوة (خصم الباقة متوزع) — لو مش مقبول نكمل من غيره
 _RE_DONE = re.compile(r"complet|done|finish|منته|مكتمل", re.I)
 _RE_PLAN = re.compile(r"plan|مخطط|pending", re.I)
@@ -1365,7 +1365,7 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
         debts.append({"id": str(x.get("id") or ""), "d": _cairo_date(x.get("end") or x.get("createdAt")), "pid": str((x.get("patient") or {}).get("id") or ""),
                       "p": _pname(x.get("patient")), "dr": ((x.get("doctor") or {}).get("name") or "").strip(),
                       "s": (x.get("name") or "").strip(), "b": ((x.get("branch") or {}).get("name") or ""),
-                      "pd": pd_, "net": net_, "rem": rem_})
+                      "pd": pd_, "net": net_, "rem": rem_, "ph": ((x.get("patient") or {}).get("phoneNumber") or "")})
     out = {"last_updated": now.isoformat(), "from": d_from, "to": d_to, "lookback_days": STEPS_LOOKBACK,
            "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts,
            "catalog": {"appt_types": dict(appt_types), "step_names": dict(step_names)}}

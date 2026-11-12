@@ -1390,6 +1390,7 @@ function renderInner(){
       </div>
       ${(() => { const h = histOf(r); const paid = Number(r.due) > 0 && (Number(r.collected)||0) >= Number(r.due) - TOL; if (!h || paid) return '';
         return `<div class="hist"><b>📝 ملاحظات الأيام اللي فاتت (${h.length}) — لحد ما يسدد كله</b><ul>${h.slice().reverse().map(x => `<li><span class="hd">${dayLbl(x.d)}</span>${esc(x.note)}${x.by?` <span class="hw">— <bdi>${esc(x.by)}</bdi></span>`:''}</li>`).join('')}</ul></div>`; })()}
+      ${payNotesOf(r)}
       <div class="r3"><input class="field" data-k="note" placeholder="ملحوظة النهارده" value="${esc(r.note||'')}"></div>
       ${pendingAmt.has(r.id) ? `<div class="needmsg">⚠ اختار اسم المسؤول عشان مبلغ ${fmt(pendingAmt.get(r.id))} يتحفظ — أو اختار اسمك فوق في «مين على الجهاز».</div>` : ''}
       ${stamp}
@@ -1865,11 +1866,17 @@ function renewOf(r){
   const ph = digits10(r.phone), br = brOfRow(r), nk = nameKey(r.name);
   return RENEW.find(x => (ph && ph.length >= 9 && digits10(x.phone) === ph) || ((brOf(x.branch) || 'haram') === br && nk && nameKey(x.name) === nk)) || null;
 }
+/* 💬 ملحوظات الدفع المكتوبة على المريض في Medicolize (من المزامنة — alerts.json) */
+var PAYN = {};
+function payNotesOf(r){ const L = (r && r.pid && PAYN[r.pid]) || []; if (!L.length) return '';
+  return `<div class="hist" style="border-color:#f59e0b55"><b>💬 ملحوظة الدفع على السيستم (Medicolize)</b><ul>${L.map(x => `<li>${x.d?`<span class="hd">${dayLbl(x.d)}</span>`:''}${esc(x.note)}${x.by?` <span class="hw">— ${esc(x.by)}</span>`:''}</li>`).join('')}</ul></div>`; }
 async function loadRenew(){
   try {
     const a = await (await fetch('alerts.json?t=' + Date.now(), {cache:'no-store'})).json();
     const list = (a && a.today === todayStr() && Array.isArray(a.renew_today)) ? a.renew_today : [];
-    if (JSON.stringify(list) !== JSON.stringify(RENEW)) { RENEW = list; render(); }
+    const pn = (a && a.plan && a.plan.pay_notes) || {};
+    const ch = JSON.stringify(list) !== JSON.stringify(RENEW) || JSON.stringify(pn) !== JSON.stringify(PAYN);
+    RENEW = list; PAYN = pn; if (ch) render();
   } catch(e){}
 }
 loadRenew(); setInterval(loadRenew, 5*60000);

@@ -11466,6 +11466,7 @@ function planLoad(){
     Object.keys(r).forEach(function(k){
       var v=String(r[k]||'').trim(); if(!v) return;
       if(k==='PLANCFG|names'){ try{ var a=JSON.parse(v); if(a&&a.length){ PLAN_NAMES=a; localStorage.setItem('planNames',JSON.stringify(a)); if(!r['PLANCFG|names|BODYFIX Center']) PLAN_NAMES_BR['BODYFIX Center']=a.slice(); } }catch(e){} return; }
+      if(k.indexOf('PLANCFG|phcol|')===0){ PLAN_PHCOL[k.slice(14)]=v; return; }
       if(k.indexOf('PLANCFG|names|')===0){ try{ var b=JSON.parse(v); if(b) PLAN_NAMES_BR[k.slice(14)]=b; }catch(e){} return; }
       if(k.indexOf('PLAN|')===0){ try{ st[k.slice(5)]=JSON.parse(v); }catch(e){} }
     });
@@ -11509,6 +11510,7 @@ function planAct(key, s){
     var d=new Date(Date.now()+864e5), def=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     var u=prompt('أجّل لحد يوم (YYYY-MM-DD):', def); if(!u) return; o.until=u.trim();
   }
+  if(s==='nr'&&String(key).indexOf('debtph|')===0){ var tdd=(ALERTS_DATA&&ALERTS_DATA.today)||''; o.tries=(cur.tries||0)+((cur.s==='nr'&&String(cur.ts||'').slice(0,10)===tdd)?0:1); }
   if(s==='undo') o={s:'', by:PLAN_ME, at:o.at, note:note};
   PLAN_ST[key]=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   planRender();
@@ -11550,7 +11552,7 @@ function planTasks(useAll){
   // ☀️ أول الشيفت
   // ⏳ الويتنج: النهارده + يوم الشغل الجاي — بتتقفل لما الميعاد يتنقل/يتلغى أو تتكتب ملحوظة النهارده
   (P.waiting||[]).filter(inb).forEach(function(x){
-    var g=x.day==='today'?'waittoday':'waitnext', k=g+'|'+x.pid+'|'+x.time, sug='';
+    var g=x.day==='today'?'waittoday':(planIsNut(x)?'waitnut':'waitnext'), k=(g==='waitnut'?'waitnext':g)+'|'+x.pid+'|'+x.time, sug='';
     if(x.day==='today'&&typeof wfSuggest==='function'&&typeof OV_FREE!=='undefined'&&OV_FREE){ var sg=wfSuggest({doctor:x.doctor,start:x.time}); sug=sg.length?'🔓 فاضي: '+wfChips(sg,3):'<span style="color:var(--r)">❌ مفيش دكتور فاضي من نفس النوع</span>'; }
     // لو ملحوظة النهارده بتطلب ساعة معينة وفيه ميعاد فاضي فيها → الملحوظة ما تقفلش المهمة، لازم يتحجز
     var wd=String(x.time).slice(0,10), wh=new Date(x.time), own=wh.getHours()+(wh.getMinutes()?1:0);
@@ -11613,6 +11615,9 @@ function planTasks(useAll){
   sysAdd('morning','kashf','kashf','حجز جلسات','🩺',function(x){return today+'|kashf|'+x.pid;},function(x){ return 'الكشف مع '+alEsc(doc(x.doctor)); });
   sysAdd('morning','drop','drop','اتحجزله ميعاد','🚶',function(x){return today+'|drop|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
   sysAdd('morning','waittoday','waittoday','اتنقل من الويتنج','⏳',function(x){return 'waittoday|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)); });
+  (RES.waitnext||[]).forEach(function(x){ x._nut=planIsNut(x); });
+  var RESn=(RES.waitnext||[]).filter(function(x){ return x._nut; }); RES.waitnext=(RES.waitnext||[]).filter(function(x){ return !x._nut; }); RES.waitnut=RESn;
+  sysAdd('morning','waitnut','waitnut','اتنقل من الويتنج','💜',function(x){return 'waitnext|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
   sysAdd('morning','waitnext','waitnext','اتنقل من الويتنج','⏳',function(x){return 'waitnext|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
   // 🧾 عند الاستقبال
   var by=function(arr,f){ var m={}; (arr||[]).forEach(function(x){ if(f(x)) m[x.pid]=x; }); return m; };
@@ -11629,21 +11634,29 @@ function planTasks(useAll){
     if(debts[x.pid]&&debts[x.pid].sum>=1&&!INVF[x.pid]) G.push('debt'); if(renew[x.pid]) G.push('renew'); if(evd[x.pid]) G.push('eval'); if(nonext[x.pid]) G.push('nonext'); if(svc[x.pid]) G.push('svc');
     if(renew[x.pid]){ var rn=renew[x.pid], sz=rn.size||12; R.push('🔁 '+(rn.session_no<=sz?'جلسة '+rn.session_no+' من '+sz:'الباقة ('+sz+') خلصت — دي جلسة '+rn.session_no)+' — <b>اعرض التجديد</b>'); }
     if(evd[x.pid]) R.push('🩺 جلسة '+evd[x.pid].n+' من غير تقييم — <b>احجز تقييم</b>');
+    if(debts[x.pid]&&debts[x.pid].sum>=1) R.push(planPayNotes(x.pid));
     if(debts[x.pid]&&debts[x.pid].sum>=1&&!INVF[x.pid]) R.push('💸 عليه <b style="color:var(--r)">'+planMoney(debts[x.pid].sum)+' ج</b> ('+debts[x.pid].n+' خدمة، أقدمها '+alEsc(alFmtDay(debts[x.pid].old))+') — <b>حصّل</b>');
     if(nonext[x.pid]) R.push('📅 مالوش ميعاد جاي — <b>احجزله قبل ما يمشي</b>');
     if(svc[x.pid]) R.push('🧩 محجوز '+alEsc((svc[x.pid].today_svcs||[]).join(' + '))+' وناقصه: '+(svc[x.pid].missing||[]).map(function(m){ return '<b>'+alEsc(m.svc)+'</b>'+(m.last?' (آخر مرة '+alEsc(alFmtDay(m.last))+')':''); }).join('، ')+' — <b>اعرضها عليه</b>');
     if(!G.length) return;   // «بيغيب كتير» معلومة بس — مش مهمة لوحدها
     if(x.risk>=2) R.push('<span style="color:var(--mute)">ℹ️ عنده '+x.risk+' غياب/اعتذار مفاجئ آخر 3 شهور</span>');
     var arrived=/checked|progress|completed/i.test(x.status||'');
-    add('rec',{grp:G, key:today+'|rec|'+x.pid, icon:arrived?'🟢':'🕐', kind:alEsc(planT(x.time))+' · '+alEsc((x.types||[x.type]).join(' + '))+' مع '+alEsc(doc(x.doctor))+(arrived?' · <span style="color:var(--g);font-weight:800">وصل</span>':''),
-      name:x.name, phone:x.phone, br:brOf(x), lines:R, note0:x.note, time:x.time});
+    var kindR=alEsc(planT(x.time))+' · '+alEsc((x.types||[x.type]).join(' + '))+' مع '+alEsc(doc(x.doctor))+(arrived?' · <span style="color:var(--g);font-weight:800">وصل</span>':'');
+    // كل نوع مهمة للمريض = مهمة لوحدها (التجديد يتقفل لوحده، والتقييم لوحده …)
+    var evT=(x.types||[x.type]).filter(function(t){ return /تقييم/.test(t||''); })[0];
+    G.forEach(function(g){
+      var sy='', wh='';
+      if(g==='renew'){ var eb=renew[x.pid]&&renew[x.pid].eval_booked;   // اتحجز «تقييم الجلسه الأخيره» النهارده أو بعد كده → اتعملت
+        if(eb){ sy='اتحجز تقييم الجلسة الأخيرة'; wh='تقييم الجلسة الأخيرة '+alFmtDay(String(eb).slice(0,10))+' '+planT(eb); } else if(evT){ sy='اتحجز تقييم الجلسة الأخيرة'; wh=evT+' النهارده'; } }
+      add('rec',{grp:[g], sys:sy, what:wh, key:today+'|rec|'+g+'|'+x.pid, icon:arrived?'🟢':'🕐', kind:kindR, name:x.name, phone:x.phone, br:brOf(x), lines:R, note0:x.note, time:x.time});
+    });
   });
-  var recByPid={}; T.rec.forEach(function(t){ recByPid[t.key.split('|').pop()]=t; });
+  var recDone={}; T.rec.forEach(function(t){ recDone[t.key]=t; });
   [['eval','🩺 ✅ اتحجزله تقييم على السيستم','اتحجز تقييم'],['nonext','📅 ✅ اتحجزله ميعاد جاي على السيستم','اتحجزله ميعاد']].forEach(function(z){
     (RES[z[0]]||[]).forEach(function(x){
-      var ex=recByPid[x.pid];
-      if(ex){ ex.lines.push('<span style="color:var(--g)">'+z[1]+(x.what?' — '+alEsc(x.what):'')+'</span>'); return; }
-      add('rec',{grp:[z[0]], sys:z[2], what:x.what||'', key:today+'|rec|'+x.pid, icon:'🟢', kind:alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)), name:x.name, phone:x.phone, br:brOf(x), lines:['<span style="color:var(--g)">'+z[1]+'</span>'], time:x.time});
+      var k=today+'|rec|'+z[0]+'|'+x.pid, ex=recDone[k];
+      if(ex){ ex.sys=z[2]; ex.what=x.what||''; return; }
+      add('rec',{grp:[z[0]], sys:z[2], what:x.what||'', key:k, icon:'🟢', kind:alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)), name:x.name, phone:x.phone, br:brOf(x), lines:['<span style="color:var(--g)">'+z[1]+(x.what?' — '+alEsc(x.what):'')+'</span>'], time:x.time});
     });
   });
   // 📋 شغل مكتب
@@ -11677,14 +11690,37 @@ function planTasks(useAll){
       }); }catch(err){}
     });
   }
+  /* 📞 تحصيل بالتليفون — عليهم 200 ج أو أكتر ومش جايين النهارده ولا خلال 7 أيام (اللي جاي قريب بيتحصّل منه وهو جاي)
+     · المبالغ اللي عدّى عليها أكتر من 30 يوم → Dalia تراجع الفاتورة الأول (غالبًا غلط) وبعدها تتكلم
+     · مرة واحدة مش كل يوم: «ما ردش» → يرجع بعد 3 أيام · «أجّل» لميعاد الوعد · بعد 3 محاولات ما ردش → للمدير */
   if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.debts){
-    var cut=new Date(Date.now()-60*864e5).toISOString().slice(0,10), Ld=audMapLook(), ph={};
-    AUD_DATA.debts.forEach(function(r){ if(todayPids[r.pid]||r.d<cut||!Ld.S[audN(r.s)]) return; var o=ph[r.pid]||(ph[r.pid]={r:r,n:0,sum:0}); o.n++; o.sum+=(+r.rem||0); });
-    Object.keys(ph).forEach(function(pid){ var o=ph[pid]; if(o.sum<50) return; var bk=o.r.b||'';
-      if(act.indexOf(bk)<0) return;
+    var cut=new Date(Date.now()-60*864e5).toISOString().slice(0,10), old30=new Date(Date.now()-30*864e5).toISOString().slice(0,10), Ld=audMapLook(), ph={};
+    var SOON={}; (P.soon||[]).forEach(function(p){ SOON[p]=1; });
+    var dayDiff=function(a,b){ return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5); };
+    AUD_DATA.debts.forEach(function(r){ if(todayPids[r.pid]||r.d<cut||!Ld.S[audN(r.s)]) return; var o=ph[r.pid]||(ph[r.pid]={r:r,n:0,sum:0,old:r.d}); o.n++; o.sum+=(+r.rem||0); if(r.d<o.old) o.old=r.d; if(r.d>o.r.d) o.r=r; });
+    Object.keys(ph).forEach(function(pid){ var o=ph[pid]; if(o.sum<200) return; var bk=o.r.b||'';
+      if(act.indexOf(bk)<0||SOON[pid]) return;
       var iv=INVF[pid];
-      add('office',{grp:['debtph'], sys:iv?'كتبت إن الفاتورة محتاجة تتعدل':'', what:iv?('🧾 '+(iv.by||'')+': '+iv.note+' → اتحولت لـ '+PLAN_INV_OWNER_DEF):'', key:'debt|'+pid+'|'+today, icon:'💸', kind:'تحصيل بالتليفون', name:o.r.p, br:bk,
-        lines:['عليه <b style="color:var(--r)">'+planMoney(o.sum)+' ج</b> — '+o.n+' خدمة، آخرها '+alEsc(o.r.s)+' مع '+alEsc(doc(o.r.dr))]}); });
+      if(iv){ add('office',{grp:['debtph'], sys:'كتبت إن الفاتورة محتاجة تتعدل', what:'🧾 '+(iv.by||'')+': '+iv.note+' → اتحولت لـ '+PLAN_INV_OWNER_DEF, key:'debtph|'+pid, icon:'💸', kind:'تحصيل بالتليفون', name:o.r.p, br:bk, lines:['عليه '+planMoney(o.sum)+' ج']}); return; }
+      var rk='invrev|'+pid, rv=PLAN_ST[rk]||{};
+      var line='عليه <b style="color:var(--r)">'+planMoney(o.sum)+' ج</b> — '+o.n+' خدمة، آخرها '+alEsc(o.r.s)+' مع '+alEsc(doc(o.r.dr))+' · أقدمها '+alEsc(alFmtDay(o.old));
+      // أقدم من 30 يوم ولسه Dalia ما أكّدتش إن الفاتورة صح → مراجعة الأول
+      if(o.old<old30&&rv.s!=='done'){
+        add('office',{grp:['invrev'], key:rk, icon:'🔎', kind:'عليه فلوس من أكتر من 30 يوم — راجعي الفاتورة قبل ما نكلمه', name:o.r.p, br:bk,
+          lines:[line, planPayNotes(pid), '<span style="font-size:.58rem;color:var(--mute)">لو الفاتورة صح دوسي ✅ وهيتحول للتحصيل بالتليفون · لو غلط عدّليها على Medicolize وهتتقفل لوحدها</span>']});
+        return;
+      }
+      var k='debtph|'+pid, st=PLAN_ST[k]||{}, tsd=String(st.ts||'').slice(0,10), tries=st.tries||0;
+      if(st.s==='nr'&&tries>=3){   // 3 محاولات ما ردش → المدير
+        add('mgr',{grp:['mgr'], key:'mgr|debt|'+pid, icon:'💸', kind:'تحصيل — ما ردش 3 مرات', name:o.r.p, phone:o.r.ph||'', br:bk, lines:[line, planPayNotes(pid), 'آخر محاولة '+alEsc(st.at||'')+' ('+alEsc(st.by||'')+')']});
+        return;
+      }
+      if(tsd&&tsd<today&&(st.s==='nr'||st.s==='done')&&dayDiff(tsd,today)<3) return;   // اتكلم/ما ردش من أقل من 3 أيام
+      var digits=String(o.r.ph||'').replace(/\D/g,''), brn=bk==='FIX ZONE'?'FIX ZONE':'BODYFIX';
+      var wa=PLAN_ST[k+'|wa'], waBtn=digits?'<a href="https://wa.me/'+digits+'?text='+encodeURIComponent(planDebtMsg(o.r.p,brn,o.sum))+'" target="_blank" onclick="planWa(\''+k+'\')" style="display:inline-block;margin-top:4px;background:#25D366;color:#06281a;border-radius:7px;padding:3px 10px;font-size:.62rem;font-weight:800;text-decoration:none">📲 ابعت رسالة واتساب الأول</a>'+(wa?' <span style="font-size:.58rem;color:var(--mute)">اتفتح '+alEsc(wa.by||'')+' '+alEsc(wa.at||'')+'</span>':''):'';
+      add('office',{grp:['debtph'], key:k, icon:'💸', kind:'تحصيل بالتليفون'+(tries?' — محاولة '+(tries+1)+' من 3':''), name:o.r.p, phone:o.r.ph||'', br:bk,
+        lines:[line, planPayNotes(pid), waBtn]});
+    });
   }
   // 🧾 فاتورة محتاجة تتعدل (الخزنة كتبت كده في شيت التحصيلات) — على مسئولة الفواتير · بتتقفل لما المتبقي على المريض يقل في Medicolize
   if(PLAN_COLROWS){ var curRem={}; if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.debts) AUD_DATA.debts.forEach(function(r){ curRem[r.pid]=(curRem[r.pid]||0)+(+r.rem||0); });
@@ -11728,9 +11764,9 @@ function planTasks(useAll){
   return T;
 }
 var PLAN_GT={
-  debtph:['📞','عليهم فلوس ومش جايين النهارده — تحصيل بالتليفون'], invfix:['🧾','فواتير محتاجة تتعدل (الخزنة كتبت كده في التحصيلات)'],
+  debtph:['📞','تحصيل بالتليفون (200 ج+ ومش جايين خلال أسبوع)'], invrev:['🔎','فلوس قديمة (أكتر من 30 يوم) — مراجعة الفاتورة قبل التحصيل'], invfix:['🧾','فواتير محتاجة تتعدل (الخزنة كتبت كده في التحصيلات)'],
   mgr:['👔','ملحوظات محتاجة المدير (شكوى · فلوس · الدكتور · الألم …)'],
-  waittoday:['⏳','مواعيد على الويتنج النهارده'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'],
+  waittoday:['⏳','مواعيد على الويتنج النهارده'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'], waitnut:['💜','ويتنج قسم التغذية يوم الشغل الجاي'],
   call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي (🔴 الضروري فوق)'], confsp:['💜','تأكيد مواعيد قسم التغذية (د. آلاء حرفوش) وجلسات التخسيس'], drop:['🚶','مرضى جداد وقفوا بدري'],
   renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
   fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — تسجيل + خصم']
@@ -11751,6 +11787,25 @@ function planShiftsLoad(){
 }
 /* 🧾 ملحوظات «الفاتورة محتاجة تتعدل» من شيت التحصيلات (آخر 7 أيام) → مهمة على مسئولة الفواتير (Dalia) */
 var PLAN_COLROWS=null, PLAN_INV_OWNER_DEF='Dalia';
+/* 📞 مسئولة التحصيل بالتليفون: حد ثابت لكل فرع بيختاره المدير (مش اللي على الخزنة) — الشيت: PLANCFG|phcol|<الفرع> */
+var PLAN_PHCOL={}; try{ PLAN_PHCOL=JSON.parse(localStorage.getItem('planPhcol')||'{}')||{}; }catch(e){}
+function planSetPhCol(bkey, v){
+  if(v==='__add'){ var n=prompt('اسم مسئولة التحصيل بالتليفون:'); if(!n||!n.trim()){ planRender(); return; } v=n.trim(); planAddName(v,bkey); }
+  if(v==='__del'){ planRender(); return; }
+  PLAN_PHCOL[bkey]=v; try{ localStorage.setItem('planPhcol',JSON.stringify(PLAN_PHCOL)); }catch(e){}
+  planSaveRaw('PLANCFG|phcol|'+bkey, v); planRender();
+}
+/* 💸 ملحوظات الدفع اللي على المريض في Medicolize */
+function planIsNut(x){ return /alaa harfoush/i.test(x.doctor||'')||/تغذ/.test(x.type||''); }
+function planPayNotes(pid){
+  var L=((ALERTS_DATA&&ALERTS_DATA.plan&&ALERTS_DATA.plan.pay_notes)||{})[pid]||[];
+  return L.length?'<div style="font-size:.6rem;margin-top:3px;color:#fbbf24">💬 ملحوظة الدفع على السيستم: '+L.map(function(x){ return alEsc(x.note)+' <span style="color:var(--mute)">('+(x.d?alEsc(alFmtDay(x.d)):'')+(x.by?' · '+alEsc(x.by):'')+')</span>'; }).join(' · ')+'</div>':'';
+}
+/* رسالة واتساب للتحصيل */
+function planDebtMsg(name, br, amt){
+  var first=String(name||'').split(' ')[0];
+  return 'أهلاً '+first+' 🌷\nمعاك '+br+'.\nحابين نفكّر حضرتك إن فيه مبلغ متبقي '+planMoney(amt)+' ج على جلسات/خدمات اتعملت.\nتقدر تسدده في أقرب زيارة، أو تبعتلنا وتقولنا الطريقة المناسبة ليك (كاش / InstaPay / فودافون كاش).\nلو حضرتك شايف إن المبلغ ده مش مظبوط قولنا ونراجعه فورًا 🙏';
+}
 var PLAN_INVFIX_RE=/(فاتور|الفاتوره|الفاتورة|فواتير)[^.\n]{0,30}(تتشال|تشال|تتلغ|تتلغى|تتعدل|تعديل|غلط|تتمسح|مكرر|زياده|زيادة|تتقفل)|(تعديل|تتعدل|تعدل|شيل|تشيل|تتشال|الغاء|إلغاء|تلغي|تتلغي|مسح|تتمسح)[^.\n]{0,20}(فاتور|الفاتوره|الفاتورة|فواتير)|مش عليه (اي )?(فلوس|حاجه|حاجة|مبلغ)|(دافع|دفع|اتدفع)[ه]? (قبل كده|من قبل)|المبلغ (غلط|مش مظبوط)/;
 function planColRowsLoad(c){
   var td=ALERTS_DATA.today, days=[]; for(var i=0;i<7;i++){ var d=new Date(td+'T12:00:00'); d.setDate(d.getDate()-i); days.push(d.toISOString().slice(0,10)); }
@@ -11775,7 +11830,8 @@ function planCashOwner(t){
   return hit?hit.name:'';
 }
 function planOwner(t,g){ if(g==='invfix'){ var tdi=(ALERTS_DATA&&ALERTS_DATA.today)||'', ai=PLAN_ST['asg|'+tdi+'|'+t.sec+'|invfix|'+t.br]; return ai&&ai.by?ai.by:PLAN_INV_OWNER_DEF; }
-  if(g==='debt'||g==='debtph'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
+  if(g==='debtph'){ if(PLAN_PHCOL[t.br]) return PLAN_PHCOL[t.br]; }
+  if(g==='debt'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
 function planAssign(gk, v, bkey){
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   if(v==='__del'){ var L=PLAN_NAMES_BR[bkey]||[], bl=(planBR().filter(function(b){ return b.key===bkey; })[0]||{}).label||'';
@@ -11939,7 +11995,7 @@ function planState(t){
   return 'open';
 }
 /* المهام اللي بتتقفل لوحدها من Medicolize — مفيش زرار ✅ (الملحوظة / ما ردش / أجّل موجودين) */
-var PLAN_AUTO_G={confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'الموعد Completed + ملحوظة باللي حصل (أو اتصالين بالوقت والنتيجة)', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
+var PLAN_AUTO_G={waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'الموعد Completed + ملحوظة باللي حصل (أو اتصالين بالوقت والنتيجة)', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
   eval:'يتحجز تقييم', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'الموعد يتحول «الغاء مفاجئ» Completed على Medicolize + خصم الجلسة من تاني مرة'};
 function planIsAuto(t){ var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_AUTO_G[x]; }); }
 function planRow(t){
@@ -11950,7 +12006,7 @@ function planRow(t){
     '<div style="display:flex;gap:8px;align-items:flex-start"><span style="font-size:1rem">'+t.icon+'</span><div style="flex:1;min-width:0">'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:.74rem">'+alEsc(t.name||'')+'</b><span style="font-size:.6rem;color:var(--mute)">'+t.kind+'</span>'+(badge?'<span style="font-size:.6rem">'+badge+(st.by?' · '+alEsc(st.by)+' '+alEsc(st.at||''):'')+'</span>':'')+'</div>'+
       t.lines.filter(Boolean).map(function(l){ return '<div style="font-size:.64rem;margin-top:3px;line-height:1.6">'+l+'</div>'; }).join('')+
-      ((t.grp||[]).some(function(g){return g==='debt'||g==='debtph';})?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">🧾 مسئولة التحصيل (على الخزنة '+(t.time?'وقت ميعاده':'دلوقتي')+'): '+(planCashOwner(t)?'<b style="color:var(--txt)">'+alEsc(planCashOwner(t))+'</b>':'<span style="color:#f59e0b">محدش متسجّل على الخزنة في الوقت ده</span>')+'</div>':'')+
+      ((t.grp||[]).indexOf('debtph')>=0?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">📞 مسئولة التحصيل بالتليفون: '+(PLAN_PHCOL[t.br]?'<b style="color:var(--txt)">'+alEsc(PLAN_PHCOL[t.br])+'</b>':'<span style="color:#f59e0b">اختارها فوق جنب المهمة</span>')+'</div>':'')+((t.grp||[]).indexOf('debt')>=0?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">🧾 مسئولة التحصيل (على الخزنة '+(t.time?'وقت ميعاده':'دلوقتي')+'): '+(planCashOwner(t)?'<b style="color:var(--txt)">'+alEsc(planCashOwner(t))+'</b>':'<span style="color:#f59e0b">محدش متسجّل على الخزنة في الوقت ده</span>')+'</div>':'')+
       (t.note0?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">📝 ملحوظة الموعد: '+alEsc(t.note0)+'</div>':'')+
       (state==='done'?(function(){ var w=t.what||(st.note?'📝 '+st.note:''); return w?'<div style="font-size:.64rem;margin-top:4px;background:rgba(16,185,129,.08);border-radius:6px;padding:3px 8px;color:var(--g)">📌 اللي اتعمل: '+(/<[a-z]/i.test(w)?w:alEsc(w))+'</div>':''; })():'')+
       (phone?'<a href="tel:'+alEsc(phone)+'" dir="ltr" style="display:inline-block;margin-top:5px;background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 8px;font-size:.6rem;text-decoration:none">📞 '+alEsc(phone)+'</a>':'')+
@@ -12004,8 +12060,12 @@ function planRender(){
       var tot=A.length-snz.length, pc=tot?Math.round(done.length*100/tot):100, allDone=!open.length;
       var head='<div onclick="PLAN_OPEN_G[\''+gk+'\']=!PLAN_OPEN_G[\''+gk+'\'];planRender()" style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid '+(isOpen?'var(--acc,#00c6ff)':'var(--brd)')+';border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer'+(allDone?';opacity:.6':'')+'">'+
         '<span style="font-size:1rem">'+gt[0]+'</span><b style="font-size:.7rem;flex:1">'+gt[1]+'</b>'+
-        ((g==='debt'||g==='debtph')?'<span title="المسئولة = اللي على الخزنة وقت ميعاد المريض (من «مين على الخزنة» في تاب التحصيل)" style="font-size:.6rem;color:'+(PLAN_SHIFTS&&PLAN_SHIFTS.length?'var(--mute)':'#f59e0b')+';border:1px solid var(--brd);border-radius:7px;padding:2px 6px">🧾 '+(PLAN_SHIFTS===null?'حسب الخزنة (بيقرا الشيفتات…)':PLAN_SHIFTS_NOCFG?'حسب الخزنة — افتحوا تاب «التحصيل» مرة على الجهاز ده':PLAN_SHIFTS.length?'حسب اللي على الخزنة':'محدش سجّل «استلمت الخزنة» النهارده')+'</span>':'')+
-        ((g==='debt'||g==='debtph')?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', brs=planBR(), many=brs.length>1;
+        (g==='debt'?'<span title="المسئولة = اللي على الخزنة وقت ميعاد المريض (من «مين على الخزنة» في تاب التحصيل)" style="font-size:.6rem;color:'+(PLAN_SHIFTS&&PLAN_SHIFTS.length?'var(--mute)':'#f59e0b')+';border:1px solid var(--brd);border-radius:7px;padding:2px 6px">🧾 '+(PLAN_SHIFTS===null?'حسب الخزنة (بيقرا الشيفتات…)':PLAN_SHIFTS_NOCFG?'حسب الخزنة — افتحوا تاب «التحصيل» مرة على الجهاز ده':PLAN_SHIFTS.length?'حسب اللي على الخزنة':'محدش سجّل «استلمت الخزنة» النهارده')+'</span>':'')+
+        (g==='debtph'?(function(){ var brs=planBR(), many=brs.length>1;   // 📞 مسئولة ثابتة للتحصيل بالتليفون لكل فرع
+          return brs.map(function(bb){ var cur=PLAN_PHCOL[bb.key]||'';
+            return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planSetPhCol(\''+bb.key+'\',this.value)" title="مسئولة التحصيل بالتليفون في '+bb.label+' (ثابتة لحد ما تغيّرها)" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:130px">'+
+              '<option value="">📞 '+(many?bb.label+': ':'')+'مسئولة التليفون…</option>'+(function(L){ if(cur&&L.indexOf(cur)<0) L.push(cur); return L; })(planNames(bb.key)).map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>📞 '+(many?bb.label+': ':'')+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option></select>'; }).join(''); })():
+         g==='debt'?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', brs=planBR(), many=brs.length>1;
           var brsHere=brs.filter(function(bb){ return A.some(function(t){ return t.br===bb.key; }); }); if(!brsHere.length) brsHere=brs;
           return brsHere.map(function(bb){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+bb.key], cur=a&&a.by||(g==='invfix'?PLAN_INV_OWNER_DEF:'');
             return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value,\''+bb.key+'\')" title="المسئولة عن المهمة دي في '+bb.label+'" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:'+(many?'120':'110')+'px">'+

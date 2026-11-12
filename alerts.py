@@ -843,6 +843,11 @@ def build_alerts(appointments, now=None, packages=None):
             "cycles_done": ps["pkg_no"] - 1, "first_session": ps["first"], "approx": ps["approx"],
         }
         m.update(info(appts))
+        # اتحجزله «تقييم الجلسه الأخيره» (النهارده أو بعد كده) → مهمة «اعرض التجديد» تتحسب اتعملت
+        ev_ = sorted([a for a in appts if a["start"].date() >= today and a["type"].strip() in EVAL_TYPES
+                      and a["status"] not in ("canceled", "cancelled", "no show", "noshow", "note")], key=lambda a: a["start"])
+        if ev_:
+            m["eval_booked"] = ev_[0]["start"].isoformat()
         milestones_all.append(m)
     milestones_all.sort(key=lambda x: x["time"])
     milestones = [m for m in milestones_all if m["session_no"] in MILESTONES]
@@ -1239,6 +1244,28 @@ def build_alerts(appointments, now=None, packages=None):
         })
     streaks.sort(key=lambda x: (x["misses"][0]["date"], x["streak"]), reverse=True)   # آخر إلغاء الأحدث فوق
 
+    # 💸 ملحوظات الدفع المكتوبة على المريض في Medicolize (ملحوظة الموعد آخر 45 يوم + تفاصيل المريض) → بتظهر في مهام التحصيل وأداة التحصيل
+    PAY_RE = re.compile(r"دفع|هيدفع|يدفع|دافع|فلوس|باقي|متبقي|تحصيل|حصل|فاتور|انستا|insta|فودافون|كاش|تحويل|خصم|رصيد|مبلغ|جنيه")
+    pay_notes, soon = {}, []
+    for v in patients_all.values():
+        pid_ = next((a["pid"] for a in v if a.get("pid")), "")
+        if not pid_:
+            continue
+        L = []
+        for a in sorted(v, key=lambda a: a["start"], reverse=True):
+            if a["start"].date() < today - timedelta(days=45) or a["start"].date() > today + timedelta(days=30):
+                continue
+            nt = (a.get("note") or "").strip()
+            if nt and PAY_RE.search(nt) and not any(x["note"] == nt[:200] for x in L):
+                L.append({"d": a["start"].date().isoformat(), "note": nt[:200], "by": a.get("by") or ""})
+        pn = next(((a.get("pnote") or "").strip() for a in v if (a.get("pnote") or "").strip()), "")
+        if pn and PAY_RE.search(pn):
+            L.append({"d": "", "note": pn[:200], "by": "تفاصيل المريض"})
+        if L:
+            pay_notes[pid_] = L[:3]
+        if any(today < a["start"].date() <= today + timedelta(days=7) and a["status"] in LIVE_TODAY for a in v):
+            soon.append(pid_)
+
     starts = [a["start"].date() for v in patients.values() for a in v]
     return {
         "generated_at": now.isoformat(),
@@ -1263,7 +1290,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
-        "plan": dict(plan, calls_today=calls_today),
+        "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),
         "doc_perf": perf,

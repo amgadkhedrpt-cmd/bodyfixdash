@@ -11368,6 +11368,12 @@ function alFinished(){
   });
   return out;
 }
+var AL_FIN_SEL='all';
+var AL_FIN_F={
+  all:function(){ return true; },
+  noeval:function(x){ return x.eval!=='done'; },
+  other:function(x){ return x.eval==='done'&&x.eval_doctor&&!/amgad|امجد|أمجد/i.test(x.eval_doctor); }
+};
 function alertsOpenFinished(fromNotes){
   var fp=alFinished(); if(!fp||!fp.rows.length) return;
   var old=document.getElementById('al-modal'); if(old) old.remove();
@@ -11383,7 +11389,10 @@ function alertsOpenFinished(fromNotes){
       '<span style="background:'+(x.days_since<=14?'#f59e0b':'var(--brd)')+';color:'+(x.days_since<=14?'#111':'var(--txt)')+';border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">من '+x.days_since+' يوم</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0 5px">آخر جلسة (رقم '+(x.size||12)+') يوم '+alEsc(alFmtDay(x.last_session))+' · '+alEsc(alDocAr(x.doctor)||x.doctor)+
         ' · خلص '+(x.pkg_src==='inv'?alPkgName(x.packages)+' ('+x.size+' جلسات)':(x.packages===1?'باقة واحدة':x.packages===2?'باقتين':x.packages+' باقات')+' — تقديري')+' · إجمالي '+x.total+' جلسة'+
-        '<div style="margin-top:4px">'+(x.eval==='done'?'<span style="background:rgba(16,185,129,.14);color:var(--g);border-radius:6px;padding:1px 8px;font-size:.6rem;font-weight:800">✅ دخل '+alEsc(x.eval_type||'التقييم')+' '+alEsc(alFmtDay(x.eval_date))+'</span>':x.eval==='booked'?'<span style="background:rgba(245,158,11,.14);color:var(--am);border-radius:6px;padding:1px 8px;font-size:.6rem;font-weight:800">📅 حاجز '+alEsc(x.eval_type||'تقييم')+' '+alEsc(alFmtDay(x.eval_date))+'</span>':'<span style="background:rgba(239,68,68,.12);color:var(--r);border-radius:6px;padding:1px 8px;font-size:.6rem;font-weight:800">❌ ما دخلش تقييم الجلسة الأخيرة</span>')+'</div>'+
+        '<div style="margin-top:4px">'+(x.eval==='done'?'<span style="background:rgba(16,185,129,.14);color:var(--g);border-radius:6px;padding:1px 8px;font-size:.6rem;font-weight:800">✅ دخل '+alEsc(x.eval_type||'التقييم')+' '+alEsc(alFmtDay(x.eval_date))+(x.eval_doctor?' مع '+alEsc(alDocAr(x.eval_doctor)||x.eval_doctor):'')+'</span>':x.eval==='booked'?'<span style="background:rgba(245,158,11,.14);color:var(--am);border-radius:6px;padding:1px 8px;font-size:.6rem;font-weight:800">📅 حاجز '+alEsc(x.eval_type||'تقييم')+' '+alEsc(alFmtDay(x.eval_date))+'</span>':'<span style="background:rgba(239,68,68,.12);color:var(--r);border-radius:6px;padding:1px 8px;font-size:.6rem;font-weight:800">❌ ما دخلش تقييم الجلسة الأخيرة</span>')+
+          (x.eval_note?'<div style="margin-top:4px;font-size:.6rem;color:var(--txt);background:rgba(255,255,255,.04);border-radius:6px;padding:3px 8px">📝 ملحوظة التقييم: '+alEsc(x.eval_note)+'</div>':'')+
+          ((x.eval!=='done'&&x.eval_missed&&x.eval_missed.length)?x.eval_missed.map(function(e){ return '<div style="margin-top:4px;font-size:.6rem;color:var(--r);font-weight:700">⛔ كان حاجز '+alEsc(e.type)+' يوم '+alEsc(alFmtDay(e.date))+(e.doctor?' مع '+alEsc(alDocAr(e.doctor)||e.doctor):'')+' — ما كملوش ('+alEsc(e.status)+')'+(e.note?'<span style="color:var(--mute);font-weight:400"> · 📝 '+alEsc(e.note)+'</span>':'')+'</div>'; }).join(''):'')+
+          '</div>'+
         (x.approx?' · <span style="color:var(--am)">⚠ تقريبي</span>':'')+'</div>'+
       (phone?'<a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a>':'')+
       alNoteBox(x)+'</div>';
@@ -11397,8 +11406,12 @@ function alertsOpenFinished(fromNotes){
       '<span style="font-weight:900;font-size:.8rem;flex:1">📦 خلصوا باقة ومجددوش ('+fp.rows.length+')</span>'+
       '<button onclick="document.getElementById(\'al-modal\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;cursor:pointer;font-family:Cairo,sans-serif">✕</button></div>'+
     '<div style="font-size:.56rem;color:var(--mute);margin-bottom:8px">خلص كل جلسات باقته (من الفاتورة: 6 أو 12…) في آخر 60 يوم · مالوش أي ميعاد محجوز بعدها · الأحدث فوق</div>'+
+    (function(){ var cnt=function(f){ return fp.rows.filter(AL_FIN_F[f]).length; };
+      return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+[['all','الكل'],['noeval','❌ ما دخلش تقييم الجلسة الأخيرة'],['other','👨‍⚕️ دخل التقييم مع غير د. أمجد خضر']].map(function(c){
+        var on=AL_FIN_SEL===c[0];
+        return '<button onclick="AL_FIN_SEL=\''+c[0]+'\';var m=document.getElementById(\'al-modal\'),sc=m.firstChild.scrollTop;alertsOpenFinished(true);document.getElementById(\'al-modal\').firstChild.scrollTop=sc" style="border:1px solid '+(on?'var(--acc,#00C9A7)':'var(--brd)')+';background:'+(on?'rgba(0,201,167,.15)':'transparent')+';color:var(--txt);border-radius:16px;padding:3px 10px;font-size:.6rem;cursor:pointer;font-family:Cairo,sans-serif">'+c[1]+' ('+cnt(c[0])+')</button>'; }).join('')+'</div>'; })()+
     alActiveBranches().map(function(b){
-      var arr=fp.rows.filter(function(x){return x._br===b.key;});
+      var arr=fp.rows.filter(function(x){return x._br===b.key&&AL_FIN_F[AL_FIN_SEL](x);});
       if(!arr.length) return '';
       return '<div style="font-weight:700;font-size:.7rem;color:'+b.color+';margin:12px 0 6px">🏥 '+b.label+' ('+arr.length+')</div>'+arr.map(row).join('');
     }).join('')+'</div>';

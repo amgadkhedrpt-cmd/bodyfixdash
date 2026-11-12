@@ -867,6 +867,12 @@ def build_alerts(appointments, now=None, packages=None):
             "eval": "done" if ev_done else "booked" if ev_book else "none",
             "eval_date": (ev_done or ev_book)[-1]["start"].date().isoformat() if (ev_done or ev_book) else "",
             "eval_type": (ev_done or ev_book)[-1]["type"] if (ev_done or ev_book) else "",
+            "eval_doctor": (ev_done or ev_book)[-1]["doctor"] if (ev_done or ev_book) else "",
+            "eval_note": ((ev_done or ev_book)[-1].get("note") or "")[:300] if (ev_done or ev_book) else "",
+            # مواعيد تقييم اتحجزت وما اتعملتش (اتلغت / ما جاش)
+            "eval_missed": [{"date": a["start"].date().isoformat(), "type": a["type"], "doctor": a["doctor"],
+                             "status": a["status"].title(), "note": (a.get("note") or "")[:300]}
+                            for a in ev if a["start"] <= now and a["status"] not in ATTENDED][-2:],
         }
         f.update(info(appts))
         finished.append(f)

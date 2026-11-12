@@ -1111,9 +1111,12 @@ def _money_scale(rows):
     med = ratios[len(ratios) // 2]
     return 100.0 if 50 <= med <= 200 else 1.0
 
+REM_ = {}   # id → (المدفوع شامل اللي اتغطى من P، المطلوب بعد الخصم، الباقي)
+
 def _cover_unpaid(rows, has_done, inv_money=None):
     """طريقة أمجد: المدفوع جنب الخطوة قصاد الـ Total بتاعها. خطوة C عليها باقي بتتغطى من
     الفلوس المدفوعة على خطوات P في نفس الباقة (نفس العملية). يرجّع ({id: 'paid'|'covered'|'unpaid'}, المعامل)."""
+    REM_.clear()
     k_ = _money_scale(rows)
     tot_ = lambda x: max(0.0, (float(x.get("total") or 0) - float(x.get("discount") or 0)) / k_)   # المطلوب بعد الخصم
     by_op = defaultdict(list)
@@ -1137,6 +1140,7 @@ def _cover_unpaid(rows, has_done, inv_money=None):
             elif credit + 1 >= need:
                 credit -= need; res[x.get("id")] = "covered"
             else:
+                REM_[x.get("id")] = (round(float(x.get("paid") or 0) + credit, 2), round(tot_(x), 2), round(need - credit, 2))
                 credit = 0.0; res[x.get("id")] = "unpaid"
     return res, k_
 
@@ -1273,8 +1277,17 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
         if str(a.get("status_en") or "").upper() == "COMPLETED" or a.get("status") == "Completed":
             t = strip(a.get("type"))
             if t: appt_types[t] += 1
+    debts = []   # كل الخدمات غير المدفوعة في السنة (عشان الفلوس القديمة تظهر حتى لو الفلتر على النهارده)
+    for x in rows:
+        if pay.get(x.get("id")) != "unpaid":
+            continue
+        pd_, net_, rem_ = REM_.get(x.get("id"), (0, 0, 0))
+        debts.append({"d": _cairo_date(x.get("end") or x.get("createdAt")), "pid": str((x.get("patient") or {}).get("id") or ""),
+                      "p": _pname(x.get("patient")), "dr": ((x.get("doctor") or {}).get("name") or "").strip(),
+                      "s": (x.get("name") or "").strip(), "b": ((x.get("branch") or {}).get("name") or ""),
+                      "pd": pd_, "net": net_, "rem": rem_})
     out = {"last_updated": now.isoformat(), "from": d_from, "to": d_to, "lookback_days": STEPS_LOOKBACK,
-           "statuses": dict(statuses), "appts": appts, "steps": steps,
+           "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts,
            "catalog": {"appt_types": dict(appt_types), "step_names": dict(step_names)}}
     os.makedirs("data", exist_ok=True)
     with open("data/audit.json", "w", encoding="utf-8") as fh:

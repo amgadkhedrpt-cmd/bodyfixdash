@@ -3641,8 +3641,12 @@ function audMapLoad(onDone){
   window[cb]=function(data){
     clearTimeout(t);
     var r=(data&&data.reasons)||{}, o={};
-    Object.keys(r).forEach(function(k){ if(k.indexOf('AUDMAP|')!==0) return; var v=String(r[k]||'').trim(); if(!v) return;
+    Object.keys(r).forEach(function(k){
+      if(k.indexOf('AUDNOTE|')===0){ var nv=String(r[k]||'').trim(); if(nv) AUD_NOTES[k.slice(8)]=nv; else delete AUD_NOTES[k.slice(8)]; return; }
+      if(k.indexOf('AUDMAP|')!==0) return; var v=String(r[k]||'').trim(); if(!v) return;
       try{ o[k.slice(7)]=JSON.parse(v); }catch(e){} });
+    try{ localStorage.setItem('audNotes',JSON.stringify(AUD_NOTES)); }catch(e){}
+    try{ audUnpaidRender(); }catch(e){}
     AUD_MAP_OVR=o; try{ localStorage.setItem('audMapOvr',JSON.stringify(o)); }catch(e){}
     fin();
   };
@@ -3770,7 +3774,22 @@ function audMapUnkRender(){
 }
 /* ══ المطابقة الأوتوماتيك: data/audit.json من scraper.py ══ */
 var AUD_DATA=null, AUD_LOADING=false, AUD_UNPAID=[];
-var AUD_UP_COLS='95px 1.3fr 1fr 1fr 70px 90px 90px 150px';
+var AUD_UP_COLS='95px 1.2fr 1fr 0.8fr 60px 80px 80px 1.4fr';
+var AUD_NOTES={}; try{ AUD_NOTES=JSON.parse(localStorage.getItem('audNotes')||'{}'); }catch(e){}
+function audNoteSave(id,inp){
+  var v=String(inp.value||'').trim(), st=inp.parentNode.querySelector('.an-st');
+  if((AUD_NOTES[id]||'')===v) return;
+  if(v) AUD_NOTES[id]=v; else delete AUD_NOTES[id];
+  try{ localStorage.setItem('audNotes',JSON.stringify(AUD_NOTES)); }catch(e){}
+  if(st){ st.style.color='#F59E0B'; st.textContent='⏳'; }
+  if(typeof REQ_SCRIPT_URL==='undefined'||!REQ_SCRIPT_URL){ if(st) st.textContent='⚠️'; return; }
+  var cb='_audn_'+Date.now(), sc=document.createElement('script'), done=false;
+  var t=setTimeout(function(){ if(done)return; done=true; try{document.head.removeChild(sc);}catch(e){} delete window[cb]; if(st){ st.style.color='#E74C3C'; st.textContent='⚠️'; st.title='اتحفظت على الجهاز ده بس'; } },12000);
+  window[cb]=function(res){ if(done)return; done=true; clearTimeout(t); try{document.head.removeChild(sc);}catch(e){} delete window[cb];
+    if(st){ if(res&&res.ok){ st.style.color='#27AE60'; st.textContent='✅'; } else { st.style.color='#E74C3C'; st.textContent='⚠️'; st.title='اتحفظت على الجهاز ده بس'; } } };
+  sc.src=REQ_SCRIPT_URL+'?action=saveAction&reqId='+encodeURIComponent('AUDNOTE|'+id)+'&decision=note&reason='+encodeURIComponent(v)+'&callback='+cb;
+  document.head.appendChild(sc);
+}
 function _audMoney(v){ return (v==null||v==='')?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:2}); }
 function audUnpaidRender(){
   var el=document.getElementById('audUnpaidBody'); if(!el) return;
@@ -3783,7 +3802,7 @@ function audUnpaidRender(){
     '<div class="col-date">'+_aud_fmtDate(r.d)+'</div><div class="col-patient">'+_aud_esc(r.p)+'</div><div class="col-doctor">'+_aud_esc(r.dr)+'</div>'+
     '<div class="col-svc">'+_aud_esc(r.s)+'</div><div class="col-date">'+_aud_esc(br(r.b))+'</div>'+
     '<div class="col-num" style="color:#94A3B8">'+_audMoney(r.pd)+'</div><div class="col-num" style="color:#E74C3C">'+_audMoney(r.rem)+'</div>'+
-    '<div class="col-badge">'+(r.old?'<span class="badge" style="background:#F59E0B22;border:1px solid #F59E0B55;color:#F59E0B;white-space:normal;line-height:1.5">قبل الفترة · جه '+_aud_fmtDate(r.seen).slice(0,5)+'</span>':'')+'</div></div>'; }).join('');
+    '<div style="display:flex;gap:4px;align-items:center">'+(r.id?'<input class="search-input" style="flex:1;min-width:0;padding:5px 8px;font-size:12px" placeholder="✏️ ملحوظة..." value="'+_aud_esc(AUD_NOTES[r.id]||'')+'" onchange="audNoteSave(\''+r.id+'\',this)" onkeydown="if(event.key===\'Enter\')this.blur()"><span class="an-st" style="font-size:12px;width:16px"></span>':'')+'</div></div>'; }).join('');
 }
 function audAutoLoad(force){
   if(AUD_LOADING||(AUD_DATA&&!force)) return;
@@ -3906,7 +3925,7 @@ function _aud_exportExcel() {
     ws2['!cols'] = [{wch:35},{wch:12}];
     XLSX.utils.book_append_sheet(wb, ws2, 'ملخص');
     if (typeof AUD_UNPAID!=='undefined' && AUD_UNPAID.length) {
-      const ws3 = XLSX.utils.aoa_to_sheet([['التاريخ','المريض','الدكتور','الخدمة','الفرع','مدفوع','باقي','ملحوظة'], ...AUD_UNPAID.map(r=>[_aud_fmtDate(r.d),r.p,r.dr,r.s,r.b,r.pd??'',r.rem??'',r.old?('خدمة قبل الفترة مش مدفوعة — المريض جه '+_aud_fmtDate(r.seen)):''])]);
+      const ws3 = XLSX.utils.aoa_to_sheet([['التاريخ','المريض','الدكتور','الخدمة','الفرع','مدفوع','باقي','ملحوظة'], ...AUD_UNPAID.map(r=>[_aud_fmtDate(r.d),r.p,r.dr,r.s,r.b,r.pd??'',r.rem??'',(r.id&&AUD_NOTES[r.id])||''])]);
       ws3['!cols'] = [14,32,30,30,18,12,12,28].map(w=>({wch:w}));
       XLSX.utils.book_append_sheet(wb, ws3, 'خدمات غير مدفوعة');
     }
@@ -4885,7 +4904,7 @@ font-size: 13px; align-items: center; transition: background 0.1s;
     <div class="card-title">💸 خدمات غير مدفوعة <span id="audUnpaidN" style="color:#E74C3C"></span></div>
     <div style="font-size:12px;color:#94A3B8;margin-bottom:10px">خطوات C المدفوع جنبها أقل من (الـ Total − الخصم)، ومفيش فلوس على خطوات P في نفس الباقة تغطيها. «مدفوع» = اللي اتدفع للخدمة (شامل اللي اتغطى من P) · «باقي» = اللي ناقص عشان تتغطى.</div>
     <div class="table-wrap">
-      <div class="table-head" style="grid-template-columns:95px 1.3fr 1fr 1fr 70px 90px 90px 150px"><div>التاريخ</div><div>المريض</div><div>الدكتور</div><div>الخدمة</div><div>الفرع</div><div>مدفوع</div><div>باقي</div><div>ملحوظة</div></div>
+      <div class="table-head" style="grid-template-columns:95px 1.2fr 1fr 0.8fr 60px 80px 80px 1.4fr"><div>التاريخ</div><div>المريض</div><div>الدكتور</div><div>الخدمة</div><div>الفرع</div><div>مدفوع</div><div>باقي</div><div>ملحوظة السكرتيرة</div></div>
       <div class="table-body" id="audUnpaidBody"><div class="empty">⏳</div></div>
     </div>
   </div>

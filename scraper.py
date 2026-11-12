@@ -1282,7 +1282,7 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
         if pay.get(x.get("id")) != "unpaid":
             continue
         pd_, net_, rem_ = REM_.get(x.get("id"), (0, 0, 0))
-        debts.append({"d": _cairo_date(x.get("end") or x.get("createdAt")), "pid": str((x.get("patient") or {}).get("id") or ""),
+        debts.append({"id": str(x.get("id") or ""), "d": _cairo_date(x.get("end") or x.get("createdAt")), "pid": str((x.get("patient") or {}).get("id") or ""),
                       "p": _pname(x.get("patient")), "dr": ((x.get("doctor") or {}).get("name") or "").strip(),
                       "s": (x.get("name") or "").strip(), "b": ((x.get("branch") or {}).get("name") or ""),
                       "pd": pd_, "net": net_, "rem": rem_})

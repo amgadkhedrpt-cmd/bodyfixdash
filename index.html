@@ -11641,13 +11641,13 @@ function planTasks(useAll){
     var digits=String(x.phone||'').replace(/\D/g,''), br=alBranchOf(x.doctor,x.branch)==='FIX ZONE'?'FIX ZONE':'BODYFIX';
     var msg=planSuddenMsg(x.name, br, x.kind==='noshow', second);
     var waBtn=digits?'<a href="https://wa.me/'+digits+'?text='+encodeURIComponent(msg)+'" target="_blank" onclick="planWa(\''+k+'\')" style="display:inline-block;margin-top:4px;background:#25D366;color:#06281a;border-radius:7px;padding:3px 10px;font-size:.62rem;font-weight:800;text-decoration:none">📲 ابعت رسالة واتساب '+(second?'(تاني مرة — خصم)':'(أول مرة)')+'</a>':'';
-    var done=!!wa&&conv&&(!second||ded);
-    add('office',{grp:['sudden'], sys:done?'كل الخطوات اتعملت':'', what:done?('رسالة واتساب ('+(wa&&wa.by||'')+') + اتسجل الغاء مفاجئ Completed'+(second?' + اتخصمت الجلسة':'')):'', key:k, icon:'⚡',
+    var done=conv&&(!second||ded);   // من Medicolize بس — الواتساب زرار مساعد ومش شرط
+    add('office',{grp:['sudden'], sys:done?'كل الخطوات اتعملت':'', what:done?('اتسجل الغاء مفاجئ Completed على Medicolize'+(second?' + اتخصمت الجلسة':'')):'', key:k, icon:'⚡',
       kind:(x.kind==='noshow'?'No Show':'اعتذار مفاجئ')+' النهارده — '+(second?'<b style="color:var(--r)">مرة '+(n+1)+' (خصم جلسة)</b>':'<b>أول مرة</b>'),
       name:x.name, phone:x.phone, br:brOf(x),
       lines:[alEsc(x.type)+' '+alEsc(planT(x.date))+' مع '+alEsc(doc(x.doctor))+(n?' · مرات قبل كده: '+x.prior_sudden.map(alFmtDay).join('، '):''),
              x.note?'📝 '+alEsc(x.note):'',
-             ok(!!wa,'رسالة واتساب'+(wa?' <span style="color:var(--mute)">— '+alEsc(wa.by||'')+' '+alEsc(wa.at||'')+'</span>':'')+'<br>'+waBtn),
+             waBtn+(wa?' <span style="font-size:.58rem;color:var(--mute)">اتفتح '+alEsc(wa.by||'')+' '+alEsc(wa.at||'')+'</span>':''),
              ok(conv,'الموعد اتحول لـ «الغاء مفاجئ» وبقى Completed على Medicolize'),
              second?ok(ded,'الجلسة اتخصمت (خطوة عملية Completed النهارده)'):'']});
   });
@@ -11659,7 +11659,7 @@ var PLAN_GT={
   waittoday:['⏳','مواعيد على الويتنج النهارده'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'],
   call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي'], drop:['🚶','مرضى جداد وقفوا بدري'],
   renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
-  fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — رسالة + تسجيل + خصم']
+  fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — تسجيل + خصم']
 };
 var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView')||''; }catch(e){}
 
@@ -11667,11 +11667,12 @@ var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView'
 /* 🧾 «حصّل فلوس» مسئوليتها على اللي على الخزنة (من تاب التحصيل: «مين على الخزنة») وقت ميعاد المريض */
 var PLAN_SHIFTS=null, PLAN_SHIFTS_AT=0, PLAN_SHIFTS_NOCFG=false;
 function planShiftsLoad(){
-  if(Date.now()-PLAN_SHIFTS_AT<120000) return; PLAN_SHIFTS_AT=Date.now();
-  var c=(typeof bfSheetCfg==='function')?bfSheetCfg():null; if(!ALERTS_DATA) return;
+  if(!ALERTS_DATA) return;                                   // نستنى التنبيهات تحمّل (عشان تاريخ النهارده)
+  if(Date.now()-PLAN_SHIFTS_AT<60000) return; PLAN_SHIFTS_AT=Date.now();
+  var c=(typeof bfSheetCfg==='function')?bfSheetCfg():null;
   if(!c||!c.url||!c.key){ try{ var ls=JSON.parse(localStorage.getItem('bf_shifts_'+ALERTS_DATA.today)||'null'); if(ls){ PLAN_SHIFTS=ls; planRender(); return; } }catch(e){} PLAN_SHIFTS=[]; PLAN_SHIFTS_NOCFG=true; return; }
   fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'get',path:'days/'+ALERTS_DATA.today+'/meta/shifts',key:c.key})})
-    .then(function(r){ return r.json(); }).then(function(j){ var d=j&&j.doc; PLAN_SHIFTS=(d&&(d.list||(d.data&&d.data.list)))||[]; planRender(); }).catch(function(){});
+    .then(function(r){ return r.json(); }).then(function(j){ var d=j&&j.doc; PLAN_SHIFTS_NOCFG=false; PLAN_SHIFTS=(d&&(d.list||(d.data&&d.data.list)))||[]; planRender(); }).catch(function(){ PLAN_SHIFTS_AT=0; });
 }
 function planCashOwner(t){
   if(!PLAN_SHIFTS||!PLAN_SHIFTS.length) return '';
@@ -11812,7 +11813,7 @@ function planState(t){
 }
 /* المهام اللي بتتقفل لوحدها من Medicolize — مفيش زرار ✅ (الملحوظة / ما ردش / أجّل موجودين) */
 var PLAN_AUTO_G={waittoday:'الميعاد يتنقل من الويتنج أو يتلغى أو تتكتب عليه ملحوظة النهارده', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى أو تتكتب عليه ملحوظة النهارده', call:'الموعد Completed + ملحوظة باللي حصل (أو اتصالين بالوقت والنتيجة)', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
-  eval:'يتحجز تقييم', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'رسالة الواتساب + الموعد «الغاء مفاجئ» Completed + الخصم من تاني مرة'};
+  eval:'يتحجز تقييم', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'الموعد يتحول «الغاء مفاجئ» Completed على Medicolize + خصم الجلسة من تاني مرة'};
 function planIsAuto(t){ var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_AUTO_G[x]; }); }
 function planRow(t){
   var st=PLAN_ST[t.key]||{}, h=planHash(t.key), state=planState(t), phone=(t.phone||'').replace(/_/g,'');
@@ -11834,6 +11835,7 @@ function planRow(t){
 }
 function planRender(){
   var box=document.getElementById('planBox'); if(!box) return;
+  if(PLAN_SHIFTS===null||PLAN_SHIFTS_NOCFG){ try{ planShiftsLoad(); }catch(e){} }
   var T; try{ T=planTasks(); }catch(err){ box.innerHTML='<div style="padding:24px;text-align:center;color:var(--r)">⚠️ حصلت مشكلة في عرض خطة اليوم — اعمل Refresh. لو فضلت، ابعت الرسالة دي: '+alEsc(String(err&&err.message||err))+'</div>'; return; }
   if(!T){ box.innerHTML='<div style="padding:30px;text-align:center;color:var(--mute)">⏳ بيحمل التنبيهات...</div>'; if(typeof alertsLoad==='function'&&!ALERTS_DATA) alertsLoad(); return; }
   var all=[].concat(T.mgr,T.morning,T.rec,T.office,T.evening), today=(ALERTS_DATA&&ALERTS_DATA.today)||'';

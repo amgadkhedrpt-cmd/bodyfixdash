@@ -716,6 +716,7 @@ def build_alerts(appointments, now=None, packages=None):
                 "est_full": total > 0 and total % CYCLE == 0}
 
     # ── أداء الدكاترة: التجديد · الوقوف بدري (أول 3 جلسات) · الكشف ← باقة ──
+    RENEW_GAPS = []
     def doc_perf():
         P_FROM = today - timedelta(days=PERF_DAYS)
         out = defaultdict(lambda: {"branch": Counter(), "renew": [0, 0], "drop": [0, 0, 0, 0, 0], "kashf": [0, 0]})
@@ -745,6 +746,8 @@ def build_alerts(appointments, now=None, packages=None):
                 if not (P_FROM <= end <= today - timedelta(days=RENEW_WAIT)):
                     continue
                 doc = Counter(byday[d]["doctor"] for d in sd[:size]).most_common(1)[0][0]
+                nx = [d for d in days if d > end]
+                RENEW_GAPS.append((nx[0] - end).days if nx else None)
                 o = out[doc]; o["branch"][byday[sd[0]]["branch"]] += 1
                 o["renew"][0] += 1
                 if any(end < d <= end + timedelta(days=60) for d in days) or (future and not any(d > end for d in days)):
@@ -787,6 +790,12 @@ def build_alerts(appointments, now=None, packages=None):
                 continue
             res[doc] = {"branch": o["branch"].most_common(1)[0][0] if o["branch"] else "",
                         "renew": o["renew"], "drop": o["drop"], "kashf": o["kashf"]}
+        g = RENEW_GAPS; n = len(g); b = Counter()
+        for x in g:
+            k = "لم يرجع" if x is None else "≤3" if x <= 3 else "4-7" if x <= 7 else "8-10" if x <= 10 else "11-14" if x <= 14 else "15-21" if x <= 21 else "22-30" if x <= 30 else "31-60" if x <= 60 else ">60"
+            b[k] += 1
+        print("📊 فرق الأيام بين آخر جلسة في الباقة وأول جلسة بعدها:", n, "باقة ·",
+              " · ".join(f"{k}: {b[k]}" for k in ["≤3", "4-7", "8-10", "11-14", "15-21", "22-30", "31-60", ">60", "لم يرجع"]))
         return {"from": P_FROM.isoformat(), "to": today.isoformat(), "days": PERF_DAYS, "docs": res,
                 "rules": {"renew_wait": RENEW_WAIT, "drop_wait": DROP_WAIT, "kashf_wait": KASHF_WAIT}}
     try:

@@ -11547,6 +11547,18 @@ function planTasks(useAll){
     add('office',{grp:['stale'], key:'stale|'+x.pid+'|'+x.time, icon:'🧹', kind:'موعد عدى ولسه '+alEsc(x.status)+' — اقفله في Medicolize', name:x.name, br:brOf(x),
       lines:[alEsc(x.type)+' يوم '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' — Completed ولا No Show؟']});
   });
+  // 📌 كشف وحجز بس لسه متثبتش في شيت الدكاترة (بيتقفل لما اسمه يظهر في الشيت)
+  var fixReady=(typeof DR_HARAM_STATIC!=='undefined'&&DR_HARAM_STATIC.length)||(typeof DR_DOKKI_STATIC!=='undefined'&&DR_DOKKI_STATIC.length);
+  if(fixReady&&typeof alFixedIndex==='function'){
+    var fidx=alFixedIndex();
+    (D.kashf_pending||[]).filter(function(x){ return inb(x)&&(x.next_pt||x.sessions_after)&&x.days_since<=14; }).forEach(function(x){
+      var fx=alFindFixed(x.name, fidx), fixed=fx.length>0;
+      if(fixed&&x.days_since>3) return;                       // اتثبت من بدري — مش مهمة النهارده
+      add('office',{grp:['fix'], sys:fixed?'اتثبت في الشيت':'', key:'fix|'+x.pid, icon:'📌', kind:'عمل كشف وحجز — '+(fixed?'اتثبت':'لسه متثبتش في شيت الدكاترة'), name:x.name, phone:x.phone, br:brOf(x),
+        lines:['الكشف '+alEsc(alFmtDay(String(x.kashf_date).slice(0,10)))+' مع '+alEsc(doc(x.doctor))+(x.next_pt?' · أول جلسة '+alEsc(alFmtDay(String(x.next_pt).slice(0,10)))+(x.next_doctor?' مع '+alEsc(doc(x.next_doctor)):''):'')+(x.sessions_after?' · حضر '+x.sessions_after+' جلسة':''),
+               fixed?'<span style="color:var(--g)">مثبت عند '+alEsc(fx[0].doctor)+(fx[0].slot!=null?' الساعة '+alEsc(alSlotTxt(fx[0].slot)):'')+'</span>':'<b>ثبّته في شيت الدكتور</b>']});
+    });
+  }
   sysAdd('office','stale','stale','اتقفل على السيستم','🧹',function(x){return 'stale|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
   if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.appts){
     var y=new Date(Date.now()-864e5), ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
@@ -11576,7 +11588,7 @@ function planTasks(useAll){
     add('evening',{grp:['nonext'], key:today+'|nonext|'+x.pid, icon:'📅', kind:'حضر النهارده ومالوش ميعاد جاي', name:x.name, phone:x.phone, br:brOf(x),
       lines:[alEsc(x.type)+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' — احجزله أو اتصل']});
   });
-  (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since===0&&!x.next_pt&&!x.sessions_after; }).forEach(function(x){
+  (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since===0&&!x.next_pt&&!x.sessions_after&&/checked|progress|completed/i.test(x.kashf_status||''); }).forEach(function(x){
     add('evening',{grp:['kashf0'], key:today+'|kashf0|'+x.pid, icon:'🩺', kind:'كشف النهارده وما حجزش', name:x.name, phone:x.phone, br:brOf(x),
       lines:['مع '+alEsc(doc(x.doctor))+' '+alEsc(planT(x.kashf_date))]});
   });
@@ -11603,7 +11615,7 @@ function planTasks(useAll){
 var PLAN_GT={
   call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي'], drop:['🚶','مرضى جداد وقفوا بدري'],
   renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','حصّل فلوس'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
-  stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده وما حجزش'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — رسالة + تسجيل + خصم']
+  fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — رسالة + تسجيل + خصم']
 };
 var PLAN_OPEN_G={};
 

@@ -1,0 +1,49 @@
+{
+ "at": "2026-11-12T21:58:36.034Z",
+ "errors": [],
+ "skipped": "no FIN_PASS",
+ "finance_links": [],
+ "pay_pages": {
+  "/finances/payments": {
+   "url": "https://my.medicolize.com/finances/payments",
+   "op": "PAYMENTS"
+  }
+ },
+ "exp_pages": {
+  "/finances/expense-payments": {
+   "url": "https://my.medicolize.com/finances/expense-payments",
+   "op": "EXPENSE_PAYMENTS"
+  }
+ },
+ "pay_op": {
+  "name": "PAYMENTS",
+  "vars": [
+   "branchId",
+   "filters",
+   "id",
+   "insuranceCompanies",
+   "orderBy",
+   "patientTags",
+   "rangeDate",
+   "referralSource",
+   "referralSubSource",
+   "searchTerm",
+   "skip",
+   "take"
+  ],
+  "query": "query PAYMENTS($branchId: ID, $userId: ID, $assignedToId: ID, $id: ID, $doctor: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $filters: Filter, $insuranceCompanies: [ID], $appointment: ID, $searchTerm: String, $forDashboard: Boolean, $patientTags: [ID], $referralSource: ID, $referralSubSource: ID) { payments( branchId: $branchId userId: $userId assignedToId: $assignedToId patient: $id doctor: $doctor orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate filters: $filters insuranceCompanies: $insuranceCompanies appointment: $appointment searchTerm: $searchTerm forDashboard: $forDashboard patientTags: $patientTags referralSource: $referralSource referralSubSource: $referralSubSource ) { id type amount other balance claimed refunded details chart images tax insuranceCompany { id name __typename } patientPointsTxs { id points expiresIn __typename } refPatientPointsTxs { id __typename } transaction { id treasury { id publicName __typename } __typename } signed signedAt signature signedBy { id name __typename } invoice { id total tax taxPercent balance discount discountPercent diagnosticFee insurance subtotal pendingPayment pendingPaymentPercent paid paidInFull details invoiceId referenceId balanceInvoice eInvoiceStatus insuranceEInvoiceStatus lastEInvoiceReport { id status submissionTime data { id qrCode __typename } __typename } insuranceLastEInvoiceReport { id status submissionTime data { id qrCode __typename } __typename } patient { id fir"
+ },
+ "exp_op": {
+  "name": "EXPENSE_PAYMENTS",
+  "vars": [
+   "branchId",
+   "filters",
+   "orderBy",
+   "rangeDate",
+   "searchTerm",
+   "skip",
+   "take"
+  ],
+  "query": "query EXPENSE_PAYMENTS($expense: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $filters: Filter, $branchId: ID, $userId: ID, $assignedToId: ID, $supplier: ID, $searchTerm: String, $lab: ID, $labItem: ID) { expensePayments( expense: $expense orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate filters: $filters branchId: $branchId userId: $userId assignedToId: $assignedToId supplier: $supplier searchTerm: $searchTerm lab: $lab labItem: $labItem ) { id type amount other details images refunded expenseType expense { id name paid amount type date other branch { id name __typename } createdBy { id name __typename } __typename } transaction { id treasury { id publicName __typename } __typename } refundedAt refundedBy { id name __typename } createdAt createdBy { id name __typename } updatedAt updatedBy { id name __typename } __typename } }"
+ }
+}

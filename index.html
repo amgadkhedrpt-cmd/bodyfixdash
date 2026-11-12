@@ -11551,14 +11551,14 @@ function planTasks(useAll){
   (P.today||[]).filter(inb).forEach(function(x){
     todayPids[x.pid]=1;
     var R=[], G=[];
-    if(renew[x.pid]) G.push('renew'); if(evd[x.pid]) G.push('eval'); if(debts[x.pid]&&debts[x.pid].sum>=1) G.push('debt'); if(nonext[x.pid]) G.push('nonext'); if(svc[x.pid]) G.push('svc'); if(x.risk>=2) G.push('risk');
+    if(renew[x.pid]) G.push('renew'); if(evd[x.pid]) G.push('eval'); if(debts[x.pid]&&debts[x.pid].sum>=1) G.push('debt'); if(nonext[x.pid]) G.push('nonext'); if(svc[x.pid]) G.push('svc');
     if(renew[x.pid]){ var rn=renew[x.pid], sz=rn.size||12; R.push('🔁 '+(rn.session_no<=sz?'جلسة '+rn.session_no+' من '+sz:'الباقة ('+sz+') خلصت — دي جلسة '+rn.session_no)+' — <b>اعرض التجديد</b>'); }
     if(evd[x.pid]) R.push('🩺 جلسة '+evd[x.pid].n+' من غير تقييم — <b>احجز تقييم</b>');
     if(debts[x.pid]&&debts[x.pid].sum>=1) R.push('💸 عليه <b style="color:var(--r)">'+planMoney(debts[x.pid].sum)+' ج</b> ('+debts[x.pid].n+' خدمة، أقدمها '+alEsc(alFmtDay(debts[x.pid].old))+') — <b>حصّل</b>');
     if(nonext[x.pid]) R.push('📅 مالوش ميعاد جاي — <b>احجزله قبل ما يمشي</b>');
     if(svc[x.pid]) R.push('🧩 محجوز '+alEsc((svc[x.pid].today_svcs||[]).join(' + '))+' وناقصه: '+(svc[x.pid].missing||[]).map(function(m){ return '<b>'+alEsc(m.svc)+'</b>'+(m.last?' (آخر مرة '+alEsc(alFmtDay(m.last))+')':''); }).join('، ')+' — <b>اعرضها عليه</b>');
-    if(x.risk>=2) R.push('⚡ عنده '+x.risk+' غياب/اعتذار مفاجئ آخر 3 شهور — <b>أكّد عليه</b>');
-    if(!R.length) return;
+    if(!G.length) return;   // «بيغيب كتير» معلومة بس — مش مهمة لوحدها
+    if(x.risk>=2) R.push('<span style="color:var(--mute)">ℹ️ عنده '+x.risk+' غياب/اعتذار مفاجئ آخر 3 شهور</span>');
     var arrived=/checked|progress|completed/i.test(x.status||'');
     add('rec',{grp:G, key:today+'|rec|'+x.pid, icon:arrived?'🟢':'🕐', kind:alEsc(planT(x.time))+' · '+alEsc((x.types||[x.type]).join(' + '))+' مع '+alEsc(doc(x.doctor))+(arrived?' · <span style="color:var(--g);font-weight:800">وصل</span>':''),
       name:x.name, phone:x.phone, br:brOf(x), lines:R, note0:x.note, time:x.time});

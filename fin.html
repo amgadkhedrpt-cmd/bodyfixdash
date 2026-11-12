@@ -138,20 +138,27 @@ async function openWith(key,j){
   const ds=new Blob([pt]).stream().pipeThrough(new DecompressionStream('gzip'));
   return JSON.parse(await new Response(ds).text());
 }
-async function fetchEnc(){
-  const urls=['https://raw.githubusercontent.com/amgadkhedrpt-cmd/bodyfixdash/main/data/fin.enc?t='+Date.now(),'data/fin.enc?t='+Date.now()];
+async function fetchEnc(name){
+  const urls=['https://raw.githubusercontent.com/amgadkhedrpt-cmd/bodyfixdash/main/data/'+name+'?t='+Date.now(),'data/'+name+'?t='+Date.now()];
   for(const u of urls){try{const r=await fetch(u,{cache:'no-store'});if(r.ok)return await r.json()}catch(e){}}
-  throw new Error('nofile');
+  return null;
 }
-async function unlock(pw,rawKey){
-  const j=await fetchEnc();
-  let key;
-  if(rawKey)key=await crypto.subtle.importKey('raw',b64(rawKey),{name:'AES-GCM'},true,['decrypt']);
-  else key=await deriveKey(pw,b64(j.salt),j.iter||250000);
-  const data=await openWith(key,j);
-  if($('#keep').checked&&!rawKey){const raw=new Uint8Array(await crypto.subtle.exportKey('raw',key));
-    try{sessionStorage.setItem('fin_k',JSON.stringify({salt:j.salt,k:btoa(String.fromCharCode(...raw))}))}catch(e){}}
-  return data;
+function merge(parts){const out={v:1,start:'2024-06',branches:{},kinds:{},at:''};
+  for(const o of parts){if(!o)continue;Object.assign(out.branches,o.branches||{});if(o.start)out.start=o.start;if((o.at||'')>out.at)out.at=o.at;
+    for(const kd in o.kinds||{})for(const b in o.kinds[kd]){const t=((out.kinds[kd]=out.kinds[kd]||{})[b]=out.kinds[kd][b]||{});Object.assign(t,o.kinds[kd][b])}}
+  return out}
+async function unlock(pw,saved){
+  const files=await Promise.all(['fin.enc','fin_c.enc'].map(fetchEnc));
+  if(!files.some(Boolean))throw new Error('nofile');
+  const keys={},parts=[];
+  for(const j of files){if(!j)continue;let key;
+    if(saved&&saved[j.salt])key=await crypto.subtle.importKey('raw',b64(saved[j.salt]),{name:'AES-GCM'},true,['decrypt']);
+    else if(pw)key=await deriveKey(pw,b64(j.salt),j.iter||250000);
+    else throw new Error('relock');
+    parts.push(await openWith(key,j));
+    keys[j.salt]=btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey('raw',key))))}
+  if(pw&&$('#keep').checked){try{sessionStorage.setItem('fin_k',JSON.stringify(keys))}catch(e){}}
+  return merge(parts);
 }
 $('#lockForm').addEventListener('submit',async e=>{e.preventDefault();const pw=$('#pw').value;if(!pw)return;
   const btn=$('#unlockBtn');btn.disabled=true;btn.textContent='بيفك التشفير…';$('#lockErr').textContent='';
@@ -159,8 +166,7 @@ $('#lockForm').addEventListener('submit',async e=>{e.preventDefault();const pw=$
   catch(err){$('#lockErr').textContent=err.message==='nofile'?'ملف البيانات لسه ما اتعملش — اتأكد إنك ضفت FIN_PASS وإن المزامنة اشتغلت.':'الباسورد غلط.'}
   finally{btn.disabled=false;btn.textContent='افتح'}});
 $('#lockBtn').onclick=()=>{try{sessionStorage.removeItem('fin_k')}catch(e){}RAW=null;D=null;location.reload()};
-(async()=>{try{const s=JSON.parse(sessionStorage.getItem('fin_k')||'null');if(!s)return;const j=await fetchEnc();if(j.salt!==s.salt){sessionStorage.removeItem('fin_k');return}
-  $('#keep').checked=false;RAW=await unlock(null,s.k);start()}catch(e){}})();
+(async()=>{try{const s=JSON.parse(sessionStorage.getItem('fin_k')||'null');if(!s)return;RAW=await unlock(null,s);start()}catch(e){try{sessionStorage.removeItem('fin_k')}catch(x){}}})();
 
 // ---------------- normalise ----------------
 const TZC={};
@@ -364,7 +370,8 @@ function ptIndex(){if(D._pt&&D._pt.b===S.b)return D._pt.v;const P={};
     p.sess++;if(a.d<p.first)p.first=a.d;if(a.d>p.last)p.last=a.d;p.seq.push([a.d,a.doc,a.type])}
   for(const x of D.inv){if(!inB(x)||!x.pid)continue;const p=P[x.pid];if(!p){continue}if(x.src&&(!p.srcD||x.d<p.srcD)){p.src=x.src;p.srcD=x.d}}
   for(const x of D.pay){if(!inB(x)||x.bal||!x.pid)continue;const p=P[x.pid];if(p)p.paid=(p.paid||0)+x.amt}
-  const first=D.months[0];for(const p of Object.values(P)){p.k=p.first.slice(0,7);p.early=p.k===first}
+  const NM={};for(const x of D.inv)if(x.pid&&x.pn)NM[x.pid]=x.pn;for(const x of D.pay)if(x.pid&&x.pn&&!NM[x.pid])NM[x.pid]=x.pn;
+  const first=D.months[0];for(const p of Object.values(P)){if(!p.n)p.n=NM[p.pid]||'';p.k=p.first.slice(0,7);p.early=p.k===first}
   D._pt={b:S.b,v:P};return P}
 function vPts(){const P=Object.values(ptIndex()),N=P.filter(p=>p.k>=S.from&&p.k<=S.to&&!p.early);
   const src=groupSum(N,p=>p.src||'مش متسجل',()=>1),srcPay=Object.fromEntries(groupSum(N,p=>p.src||'مش متسجل',p=>p.paid||0));

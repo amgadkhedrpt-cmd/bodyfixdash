@@ -7,8 +7,10 @@ from playwright.sync_api import sync_playwright
 
 PASS = os.environ.get("FIN_PASS", "")
 START = "2024-06"
-ENC, META = "data/fin.enc", "data/fin_meta.json"
-MAX_BACKFILL = int(os.environ.get("FIN_BACKFILL", "8"))   # months per kind per branch per run (the first runs fill the history)
+ENC, META = "data/fin.enc", "data/fin_meta.json"          # fin.enc = closed months (rarely rewritten)
+ENC_C = "data/fin_c.enc"                                    # the last 2 months (small, rewritten when they change)
+DROP_COLS = {"apt": {"patient.firstName", "patient.lastName"}}
+MAX_BACKFILL = int(os.environ.get("FIN_BACKFILL", "30"))   # months per kind per branch per run (the first runs fill the history)
 TZ = C.TZ
 NOW = dt.datetime.now(dt.timezone.utc)
 CUR = NOW.astimezone(TZ).strftime("%Y-%m")
@@ -112,10 +114,12 @@ def flat(o, pre="", out=None, depth=0):
     return out
 
 
-def table(rows):
+def table(rows, kind=""):
     cols = []
     seen = set()
-    fl = [flat(r) for r in rows if isinstance(r, dict)]
+    drop = DROP_COLS.get(kind, set())
+    fl = [{k: v for k, v in flat(r).items() if v is not None and k not in drop and k != "id" and not k.endswith(".id")}
+          for r in rows if isinstance(r, dict)]
     for f in fl:
         for k in f:
             if k not in seen:
@@ -260,14 +264,30 @@ def main():
         print("FIN_PASS secret not set - finance sync skipped (add it in GitHub → Settings → Secrets → Actions)")
         META_D["skipped"] = "no FIN_PASS"
     old = {}
-    if PASS and os.path.exists(ENC):
-        try:
-            old = decrypt(open(ENC).read())
-        except Exception as e:
-            print("old data not readable with this password (password changed?) - full refill:", str(e)[:80])
-            old = {}
+    for fn in (ENC, ENC_C):
+        if PASS and os.path.exists(fn):
+            try:
+                o = decrypt(open(fn).read())
+                old.setdefault("branches", {}).update(o.get("branches", {}))
+                for kind, bs in (o.get("kinds") or {}).items():
+                    for b, ms in bs.items():
+                        old.setdefault("kinds", {}).setdefault(kind, {}).setdefault(b, {}).update(ms)
+            except Exception as e:
+                print("old data not readable with this password (password changed?) - full refill:", str(e)[:80])
     data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {})}
     ALL = months(START, CUR)
+    # the history is filled on every run; once complete, scheduled runs refresh only a few times a day (keeps the repo small)
+    full = all(len(data["kinds"].get(kd, {}).get(b, {})) >= len(ALL) - 2 for kd in ("pay", "exp", "inv", "apt")
+               for b in (data["branches"] or {"x": 0})) and data["branches"]
+    cai = NOW.astimezone(TZ)
+    if PASS and full and os.environ.get("GITHUB_EVENT_NAME") == "schedule" and not (cai.hour in (11, 14, 17, 20, 23) and cai.minute < 30):
+        if os.path.exists(META):
+            prev = json.load(open(META))
+            META_D.clear()
+            META_D.update(prev)
+        META_D["skipped_at"] = C.NOW
+        print("finance: history complete - this scheduled run skips (refreshes at 11, 14, 17, 20, 23)")
+        return
     t0 = time.time()
     with sync_playwright() as p:
         try:
@@ -362,7 +382,7 @@ def main():
                         break
                     try:
                         rows = fn(b["id"], mrange(k))
-                        bstore[k] = table(rows)
+                        bstore[k] = table(rows, kind)
                         bstore[k]["at"] = C.NOW
                     except Exception as e:
                         META_D["errors"].append("%s %s %s: %s" % (kind, key, k, str(e)[:160]))
@@ -383,8 +403,24 @@ def main():
     META_D["stripped"] = STRIPPED
     data["at"] = C.NOW
     os.makedirs("data", exist_ok=True)
-    with open(ENC, "w") as f:
-        f.write(encrypt(data))
+    cur = set(ALL[-2:])
+    old_h = json.load(open(META)).get("hash", {}) if os.path.exists(META) else {}
+    META_D["hash"] = {}
+    for fn, keep in ((ENC, lambda k: k not in cur), (ENC_C, lambda k: k in cur)):
+        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"],
+                "kinds": {kd: {b: {k: v for k, v in ms.items() if keep(k)} for b, ms in bs.items()} for kd, bs in data["kinds"].items()}}
+        body = dict(part, at="")
+        for bs in body["kinds"].values():
+            for ms in bs.values():
+                for v in ms.values():
+                    v.pop("at", None) if isinstance(v, dict) else None
+        import hashlib
+        h = hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
+        META_D["hash"][fn] = h
+        if h != old_h.get(fn) or not os.path.exists(fn):
+            with open(fn, "w") as f:
+                f.write(encrypt(part))
+            META_D.setdefault("written", []).append(fn)
     META_D["secs"] = int(time.time() - t0)
 
 

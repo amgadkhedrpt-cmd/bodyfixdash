@@ -11896,7 +11896,9 @@ var PLAN_COVER={
     DE:{waitnext:['DM'], nonext:['DM'], kashf0:['DM'], stale:['POST'], '*':['DM','POST']}
   }
 };
-var PLAN_NO_H=['confsp'];                              // Mariam (عيادة 1) ما تستلمش تأكيد التغذية
+var PLAN_NO_H=['confsp'];
+/* اللي ينفع يتنقل لـ عيادة 1 (Mariam) لما حد يغيب: التأكيدات والمكالمات البسيطة بس — أي مهمة فيها هندلة للمريض (تجديد، تقييم، حجز، شكاوى، خصم، فلوس، ويتنج…) لأ */
+var PLAN_H_OK=['conf','conftoday','call','drop','late'];                              // Mariam (عيادة 1) ما تستلمش تأكيد التغذية
 var PLAN_EVE_G=['stale','kashf0'];                     // مهام آخر اليوم — ما تروحش للي جاية الصبح
 function planTeam(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var o=PLAN_ST['team|'+td]||{}; o.p=o.p||{}; o.am=o.am||{}; return o; }
 function planRoleOf(name, br){ var R=PLAN_ROLES[br]||{}; for(var k in R) if(R[k]===name) return k; return ''; }
@@ -11913,7 +11915,7 @@ function planCoverCands(t,g,o){
   chain.forEach(function(c){ if(c==='POST'){ post=true; return; }
     var n=c==='AM'?planAM(br):((PLAN_ROLES[br]||{})[c]||''); if(!n||n===o||!planHere(n,br)||out.indexOf(n)>=0) return;
     if(isEve&&n===planAM(br)) return;
-    if(PLAN_NO_H.indexOf(g)>=0&&planRoleOf(n,br)==='H') return;
+    if(planRoleOf(n,br)==='H'&&PLAN_H_OK.indexOf(g)<0) return;   // Mariam: تأكيدات ومكالمات بسيطة بس — مفيش شغل فيه هندلة للمريض
     out.push(n); });
   return {c:out, post:post&&!out.length};
 }

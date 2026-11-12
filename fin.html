@@ -101,6 +101,7 @@ details summary{cursor:pointer;font-weight:700}
     <button data-t="debt">المديونيات</button>
     <button data-t="cash">الخزنة</button>
     <button data-t="dl">التقارير والتنزيل</button>
+    <button data-t="nut">🥗 التغذية</button>
     <button data-t="data">حالة البيانات</button>
   </div>
   <div id="main"></div>
@@ -171,7 +172,9 @@ async function unlock(pw,saved){
     parts.push(await openWith(key,j));
     keys[j.salt]=btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey('raw',key))))}
   if(pw&&$('#keep').checked){try{sessionStorage.setItem('fin_k',JSON.stringify(keys))}catch(e){}}
-  return merge(parts);
+  const out=merge(parts);
+  setTimeout(()=>{if(typeof nutCfgInit==='function')nutCfgInit(pw,saved||null)},0);
+  return out;
 }
 $('#lockForm').addEventListener('submit',async e=>{e.preventDefault();const pw=$('#pw').value;if(!pw)return;
   const btn=$('#unlockBtn');btn.disabled=true;btn.textContent='بيفك التشفير…';$('#lockErr').textContent='';
@@ -504,7 +507,7 @@ function render(){
 }
 function setRange(a,b){S.from=a;S.to=b;$('#fFrom').value=a;$('#fTo').value=b;render()}
 function start(){
-  D=build(RAW);$('#lock').hidden=true;$('#app').hidden=false;
+  D=build(RAW);if(typeof NUT!=='undefined')NUT.data=null;$('#lock').hidden=true;$('#app').hidden=false;
   const first=D.months[0]||RAW.start||'2024-06',last=curK();
   $('#asOf').textContent='آخر تحديث: '+(RAW.at?new Date(RAW.at).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',dateStyle:'medium',timeStyle:'short'}):'—')+' · البيانات من '+ml(first);
   $('#fFrom').min=$('#fTo').min=first;$('#fFrom').max=$('#fTo').max=last;$('#fBranch').value=S.b;
@@ -517,5 +520,6 @@ $('#fTo').onchange=e=>{if(e.target.value){S.to=e.target.value;if(S.to<S.from)S.f
 document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const c=curK(),f=D.months[0]||c;const q=b.dataset.q;
   if(q==='m')setRange(c,c);else if(q==='3')setRange(shiftK(c,-2)<f?f:shiftK(c,-2),c);else if(q==='y')setRange((c.slice(0,4)+'-01')<f?f:c.slice(0,4)+'-01',c);else setRange(f,c)});
 </script>
+<script src="fin_nut.js"></script>
 </body>
 </html>

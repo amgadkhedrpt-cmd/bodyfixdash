@@ -5976,20 +5976,21 @@ function manaGetData() {
   });
   return all;
 }
-function manaFreeSlots() {
+/* opt={date:'YYYY-MM-DD', br:'BODYFIX Center'|'FIX ZONE'} → بترجع الدكاترة الفاضيين بس من غير ما ترسم (لخطة اليوم) */
+function manaFreeSlots(opt) {
   var el = document.getElementById('mana-free-content');
-  if (!el) return;
+  if (!el && !opt) return;
   var DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
   var todayDate = new Date();
   var todayKey  = DAY_KEYS[todayDate.getDay()];
   var todayISO  = todayDate.getFullYear() + '-' + String(todayDate.getMonth()+1).padStart(2,'0') + '-' + String(todayDate.getDate()).padStart(2,'0');
   var DLBL_F = {sat:'السبت',sun:'الأحد',mon:'الاثنين',tue:'الثلاثاء',wed:'الأربعاء',thu:'الخميس',fri:'الجمعة'};
-  var selDate = (typeof GF !== 'undefined' && GF.dateFrom) ? GF.dateFrom : todayISO;
-  window._freeDate = selDate;
-  var tf = window._freeTF || '';
-  var tt = window._freeTT || '';
-  var gen = (typeof GF !== 'undefined') ? GF.gender : 'all';
-  var br  = (typeof GF !== 'undefined' && GF.branch !== 'all') ? GF.branch : 'all';
+  var selDate = opt ? opt.date : ((typeof GF !== 'undefined' && GF.dateFrom) ? GF.dateFrom : todayISO);
+  if (!opt) window._freeDate = selDate;
+  var tf = opt ? '' : (window._freeTF || '');
+  var tt = opt ? '' : (window._freeTT || '');
+  var gen = opt ? 'all' : ((typeof GF !== 'undefined') ? GF.gender : 'all');
+  var br  = opt ? (opt.br||'all') : ((typeof GF !== 'undefined' && GF.branch !== 'all') ? GF.branch : 'all');
   /* مفيش فلتر فرع → الفرع اللي فاتح عليه (هرم/دقي) — عشان دكاترة الدقي ما يظهروش في الهرم */
   if (br === 'all') br = CURRENT_BRANCH === 'haram' ? 'BODYFIX Center' : (CURRENT_BRANCH === 'dokki' ? 'FIX ZONE' : 'all');
   var html = '';
@@ -6005,7 +6006,7 @@ function manaFreeSlots() {
         (d.appointments||[]).forEach(function(a){ allAppts.push(a); });
       });
     }
-    if (!allAppts.length) allAppts = manaGetData();
+    if (!allAppts.length && !opt) allAppts = manaGetData();
   }
   var dayAppts = allAppts.filter(function(a){
     if (!a.start) return false;
@@ -6126,7 +6127,7 @@ function manaFreeSlots() {
     var docName = drDoc.name;
     var docEn   = reverseDocMap[docName] || '';
     if (docName === 'أمجد خضر' || docEn === 'Dr Amgad Khedr') return;
-    if (GF && GF.doc) {
+    if (!opt && GF && GF.doc) {
       var dq = GF.doc.toLowerCase().trim();
       var matchName = docName.toLowerCase().indexOf(dq) >= 0;
       var matchEn   = docEn.toLowerCase().indexOf(dq) >= 0;
@@ -6208,6 +6209,7 @@ function manaFreeSlots() {
     });
   });
   results.sort(function(a,b){ return b.filteredFreeHours.length - a.filteredFreeHours.length; });
+  if (opt) return results;
   /* حفظ النتيجة وتحديث البانر والكارت */
   if (selDate === todayISO) {
     window._FREE_RESULTS = results;
@@ -7624,6 +7626,31 @@ function wfSuggest(a){
   });
   out.sort(function(x,y){ return x.dist-y.dist || (y.same?1:0)-(x.same?1:0) || y.hours.length-x.hours.length; });
   return out;
+}
+/* الساعات اللي الملحوظة بتطلبها: «الساعه 4» / «4 ونص» / «نص 11» — ولو فيها «بعد» نضيف الساعة اللي بعدها */
+function planNoteHours(note){
+  var t=String(note||'').replace(/[٠-٩]/g,function(c){ return '٠١٢٣٤٥٦٧٨٩'.indexOf(c); }), out=[];
+  var push=function(n,half){ n=+n; if(!(n>=1&&n<=12)) return; var h=n<12?n+12:n; if(half) h=h+1; if(out.indexOf(h)<0) out.push(h); };
+  var re=/(?:ال)?ساع[ةه]\s*(\d{1,2})|نص\s*(\d{1,2})|(\d{1,2})\s*(?:ونص|و\s*نص|وربع|و\s*ربع|م(?![\u0600-\u06FF])|مساء|بالليل)/g, m;
+  while((m=re.exec(t))){ if(m[1]) push(m[1]); else if(m[2]) push(+m[2]-1,true); else push(m[3], /ونص|و\s*نص|وربع|و\s*ربع/.test(m[0])); }
+  if(/بعد(ها|ه|يها)?/.test(t)) out.slice().forEach(function(h){ if(out.indexOf(h+1)<0) out.push(h+1); });
+  return out;
+}
+var PLAN_FREE_C={};
+function planFreeAt(dateISO, br, doctor, hours){
+  if(!hours.length||typeof manaFreeSlots!=='function') return [];
+  var ck=dateISO+'|'+br, res=PLAN_FREE_C[ck];
+  if(!res){ try{ res=manaFreeSlots({date:dateISO, br:br})||[]; }catch(e){ res=[]; } PLAN_FREE_C[ck]=res; }
+  var g=(typeof resolveDocGender==='function')?resolveDocGender(doctor):'';
+  var now=new Date(), isToday=dateISO===(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'));
+  var out=[];
+  hours.forEach(function(h){
+    if(isToday&&h<=now.getHours()) return;
+    res.forEach(function(r){ if((r.freeHours||[]).indexOf(h)<0) return;
+      out.push({h:h, name:r.nameAr||r.name, gender:r.gender, same:!g||!r.gender||r.gender===g}); });
+  });
+  var sm=out.filter(function(x){ return x.same; });
+  return sm.length?sm:[];
 }
 function wfChips(sug, max){
   return sug.slice(0, max||4).map(function(d){
@@ -11490,6 +11517,7 @@ function planTasks(useAll){
   var T={mgr:[], morning:[], rec:[], office:[], evening:[]};
   var add=function(sec,t){ t.br=t.br||''; t.sec=sec; T[sec].push(t); };
   var P=D.plan||{}, FU=D.followups||{};
+  PLAN_FREE_C={};
   // ملحوظة النهارده بس: ملحوظة الخطة (مفتاحها فيه تاريخ النهارده) أو تعليق التنبيهات اللي اتكتب النهارده
   var hasNote=function(x,k){ var a=(typeof AL_NOTES!=='undefined'&&AL_NOTES[alNoteId(x)])||{}; var p=PLAN_ST[k]||{}; return !!((p.note||'').trim()||((a.text||'').trim()&&String(a.at||'').slice(0,10)===today)); };
   // 👔 محتاج المدير
@@ -11503,9 +11531,17 @@ function planTasks(useAll){
   (P.waiting||[]).filter(inb).forEach(function(x){
     var g=x.day==='today'?'waittoday':'waitnext', k=g+'|'+x.pid+'|'+x.time, sug='';
     if(x.day==='today'&&typeof wfSuggest==='function'&&typeof OV_FREE!=='undefined'&&OV_FREE){ var sg=wfSuggest({doctor:x.doctor,start:x.time}); sug=sg.length?'🔓 فاضي: '+wfChips(sg,3):'<span style="color:var(--r)">❌ مفيش دكتور فاضي من نفس النوع</span>'; }
-    add('morning',{grp:[g], sys:x.note_today?'اتكتبت ملحوظة النهارده':'', what:x.note_today?'📝 '+x.note:'', key:k, icon:'⏳', kind:alEsc(x.type)+' '+(x.day==='today'?'النهارده':alEsc(alFmtDay(String(x.time).slice(0,10))))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)),
+    // لو ملحوظة النهارده بتطلب ساعة معينة وفيه ميعاد فاضي فيها → الملحوظة ما تقفلش المهمة، لازم يتحجز
+    var wd=String(x.time).slice(0,10), wh=new Date(x.time), own=wh.getHours()+(wh.getMinutes()?1:0);
+    var asked=x.note_today?planNoteHours(x.note):[], hrs=asked;
+    var fr=planFreeAt(wd, x.branch||'', x.doctor, hrs), frTxt='';
+    if(fr.length){ var byH={}; fr.forEach(function(f){ (byH[f.h]=byH[f.h]||[]).push(f.name); });
+      frTxt='<span style="color:var(--r);font-weight:800">⛔ الملحوظة بتطلب ساعة وفيها ميعاد فاضي — احجزه بدل الويتنج:</span> '+Object.keys(byH).sort().map(function(h){ h=+h; return '<b style="color:var(--g)">'+wfFmtH(h)+'</b>'+(asked.indexOf(h)>=0?' <span style="color:var(--am)">(اللي في الملحوظة)</span>':(h===own?' <span style="color:var(--mute)">(ساعة ميعاده)</span>':''))+' مع '+byH[h].slice(0,3).map(alEsc).join('، '); }).join(' · ')+
+        (x.note_today?'<br><span style="font-size:.58rem;color:var(--mute)">الملحوظة لوحدها مش كفاية طول ما فيه ميعاد فاضي — المهمة بتتقفل لما يتنقل من الويتنج</span>':''); }
+    var noteOk=x.note_today&&!fr.length;
+    add('morning',{grp:[g], sys:noteOk?'اتكتبت ملحوظة النهارده':'', what:noteOk?'📝 '+x.note:'', key:k, icon:'⏳', kind:alEsc(x.type)+' '+(x.day==='today'?'النهارده':alEsc(alFmtDay(String(x.time).slice(0,10))))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)),
       name:x.name, phone:x.phone, br:brOf(x), time:x.time,
-      lines:[x.note?(x.note_today?'📝 ':'<span style="color:var(--am)">📝 ملحوظة قديمة (مش النهارده): </span>')+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة</span>', sug]});
+      lines:[x.note?(x.note_today?'📝 ':'<span style="color:var(--am)">📝 ملحوظة قديمة (مش النهارده): </span>')+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة</span>', frTxt, frTxt?'':sug]});
   });
   var stk=(typeof alStreaks==='function')?alStreaks():null;
   if(stk&&stk.gone) stk.gone.filter(function(x){ return x.removed_on===today&&act.indexOf((x.fixed[0]||{}).branch||brOf(x))>=0; }).forEach(function(x){ var f0=x.fixed[0]||{};
@@ -11812,7 +11848,7 @@ function planState(t){
   return 'open';
 }
 /* المهام اللي بتتقفل لوحدها من Medicolize — مفيش زرار ✅ (الملحوظة / ما ردش / أجّل موجودين) */
-var PLAN_AUTO_G={waittoday:'الميعاد يتنقل من الويتنج أو يتلغى أو تتكتب عليه ملحوظة النهارده', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى أو تتكتب عليه ملحوظة النهارده', call:'الموعد Completed + ملحوظة باللي حصل (أو اتصالين بالوقت والنتيجة)', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
+var PLAN_AUTO_G={waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'الموعد Completed + ملحوظة باللي حصل (أو اتصالين بالوقت والنتيجة)', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
   eval:'يتحجز تقييم', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'الموعد يتحول «الغاء مفاجئ» Completed على Medicolize + خصم الجلسة من تاني مرة'};
 function planIsAuto(t){ var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_AUTO_G[x]; }); }
 function planRow(t){

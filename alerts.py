@@ -977,6 +977,56 @@ def build_alerts(appointments, now=None, packages=None):
     except Exception as e:
         print(f"⚠️ eval_due: {e}")
 
+    # ── خطة اليوم: مواعيد النهارده (للاستقبال) · تأكيد بكره · مواعيد Open قديمة · وقفوا بدري ──
+    plan = {"today": [], "tomorrow_confirm": [], "stale_open": [], "early_drop": []}
+    try:
+        CLOSED_BAD = {"canceled", "cancelled", "no show", "noshow", "note", "waiting list", "waiting"}
+        tomorrow_ = today + timedelta(days=1)
+        R_FROM = today - timedelta(days=90)
+        for appts in patients.values():
+            risk = sum(1 for a in appts if R_FROM <= a["start"].date() < today and
+                       (a["status"] in ("no show", "noshow") or
+                        (a["status"] in ("canceled", "cancelled") and a.get("cancel_at") and
+                         0 <= (a["start"] - a["cancel_at"]).total_seconds() / 3600 < 3)))
+            tod = sorted([a for a in appts if a["start"].date() == today and a["status"] not in CLOSED_BAD], key=lambda a: a["start"])
+            if tod:
+                a0 = tod[0]
+                plan["today"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
+                                      "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "status": a0["status"].title(),
+                                      "types": sorted({a["type"] for a in tod}), "risk": risk, "note": (a0.get("note") or "")[:200]})
+            tmr = sorted([a for a in appts if a["start"].date() == tomorrow_ and a["status"] in LIVE_TODAY], key=lambda a: a["start"])
+            if tmr:
+                a0 = tmr[0]
+                pt_before = [a for a in appts if _is_pt(a["type"]) and a["status"] in ATTENDED and a["start"].date() <= today]
+                kashf = [a for a in appts if "كشف" in a["type"] and a["status"] in ATTENDED and a["start"].date() >= today - timedelta(days=30)]
+                why = []
+                if risk >= 2: why.append(f"عنده {risk} غياب/اعتذار مفاجئ آخر 3 شهور")
+                if kashf and not pt_before and _is_pt(a0["type"]): why.append("أول جلسة بعد الكشف")
+                if why:
+                    plan["tomorrow_confirm"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
+                                                     "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "why": why})
+            for a in appts:   # مواعيد عدت وما اتقفلتش (لسه Open / Confirmed / Delayed) — آخر 14 يوم
+                if today - timedelta(days=14) <= a["start"].date() < today and a["status"] in ("open", "confirmed", "delayed"):
+                    plan["stale_open"].append({"pid": a["pid"], "name": a["name"], "time": a["start"].isoformat(), "doctor": a["doctor"],
+                                               "branch": a["branch"], "type": a["type"], "status": a["status"].title()})
+            # وقفوا بدري: كورس جديد حضر فيه 1-2 جلسة، آخرها من 3 لـ 10 أيام، ومالوش ميعاد جاي
+            pdays = sorted({a["start"].date() for a in appts if _is_pt(a["type"]) and a["status"] in ATTENDED and a["start"].date() < today})
+            if pdays:
+                cs = 0
+                for i in range(1, len(pdays)):
+                    if (pdays[i] - pdays[i - 1]).days > COURSE_GAP: cs = i
+                course = pdays[cs:]
+                gap = (today - course[-1]).days
+                fut = any(a["start"].date() >= today and a["status"] not in NOT_FUTURE for a in appts)
+                if len(course) <= 2 and 3 <= gap <= 10 and not fut:
+                    ref = max((a for a in appts if a["start"].date() == course[-1] and _is_pt(a["type"])), key=lambda a: a["start"])
+                    plan["early_drop"].append({"pid": ref["pid"], "name": ref["name"], "phone": ref["phone"], "doctor": ref["doctor"],
+                                               "branch": ref["branch"], "sessions": len(course), "last": course[-1].isoformat(), "days": gap})
+        plan["today"].sort(key=lambda x: x["time"])
+        plan["stale_open"].sort(key=lambda x: x["time"], reverse=True)
+    except Exception as e:
+        print(f"⚠️ plan: {e}")
+
     # ── إلغاء / غياب ورا بعض (الصفحة بتطابقهم مع شيت التثبيتات بالاسم) ──
     streaks = []
     for appts in patients.values():
@@ -1036,6 +1086,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
+        "plan": plan,
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),
         "doc_perf": perf,

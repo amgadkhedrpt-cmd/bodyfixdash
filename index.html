@@ -11661,9 +11661,9 @@ function planTasks(useAll){
   // 🌙 آخر اليوم
   sysAdd('evening','nonext','nonext','اتحجزله ميعاد','📅',function(x){return today+'|nonext|'+x.pid;},function(x){ return alEsc(x.type||'')+' مع '+alEsc(doc(x.doctor)); });
   sysAdd('evening','kashf0','kashf0','حجز جلسات','🩺',function(x){return today+'|kashf0|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
-  (D.today_no_next||[]).filter(function(x){ return inb(x)&&!/waiting/i.test(x.status||''); }).forEach(function(x){
-    add('evening',{grp:['nonext'], key:today+'|nonext|'+x.pid, icon:'📅', kind:'حضر النهارده ومالوش ميعاد جاي', name:x.name, phone:x.phone, br:brOf(x),
-      lines:[alEsc(x.type)+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' — احجزله أو اتصل']});
+  (D.today_no_next||[]).filter(inb).forEach(function(x){   // أي موعد النهارده بأي حالة (حتى Waiting) ومالوش موعد بعده
+    add('evening',{grp:['nonext'], key:today+'|nonext|'+x.pid, icon:'📅', kind:'عنده موعد النهارده ومالوش ميعاد جاي', name:x.name, phone:x.phone, br:brOf(x),
+      lines:[alEsc(x.type)+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' · <b>'+alEsc(x.status||'')+'</b> — احجزله أو اتصل']});
   });
   (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since===0&&!x.next_pt&&!x.sessions_after&&/checked|progress|completed/i.test(x.kashf_status||''); }).forEach(function(x){
     add('evening',{grp:['kashf0'], key:today+'|kashf0|'+x.pid, icon:'🩺', kind:'كشف النهارده وما حجزش', name:x.name, phone:x.phone, br:brOf(x),

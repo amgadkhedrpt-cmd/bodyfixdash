@@ -1086,7 +1086,7 @@ def build_alerts(appointments, now=None, packages=None):
                 "kashf0": {x["pid"]: x for x in kashf_pending if (x.get("days_since") or 0) == 0 and not x.get("next_pt") and not x.get("sessions_after")
                            and str(x.get("kashf_status") or "").lower() in ATTENDED},
                 "drop":   {x["pid"]: x for x in plan["early_drop"]},
-                "nonext": {x["pid"]: x for x in no_next if "waiting" not in str(x.get("status", "")).lower()},
+                "nonext": {x["pid"]: x for x in no_next},
                 "eval":   {x["pid"]: x for x in eval_due if x.get("day") == "today"},
                 "stale":  {x["pid"] + "|" + x["time"]: x for x in plan["stale_open"]},
                 "waittoday": {x["pid"] + "|" + x["time"]: x for x in plan.get("waiting", []) if x["day"] == "today" and not x["note_today"]},

@@ -11563,7 +11563,7 @@ function planTasks(useAll){
   (P.today||[]).filter(inb).forEach(function(x){
     todayPids[x.pid]=1;
     var R=[], G=[];
-    if(renew[x.pid]) G.push('renew'); if(evd[x.pid]) G.push('eval'); if(debts[x.pid]&&debts[x.pid].sum>=1) G.push('debt'); if(nonext[x.pid]) G.push('nonext'); if(svc[x.pid]) G.push('svc');
+    if(debts[x.pid]&&debts[x.pid].sum>=1) G.push('debt'); if(renew[x.pid]) G.push('renew'); if(evd[x.pid]) G.push('eval'); if(nonext[x.pid]) G.push('nonext'); if(svc[x.pid]) G.push('svc');
     if(renew[x.pid]){ var rn=renew[x.pid], sz=rn.size||12; R.push('🔁 '+(rn.session_no<=sz?'جلسة '+rn.session_no+' من '+sz:'الباقة ('+sz+') خلصت — دي جلسة '+rn.session_no)+' — <b>اعرض التجديد</b>'); }
     if(evd[x.pid]) R.push('🩺 جلسة '+evd[x.pid].n+' من غير تقييم — <b>احجز تقييم</b>');
     if(debts[x.pid]&&debts[x.pid].sum>=1) R.push('💸 عليه <b style="color:var(--r)">'+planMoney(debts[x.pid].sum)+' ج</b> ('+debts[x.pid].n+' خدمة، أقدمها '+alEsc(alFmtDay(debts[x.pid].old))+') — <b>حصّل</b>');
@@ -11619,7 +11619,7 @@ function planTasks(useAll){
     AUD_DATA.debts.forEach(function(r){ if(todayPids[r.pid]||r.d<cut||!Ld.S[audN(r.s)]) return; var o=ph[r.pid]||(ph[r.pid]={r:r,n:0,sum:0}); o.n++; o.sum+=(+r.rem||0); });
     Object.keys(ph).forEach(function(pid){ var o=ph[pid]; if(o.sum<50) return; var bk=o.r.b||'';
       if(act.indexOf(bk)<0) return;
-      add('office',{grp:['debt'], key:'debt|'+pid+'|'+today, icon:'💸', kind:'تحصيل بالتليفون', name:o.r.p, br:bk,
+      add('office',{grp:['debtph'], key:'debt|'+pid+'|'+today, icon:'💸', kind:'تحصيل بالتليفون', name:o.r.p, br:bk,
         lines:['عليه <b style="color:var(--r)">'+planMoney(o.sum)+' ج</b> — '+o.n+' خدمة، آخرها '+alEsc(o.r.s)+' مع '+alEsc(doc(o.r.dr))]}); });
   }
   // 🌙 آخر اليوم
@@ -11654,10 +11654,11 @@ function planTasks(useAll){
   return T;
 }
 var PLAN_GT={
+  debtph:['📞','عليهم فلوس ومش جايين النهارده — تحصيل بالتليفون'],
   mgr:['👔','ملحوظات محتاجة المدير (شكوى · فلوس · الدكتور · الألم …)'],
   waittoday:['⏳','مواعيد على الويتنج النهارده'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'],
   call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي'], drop:['🚶','مرضى جداد وقفوا بدري'],
-  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','حصّل فلوس'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
+  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
   fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — رسالة + تسجيل + خصم']
 };
 var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView')||''; }catch(e){}
@@ -11678,7 +11679,7 @@ function planCashOwner(t){
   var hit=PLAN_SHIFTS.filter(function(sh){ return sh.branch===bk; }).find(function(sh){ var a=m(sh.from), b=sh.to?m(sh.to):24*60; return mins>=a&&mins<b; });
   return hit?hit.name:'';
 }
-function planOwner(t,g){ if(g==='debt'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
+function planOwner(t,g){ if(g==='debt'||g==='debtph'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
 function planAssign(gk, v, bkey){
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   if(v==='__add'){ var n=prompt('اسم السكرتيرة الجديدة:'); if(!n||!n.trim()){ planRender(); return; } n=n.trim(); if(PLAN_NAMES.indexOf(n)<0){ PLAN_NAMES.push(n); try{ localStorage.setItem('planNames',JSON.stringify(PLAN_NAMES)); }catch(e){} planSaveRaw('PLANCFG|names', JSON.stringify(PLAN_NAMES)); } v=n; }
@@ -11820,7 +11821,7 @@ function planRow(t){
     '<div style="display:flex;gap:8px;align-items:flex-start"><span style="font-size:1rem">'+t.icon+'</span><div style="flex:1;min-width:0">'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:.74rem">'+alEsc(t.name||'')+'</b><span style="font-size:.6rem;color:var(--mute)">'+t.kind+'</span>'+(badge?'<span style="font-size:.6rem">'+badge+(st.by?' · '+alEsc(st.by)+' '+alEsc(st.at||''):'')+'</span>':'')+'</div>'+
       t.lines.filter(Boolean).map(function(l){ return '<div style="font-size:.64rem;margin-top:3px;line-height:1.6">'+l+'</div>'; }).join('')+
-      ((t.grp||[]).indexOf('debt')>=0&&planCashOwner(t)?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">🧾 مسئولة التحصيل (على الخزنة وقتها): <b style="color:var(--txt)">'+alEsc(planCashOwner(t))+'</b></div>':'')+
+      ((t.grp||[]).some(function(g){return g==='debt'||g==='debtph';})&&planCashOwner(t)?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">🧾 مسئولة التحصيل (على الخزنة وقتها): <b style="color:var(--txt)">'+alEsc(planCashOwner(t))+'</b></div>':'')+
       (t.note0?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">📝 ملحوظة الموعد: '+alEsc(t.note0)+'</div>':'')+
       (state==='done'?(function(){ var w=t.what||(st.note?'📝 '+st.note:''); return w?'<div style="font-size:.64rem;margin-top:4px;background:rgba(16,185,129,.08);border-radius:6px;padding:3px 8px;color:var(--g)">📌 اللي اتعمل: '+(/<[a-z]/i.test(w)?w:alEsc(w))+'</div>':''; })():'')+
       (phone?'<a href="tel:'+alEsc(phone)+'" dir="ltr" style="display:inline-block;margin-top:5px;background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 8px;font-size:.6rem;text-decoration:none">📞 '+alEsc(phone)+'</a>':'')+
@@ -11872,8 +11873,8 @@ function planRender(){
       var tot=A.length-snz.length, pc=tot?Math.round(done.length*100/tot):100, allDone=!open.length;
       var head='<div onclick="PLAN_OPEN_G[\''+gk+'\']=!PLAN_OPEN_G[\''+gk+'\'];planRender()" style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid '+(isOpen?'var(--acc,#00c6ff)':'var(--brd)')+';border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer'+(allDone?';opacity:.6':'')+'">'+
         '<span style="font-size:1rem">'+gt[0]+'</span><b style="font-size:.7rem;flex:1">'+gt[1]+'</b>'+
-        (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'<span title="المسئولة = اللي على الخزنة وقت ميعاد المريض (من تاب التحصيل)" style="font-size:.6rem;color:var(--mute);border:1px solid var(--brd);border-radius:7px;padding:2px 6px">🧾 حسب الخزنة</span>':'')+
-        (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', brs=planBR(), many=brs.length>1;
+        ((g==='debt'||g==='debtph')&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'<span title="المسئولة = اللي على الخزنة وقت ميعاد المريض (من تاب التحصيل)" style="font-size:.6rem;color:var(--mute);border:1px solid var(--brd);border-radius:7px;padding:2px 6px">🧾 حسب الخزنة</span>':'')+
+        ((g==='debt'||g==='debtph')&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', brs=planBR(), many=brs.length>1;
           var brsHere=brs.filter(function(bb){ return A.some(function(t){ return t.br===bb.key; }); }); if(!brsHere.length) brsHere=brs;
           return brsHere.map(function(bb){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+bb.key], cur=a&&a.by||'';
             return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value,\''+bb.key+'\')" title="المسئولة عن المهمة دي في '+bb.label+'" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:'+(many?'120':'110')+'px">'+

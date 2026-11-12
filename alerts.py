@@ -1167,6 +1167,35 @@ def build_alerts(appointments, now=None, packages=None):
                 if not done_:
                     t_[1] = ""
             plan["times"] = times
+            # 📞 مواعيد النهارده لسه Open (مش Confirmed) → تأكيد على مسئولة الشيفت الصباحي · بتتقفل لما الحالة تتغير
+            tod_open = {}
+            for v in patients_all.values():
+                for a in v:
+                    if a["start"].date() == today and a["doctor"].lower() not in SKIP_DOCS and a["status"] not in ("waiting list", "waiting", "note"):
+                        k = a["pid"] + "|" + a["start"].isoformat()
+                        tod_open[k] = a
+            snap_o = seen.setdefault("today_open", {})
+            for k, a in tod_open.items():
+                if a["status"] == "open" and k not in snap_o:
+                    snap_o[k] = {"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
+                                 "time": a["start"].isoformat(), "type": a["type"]}
+            plan["today_open"] = [dict(x, status=(tod_open[k]["status"].title() if k in tod_open else "Deleted"),
+                                       done=(k not in tod_open or tod_open[k]["status"] != "open")) for k, x in snap_o.items()]
+            # ⏰ اتأخر ربع ساعة ولسه ما عملش Check In (بيتسجل وقت ما المزامنة شافته) → تقييم: اتكتبت ملحوظة بالمتابعة ولا لأ
+            snap_l = seen.setdefault("late", {})
+            for k, a in tod_open.items():
+                if a["status"] in ("open", "confirmed", "delayed") and now >= a["start"] + timedelta(minutes=15) and k not in snap_l:
+                    snap_l[k] = {"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
+                                 "time": a["start"].isoformat(), "type": a["type"], "seen": hm, "note0": (a.get("note") or "").strip()[:300]}
+            late_ = []
+            for k, x in snap_l.items():
+                a = tod_open.get(k)
+                nt = ((a or {}).get("note") or "").strip()
+                rs = ((a or {}).get("reason") or "").strip()
+                late_.append(dict({f: v for f, v in x.items() if f != "note0"}, status=(a["status"].title() if a else "Deleted"),
+                                  note=nt[:300], reason=rs[:200],
+                                  done=bool((nt and nt[:300] != x.get("note0", "")) or rs)))
+            plan["late"] = late_
             # اللي اتعمل بالظبط: الميعاد اللي اتحجز / الحالة الجديدة
             by_pid = defaultdict(list)
             for v in patients_all.values():

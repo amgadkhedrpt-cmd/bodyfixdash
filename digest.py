@@ -146,6 +146,10 @@ def plan_section(today_s):
     pg = plan_from_page()
     if pg:   # الحساب من الصفحة نفسها (المزامنة فتحت «خطة اليوم») — مش محتاج حد يكون فتحها
         summ, items = pg.get("sum") or summ, pg.get("items") or items
+        try:
+            perf_save(today_s, pg.get("perf") or {})
+        except Exception as e:
+            print(f"perf save: {e}")
     if not summ and not items:
         return '<h3 style="margin:16px 0 6px">✅ خطة اليوم</h3><div style="color:#64748b;font-size:13px">محدش فتح «خطة اليوم» النهارده</div>'
     H = lambda t: (str(t or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -186,6 +190,20 @@ def plan_section(today_s):
 
 
 
+def perf_save(today_s, perf):
+    """📈 أرقام التقييم الشهري: سطر لكل سكرتيرة كل يوم في شيت الطلبات (PERF|اليوم|الاسم) — مش بيتمسح مع تنضيف الـ 30 يوم."""
+    n = 0
+    for name, o in perf.items():
+        val = json.dumps(dict(o, d=today_s), ensure_ascii=False, separators=(",", ":"))
+        url = (REQ_SCRIPT_URL + "?action=saveAction&reqId=" + urllib.parse.quote(f"PERF|{today_s}|{name}")
+               + "&decision=perf&reason=" + urllib.parse.quote(val) + "&callback=cb")
+        try:
+            urllib.request.urlopen(url, timeout=25).read(); n += 1
+        except Exception as e:
+            print(f"perf {name}: {str(e)[:80]}")
+    print(f"📈 اتحفظ تقييم النهارده لـ {n} سكرتيرة")
+
+
 def plan_from_page():
     """بيفتح index.html في Chromium (اللي متثبت للمزامنة) ويحسب «خطة اليوم» بنفس كود الصفحة — ببيانات المزامنة الجديدة."""
     try:
@@ -197,6 +215,10 @@ def plan_from_page():
         with sync_playwright() as p:
             b = p.chromium.launch()
             pg = b.new_page()
+            # شيت التحصيلات (مين على الخزنة + ملحوظات الفواتير) — نفس الإعداد اللي الصفحة بتاخده من الجهاز
+            if os.environ.get("SHEET_URL") and os.environ.get("SHEET_KEY"):
+                cfg = json.dumps({"url": os.environ["SHEET_URL"], "key": os.environ["SHEET_KEY"]})
+                pg.add_init_script("try{localStorage.setItem('bf_sheet_cfg', %s)}catch(e){}" % json.dumps(cfg))
 
             def route(r):
                 u = r.request.url

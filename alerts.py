@@ -1108,14 +1108,33 @@ def build_alerts(appointments, now=None, packages=None):
             if seen.get("date") != today.isoformat():
                 seen = {"date": today.isoformat(), "items": {}}
             items = seen.setdefault("items", {})
+            # ⏱️ أوقات المهام (لتقييم السرعة آخر الشهر): أول مرة المهمة ظهرت + أول مرة اتقفلت على السيستم
+            times = seen.setdefault("times", {})
+            hm = now.strftime("%H:%M")
             resolved = []
             for typ, cur in act.items():
                 old_ = items.setdefault(typ, {})
                 for k, x in cur.items():
                     old_[k] = {f: x.get(f) for f in ("pid", "name", "phone", "doctor", "branch", "time", "type", "status") if x.get(f) is not None}
+                    t_ = times.setdefault(typ + "|" + k, [hm, ""])
+                    t_[1] = ""                       # رجعت تاني → لسه مفتوحة
                 for k, x in old_.items():
                     if k not in cur:
                         resolved.append(dict(x, kind=typ, key=k))
+                        t_ = times.setdefault(typ + "|" + k, [hm, ""])
+                        if not t_[1]:
+                            t_[1] = hm
+            # مهام بتتقفل بعلامة من غير ما تختفي: المكالمات (اتعملت واتكتبت) + تأكيد بكره (Confirmed/Cancelled) + الويتنج بملحوظة النهارده
+            flagged = [("call", x["pid"], bool(x.get("done"))) for x in calls_today if x.get("is_today", True)]
+            flagged += [("conf", x["pid"], bool(x.get("auto"))) for x in plan.get("tomorrow_confirm", [])]
+            flagged += [("wait" + x["day"], x["pid"] + "|" + x["time"], bool(x.get("note_today"))) for x in plan.get("waiting", [])]
+            for typ, k, done_ in flagged:
+                t_ = times.setdefault(typ + "|" + k, [hm, ""])
+                if done_ and not t_[1]:
+                    t_[1] = hm
+                if not done_:
+                    t_[1] = ""
+            plan["times"] = times
             # اللي اتعمل بالظبط: الميعاد اللي اتحجز / الحالة الجديدة
             by_pid = defaultdict(list)
             for v in patients_all.values():

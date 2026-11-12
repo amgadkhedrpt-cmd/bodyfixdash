@@ -32,6 +32,25 @@ EXP_Q = ("query E($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate
          "{expensePayments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
          "{id type amount details refunded refundedAt expenseType expense{name type date branch{name}} transaction{treasury{publicName}}"
          " createdAt createdBy{name}}}")
+OPS_Q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
+         "{createdOperationSteps(orderBy:$orderBy skip:$skip take:$take rangeDate:$rangeDate)"
+         "{id name end createdAt status total paid discount operation{name} doctor{name}"
+         " patient{referenceId firstName lastName tags{name}} branch{name}}}")
+XP_Q = ("query X($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter)"
+        "{expenses(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
+        "{id name type amount paid date refunded salaryAdjustment createdAt branch{name} createdBy{name}}}")
+# nutrition section: only nutrition / slimming services are kept from the operation steps (keeps the file small)
+def _norm_ar(t):
+    t = re.sub("[أإآ]", "ا", str(t or "")).replace("ة", "ه").replace("ى", "ي")
+    return re.sub(r"\s+", " ", t).strip().lower()
+NUT_RX = re.compile(r"تغذي|مونجار|ويجوفي|ريتا|تيرز|mounjaro|wegovy|ميزو|راديوفريكونسي|كرايو|كافيتيشن|اكسيليس|excilis|بشره|اسكن|كومبريشن"
+                    r"|انبدي|inbody|^م ت \d|^م تغذي|نحت|تخسيس|\bdo\b|\brf\b|cryo|cavitation", re.I)
+ALAA_RX = re.compile(r"الاء|آلاء|alaa|حرفوش", re.I)
+
+
+def keep_ops(r):
+    n = _norm_ar(r.get("name")) + " " + _norm_ar((r.get("operation") or {}).get("name"))
+    return bool(NUT_RX.search(n) or ALAA_RX.search(str((r.get("doctor") or {}).get("name") or "")))
 INV_Q = ("query INV($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
          "{invoices(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate)"
          "{id referenceId createdAt total paid discount patient{id referenceId firstName lastName} referralSource{name} doctor{name}}}")
@@ -281,7 +300,9 @@ def main():
     ALL = months(START, CUR)
     # the history is filled on every run; once complete, scheduled runs refresh only a few times a day (keeps the repo small)
     full = all(len(data["kinds"].get(kd, {}).get(b, {})) >= len(ALL) - 2 for kd in ("pay", "exp", "inv", "apt")
-               for b in (data["branches"] or {"x": 0})) and data["branches"]
+               for b in (data["branches"] or {"x": 0})) and data["branches"] \
+        and len(data["kinds"].get("ops", {}).get("all", {})) >= len(ALL) - 2 \
+        and all(len(data["kinds"].get("xp", {}).get(b, {})) >= len(ALL) - 2 for b in data["branches"])
     cai = NOW.astimezone(TZ)
     if PASS and full and os.environ.get("GITHUB_EVENT_NAME") == "schedule" and not (cai.hour in (11, 14, 17, 20, 23) and cai.minute < 30):
         if os.path.exists(META):
@@ -363,10 +384,11 @@ def main():
         ops["pay"], META_D["pay_pages"] = capture(pg, list(dict.fromkeys(pay_paths)), r"payment", r"total|count|sum|stat|expens")
         n_exp0 = len(CAPT)
         ops["exp"], META_D["exp_pages"] = capture(pg, list(dict.fromkeys(exp_paths)), r"expens")
+        ops["xp"], META_D["xp_pages"] = capture(pg, ["/finances/expenses", "/expenses", "/finances/expense"], r"^EXPENSES\b", r"PAYMENT|total|count|sum|stat")
         META_D["exp_page_ops"] = sorted({re.sub(r"\s+", " ", b.get("query") or "")[:300] for b in CAPT[n_exp0:]
                                          if re.search(r"expenseType|company|setting", b.get("query") or "", re.I)})[:8]
-        for k in ("pay", "exp"):
-            if ops[k]:
+        for k in ("pay", "exp", "xp"):
+            if ops.get(k):
                 META_D[k + "_op"] = {"name": ops[k].get("operationName"), "vars": sorted((ops[k].get("variables") or {}).keys()),
                                     "query": re.sub(r"\s+", " ", ops[k]["query"])[:1500]}
         if not PASS:
@@ -388,6 +410,9 @@ def main():
             "inv": lambda bid, rng: run_paged(ctx, [INV_Q, INV_Q2], "invoices", {"branchId": bid, "orderBy": "createdAt-asc"}, rng),
             "apt": lambda bid, rng: run_paged(ctx, [APT_Q, APT_Q2], "createdAppointments",
                                               {"branchId": bid, "orderBy": "start-asc", "filters": {"status": []}}, rng),
+            "xp": own_or_page(XP_Q, "expenses", "xp"),
+            "ops": lambda bid, rng: [r for r in run_paged(ctx, [OPS_Q, OPS_Q.replace(" discount", "")], "createdOperationSteps",
+                                                          {"orderBy": "createdAt"}, rng) if isinstance(r, dict) and keep_ops(r)],
         }
         for kind, fn in kinds.items():
             if not fn:
@@ -395,6 +420,8 @@ def main():
                 continue
             store = data["kinds"].setdefault(kind, {})
             targets = list(data["branches"].items())
+            if kind == "ops":
+                targets = [("all", {"id": None})]        # steps have no branch filter: one list, split by branch.name in the page
             if kind == "exp" and ops["exp"] and not re.search(r"\$branch", ops["exp"]["query"], re.I):
                 targets = [("all", {"id": None})]        # one list for both branches (split later by its branch column, if any)
                 META_D["exp_scope"] = "all"
@@ -402,6 +429,10 @@ def main():
                 bstore = store.setdefault(key, {})
                 todo = [k for k in ALL if k not in bstore]
                 refresh = [k for k in ALL[-2:] if k in bstore]        # current + last month every run (late edits)
+                if kind == "ops":
+                    refresh = [k for k in ALL[-4:] if k in bstore]    # package steps get paid / done over the next months
+                    if NOW.astimezone(TZ).weekday() == 4 and NOW.astimezone(TZ).hour >= 22:
+                        refresh = [k for k in ALL if k in bstore]      # Friday night: the whole history
                 if kind == "inv" and (NOW.astimezone(TZ).hour >= 22 or os.environ.get("FIN_FULL")):
                     refresh = [k for k in ALL if k in bstore]          # every night: old invoices get paid later
                 for k in todo[:MAX_BACKFILL] + refresh:
@@ -426,7 +457,8 @@ def main():
                     if c not in cols:
                         cols.append(c)
             vals = {}
-            for col in {"pay": ["type", "refunded"], "exp": ["type", "refunded"], "apt": ["status"]}.get(kind, []):
+            for col in {"pay": ["type", "refunded"], "exp": ["type", "refunded"], "apt": ["status"], "ops": ["status", "branch.name"],
+                        "xp": ["type", "refunded", "salaryAdjustment"]}.get(kind, []):
                 vs = set()
                 for x in bs.values():
                     if col in x.get("cols", []):
@@ -440,11 +472,12 @@ def main():
     data["at"] = C.NOW
     os.makedirs("data", exist_ok=True)
     cur = set(ALL[-2:])
+    cur_ops = set(ALL[-4:])
     old_h = json.load(open(META)).get("hash", {}) if os.path.exists(META) else {}
     META_D["hash"] = {}
-    for fn, keep in ((ENC, lambda k: k not in cur), (ENC_C, lambda k: k in cur)):
+    for fn, keep in ((ENC, lambda k, kd: k not in (cur_ops if kd == "ops" else cur)), (ENC_C, lambda k, kd: k in (cur_ops if kd == "ops" else cur))):
         part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}),
-                "kinds": {kd: {b: {k: v for k, v in ms.items() if keep(k)} for b, ms in bs.items()} for kd, bs in data["kinds"].items()}}
+                "kinds": {kd: {b: {k: v for k, v in ms.items() if keep(k, kd)} for b, ms in bs.items()} for kd, bs in data["kinds"].items()}}
         body = dict(part, at="")
         for bs in body["kinds"].values():
             for ms in bs.values():

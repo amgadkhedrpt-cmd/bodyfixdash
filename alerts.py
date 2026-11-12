@@ -176,7 +176,7 @@ def _norm(a):
     except Exception:
         return None
     return {
-        "doctor": (doc or "").strip(), "branch": (br or "").strip(), "pid": str(pid or ""),
+        "doctor": (doc or "").strip(), "branch": (br or "").strip(), "pid": str(pid or ""), "aid": str(a.get("id") or ""),
         "name": name, "phone": phone, "start": start,
         "status": str(a.get("status") or "").strip().lower(),
         "type": str(a.get("type") or "").strip(), "bdate": str(bdate or "")[:10],
@@ -1299,7 +1299,7 @@ def build_alerts(appointments, now=None, packages=None):
 
     # 💸 ملحوظات الدفع المكتوبة على المريض في Medicolize (ملحوظة الموعد آخر 45 يوم + تفاصيل المريض) → بتظهر في مهام التحصيل وأداة التحصيل
     PAY_RE = re.compile(r"دفع|هيدفع|يدفع|دافع|فلوس|باقي|متبقي|تحصيل|حصل|فاتور|انستا|insta|فودافون|كاش|تحويل|خصم|رصيد|مبلغ|جنيه")
-    pay_notes, soon = {}, []
+    pay_notes, soon, fu_notes, appt_notes = {}, [], {}, {}
     for v in patients_all.values():
         pid_ = next((a["pid"] for a in v if a.get("pid")), "")
         if not pid_:
@@ -1316,8 +1316,20 @@ def build_alerts(appointments, now=None, packages=None):
             L.append({"d": "", "note": pn[:200], "by": "تفاصيل المريض"})
         if L:
             pay_notes[pid_] = L[:3]
+        # 📝 ملحوظة كل موعد (آخر 3 أسابيع → أسبوعين قدام) — بتظهر في سهم «مواعيده آخر أسبوعين»
+        for x in v:
+            nt_ = (x.get("note") or "").strip()
+            if nt_ and x.get("aid") and today - timedelta(days=21) <= x["start"].date() <= today + timedelta(days=14):
+                appt_notes[x["aid"]] = nt_[:160]
         if any(today < a["start"].date() <= today + timedelta(days=7) and a["status"] in LIVE_TODAY for a in v):
             soon.append(pid_)
+        # 📝 آخر ملحوظة على موعد متابعة (آخر 60 يوم) — بتظهر في كارت المثبتين (وبتفضل بعد ما يتشالوا من التثبيت)
+        fu_ = [x for x in v if _fu_kind(x["type"]) and (x.get("note") or "").strip() and today - timedelta(days=60) <= x["start"].date() <= today]
+        if fu_:
+            lf = max(fu_, key=lambda x: x["start"])
+            ph9 = "".join(ch for ch in (lf.get("phone") or "") if ch.isdigit())[-9:]
+            if len(ph9) >= 8:
+                fu_notes[ph9] = {"d": lf["start"].date().isoformat(), "type": lf["type"], "note": (lf.get("note") or "").strip()[:250], "by": lf.get("by") or ""}
 
     starts = [a["start"].date() for v in patients.values() for a in v]
     return {
@@ -1343,7 +1355,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
-        "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon),
+        "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),
         "doc_perf": perf,

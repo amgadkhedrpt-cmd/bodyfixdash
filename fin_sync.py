@@ -269,12 +269,13 @@ def main():
             try:
                 o = decrypt(open(fn).read())
                 old.setdefault("branches", {}).update(o.get("branches", {}))
+                old.setdefault("types", {}).update(o.get("types", {}))
                 for kind, bs in (o.get("kinds") or {}).items():
                     for b, ms in bs.items():
                         old.setdefault("kinds", {}).setdefault(kind, {}).setdefault(b, {}).update(ms)
             except Exception as e:
                 print("old data not readable with this password (password changed?) - full refill:", str(e)[:80])
-    data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {})}
+    data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {}), "types": old.get("types", {})}
     ALL = months(START, CUR)
     # the history is filled on every run; once complete, scheduled runs refresh only a few times a day (keeps the repo small)
     full = all(len(data["kinds"].get(kd, {}).get(b, {})) >= len(ALL) - 2 for kd in ("pay", "exp", "inv", "apt")
@@ -327,6 +328,12 @@ def main():
         for b in brs:
             key = "dokki" if "FIXZONE" in b["name"].upper().replace(" ", "") else "haram"
             data["branches"][key] = {"id": b["id"], "name": b["name"]}
+        try:
+            raw = (gql(ctx, "{me{company{appointmentTypes}}}", {}, "me").get("company") or {}).get("appointmentTypes")
+            lst = json.loads(raw) if isinstance(raw, str) else (raw or [])
+            data["types"] = {t["enum"]: str(t["name"]).strip() for t in lst if isinstance(t, dict) and t.get("enum") and t.get("name")}
+        except Exception as e:
+            META_D["errors"].append("types: %s" % str(e)[:120])
         mp = menu_paths(pg)
         META_D["finance_links"] = mp
         pay_paths = [x for x in mp if re.search("payment", x, re.I) and not re.search("expens", x, re.I)] + \
@@ -397,7 +404,15 @@ def main():
                 for c in bs[k].get("cols", []):
                     if c not in cols:
                         cols.append(c)
-            mk[key] = {"months": len(bs), "first": min(bs) if bs else "", "last": max(bs) if bs else "",
+            vals = {}
+            for col in {"pay": ["type", "balance", "refunded"], "exp": ["type", "refunded"], "apt": ["status"]}.get(kind, []):
+                vs = set()
+                for x in bs.values():
+                    if col in x.get("cols", []):
+                        i = x["cols"].index(col)
+                        vs.update(str(r[i]) for r in x["rows"] if i < len(r))
+                vals[col] = sorted(vs)[:20]
+            mk[key] = {"values": vals, "months": len(bs), "first": min(bs) if bs else "", "last": max(bs) if bs else "",
                        "rows": sum(len(x.get("rows", [])) for x in bs.values()), "cols": cols,
                        "missing": [k for k in ALL if k not in bs]}
     META_D["stripped"] = STRIPPED
@@ -407,7 +422,7 @@ def main():
     old_h = json.load(open(META)).get("hash", {}) if os.path.exists(META) else {}
     META_D["hash"] = {}
     for fn, keep in ((ENC, lambda k: k not in cur), (ENC_C, lambda k: k in cur)):
-        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"],
+        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}),
                 "kinds": {kd: {b: {k: v for k, v in ms.items() if keep(k)} for b, ms in bs.items()} for kd, bs in data["kinds"].items()}}
         body = dict(part, at="")
         for bs in body["kinds"].values():

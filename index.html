@@ -3584,50 +3584,56 @@ async function runAudit() {
   }
 }
 /* ══ جدول الخدمات اللي بتتقارن (قابل للتعديل — بيتحفظ في شيت الطلبات AUDMAP|) ══ */
+var AUD_CATS=[['pt','علاج طبيعي (علاج طبيعي + ريكفري + حجامة)'],['dev','أجهزة وجلسات تخسيس'],['nut','كشوفات ومتابعات تغذية'],['inj','حقن ميزوثيرابي ومونجارو'],['home','جلسات منزلية']];
 var AUD_MAP_DEFAULT=[
-  {g:'علاج طبيعي', on:1, a:['جلسة علاج طبيعي','جلسة علاج طبيعي علي منطقتين','علاج طبيعي اونلاين'], s:['جلسة علاج طبيعي','ج ع ط','علاج طبيعي','جلسة علاج طبيعي علي منطقتين']},
-  {g:'ريكفري', on:1, a:['ج ريكفري'], s:['ج ريكفري','ريكفري','جلسة ريكفري']},
-  {g:'حجامه', on:1, a:['ج حجامه'], s:['ج حجامه','حجامه','جلسة حجامه']},
-  {g:'شوك ويف', on:1, a:['شوك ويف منطقه واحده','شوك ويف علي منطقتين'], s:['ج ش و','شوك ويف','شوك ويف منطقه واحده','شوك ويف علي منطقتين','شوك ويف (منطقه واحده)','شوك ويف (منطقتين)']},
-  {g:'ماجنتك', on:1, a:['ماجنتك'], s:['ج ماجنتك','ماجنتك']},
-  {g:'ليزر', on:1, a:['ليزر'], s:['ج ليزر','ليزر','ليزر علاجي']},
-  {g:'كرايو', on:1, a:['Cryo'], s:['Cryo','ج كر ايو','ج كرايو','جلسة كرايو (2 هيد)']},
-  {g:'كرايو بليد', on:1, a:['Cryo-blade'], s:['Cryo-blade','ج كرايو بليد','جلسة كرايو بليد']},
-  {g:'كرايو اير', on:1, a:['Cryo-Air'], s:['Cryo-Air','ج كرايو اير']},
-  {g:'اكسيليس', on:1, a:['Excilis'], s:['Excilis','جلسة اكسيليس']},
-  {g:'راديوفريكونسي', on:1, a:['RF'], s:['RF','جلسة راديوفريكونسي']},
-  {g:'كافيتيشن', on:1, a:['Cavitation'], s:['Cavitation','جلسة كافيتيتشن','ج كافيتيشن']},
-  {g:'ميزوثيرابي', on:1, a:['حقن ميزوثيرابي'], s:['حقنة ميزوثيرابي','حقن ميزوثيرابي','حقنة ميزوثيرابي (لوستر)','امبول لوستر METABOLITES']},
-  {g:'مونجارو', on:1, a:['حقن مونجارو'], s:['حقن مونجارو','مونجارو','ريتا','حقن ويجوفي']},
-  {g:'متابعة تغذيه', on:1, a:['متابعة تغذيه','متابعة تغذيه اونلاين'], s:['م ت','م تغذيه','متابعة ت','متابعة التغذيه','متابعة تغذيه']},
-  {g:'كشف تغذيه', on:1, a:['كشف تغذيه'], s:['كشف التغذيه','كشف تغذيه']},
-  {g:'جلسه منزليه', on:1, a:['جلسه منزليه'], s:['جلسه منزليه','ج منزليه']},
-  {g:'شد فقرات', on:0, a:['شد فقرات'], s:['شد فقرات']},
-  {g:'تيكار', on:0, a:['تيكار'], s:['تيكار']},
-  {g:'مساج فقرات', on:0, a:['مساج فقرات'], s:['مساج فقرات']},
-  {g:'تصريف ليمفاوي', on:0, a:['جلسه تصريف ليمفاوي'], s:['جلسه تصريف ليمفاوي']},
-  {g:'🚫 مش خدمة (تجاهل)', on:0, a:['كشف علاج طبيعي','تقييم الجلسه الأخيره','اعادة تقييم','موعد محجوز','استرداد','تقرير بالحاله','Feedback','الغاء مفاجئ','متابعه','متابعه انقطاع','منقطع نهائي','شكوي','تصوير'], s:['American diet شريط','علبة Vitalita trilosvit','Slimo شريط','Quick slim علبه','Diet story شريط','curvy plus شريط','حصة جيم']}
+  {g:'علاج طبيعي', cat:'pt', on:1, a:['جلسة علاج طبيعي','جلسة علاج طبيعي علي منطقتين','علاج طبيعي اونلاين'], s:['جلسة علاج طبيعي','ج ع ط','علاج طبيعي','جلسة علاج طبيعي علي منطقتين']},
+  {g:'ريكفري', cat:'pt', on:1, a:['ج ريكفري'], s:['ج ريكفري','ريكفري','جلسة ريكفري']},
+  {g:'حجامه', cat:'pt', on:1, a:['ج حجامه'], s:['ج حجامه','حجامه','جلسة حجامه']},
+  {g:'كشف ع ط اون لاين', cat:'pt', on:1, a:['علاج طبيعي اونلاين'], s:['كشف ع ط اون لاين']},
+  {g:'شوك ويف', cat:'dev', on:1, a:['شوك ويف منطقه واحده','شوك ويف علي منطقتين'], s:['ج ش و','شوك ويف','شوك ويف منطقه واحده','شوك ويف علي منطقتين','شوك ويف (منطقه واحده)','شوك ويف (منطقتين)']},
+  {g:'ماجنتك', cat:'dev', on:1, a:['ماجنتك'], s:['ج ماجنتك','ماجنتك']},
+  {g:'ليزر', cat:'dev', on:1, a:['ليزر'], s:['ج ليزر','ليزر','ليزر علاجي']},
+  {g:'تيكار', cat:'dev', on:1, a:['تيكار'], s:['تيكار']},
+  {g:'تيارات', cat:'dev', on:1, a:['أجهزه'], s:['تيارات']},
+  {g:'شد فقرات', cat:'dev', on:1, a:['شد فقرات'], s:['شد فقرات']},
+  {g:'مساج فقرات', cat:'dev', on:1, a:['مساج فقرات'], s:['مساج فقرات','ج مساج فقرات','جلسة مساج فقرات','م فقرات']},
+  {g:'راديوفريكونسي', cat:'dev', on:1, a:['RF'], s:['RF','جلسة راديوفريكونسي']},
+  {g:'كافيتيشن', cat:'dev', on:1, a:['Cavitation'], s:['Cavitation','جلسة كافيتيتشن','ج كافيتيشن','جلسة كافيتيشن']},
+  {g:'كرايو', cat:'dev', on:1, a:['Cryo'], s:['Cryo','ج كر ايو','ج كرايو','جلسة كرايو (2 هيد)']},
+  {g:'كرايو بليد', cat:'dev', on:1, a:['Cryo-blade'], s:['Cryo-blade','ج كرايو بليد','جلسة كرايو بليد']},
+  {g:'كرايو اير', cat:'dev', on:1, a:['Cryo-Air'], s:['Cryo-Air','ج كرايو اير','جلسة كرايو اير']},
+  {g:'اكسيليس', cat:'dev', on:1, a:['Excilis'], s:['Excilis','جلسة اكسيليس']},
+  {g:'العنايه بالبشره', cat:'dev', on:1, a:['العنايه بالبشره'], s:['جلسة هيدروفيشيال (تنظيف عميق)','ج هيدروفيشيال (تنظيف بشره)','ج ديرما بن (تفتيح البشره)']},
+  {g:'تصريف ليمفاوي', cat:'dev', on:0, a:['جلسه تصريف ليمفاوي'], s:['جلسه تصريف ليمفاوي']},
+  {g:'متابعة تغذيه', cat:'nut', on:1, a:['متابعة تغذيه','متابعة تغذيه اونلاين','جلسة تغذيه'], s:['م ت','م تغذيه','متابعة ت','متابعة التغذيه','متابعة تغذيه','كشف أو متابعة تغذيه اون لاين']},
+  {g:'كشف تغذيه', cat:'nut', on:1, a:['كشف تغذيه'], s:['كشف التغذيه','كشف تغذيه']},
+  {g:'مونجارو', cat:'inj', on:1, a:['حقن مونجارو'], s:['حقن مونجارو','مونجارو','ريتا','حقن ريتا','حقن ويجوفي']},
+  {g:'ميزوثيرابي', cat:'inj', on:1, a:['حقن ميزوثيرابي'], s:['حقنة ميزوثيرابي','حقن ميزوثيرابي','حقنة ميزوثيرابي (لوستر)','امبول لوستر METABOLITES','Metabolites امبول','حقنة metabolites high cost','حقنة ميزوثيرابي (مركز) high cost']},
+  {g:'جلسه منزليه', cat:'home', on:1, a:['جلسه منزليه'], s:['جلسه منزليه','ج منزليه','جلسه علاج طبيعي منزلي']},
+  {g:'🚫 مش خدمة (تجاهل)', cat:'', on:0, a:['كشف علاج طبيعي','تقييم الجلسه الأخيره','اعادة تقييم','موعد محجوز','استرداد','تقرير بالحاله','Feedback','الغاء مفاجئ','متابعه','متابعه انقطاع','منقطع نهائي','شكوي','تصوير','gym'],
+    s:['American diet شريط','علبة Vitalita trilosvit','Slimo شريط','Quick slim علبه','Diet story شريط','curvy plus شريط','حصة جيم','علبة Hayfa','شريط capsula slim','علبة Rakuten slim','Lipotrixشريط','Active slim شريط','شريط skinny','K-Active','Falcon kinesiotape','Ares kinesiotape','tools hub kinesiotape','علبه Zyma slim','علبةcarni-co','شريط magic box','علبة mounjaro','علبه protix powder','علبه Extra whey protein','علبةco-vitamin B']}
 ];
 var AUD_MAP=null, AUD_MAP_OVR={};
+function _audCatOpts(sel){ return '<option value="">— من غير فلتر —</option>'+AUD_CATS.map(function(c){ return '<option value="'+c[0]+'"'+(c[0]===sel?' selected':'')+'>'+c[1]+'</option>'; }).join(''); }
 try{ AUD_MAP_OVR=JSON.parse(localStorage.getItem('audMapOvr')||'{}'); }catch(e){}
 function audN(x){
   return String(x||'').replace(/[‎‏‪-‮⁦-⁩ـ]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه')
     .replace(/\s+/g,' ').trim().replace(/[\s\d.٠-٩]+$/,'').trim().toLowerCase();
 }
 function audMapBuild(){
-  var m=AUD_MAP_DEFAULT.map(function(r){ return {g:r.g,on:r.on,a:r.a.slice(),s:r.s.slice()}; });
+  var m=AUD_MAP_DEFAULT.map(function(r){ return {g:r.g,cat:r.cat||'',on:r.on,a:r.a.slice(),s:r.s.slice()}; });
   Object.keys(AUD_MAP_OVR).forEach(function(g){
     var o=AUD_MAP_OVR[g], i=m.findIndex(function(r){return r.g===g;});
     if(o&&o.del){ if(i>=0) m.splice(i,1); return; }
     if(!o) return;
-    var row={g:g,on:o.on?1:0,a:o.a||[],s:o.s||[]};
+    var row={g:g,on:o.on?1:0,a:o.a||[],s:o.s||[],cat:(o.cat!=null?o.cat:(i>=0?m[i].cat:''))};
     if(i>=0) m[i]=row; else m.push(row);
   });
   AUD_MAP=m; return m;
 }
-function audMapLook(){
+function audMapLook(cat){
   var A={}, S={};
-  (AUD_MAP||audMapBuild()).forEach(function(r){ if(!r.on) return;
+  (AUD_MAP||audMapBuild()).forEach(function(r){ if(!r.on) return; if(cat&&r.cat!==cat) return;
     r.a.forEach(function(x){ var k=audN(x); if(k) A[k]=r.g; });
     r.s.forEach(function(x){ var k=audN(x); if(k) S[k]=r.g; }); });
   return {A:A,S:S};
@@ -3668,7 +3674,7 @@ function _audLines(t){ return String(t||'').split(/[\n،,]+/).map(function(x){re
 function audMapSaveRow(i){
   var row=AUD_MAP[i], box=document.getElementById('audMapR'+i);
   var g=box.querySelector('.am-g').value.trim()||row.g;
-  var val={on:box.querySelector('.am-on').checked?1:0, a:_audLines(box.querySelector('.am-a').value), s:_audLines(box.querySelector('.am-s').value)};
+  var val={on:box.querySelector('.am-on').checked?1:0, cat:box.querySelector('.am-c').value, a:_audLines(box.querySelector('.am-a').value), s:_audLines(box.querySelector('.am-s').value)};
   if(g!==row.g){ AUD_MAP_OVR[row.g]={del:1}; audMapSaveOne(row.g,{del:1},null); }
   document.getElementById('audMapSt').textContent='⏳ بيتحفظ...';
   audMapSaveOne(g,val,document.getElementById('audMapSt'));
@@ -3688,7 +3694,7 @@ function audMapAddName(kind,name,sel){
   var g=sel.value; if(!g) return;
   if(g==='__new__'){ sel.value=''; audNewSvc(kind,name); return; }
   var i=AUD_MAP.findIndex(function(r){return r.g===g;}); if(i<0) return;
-  var r=AUD_MAP[i], val={on:r.on, a:r.a.slice(), s:r.s.slice()};
+  var r=AUD_MAP[i], val={on:r.on, cat:r.cat||'', a:r.a.slice(), s:r.s.slice()};
   (kind==='a'?val.a:val.s).push(name);
   document.getElementById('audMapSt').textContent='⏳ بيتحفظ...';
   audMapSaveOne(g,val,document.getElementById('audMapSt'));
@@ -3698,10 +3704,10 @@ function audMapRender(){
   var m=AUD_MAP||audMapBuild(), ta='width:100%;min-height:74px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#E2E8F0;padding:6px;font-family:inherit;font-size:12px;resize:vertical';
   el.innerHTML='<div id="audMapSt" style="font-size:12px;color:#00C9A7;min-height:18px;margin-bottom:6px"></div>'+
     '<div style="display:grid;grid-template-columns:40px 150px 1fr 1fr 90px;gap:8px;font-size:12px;color:#00C9A7;font-weight:700;padding:0 4px 6px">'+
-    '<div>✓</div><div>الخدمة</div><div>أسامي المواعيد</div><div>أسامي خطوات العمليات</div><div></div></div>'+
+    '<div>✓</div><div>الخدمة / الفلتر</div><div>أسامي المواعيد</div><div>أسامي خطوات العمليات</div><div></div></div>'+
     m.map(function(r,i){ return '<div id="audMapR'+i+'" style="display:grid;grid-template-columns:40px 150px 1fr 1fr 90px;gap:8px;align-items:start;padding:8px 4px;border-top:1px solid rgba(255,255,255,0.06);'+(r.on?'':'opacity:.55')+'">'+
       '<input type="checkbox" class="am-on" '+(r.on?'checked':'')+' style="width:18px;height:18px;margin-top:6px">'+
-      '<input class="am-g search-input" value="'+_aud_esc(r.g)+'" style="padding:6px;font-size:13px">'+
+      '<div style="display:flex;flex-direction:column;gap:6px"><input class="am-g search-input" value="'+_aud_esc(r.g)+'" style="padding:6px;font-size:13px"><select class="am-c search-input" style="padding:4px;font-size:11px">'+_audCatOpts(r.cat||'')+'</select></div>'+
       '<textarea class="am-a" style="'+ta+'">'+_aud_esc(r.a.join('\n'))+'</textarea>'+
       '<textarea class="am-s" style="'+ta+'">'+_aud_esc(r.s.join('\n'))+'</textarea>'+
       '<div style="display:flex;flex-direction:column;gap:6px"><button class="export-btn" style="padding:6px 10px" onclick="audMapSaveRow('+i+')">💾 حفظ</button>'+
@@ -3721,9 +3727,10 @@ function audNewSvc(kind,name){
   var lbl=kind==='a'?'خطوات العمليات المقابلة':'أنواع المواعيد المقابلة';
   box.innerHTML='<div style="border:1px solid rgba(0,201,167,.4);background:rgba(0,201,167,.06);border-radius:12px;padding:14px;margin-bottom:16px">'+
     '<div style="font-weight:700;color:#00C9A7;margin-bottom:10px">🆕 خدمة جديدة</div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">'+
       '<label style="font-size:12px;color:#94A3B8">اسم الخدمة<br><input id="anG" class="search-input" style="width:100%;padding:6px" value="'+_aud_esc(name)+'"></label>'+
       '<label style="font-size:12px;color:#94A3B8">'+(kind==='a'?'اسم الموعد':'اسم الخطوة')+'<br><input id="anMain" class="search-input" style="width:100%;padding:6px" value="'+_aud_esc(name)+'"></label>'+
+      '<label style="font-size:12px;color:#94A3B8">الفلتر<br><select id="anC" class="search-input" style="width:100%;padding:6px">'+_audCatOpts('')+'</select></label>'+
     '</div>'+
     '<div style="font-size:12px;color:#94A3B8;margin:12px 0 6px">'+lbl+' — علّم على اللي بيقابلها (الشبيهة فوق):</div>'+
     '<div style="max-height:180px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px">'+
@@ -3741,7 +3748,7 @@ function audNewSave(kind){
   if(!g||!main){ alert('اكتب اسم الخدمة واسم '+(kind==='a'?'الموعد':'الخطوة')); return; }
   var picked=[].slice.call(document.querySelectorAll('#audNewBox .anOpt:checked')).map(function(x){return x.value;}).concat(_audLines(document.getElementById('anExtra').value));
   var ex=(AUD_MAP||[]).find(function(r){return r.g===g;});
-  var val=ex?{on:1,a:ex.a.slice(),s:ex.s.slice()}:{on:1,a:[],s:[]};
+  var val=ex?{on:1,cat:ex.cat||'',a:ex.a.slice(),s:ex.s.slice()}:{on:1,cat:(document.getElementById('anC')||{}).value||'',a:[],s:[]};
   var mine=kind==='a'?val.a:val.s, oth=kind==='a'?val.s:val.a;
   if(mine.indexOf(main)<0) mine.push(main);
   picked.forEach(function(n){ if(oth.indexOf(n)<0) oth.push(n); });
@@ -3833,7 +3840,7 @@ function audAutoRun(){
       t=document.getElementById('audTo').value||d.to, st=document.getElementById('audSt').value;
   if(f>t){ var x=f; f=t; t=x; }
   var inR=function(r){ return r.d>=f&&r.d<=t&&(!br||r.b===br); };
-  var L=audMapLook();
+  var L=audMapLook(document.getElementById('audCat').value);
   var A=d.appts.filter(function(r){ return inR(r)&&L.A[audN(r.s)]; }),
       S=d.steps.filter(function(r){ return inR(r)&&(!st||r.st===st)&&L.S[audN(r.s)]; });
   var aRows=A.map(function(r){ return {Start:r.d,Patient:r.p,Doctor:r.dr,Type:r.s,_svc:L.A[audN(r.s)]}; });
@@ -4894,6 +4901,7 @@ font-size: 13px; align-items: center; transition: background 0.1s;
       <label style="font-size:12px;color:#94A3B8">الفرع<br><select id="audBr" class="search-input" style="min-width:150px;padding:8px"><option value="">الفرعين</option><option value="BODYFIX Center">الهرم (BODYFIX Center)</option><option value="FIX ZONE">الدقي (FIX ZONE)</option></select></label>
       <label style="font-size:12px;color:#94A3B8">من<br><input type="date" id="audFrom" class="search-input" style="padding:8px"></label>
       <label style="font-size:12px;color:#94A3B8">إلى<br><input type="date" id="audTo" class="search-input" style="padding:8px"></label>
+      <label style="font-size:12px;color:#94A3B8">الخدمات<br><select id="audCat" class="search-input" style="min-width:190px;padding:8px" onchange="audAutoRun()"><option value="">كل الخدمات</option><option value="pt">علاج طبيعي (+ ريكفري + حجامة)</option><option value="dev">أجهزة وجلسات تخسيس</option><option value="nut">كشوفات ومتابعات تغذية</option><option value="inj">حقن ميزوثيرابي ومونجارو</option><option value="home">جلسات منزلية</option></select></label>
       <label style="font-size:12px;color:#94A3B8">حالة الخطوة<br><select id="audSt" class="search-input" style="min-width:130px;padding:8px"></select></label>
       <button class="export-btn" onclick="audAutoRun()">🔄 طابق</button>
     </div>

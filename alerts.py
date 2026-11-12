@@ -887,6 +887,96 @@ def build_alerts(appointments, now=None, packages=None):
         finished.append(f)
     finished.sort(key=lambda x: x["days_since"])
 
+    # ── التقييم والتجديد: كل باقة خلصت آخر 6 شهور — دخل تقييم (الجلسه الأخيره / اعادة تقييم) ولا لأ، وجدد خلال 10 أيام ولا لأ ──
+    EVR_WIN_BEFORE, EVR_WIN_AFTER, EVR_RENEW = 3, 10, 10
+    eval_renew = []
+    try:
+        E_FROM = today - timedelta(days=PERF_DAYS)
+        for appts in patients.values():
+            att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() <= today and _is_pt(a["type"])],
+                         key=lambda a: a["start"])
+            byday = {}
+            for a in att:
+                byday.setdefault(a["start"].date(), a)
+            days = sorted(byday)
+            if not days:
+                continue
+            pid = appts[0]["pid"]
+            evs = sorted([a for a in appts if a["type"] in EVAL_TYPES and a["status"] in ATTENDED], key=lambda a: a["start"])
+            pks = sorted(p for p in pk_by_pid.get(pid, []) if p[0] <= today)
+            segs = []
+            if pks:
+                for i, (st, size) in enumerate(pks):
+                    nxt = pks[i + 1][0] if i + 1 < len(pks) else None
+                    segs.append((size, [d for d in days if d >= st and (nxt is None or d < nxt)], st < hist_start + timedelta(days=3)))
+            else:
+                for i in range(0, len(days), CYCLE):
+                    segs.append((CYCLE, days[i:i + CYCLE], i == 0 and days[0] <= hist_start + timedelta(days=7)))
+            for size, sd, approx in segs:
+                if approx or len(sd) < size:
+                    continue
+                end = sd[size - 1]
+                if not (E_FROM <= end <= today):
+                    continue
+                main_doc = Counter(byday[d]["doctor"] for d in sd[:size]).most_common(1)[0][0]
+                ev = [a for a in evs if end - timedelta(days=EVR_WIN_BEFORE) <= a["start"].date() <= end + timedelta(days=EVR_WIN_AFTER)]
+                ev = ev[-1] if ev else None
+                nx = [d for d in days if end < d <= end + timedelta(days=EVR_RENEW)]
+                if nx:
+                    st_, rdoc, rdate = "renewed", byday[nx[0]]["doctor"], nx[0].isoformat()
+                elif (today - end).days < EVR_RENEW:
+                    st_, rdoc, rdate = "pending", "", ""
+                else:
+                    st_, rdoc, rdate = "no", "", ""
+                ref = byday[end]
+                eval_renew.append({
+                    "name": ref["name"], "phone": ref["phone"], "pid": pid, "branch": ref["branch"], "doctor": main_doc,
+                    "end": end.isoformat(), "size": size, "status": st_, "renew_doc": rdoc, "renew_date": rdate,
+                    "eval": ({"type": ev["type"], "date": ev["start"].date().isoformat(), "doctor": ev["doctor"],
+                              "note": (ev.get("note") or "")[:200]} if ev else None),
+                })
+        eval_renew.sort(key=lambda x: x["end"], reverse=True)
+    except Exception as e:
+        print(f"⚠️ eval_renew: {e}")
+
+    # ── تنبيه: 6 جلسات علاج طبيعي من غير أي تقييم (الجلسه الأخيره / اعادة تقييم) — على جلسة النهارده أو بكره ──
+    EVAL_DUE_N = 6
+    eval_due = []
+    try:
+        tomorrow = today + timedelta(days=1)
+        for appts in patients.values():
+            nxt = sorted([a for a in appts if _is_pt(a["type"]) and a["start"].date() in (today, tomorrow)
+                          and a["status"] in LIVE_TODAY], key=lambda a: a["start"])
+            if not nxt:
+                continue
+            ses = nxt[0]; sday = ses["start"].date()
+            if any(a["type"] in EVAL_TYPES and a["start"].date() >= today and a["status"] in LIVE_TODAY for a in appts):
+                continue                                         # حاجز تقييم خلاص
+            pdays = sorted({a["start"].date() for a in appts if _is_pt(a["type"]) and a["status"] in ATTENDED and a["start"].date() < sday})
+            cstart = None                                         # بداية الكورس الحالي (بعد انقطاع 3 أسابيع)
+            for i, d in enumerate(pdays):
+                if i == 0 or (d - pdays[i - 1]).days > COURSE_GAP:
+                    cstart = d
+            if pdays and (sday - pdays[-1]).days > COURSE_GAP:
+                cstart = sday
+            last_ev = max((a for a in appts if a["type"] in EVAL_TYPES and a["status"] in ATTENDED and a["start"].date() < sday),
+                          key=lambda a: a["start"], default=None)
+            frm = max([d for d in (cstart, last_ev["start"].date() if last_ev else None) if d] or [sday])
+            n = sum(1 for d in pdays if d >= frm and not (last_ev and d == last_ev["start"].date())) + 1
+            if n < EVAL_DUE_N:
+                continue
+            eval_due.append({
+                "name": ses["name"], "phone": ses["phone"], "pid": ses["pid"], "branch": ses["branch"],
+                "doctor": ses["doctor"], "session": ses["start"].isoformat(), "day": "today" if sday == today else "tomorrow",
+                "n": n, "note": (ses.get("note") or "")[:200],
+                "last_eval": ({"type": last_ev["type"], "date": last_ev["start"].date().isoformat(), "doctor": last_ev["doctor"]}
+                              if last_ev else None),
+                **info(appts),
+            })
+        eval_due.sort(key=lambda x: (x["day"] != "today", -x["n"], x["session"]))
+    except Exception as e:
+        print(f"⚠️ eval_due: {e}")
+
     # ── إلغاء / غياب ورا بعض (الصفحة بتطابقهم مع شيت التثبيتات بالاسم) ──
     streaks = []
     for appts in patients.values():
@@ -944,6 +1034,8 @@ def build_alerts(appointments, now=None, packages=None):
         "pt_index": pt_index,
         "renew_today": renew_today,
         "finished_packages": finished,
+        "eval_renew": eval_renew,
+        "eval_due": eval_due,
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),
         "doc_perf": perf,

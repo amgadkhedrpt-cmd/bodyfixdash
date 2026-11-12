@@ -10570,6 +10570,23 @@ function alertsRender(){
       'alertsOpenMilestones()');
   }
 
+  /* 0.75) 6 جلسات من غير تقييم */
+  var ed=alEvalDue();
+  if(ed&&ed.rows.length){
+    var edT=ed.rows.filter(function(x){return x.day==='today';}).length;
+    html+=alCard('#ec4899',
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+        '<span style="font-size:.95rem">🩺</span><span style="font-weight:700;font-size:.76rem;flex:1">محتاجين تقييم (6 جلسات من غير تقييم)</span>'+
+        '<span style="background:#ec4899;color:#fff;border-radius:10px;padding:1px 10px;font-size:.72rem;font-weight:900">'+ed.rows.length+'</span>'+
+        '<span style="font-size:.6rem;color:var(--mute)">اضغط للقايمة ←</span></div>'+
+      '<div style="display:flex;gap:8px;margin-bottom:6px">'+alActiveBranches().map(function(b){
+        return '<div onclick="event.stopPropagation();alOpenPick(\'evaldue\',\''+b.key+'\')" title="اضغط لأسامي الرقم ده بس" style="flex:1;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:8px;text-align:center;cursor:pointer">'+
+          '<div style="font-size:1.35rem;font-weight:900;color:'+b.color+'">'+(ed.by[b.key]||0)+'</div><div style="font-size:.58rem;color:var(--mute)">'+b.label+'</div></div>';
+      }).join('')+'</div>'+
+      '<div style="font-size:.56rem;color:var(--mute)">'+edT+' جلستهم النهارده · '+(ed.rows.length-edT)+' بكره — احجزلهم تقييم</div>',
+      'alertsOpenEvalDue()');
+  }
+
   /* 0.8) خلصوا باقة ومجددوش */
   var fp=alFinished();
   if(fp&&fp.rows.length){
@@ -11368,6 +11385,104 @@ function alFinished(){
   });
   return out;
 }
+/* ══ التقييم والتجديد (alerts.eval_renew) ══ */
+var EVR_BR='', EVR_DOC='';
+function evrRows(){
+  var D=(ALERTS_DATA&&ALERTS_DATA.eval_renew)||[], act=alActiveBranches().map(function(b){return b.key;});
+  return D.map(function(x){ return Object.assign({_br:alBranchOf(x.doctor,x.branch)},x); })
+          .filter(function(x){ return act.indexOf(x._br)>=0&&(!EVR_BR||x._br===EVR_BR); });
+}
+function evrDoc(en){ return alDocAr(en)||en||'—'; }
+function evrInner(){
+  if(!ALERTS_DATA||!ALERTS_DATA.eval_renew) return '<div style="font-size:.62rem;color:var(--mute)">⏳ هتظهر بعد المزامنة الجاية</div>';
+  var R=evrRows();
+  var pc=function(a,b){ return b?Math.round(a*100/b)+'%':'—'; };
+  var grp=function(arr){ var dec=arr.filter(function(x){return x.status!=='pending';}); return {n:dec.length, r:dec.filter(function(x){return x.status==='renewed';}).length, p:arr.length-dec.length}; };
+  var withE=R.filter(function(x){return x.eval;}), noE=R.filter(function(x){return !x.eval;});
+  var gE=grp(withE), gN=grp(noE);
+  var docs={}; withE.forEach(function(x){ (docs[x.eval.doctor]=docs[x.eval.doctor]||[]).push(x); });
+  var docList=Object.keys(docs).sort(function(a,b){ return docs[b].length-docs[a].length; });
+  var sel='background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.62rem';
+  var h='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:.6rem;color:var(--mute);align-items:center">'+
+    'الفرع <select style="'+sel+'" onchange="EVR_BR=this.value;EVR_DOC=\'\';document.getElementById(\'evrBox\').innerHTML=evrInner()"><option value="">الكل</option>'+
+      alActiveBranches().map(function(b){ return '<option value="'+b.key+'"'+(EVR_BR===b.key?' selected':'')+'>'+b.label+'</option>'; }).join('')+'</select>'+
+    'دكتور التقييم <select style="'+sel+'" onchange="EVR_DOC=this.value;document.getElementById(\'evrBox\').innerHTML=evrInner()"><option value="">كل الدكاترة</option>'+
+      docList.map(function(d){ return '<option value="'+alEsc(d)+'"'+(EVR_DOC===d?' selected':'')+'>'+alEsc(evrDoc(d))+' ('+docs[d].length+')</option>'; }).join('')+'</select></div>'+
+    '<div style="font-size:.54rem;color:var(--mute);margin-bottom:8px">كل باقة خلصت آخر 6 شهور · «دخل تقييم» = حضر تقييم الجلسه الأخيره أو اعادة تقييم من 3 أيام قبل آخر جلسة لـ 10 أيام بعدها · «جدد» = حضر جلسة علاج طبيعي خلال 10 أيام من آخر جلسة (مع أي دكتور) · «لسه بدري» = خلص من أقل من 10 أيام ومش داخل في النسبة</div>';
+  var th='color:var(--mute);font-size:.55rem;padding:4px', td='text-align:center;padding:6px 4px';
+  if(!EVR_DOC){
+    h+='<table style="width:100%;border-collapse:collapse;font-size:.64rem;margin-bottom:12px"><tr><th style="'+th+';text-align:right"></th><th style="'+th+'">باقات</th><th style="'+th+'">جددوا</th><th style="'+th+'">نسبة التجديد</th><th style="'+th+'">لسه بدري</th></tr>'+
+      [['✅ دخلوا التقييم',gE,'var(--g)'],['❌ ما دخلوش التقييم',gN,'var(--r)']].map(function(r){ return '<tr style="border-top:1px solid var(--brd)"><td style="padding:6px 4px;font-weight:700">'+r[0]+'</td><td style="'+td+'">'+r[1].n+'</td><td style="'+td+'">'+r[1].r+'</td><td style="'+td+'"><b style="color:'+r[2]+';font-size:.8rem">'+pc(r[1].r,r[1].n)+'</b></td><td style="'+td+';color:var(--mute)">'+r[1].p+'</td></tr>'; }).join('')+'</table>';
+    var rank=docList.map(function(d){ var g=grp(docs[d]); return {d:d,g:g,p:g.n?g.r/g.n:-1}; }).sort(function(a,b){ return b.p-a.p||b.g.n-a.g.n; });
+    h+='<div style="font-weight:700;font-size:.66rem;margin:6px 0">🏆 نسبة التجديد بعد التقييم — حسب الدكتور اللي عمل التقييم</div>'+
+      '<table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr><th style="'+th+';text-align:right">الدكتور</th><th style="'+th+'">تقييمات</th><th style="'+th+'">جددوا</th><th style="'+th+'">النسبة</th><th style="'+th+'">لسه بدري</th></tr>'+
+      rank.map(function(x){ var small=x.g.n<3; return '<tr style="border-top:1px solid var(--brd);cursor:pointer'+(small?';opacity:.55':'')+'" onclick="EVR_DOC=\''+alEsc(x.d).replace(/'/g,"\\'")+'\';document.getElementById(\'evrBox\').innerHTML=evrInner()"><td style="padding:6px 4px;font-weight:700">'+alEsc(evrDoc(x.d))+'</td><td style="'+td+'">'+x.g.n+'</td><td style="'+td+'">'+x.g.r+'</td><td style="'+td+'"><b>'+pc(x.g.r,x.g.n)+'</b>'+(small?'<div style="font-size:.5rem;color:var(--mute)">عينة صغيرة</div>':'')+'</td><td style="'+td+';color:var(--mute)">'+x.g.p+'</td></tr>'; }).join('')+'</table>'+
+      '<div style="font-size:.54rem;color:var(--mute);margin-top:4px">اضغط على أي دكتور تشوف أسامي المرضى</div>';
+  } else {
+    var L=docs[EVR_DOC]||[], g=grp(L);
+    h+='<div style="display:flex;gap:8px;margin-bottom:10px">'+[['تقييمات',g.n+g.p,'var(--txt)'],['جددوا',g.r,'var(--g)'],['ما جددوش',g.n-g.r,'var(--r)'],['نسبة التجديد',pc(g.r,g.n),'var(--acc)']].map(function(c){
+      return '<div style="flex:1;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:8px;text-align:center"><div style="font-size:1.1rem;font-weight:900;color:'+c[2]+'">'+c[1]+'</div><div style="font-size:.56rem;color:var(--mute)">'+c[0]+'</div></div>'; }).join('')+'</div>'+
+      L.map(function(x){
+        var tag=x.status==='renewed'?'<span style="color:var(--g);font-weight:800">✅ جدد</span>':x.status==='no'?'<span style="color:var(--r);font-weight:800">❌ ما جددش</span>':'<span style="color:var(--am);font-weight:800">⏳ لسه بدري</span>';
+        return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:8px 10px;margin-bottom:6px;font-size:.62rem">'+
+          '<div style="display:flex;gap:8px;align-items:center"><b style="flex:1">'+alEsc(x.name)+'</b>'+tag+'</div>'+
+          '<div style="color:var(--mute);margin-top:3px">كان شغال مع <b style="color:var(--txt)">'+alEsc(evrDoc(x.doctor))+'</b> · خلص باقة '+x.size+' يوم '+alEsc(alFmtDay(x.end))+
+          ' · '+alEsc(x.eval.type)+' '+alEsc(alFmtDay(x.eval.date))+(x.status==='renewed'?' · كمّل مع <b style="color:var(--g)">'+alEsc(evrDoc(x.renew_doc))+'</b> '+alEsc(alFmtDay(x.renew_date)):'')+'</div>'+
+          (x.eval.note?'<div style="margin-top:3px">📝 '+alEsc(x.eval.note)+'</div>':'')+'</div>';
+      }).join('')+
+      '<button onclick="EVR_DOC=\'\';document.getElementById(\'evrBox\').innerHTML=evrInner()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 12px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">→ كل الدكاترة</button>';
+  }
+  return h;
+}
+
+/* ══ تنبيه: 6 جلسات من غير تقييم (alerts.eval_due) ══ */
+function alEvalDue(){
+  if(!ALERTS_DATA||!ALERTS_DATA.eval_due) return null;
+  var act=alActiveBranches(), out={rows:[], by:{}};
+  act.forEach(function(b){ out.by[b.key]=0; });
+  ALERTS_DATA.eval_due.forEach(function(x){
+    var b=alBranchOf(x.doctor,x.branch);
+    if(out.by.hasOwnProperty(b)){ out.by[b]++; out.rows.push(Object.assign({_br:b},x)); }
+  });
+  return out;
+}
+function alertsOpenEvalDue(fromNotes){
+  var ed=alEvalDue(); if(!ed||!ed.rows.length) return;
+  var old=document.getElementById('al-modal'); if(old) old.remove();
+  if(!fromNotes){ AL_NOTES=alNotesLocal(); alNotesLoad(function(){
+    var m=document.getElementById('al-modal'); if(!m) return;
+    var typing=document.activeElement&&document.activeElement.tagName==='TEXTAREA'&&m.contains(document.activeElement);
+    if(!typing){ var sc=m.firstChild.scrollTop; alertsOpenEvalDue(true); var m2=document.getElementById('al-modal'); if(m2) m2.firstChild.scrollTop=sc; }
+  }); }
+  function row(x){
+    var phone=(x.phone||'').replace(/_/g,''), t=new Date(x.session);
+    var hh=t.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
+    return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<span style="background:#ec4899;color:#fff;border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">جلسة '+x.n+' من غير تقييم</span></div>'+
+      '<div style="font-size:.6rem;color:var(--mute);margin:3px 0 5px">جلسته '+(x.day==='today'?'<b style="color:var(--txt)">النهارده</b>':'<b style="color:var(--txt)">بكره</b>')+' '+alEsc(hh)+' مع '+alEsc(alDocAr(x.doctor)||x.doctor)+
+        '<div style="margin-top:3px">'+(x.last_eval?'آخر تقييم: '+alEsc(x.last_eval.type)+' '+alEsc(alFmtDay(x.last_eval.date))+' مع '+alEsc(alDocAr(x.last_eval.doctor)||x.last_eval.doctor):'<span style="color:var(--r);font-weight:700">ما دخلش أي تقييم في الكورس ده</span>')+'</div>'+
+        (x.note?'<div style="margin-top:3px;color:var(--txt)">📝 '+alEsc(x.note)+'</div>':'')+'</div>'+
+      (phone?'<a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a>':'')+
+      alNoteBox(x)+'</div>';
+  }
+  var m=document.createElement('div');
+  m.id='al-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+  m.onclick=function(e){ if(e.target===m) m.remove(); };
+  m.innerHTML='<div dir="rtl" style="background:var(--card);border:1px solid var(--brd);border-radius:14px 14px 0 0;width:100%;max-width:640px;max-height:85vh;overflow:auto;padding:14px 14px 22px;font-family:Cairo,sans-serif;color:var(--txt)">'+
+    '<div style="display:flex;align-items:center;gap:8px;position:sticky;top:-14px;background:var(--card);padding:6px 0 8px;z-index:1">'+
+      '<span style="font-weight:900;font-size:.8rem;flex:1">🩺 محتاجين تقييم — 6 جلسات من غير تقييم ('+ed.rows.length+')</span>'+
+      '<button onclick="document.getElementById(\'al-modal\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;cursor:pointer;font-family:Cairo,sans-serif">✕</button></div>'+
+    '<div style="font-size:.56rem;color:var(--mute);margin-bottom:8px">جلسة النهارده أو بكره هي السادسة أو أكتر من آخر تقييم (تقييم الجلسه الأخيره أو اعادة تقييم) أو من أول الكورس · اللي حاجز تقييم مش ظاهر</div>'+
+    alActiveBranches().map(function(b){
+      var arr=ed.rows.filter(function(x){return x._br===b.key;});
+      if(!arr.length) return '';
+      return '<div style="font-weight:700;font-size:.7rem;color:'+b.color+';margin:12px 0 6px">🏥 '+b.label+' ('+arr.length+')</div>'+arr.map(row).join('');
+    }).join('')+'</div>';
+  document.body.appendChild(m);
+}
+
 var AL_FIN_SEL='all';
 var AL_FIN_F={
   all:function(){ return true; },
@@ -11427,6 +11542,7 @@ var AL_PICK_DEF={
   kashf:     {open:'alertsOpenKashf',      get:'alKashf'},
   svcgap:    {open:'alertsOpenSvcGap',     get:'alSvcGap'},
   finished:  {open:'alertsOpenFinished',   get:'alFinished'},
+  evaldue:   {open:'alertsOpenEvalDue',    get:'alEvalDue'},
   streaks:   {open:'alertsOpenStreaks',    get:'alStreaks'},
   milestones:{open:'alertsOpenMilestones', get:'alMilestones'},
   dropped:   {open:'alertsOpenDropped',    get:'alDropped'}
@@ -11967,6 +12083,7 @@ function anRender(){
 
   /* أداء الدكاترة: التجديد · الوقوف بدري · الكشف ← باقة */
   html+=anPerfHtml(R);
+  html+='<div class="sec">📊 التقييم والتجديد</div><div id="evrBox">'+evrInner()+'</div>';
 
   /* الدكاترة */
   html+='<div class="sec">👨‍⚕️ الدكاترة</div>';

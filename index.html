@@ -10816,6 +10816,39 @@ function alPromiseState(x){
   if(p===td) return nx===td?{k:'today', p:p, txt:'📅 قال هييجي النهارده — عنده موعد النهارده'}:{k:'nobook', p:p, txt:'📅 قال هييجي النهارده — بس مفيش موعد له على Medicolize'};
   return nx===p?{k:'booked', p:p, txt:'📅 قال هييجي '+alFmtDay(p)+' — الموعد محجوز'}:{k:'nobook', p:p, txt:'⚠️ قال هييجي '+alFmtDay(p)+' — بس مفيش موعد يومها على Medicolize'+(nx?' (الموعد المحجوز '+alFmtDay(nx)+')':'')};
 }
+/* ▾ سهم «مواعيده آخر أسبوعين» — بيظهر تحت أي مريض (من ملف المواعيد اللي في الصفحة) */
+var AL_HIST_IDX=null;
+function alHistIndex(){
+  if(AL_HIST_IDX) return AL_HIST_IDX; var byPh={}, byNm={};
+  if(typeof MED_DATA!=='undefined'&&MED_DATA&&MED_DATA.analysis&&MED_DATA.analysis.by_doctor){
+    Object.keys(MED_DATA.analysis.by_doctor).forEach(function(dk){ (MED_DATA.analysis.by_doctor[dk].appointments||[]).forEach(function(a){
+      var ph=String(a.phone||'').replace(/\D/g,'').slice(-9), nm=alPatNorm(a.patient||'');
+      if(ph.length>=8) (byPh[ph]=byPh[ph]||[]).push(a); if(nm) (byNm[nm]=byNm[nm]||[]).push(a); }); });
+    AL_HIST_IDX={ph:byPh, nm:byNm};
+  }
+  return AL_HIST_IDX||{ph:{},nm:{}};
+}
+function alHistBtn(name, phone){
+  var id='hs'+alHash(String(name)+String(phone));
+  return '<div style="margin-top:5px"><span onclick="alHistToggle(\''+id+'\',this)" data-n="'+alEsc(name||'')+'" data-p="'+alEsc(phone||'')+'" style="cursor:pointer;font-size:.6rem;color:var(--acc);border:1px solid var(--brd);border-radius:7px;padding:2px 8px">▸ مواعيده آخر أسبوعين</span><div id="'+id+'" style="display:none;margin-top:5px"></div></div>';
+}
+function alHistToggle(id, el){
+  var box=document.getElementById(id); if(!box) return;
+  if(box.style.display!=='none'){ box.style.display='none'; el.textContent='▸ مواعيده آخر أسبوعين'; return; }
+  el.textContent='▾ مواعيده آخر أسبوعين';
+  if(typeof MED_DATA==='undefined'||!MED_DATA){ box.innerHTML='<div style="font-size:.6rem;color:var(--mute)">⏳ بيحمّل المواعيد…</div>'; box.style.display='block';
+    try{ if(typeof medLoad==='function') medLoad(false); }catch(e){}
+    setTimeout(function(){ box.style.display='none'; if(typeof MED_DATA!=='undefined'&&MED_DATA) alHistToggle(id, el); else box.innerHTML='<div style="font-size:.6rem;color:var(--r)">المواعيد لسه ما اتحملتش — جرّب تاني</div>', box.style.display='block'; }, 4000); return; }
+  var I=alHistIndex(), ph=String(el.dataset.p||'').replace(/\D/g,'').slice(-9), nm=alPatNorm(el.dataset.n||'');
+  var L=(ph.length>=8&&I.ph[ph])||I.nm[nm]||[];
+  if(ph.length>=8&&I.ph[ph]&&nm) L=L.filter(function(a){ var n2=alPatNorm(a.patient||''); return !n2||n2===nm||n2.indexOf(nm.split(' ')[0])===0; });
+  var td=alCairoToday(), from=new Date(new Date(td+'T12:00:00')-14*864e5).toISOString().slice(0,10), seen={};
+  L=L.filter(function(a){ var d=String(a.start||'').slice(0,10); if(seen[a.id]) return false; seen[a.id]=1; return d>=from; }).sort(function(a,b){ return String(a.start).localeCompare(String(b.start)); });
+  var col=function(st){ st=String(st||'').toLowerCase(); return /complet|checked|progress/.test(st)?'var(--g)':/cancel|no ?show/.test(st)?'var(--r)':/wait/.test(st)?'var(--am)':'var(--mute)'; };
+  box.innerHTML=L.length?L.map(function(a){ var d=String(a.start).slice(0,10), fut=d>td;
+    return '<div style="display:flex;gap:6px;font-size:.6rem;padding:2px 0;border-bottom:1px dashed var(--brd);'+(fut?'opacity:.8':'')+'"><span style="min-width:78px">'+alEsc(alFmtDay(d))+'</span><span style="min-width:52px">'+alEsc(planT(a.start))+'</span><span style="flex:1">'+alEsc(a.type||'')+' · '+alEsc((typeof alDocAr==='function'&&alDocAr(a.doctor))||a.doctor||'')+'</span><b style="color:'+col(a.status)+'">'+alEsc(a.status||'')+(fut?' (جاي)':'')+'</b></div>'; }).join(''):'<div style="font-size:.6rem;color:var(--mute)">مفيش مواعيد في الأسبوعين اللي فاتوا</div>';
+  box.style.display='block';
+}
 /* ⚠️ تحذيرات فوق كارت «مثبتين بيلغوا»: وعدوا ييجوا وما جوش / قالوا هييجوا ومفيش موعد / ما اتكلّموش */
 function alStreakWarns(rows){
   var W={broken:[], nobook:[], nonote:[]};
@@ -10954,7 +10987,7 @@ function alertsOpenStreaks(fromNotes){
         (phone?'<a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a>':'')+nx+
         (x.last_attended?'<span style="font-size:.56rem;color:var(--mute)">آخر حضور '+alEsc(alFmtDay(x.last_attended))+'</span>':'')+
       '</div>'+(function(){ var ps=alPromiseState(x); if(!ps) return ''; var col=ps.k==='broken'?'var(--r)':ps.k==='nobook'?'var(--am)':'var(--g)';
-        return '<div style="margin-top:6px;font-size:.62rem;font-weight:800;color:'+col+';border:1px solid currentColor;border-radius:7px;padding:4px 8px">'+alEsc(ps.txt)+'</div>'; })()+alNoteBox(x)+'</div>';
+        return '<div style="margin-top:6px;font-size:.62rem;font-weight:800;color:'+col+';border:1px solid currentColor;border-radius:7px;padding:4px 8px">'+alEsc(ps.txt)+'</div>'; })()+alHistBtn(x.name,x.phone)+alNoteBox(x)+'</div>';
   }
   var m=document.createElement('div');
   m.id='al-modal';
@@ -10973,7 +11006,7 @@ function alertsOpenStreaks(fromNotes){
         '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:5px 0">'+x.fixed.map(function(f){ return '<span style="background:rgba(124,58,237,.14);color:#a78bfa;border-radius:5px;padding:1px 7px;font-size:.58rem">📌 '+alEsc(f.doctor)+' · الساعة '+alEsc(alSlotTxt(f.slot))+'</span>'; }).join(' ')+'</div>'+
         '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">'+(phone?'<a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a>':'')+
         '<span style="font-size:.56rem;color:var(--mute)">آخر جلسة '+alEsc(alFmtDay(x.last_attended))+' · مالوش ميعاد جاي</span></div>'+
-        (ps?'<div style="margin-top:6px;font-size:.62rem;font-weight:800;color:'+(ps.k==='broken'?'var(--r)':ps.k==='nobook'?'var(--am)':'var(--g)')+';border:1px solid currentColor;border-radius:7px;padding:4px 8px">'+alEsc(ps.txt)+'</div>':'')+alNoteBox(x)+'</div>'; }).join(''):'')+
+        (ps?'<div style="margin-top:6px;font-size:.62rem;font-weight:800;color:'+(ps.k==='broken'?'var(--r)':ps.k==='nobook'?'var(--am)':'var(--g)')+';border:1px solid currentColor;border-radius:7px;padding:4px 8px">'+alEsc(ps.txt)+'</div>':'')+alHistBtn(x.name,x.phone)+alNoteBox(x)+'</div>'; }).join(''):'')+
     AL_STREAK_GROUPS.map(function(g){
       var arr=st.rows.filter(function(x){ return x.streak>=g.min && x.streak<=g.max; });
       if(!arr.length) return '';
@@ -12302,6 +12335,7 @@ function planRow(t){
     '<div style="display:flex;gap:8px;align-items:flex-start"><span style="font-size:1rem">'+t.icon+'</span><div style="flex:1;min-width:0">'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:.74rem">'+alEsc(t.name||'')+'</b><span style="font-size:.6rem;color:var(--mute)">'+t.kind+'</span>'+(badge?'<span style="font-size:.6rem">'+badge+(st.by?' · '+alEsc(st.by)+' '+alEsc(st.at||''):'')+'</span>':'')+'</div>'+
       t.lines.filter(Boolean).map(function(l){ return '<div style="font-size:.64rem;margin-top:3px;line-height:1.6">'+l+'</div>'; }).join('')+
+      (t.name&&typeof alHistBtn==='function'?alHistBtn(t.name,t.phone||''):'')+
       ((t.grp||[]).indexOf('debtph')>=0?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">📞 مسئولة التحصيل بالتليفون: '+(PLAN_PHCOL[t.br]?'<b style="color:var(--txt)">'+alEsc(PLAN_PHCOL[t.br])+'</b>':'<span style="color:#f59e0b">اختارها فوق جنب المهمة</span>')+'</div>':'')+((t.grp||[]).indexOf('debt')>=0?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">🧾 مسئولة التحصيل (على الخزنة '+(t.time?'وقت ميعاده':'دلوقتي')+'): '+(planCashOwner(t)?'<b style="color:var(--txt)">'+alEsc(planCashOwner(t))+'</b>':'<span style="color:#f59e0b">محدش متسجّل على الخزنة في الوقت ده</span>')+'</div>':'')+
       (t.note0?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">📝 ملحوظة الموعد: '+alEsc(t.note0)+'</div>':'')+
       (state==='done'?(function(){ var w=t.what||(st.note?'📝 '+st.note:''); return w?'<div style="font-size:.64rem;margin-top:4px;background:rgba(16,185,129,.08);border-radius:6px;padding:3px 8px;color:var(--g)">📌 اللي اتعمل: '+(/<[a-z]/i.test(w)?w:alEsc(w))+'</div>':''; })():'')+

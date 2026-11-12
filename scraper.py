@@ -67,6 +67,9 @@ PAT_CANDIDATES = ["notes", "note", "details", "description", "comment", "comment
                   "tags{name}", "tags{id name}", "status", "patientStatus", "type", "category"]
 PAT_PROBE = {}
 CANCEL_FIELD = None  # وقت الإلغاء (عشان نعرف اعتذر قبل ميعاده بكام ساعة)
+REASON_FIELD = None  # سبب الإلغاء / الاعتذار (لو Medicolize بيسجّله في خانة لوحدها)
+REASON_CANDIDATES = ["cancelReason", "cancellationReason", "cancelationReason", "canceledReason", "cancelledReason",
+                     "reason", "cancelNote", "cancellationNote", "statusReason", "rejectReason"]
 BY_FIELD = None      # مين عمل الميعاد على Medicolize (createdBy{name}) — عشان نعرف مين رجّع المريض من المتابعة
 CANCEL_CANDIDATES = ["canceledAt", "cancelledAt", "cancelDate", "cancellationDate", "statusUpdatedAt", "statusChangedAt", "updatedAt"]
 CANCEL_PROBE = {}
@@ -84,6 +87,8 @@ def gql_query_with_note():
         q = q.replace("phoneNumber birthDate __typename}", "phoneNumber birthDate " + " ".join(PAT_FIELDS) + " __typename}", 1)
     if BY_FIELD:
         q = q.replace("type other ", "type other " + BY_FIELD + " ", 1)
+    if REASON_FIELD and REASON_FIELD not in (NOTE_FIELD, CANCEL_FIELD):
+        q = q.replace("type other ", "type other " + REASON_FIELD + " ", 1)
     return q
 
 
@@ -146,6 +151,7 @@ def parse_flat_array(flat):
             note_v   = resolve_val(flat, appt_obj.get(NOTE_FIELD)) if NOTE_FIELD else None
             cancel_v = resolve_val(flat, appt_obj.get(CANCEL_FIELD)) if CANCEL_FIELD else None
             created  = resolve_val(flat, appt_obj.get('createdAt'))
+            reason_v = resolve_val(flat, appt_obj.get(REASON_FIELD)) if REASON_FIELD else None
             by_obj   = resolve_obj(flat, appt_obj.get(BY_FIELD.split("{")[0])) if BY_FIELD else None
             by_name  = (by_obj or {}).get("name") if isinstance(by_obj, dict) else None
             doctor_obj  = resolve_obj(flat, appt_obj.get('doctor'))
@@ -174,6 +180,7 @@ def parse_flat_array(flat):
                 "note":      (note_v.strip()[:300] if isinstance(note_v, str) and note_v.strip() else None),
                 "cancel_at": cancel_v if isinstance(cancel_v, str) else None,
                 "by":        by_name if isinstance(by_name, str) else None,
+                "reason":    (reason_v.strip()[:300] if isinstance(reason_v, str) and reason_v.strip() else None),
                 "doctor":  {"name": doctor_obj.get('name'), "color": doctor_obj.get('color')},
                 "branch":  {"name": branch_obj.get('name')},
                 "patient": {
@@ -493,6 +500,22 @@ async def detect_note_field(page, cookie_str, extra_headers):
         except Exception as e:
             CANCEL_PROBE[f] = "ERR " + str(e)[:60]
     print(f"   ⏱ خانة وقت الإلغاء: {CANCEL_FIELD or 'مش موجودة'} · {CANCEL_PROBE}")
+    global REASON_FIELD
+    rprobe = {}
+    for f in REASON_CANDIDATES:
+        q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
+             "{createdAppointments(orderBy:$orderBy skip:$skip take:$take rangeDate:$rangeDate){id status " + f + "}}")
+        try:
+            d = await gql_call(page, cookie_str, extra_headers, q, {"orderBy": "createdAt", "skip": 0, "take": 100, "rangeDate": rng})
+            lst = [x for x in (gql_dec(d, "createdAppointments") or []) if isinstance(x, dict)]
+            vals = [x.get(f) for x in lst if "CANCEL" in str(x.get("status") or "").upper()]
+            n = sum(1 for v in vals if isinstance(v, str) and v.strip())
+            rprobe[f] = f"OK {n}/{len(vals)}"
+            if n and not REASON_FIELD:
+                REASON_FIELD = f
+        except Exception as e:
+            rprobe[f] = "ERR " + str(e)[:50]
+    print(f"   ❌ خانة سبب الإلغاء: {REASON_FIELD or 'مش موجودة'} · {rprobe}")
     global BY_FIELD
     for f in ("createdBy{name}", "user{name}", "creator{name}"):
         q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
@@ -1432,6 +1455,8 @@ def analyze(appointments):
         }
         if a.get("note") and note_from <= start <= note_to:
             entry["note"] = a["note"]
+        if a.get("reason") and note_from <= start <= note_to:
+            entry["reason"] = a["reason"]
 
         by_doctor[doc].append(entry)
         by_branch[branch].append(entry)
@@ -1532,7 +1557,7 @@ async def main():
                 json.dump({
                     "last_updated": now_str,
                     "total": len(appointments),
-                    "appointments": [{**{k: v for k, v in a.items() if k not in ("note", "cancel_at", "by")}, "patient": {k: v for k, v in (a.get("patient") or {}).items() if k not in ("birthDate", "pnote")}} for a in appointments[:500]],   # تاريخ الميلاد ما يتنشرش
+                    "appointments": [{**{k: v for k, v in a.items() if k not in ("note", "cancel_at", "by", "reason")}, "patient": {k: v for k, v in (a.get("patient") or {}).items() if k not in ("birthDate", "pnote")}} for a in appointments[:500]],   # تاريخ الميلاد ما يتنشرش
                     "analysis": analysis
                 }, f, ensure_ascii=False, indent=2)
 

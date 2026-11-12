@@ -1782,9 +1782,12 @@ function showAnaTab(name,btn){
 
 /* ملحوظة الميعاد من Medicolize — تحت اسم المريض في أي قايمة مواعيد */
 function medNote(a, small){
-  var n=a&&a.note; if(!n) return '';
+  var rs=a&&a.reason, cx=a&&/cancel|no ?show/i.test(String(a.status||''));
+  var rsH=rs?'<div style="font-size:'+(small?'.56rem':'.6rem')+';color:#fca5a5;background:rgba(239,68,68,.08);border-inline-start:2px solid rgba(239,68,68,.55);border-radius:5px;padding:2px 7px;margin-top:3px;line-height:1.6;white-space:normal;word-break:break-word">❌ سبب الإلغاء: '+String(rs).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];})+'</div>':
+           (cx&&!(a&&a.note)?'<div style="font-size:'+(small?'.54rem':'.58rem')+';color:var(--r);margin-top:3px">⚠️ مفيش سبب للإلغاء مكتوب</div>':'');
+  var n=a&&a.note; if(!n) return rsH;
   var t=String(n).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
-  return '<div style="font-size:'+(small?'.56rem':'.6rem')+';color:var(--txt);background:rgba(250,204,21,.07);border-inline-start:2px solid rgba(250,204,21,.5);border-radius:5px;padding:2px 7px;margin-top:3px;line-height:1.6;white-space:normal;word-break:break-word">📝 '+t+'</div>';
+  return rsH+'<div style="font-size:'+(small?'.56rem':'.6rem')+';color:var(--txt);background:rgba(250,204,21,.07);border-inline-start:2px solid rgba(250,204,21,.5);border-radius:5px;padding:2px 7px;margin-top:3px;line-height:1.6;white-space:normal;word-break:break-word">📝 '+(cx?'<b>سبب الإلغاء / الملحوظة:</b> ':'')+t+'</div>';
 }
 var PAY_DATA=[];window.PAY_DATA=PAY_DATA;
 var PAY_SECTIONS=[
@@ -11762,7 +11765,8 @@ function planFuPanel(){
   var bk=R.filter(function(x){return x.state==='booked';}), cm=R.filter(function(x){return x.state==='came';});
   var pc=function(a){ return pool.length?Math.round(a*100/pool.length)+'%':'—'; };
   var first=function(n){ return String(n||'').trim().split(/\s+/)[0].toLowerCase(); };
-  var respOf=function(x){ var d=String(x.fu_date||'').slice(0,10), b=alBranchOf(x.doctor,x.branch); var a=PLAN_ST['asg|'+d+'|morning|call|'+b]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+d+'|'+b]; return r&&r.by?r.by:''; };
+  // مسئولة المتابعة: المتعيّنة في الخطة يومها، ولو مفيش → اللي عملت موعد المتابعة على Medicolize
+  var respOf=function(x){ var d=String(x.fu_date||'').slice(0,10), b=alBranchOf(x.doctor,x.branch); var a=PLAN_ST['asg|'+d+'|morning|call|'+b]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+d+'|'+b]; if(r&&r.by) return r.by; return x.fu_by||''; };
   var per={}, add=function(n,k){ if(!n) return; var o=per[n]||(per[n]={resp:0,came:0,booked:0,bookedBy:0}); o[k]++; };
   R.forEach(function(x){ var rs=respOf(x); add(rs,'resp'); if(rs) add(rs,x.state==='came'?'came':'booked'); if(x.ret_by) add(x.ret_by,'bookedBy'); });
   var names=Object.keys(per).sort(function(a,b){ return (per[b].resp+per[b].bookedBy)-(per[a].resp+per[a].bookedBy); });
@@ -11782,9 +11786,9 @@ function planFuPanel(){
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>'+alEsc(x.name)+'</b>'+
       (x.state==='came'?'<span style="color:var(--g);font-weight:800">✅ جه '+alEsc(alFmtDay(String(x.ret_date).slice(0,10)))+'</span>':'<span style="color:var(--am);font-weight:800">📅 حاجز '+alEsc(alFmtDay(String(x.ret_date).slice(0,10)))+' ('+alEsc(x.ret_status||'')+')</span>')+
       '<span style="color:var(--mute)">· اتتابع '+alEsc(alFmtDay(String(x.fu_date).slice(0,10)))+' ('+alEsc(x.fu_type||'')+(x.fu_count>1?' × '+x.fu_count:'')+')</span></div>'+
-      '<div style="margin-top:2px">👤 مسئولة المتابعة: <b>'+(rs?alEsc(rs):'<span style="color:var(--mute)">مش متسجّلة</span>')+'</b> · 📲 حجز الميعاد: <b style="color:'+(diff?'#f59e0b':'var(--txt)')+'">'+(by?alEsc(by):'<span style="color:var(--mute)">—</span>')+'</b>'+(diff?' <span style="color:#f59e0b">(حد تاني رجّعه)</span>':'')+'</div>'+
+      '<div style="margin-top:2px">👤 مسئولة المتابعة: <b>'+(rs?alEsc(rs):'<span style="color:var(--mute)">لسه مفيش بيانات</span>')+'</b> · 📲 حجز الميعاد: <b style="color:'+(diff?'#f59e0b':'var(--txt)')+'">'+(by?alEsc(by):'<span style="color:var(--mute)">—</span>')+'</b>'+(diff?' <span style="color:#f59e0b">(حد تاني رجّعه)</span>':'')+'</div>'+
       (x.fu_note?'<div style="color:var(--mute);margin-top:2px">📝 '+alEsc(x.fu_note)+'</div>':'')+'</div>'; }).join('')+'</div>';
-  return h+'<div style="font-size:.54rem;color:var(--mute);margin-top:6px">«مسئولة المتابعة» = اللي كانت متعيّنة على مكالمات المتابعة يوم ما المريض اتتابع (أو المسئولة عن الفرع) · «حجز الميعاد» = اسم الحساب اللي عمل الميعاد على Medicolize</div></div>';
+  return h+'<div style="font-size:.54rem;color:var(--mute);margin-top:6px">«مسئولة المتابعة» = اللي كانت متعيّنة على مكالمات المتابعة يوم ما المريض اتتابع، ولو مفيش تعيين = اللي عملت موعد المتابعة على Medicolize · «حجز الميعاد» = اسم الحساب اللي عمل الميعاد على Medicolize</div></div>';
 }
 function planState(t){
   var st=PLAN_ST[t.key]||{}, today=(ALERTS_DATA&&ALERTS_DATA.today)||'';

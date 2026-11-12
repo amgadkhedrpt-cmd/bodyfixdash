@@ -1055,8 +1055,11 @@ def build_alerts(appointments, now=None, packages=None):
                 m = MGR.search(n)
                 if not m:
                     continue
+                nx = min((x for x in appts if x["start"] > now and x["status"] not in NOT_FUTURE and x["doctor"].lower() not in SKIP_DOCS),
+                         key=lambda x: x["start"], default=None)
                 mgr.append({"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
-                            "time": a["start"].isoformat(), "type": a["type"], "status": a["status"].title(), "note": n[:400], "hit": m.group(0)})
+                            "time": a["start"].isoformat(), "type": a["type"], "status": a["status"].title(), "note": n[:400], "hit": m.group(0),
+                            "next": ({"time": nx["start"].isoformat(), "type": nx["type"], "status": nx["status"].title(), "doctor": nx["doctor"]} if nx else None)})
         mgr.sort(key=lambda x: x["time"], reverse=True)
         plan["manager"] = mgr
         plan["today"].sort(key=lambda x: x["time"])

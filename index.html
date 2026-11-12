@@ -11397,12 +11397,13 @@ var PLAN_NAMES_DEF=['Engy','Dalia','Mariam','Nada','Georgina','Bassant'];
 var PLAN_NAMES=PLAN_NAMES_DEF.slice(), PLAN_ST={}, PLAN_LOADED=false, PLAN_TIMER=null, PLAN_OPEN_DONE={};
 var PLAN_ME=''; try{ PLAN_ME=localStorage.getItem('planMe')||''; PLAN_ST=JSON.parse(localStorage.getItem('planSt')||'{}'); var _pn=JSON.parse(localStorage.getItem('planNames')||'null'); if(_pn&&_pn.length) PLAN_NAMES=_pn; }catch(e){}
 function planOpen(){
-  planRender(); [6000,15000,30000].forEach(function(ms){ setTimeout(function(){ var t=document.getElementById('tab-plan'); if(t&&t.classList.contains('active')) planRender(); },ms); });
+  planShiftsLoad(); planRender(); [6000,15000,30000].forEach(function(ms){ setTimeout(function(){ var t=document.getElementById('tab-plan'); if(t&&t.classList.contains('active')) planRender(); },ms); });
   if(!PLAN_LOADED) planLoad();
   if(typeof AUD_DATA!=='undefined'&&!AUD_DATA&&typeof audAutoLoad==='function'){ audAutoLoad(); var t=setInterval(function(){ if(AUD_DATA){ clearInterval(t); planRender(); } },1500); setTimeout(function(){clearInterval(t);},30000); }
   if(!PLAN_TIMER) PLAN_TIMER=setInterval(function(){ var tab=document.getElementById('tab-plan'); if(tab&&tab.classList.contains('active')) planLoad(); },120000);
 }
 function planLoad(){
+  try{ planShiftsLoad(); }catch(e){}
   if(typeof REQ_SCRIPT_URL==='undefined'||!REQ_SCRIPT_URL) return;
   var cb='_plan_'+Date.now(), sc=document.createElement('script'), done=false;
   var fin=function(){ if(done)return; done=true; try{document.head.removeChild(sc);}catch(e){} delete window[cb]; };
@@ -11483,7 +11484,7 @@ function planTasks(useAll){
   (P.manager||[]).filter(inb).forEach(function(x){
     var n=alEsc(x.note), h=alEsc(x.hit); if(h) n=n.split(h).join('<mark style="background:#fde68a;color:#111;border-radius:3px;padding:0 2px">'+h+'</mark>');
     add('mgr',{grp:['mgr'], key:'mgr|'+x.pid+'|'+x.time, icon:'👔', kind:alEsc(x.type)+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' '+alEsc(planT(x.time))+' · '+alEsc(x.status)+' · '+alEsc(doc(x.doctor)), name:x.name, phone:x.phone, br:brOf(x),
-      lines:['📝 '+n]});
+      lines:['📝 '+n, x.next?'📅 الميعاد الجاي: <b>'+alEsc(x.next.type)+'</b> '+alEsc(alFmtDay(String(x.next.time).slice(0,10)))+' '+alEsc(planT(x.next.time))+' مع '+alEsc(doc(x.next.doctor))+' · <b style="color:'+(/confirm/i.test(x.next.status)?'var(--g)':'var(--am)')+'">'+alEsc(x.next.status)+'</b>':'<span style="color:var(--r)">📅 مالوش ميعاد جاي</span>']});
   });
   // ☀️ أول الشيفت
   var stk=(typeof alStreaks==='function')?alStreaks():null;
@@ -11638,7 +11639,22 @@ var PLAN_GT={
 var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView')||''; }catch(e){}
 
 /* 👩‍💼 الإنجاز لكل سكرتيرة: المسئولة عن الفرع النهارده (اللي اختارت اسمها) — مهام فرعها اتعمل منها كام % · وكام مهمة عملتها بإيدها */
-function planOwner(t,g){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
+/* 🧾 «حصّل فلوس» مسئوليتها على اللي على الخزنة (من تاب التحصيل: «مين على الخزنة») وقت ميعاد المريض */
+var PLAN_SHIFTS=null, PLAN_SHIFTS_AT=0;
+function planShiftsLoad(){
+  if(Date.now()-PLAN_SHIFTS_AT<120000) return; PLAN_SHIFTS_AT=Date.now();
+  var c=(typeof bfSheetCfg==='function')?bfSheetCfg():null; if(!c||!c.url||!c.key||!ALERTS_DATA) return;
+  fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'get',path:'days/'+ALERTS_DATA.today+'/meta/shifts',key:c.key})})
+    .then(function(r){ return r.json(); }).then(function(j){ var d=j&&j.doc; PLAN_SHIFTS=(d&&(d.list||(d.data&&d.data.list)))||[]; planRender(); }).catch(function(){});
+}
+function planCashOwner(t){
+  if(!PLAN_SHIFTS||!PLAN_SHIFTS.length) return '';
+  var bk=t.br==='FIX ZONE'?'dokki':'haram', ref=t.time?new Date(t.time):new Date();
+  var mins=ref.getHours()*60+ref.getMinutes(), m=function(x){ var a=String(x||'').split(':'); return (+a[0])*60+(+a[1]||0); };
+  var hit=PLAN_SHIFTS.filter(function(sh){ return sh.branch===bk; }).find(function(sh){ var a=m(sh.from), b=sh.to?m(sh.to):24*60; return mins>=a&&mins<b; });
+  return hit?hit.name:'';
+}
+function planOwner(t,g){ if(g==='debt'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
 function planAssign(gk, v){
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   if(v==='__add'){ var n=prompt('اسم السكرتيرة الجديدة:'); if(!n||!n.trim()){ planRender(); return; } n=n.trim(); if(PLAN_NAMES.indexOf(n)<0){ PLAN_NAMES.push(n); try{ localStorage.setItem('planNames',JSON.stringify(PLAN_NAMES)); }catch(e){} planSaveRaw('PLANCFG|names', JSON.stringify(PLAN_NAMES)); } v=n; }
@@ -11659,16 +11675,17 @@ function planSecPanel(){
   var rows=names.map(function(n){
     var L=Object.keys(own[n]||{}).map(function(k){ return own[n][k]; }).filter(function(t){ return planState(t)!=='snz'; });
     var dn=L.filter(function(t){ return planState(t)==='done'; }).length, pc=L.length?Math.round(dn*100/L.length):null;
+    var sysD=L.filter(function(t){ return planState(t)==='done'&&(PLAN_ST[t.key]||{}).s!=='done'; }).length;
     var col=pc===null?'var(--mute)':pc>=80?'var(--g)':pc>=40?'var(--am)':'var(--r)';
     return '<tr style="border-top:1px solid var(--brd)"><td style="padding:6px 4px;font-weight:800">'+alEsc(n)+(n===PLAN_ME?' <span style="color:var(--mute);font-weight:400">(إنتي)</span>':'')+'</td>'+
       '<td style="text-align:center">'+(pc===null?'—':dn+' / '+L.length)+'</td>'+
       '<td style="text-align:center;min-width:90px">'+(pc===null?'<span style="color:var(--mute)">مفيش مهام عليها</span>':'<b style="color:'+col+';font-size:.78rem">'+pc+'%</b><div style="height:5px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:'+pc+'%;background:'+col+'"></div></div>')+'</td>'+
-      '<td style="text-align:center">'+Object.keys(hand[n]||{}).length+'</td></tr>';
+      '<td style="text-align:center">'+sysD+'</td><td style="text-align:center">'+Object.keys(hand[n]||{}).length+'</td></tr>';
   }).join('');
   return '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
     '<div style="font-weight:800;font-size:.72rem;margin-bottom:6px">👩‍💼 الإنجاز لكل سكرتيرة — النهارده</div>'+
-    '<table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr style="color:var(--mute);font-size:.56rem"><th style="text-align:right;padding:3px">السكرتيرة</th><th>مهامها اتعمل</th><th>نسبة الإنجاز</th><th>عملتها بإيدها</th></tr>'+rows+'</table>'+
-    '<div style="font-size:.54rem;color:var(--mute);margin-top:5px">مهامها = المهام اللي متعيّنة عليها جنب كل مهمة، والمهام اللي مش متعيّنة لحد بتروح للمسئولة عن الفرع (اللي اختارت اسمها فوق) · بيتحسب اللي اتعمل على السيستم كمان</div></div>';
+    '<table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr style="color:var(--mute);font-size:.56rem"><th style="text-align:right;padding:3px">السكرتيرة</th><th>مهامها اتعمل</th><th>نسبة الإنجاز</th><th>منهم على Medicolize</th><th>قفلتها بزرار ✅/📞</th></tr>'+rows+'</table>'+
+    '<div style="font-size:.54rem;color:var(--mute);margin-top:5px">مهامها = المهام المتعيّنة عليها جنب كل مهمة + مهام الفرع اللي مش متعيّنة لحد لو هي اختارت اسمها فوق · «حصّل فلوس» على اللي على الخزنة وقت ميعاد المريض · «على Medicolize» = اتعملت على السيستم واتقفلت لوحدها (حجز / تأكيد / ملحوظة …) وده شغلها برضه</div></div>';
 }
 
 function planSuddenMsg(name, br, noshow, second){
@@ -11737,6 +11754,7 @@ function planRow(t){
     '<div style="display:flex;gap:8px;align-items:flex-start"><span style="font-size:1rem">'+t.icon+'</span><div style="flex:1;min-width:0">'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:.74rem">'+alEsc(t.name||'')+'</b><span style="font-size:.6rem;color:var(--mute)">'+t.kind+'</span>'+(badge?'<span style="font-size:.6rem">'+badge+(st.by?' · '+alEsc(st.by)+' '+alEsc(st.at||''):'')+'</span>':'')+'</div>'+
       t.lines.filter(Boolean).map(function(l){ return '<div style="font-size:.64rem;margin-top:3px;line-height:1.6">'+l+'</div>'; }).join('')+
+      ((t.grp||[]).indexOf('debt')>=0&&planCashOwner(t)?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">🧾 مسئولة التحصيل (على الخزنة وقتها): <b style="color:var(--txt)">'+alEsc(planCashOwner(t))+'</b></div>':'')+
       (t.note0?'<div style="font-size:.6rem;color:var(--mute);margin-top:3px">📝 ملحوظة الموعد: '+alEsc(t.note0)+'</div>':'')+
       (state==='done'?(function(){ var w=t.what||(st.note?'📝 '+st.note:''); return w?'<div style="font-size:.64rem;margin-top:4px;background:rgba(16,185,129,.08);border-radius:6px;padding:3px 8px;color:var(--g)">📌 اللي اتعمل: '+(/<[a-z]/i.test(w)?w:alEsc(w))+'</div>':''; })():'')+
       (phone?'<a href="tel:'+alEsc(phone)+'" dir="ltr" style="display:inline-block;margin-top:5px;background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 8px;font-size:.6rem;text-decoration:none">📞 '+alEsc(phone)+'</a>':'')+
@@ -11770,7 +11788,7 @@ function planRender(){
     '<select onchange="PLAN_VIEW=this.value;try{localStorage.setItem(\'planView\',PLAN_VIEW)}catch(e){};planRender()" style="background:var(--bg);border:1px solid '+(PLAN_VIEW?'#ec4899':'var(--brd)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
       '<option value="">كل السكرتيرات</option>'+PLAN_NAMES.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label></div>'+
     '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
-      '<div style="display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:6px"><span>اتعمل <b style="color:var(--g)">'+dn+'</b> من <b>'+vis.length+'</b> مهمة'+(PLAN_ME?' · إنتي عملتي '+mine:'')+'</span><b>'+pc+'%</b></div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:6px"><span>اتعمل <b style="color:var(--g)">'+dn+'</b> من <b>'+vis.length+'</b> مهمة'+(PLAN_VIEW?' (مهام '+alEsc(PLAN_VIEW)+')':'')+' · منهم <b>'+vis.filter(function(t){ var x=PLAN_ST[t.key]||{}; return planState(t)==='done'&&x.s!=='done'; }).length+'</b> اتعملوا على Medicolize و<b>'+vis.filter(function(t){ return (PLAN_ST[t.key]||{}).s==='done'; }).length+'</b> اتقفلوا بزرار ✅</span><b>'+pc+'%</b></div>'+
       '<div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:linear-gradient(90deg,#10b981,#00c6ff)"></div></div>'+
       (PLAN_LOADED?'':'<div style="font-size:.56rem;color:var(--mute);margin-top:5px">⏳ بيجيب حالة المهام من الشيت...</div>')+'</div>';
   h+=planSecPanel();
@@ -11787,9 +11805,10 @@ function planRender(){
       var tot=A.length-snz.length, pc=tot?Math.round(done.length*100/tot):100, allDone=!open.length;
       var head='<div onclick="PLAN_OPEN_G[\''+gk+'\']=!PLAN_OPEN_G[\''+gk+'\'];planRender()" style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid '+(isOpen?'var(--acc,#00c6ff)':'var(--brd)')+';border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer'+(allDone?';opacity:.6':'')+'">'+
         '<span style="font-size:1rem">'+gt[0]+'</span><b style="font-size:.7rem;flex:1">'+gt[1]+'</b>'+
-        (function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', cur=''; alActiveBranches().some(function(b){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+b.key]; if(a&&a.by){ cur=a.by; return true; } return false; });
+        (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'<span title="المسئولة = اللي على الخزنة وقت ميعاد المريض (من تاب التحصيل)" style="font-size:.6rem;color:var(--mute);border:1px solid var(--brd);border-radius:7px;padding:2px 6px">🧾 حسب الخزنة</span>':'')+
+        (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', cur=''; alActiveBranches().some(function(b){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+b.key]; if(a&&a.by){ cur=a.by; return true; } return false; });
           return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value)" title="السكرتيرة المسئولة عن المهمة دي" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:110px">'+
-            '<option value="">👤 المسئولة…</option>'+PLAN_NAMES.map(function(n){ return '<option'+(n===cur?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option></select>'; })()+
+            '<option value="">👤 المسئولة…</option>'+PLAN_NAMES.map(function(n){ return '<option'+(n===cur?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option></select>'; })())+
         (allDone?'<span style="color:var(--g);font-size:.64rem;font-weight:800">✅ خلصت</span>':'<span style="background:'+(hot?'var(--r)':'#ec4899')+';color:#fff;border-radius:10px;padding:1px 10px;font-size:.68rem;font-weight:900">'+open.length+'</span>')+
         '<span style="width:60px;height:6px;background:var(--bg);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:'+pc+'%;background:var(--g)"></span></span>'+
         '<b style="font-size:.66rem;min-width:34px;text-align:center;color:'+(pc>=80?'var(--g)':pc>=40?'var(--am)':'var(--r)')+'">'+pc+'%</b>'+

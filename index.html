@@ -10510,7 +10510,8 @@ function alertsRender(){
   /* 0.2) المتابعات: رجعوا · اتصالات ناقصة · من غير ملحوظة · الترتيب */
   var fuS=fuSummary();
   if(fuS){
-    var box=function(cat,ic,t,n,col,sub){ return '<div onclick="event.stopPropagation();alertsOpenFU(\''+cat+'\')" style="flex:1 1 30%;min-width:96px;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:7px 4px;text-align:center;cursor:pointer">'+
+    var box=function(cat,ic,t,n,col,sub){ if(FU_ISSUE[cat]&&n){ var a=fuS.act[cat]||0;
+        sub='<span onclick="event.stopPropagation();FU_ACT=\'done\';alertsOpenFU(\''+cat+'\')" style="color:var(--g);cursor:pointer;text-decoration:underline dotted">✅ '+a+' اتعمل</span> · <span onclick="event.stopPropagation();FU_ACT=\'todo\';alertsOpenFU(\''+cat+'\')" style="color:'+(n-a?'var(--r)':'var(--mute)')+';cursor:pointer;text-decoration:underline dotted">⬜ '+(n-a)+' لسه</span>'; } return '<div onclick="event.stopPropagation();FU_ACT=\'\';alertsOpenFU(\''+cat+'\')" style="flex:1 1 30%;min-width:96px;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:7px 4px;text-align:center;cursor:pointer">'+
       '<div style="font-size:1.2rem;font-weight:900;color:'+col+'">'+n+'</div><div style="font-size:.56rem;color:var(--mute)">'+ic+' '+t+'</div>'+(sub?'<div style="font-size:.52rem;color:'+col+'">'+sub+'</div>':'')+'</div>'; };
     html+=alCard('#0ea5e9',
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:.95rem">📞</span><span style="font-weight:700;font-size:.76rem;flex:1">المتابعات — آخر أسبوعين</span><span style="font-size:.6rem;color:var(--mute)">'+fuS.pool+' مريض عليهم متابعه</span></div>'+
@@ -10522,7 +10523,7 @@ function alertsRender(){
         box('cbun','🕓','طلب نكلمه ومش محجوز',fuS.cbun,'#f97316')+
         box('order','🔢','الترتيب مش مظبوط',fuS.order,'#a855f7')+
       '</div>',
-      'alertsOpenFU(\'came\')');
+      'FU_ACT=\'\';alertsOpenFU(\'came\')');
   }
 
   /* 0.3) جه كشف ولسه متثبتش في شيت التثبيتات */
@@ -11158,11 +11159,12 @@ function fuRows(cat, ignoreFilters){
   var F=ALERTS_DATA&&ALERTS_DATA.followups; if(!F||ALERTS_DATA.today!==alCairoToday()) return [];
   var act=alActiveBranches().map(function(b){return b.key;}), late=fuCairoHour()>=21;
   var src = cat==='came'||cat==='booked' ? (F.returned||[]).filter(function(x){return x.state===cat;})
-          : cat==='order' ? (F.order||[])
+          : cat==='order' ? (F.order||[]).concat((F.resolved||[]).filter(function(x){ return x.cat==='order'; }).map(function(x){ return Object.assign({_done:true},x); }))
           : cat==='pool' ? (F.pool||[])
           : (F.calls||[]).filter(function(x){
               if(x.is_today&&!late) return false;   /* متابعات النهارده تظهر بعد 9 بالليل */
-              return cat==='calls'?(x.verdict==='few_calls'||x.verdict==='unclear'):cat==='nonote'?x.verdict==='no_note':x.verdict==='callback_unbooked'; });
+              return cat==='calls'?(x.verdict==='few_calls'||x.verdict==='unclear'):cat==='nonote'?x.verdict==='no_note':x.verdict==='callback_unbooked'; })
+              .concat((F.resolved||[]).filter(function(x){ return x.cat===cat&&!(x.is_today&&!late); }).map(function(x){ return Object.assign({_done:true},x); }));
   var td=alCairoToday(), dayDiff=function(iso){ return Math.round((new Date(td)-new Date(String(iso).slice(0,10)))/864e5); };
   return src.map(function(x){ return Object.assign({_br:alBranchOf(x.doctor,x.branch)}, x); }).filter(function(x){
     if(act.indexOf(x._br)<0) return false;
@@ -11175,10 +11177,14 @@ function fuRows(cat, ignoreFilters){
     return true;
   });
 }
+/* اتعمل النهارده في المتابعة: اتصلح على Medicolize (من المزامنة) — أو اتكتب تعليق في الكارت النهارده (تعليق بس) */
+var FU_ACT='', FU_ISSUE={calls:1, nonote:1, cbun:1, order:1};
+function fuActed(x){ if(x._done) return 'sys'; var n=(AL_NOTES[alNoteId(x)]||{}); return (String(n.at||'').slice(0,10)===alCairoToday()&&(n.text||'').trim())?'note':''; }
 function fuSummary(){
   var F=ALERTS_DATA&&ALERTS_DATA.followups; if(!F||ALERTS_DATA.today!==alCairoToday()) return null;
   return {pool:fuRows('pool',true).length, came:fuRows('came',true).length, booked:fuRows('booked',true).length,
-          calls:fuRows('calls',true).length, nonote:fuRows('nonote',true).length, cbun:fuRows('cbun',true).length, order:fuRows('order',true).length};
+          calls:fuRows('calls',true).length, nonote:fuRows('nonote',true).length, cbun:fuRows('cbun',true).length, order:fuRows('order',true).length,
+          act:(function(){ var o={}; ['calls','nonote','cbun','order'].forEach(function(c){ var L=fuRows(c,true); o[c]=L.filter(fuActed).length; }); return o; })()};
 }
 function fuSet(k,v){ FU_F[k]=v; alertsOpenFU(null, true); }
 function alertsOpenFU(cat, keepScroll, fromNotes){
@@ -11222,6 +11228,10 @@ function alertsOpenFU(cat, keepScroll, fromNotes){
     }
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-inline-start:3px solid '+col+';border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
       '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b><span style="font-size:.56rem;color:var(--mute)">'+alEsc(alDocAr(x.doctor)||x.doctor||'')+'</span></div>'+
+      (FU_ISSUE[FU_F.cat]?(function(){ var a=fuActed(x);
+        return a==='sys'?'<div style="font-size:.62rem;font-weight:800;color:var(--g);border:1px solid var(--g);border-radius:7px;padding:3px 8px;margin:3px 0">✅ اتصلحت على Medicolize '+alEsc(x.at||'')+': '+alEsc(x.what||'')+(x.by?' — <b>'+alEsc(x.by)+'</b>':'')+'</div>':
+               a==='note'?'<div style="font-size:.62rem;font-weight:800;color:#f59e0b;border:1px solid #f59e0b;border-radius:7px;padding:3px 8px;margin:3px 0">💬 اتكتب تعليق النهارده بس — لسه ما اتصلحش على السيستم</div>':
+               '<div style="font-size:.6rem;color:var(--r);margin:2px 0">⬜ محدش صلّحها لسه</div>'; })():'')+
       body+(phone?'<div style="margin-top:5px"><a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a></div>':'')+
       alNoteBox(x)+'</div>';
   }
@@ -11235,7 +11245,15 @@ function alertsOpenFU(cat, keepScroll, fromNotes){
       '<button onclick="document.getElementById(\'al-modal\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;cursor:pointer;font-family:Cairo,sans-serif">✕</button></div>'+chips+'</div>'+
     (FU_F.cat==='calls'||FU_F.cat==='nonote'||FU_F.cat==='cbun'?'<div style="font-size:.55rem;color:var(--mute);margin-bottom:8px">لو ما ردش: لازم 3 اتصالات في اليوم وجنب كل واحد وقته · لو رد وطلب نكلمه بعدين: مرة واحدة كفاية بس لازم يتحجزله متابعة · متابعات النهارده بتظهر هنا بعد الساعة 9 بالليل</div>':'')+
     (FU_F.cat==='order'?'<div style="font-size:.55rem;color:var(--mute);margin-bottom:8px">النظام: متابعه ×3 ← متابعه انقطاع ×3 يوم بعد يوم ← منقطع نهائي · واللي ما جاش لازم يتحجزله متابعه</div>':'')+
-    (rows.length?rows.map(row).join(''):'<div style="color:var(--mute);font-size:.66rem;padding:10px 0">مفيش في الفلتر ده ✅</div>')+'</div>';
+    (function(){
+      if(!FU_ISSUE[FU_F.cat]) return rows.length?rows.map(row).join(''):'<div style="color:var(--mute);font-size:.66rem;padding:10px 0">مفيش في الفلتر ده ✅</div>';
+      var done=rows.filter(fuActed), todo=rows.filter(function(x){ return !fuActed(x); });
+      var ab=function(v,t,col){ var on=FU_ACT===v; return '<button onclick="FU_ACT=\''+v+'\';alertsOpenFU(null,true)" style="border:1px solid '+(on?col:'var(--brd)')+';background:'+(on?col:'transparent')+';color:'+(on?'#fff':col)+';border-radius:14px;padding:4px 12px;font-family:Cairo,sans-serif;font-size:.64rem;font-weight:800;cursor:pointer">'+t+'</button>'; };
+      var sub=function(L,t,col){ return L.length?'<div style="font-size:.64rem;font-weight:800;color:'+col+';margin:8px 0 5px">'+t+' ('+L.length+')</div>'+L.map(row).join(''):''; };
+      return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'+ab('','كل الحالات ('+rows.length+')','var(--acc)')+ab('todo','⬜ لسه ('+todo.length+')','#ef4444')+ab('done','✅ اتعمل النهارده ('+done.length+')','#10b981')+'</div>'+
+        (FU_ACT!=='done'?sub(todo,'⬜ لسه محدش صلّحها','var(--r)'):'')+(FU_ACT!=='todo'?sub(done,'✅ اتعمل النهارده','var(--g)'):'')+
+        (!rows.length?'<div style="color:var(--mute);font-size:.66rem;padding:10px 0">مفيش في الفلتر ده ✅</div>':'');
+    })()+'</div>';
   document.body.appendChild(m);
   if(sc) m.firstChild.scrollTop=sc;
 }

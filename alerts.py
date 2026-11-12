@@ -1191,6 +1191,53 @@ def build_alerts(appointments, now=None, packages=None):
                 if not done_:
                     t_[1] = ""
             plan["times"] = times
+            # 📞 مشاكل المتابعة (اتصالات ناقصة / من غير ملحوظة / طلب نكلمه ومش محجوز / الترتيب): أول ما تظهر النهارده بتتسجل،
+            #    ولو اتصلحت على Medicolize بتفضل ظاهرة تحت «✅ اتعمل النهارده» ومعاها إيه اللي اتغير ومين
+            VCAT = {"few_calls": "calls", "unclear": "calls", "no_note": "nonote", "callback_unbooked": "cbun"}
+            cur_fu = {}
+            for r in fu_calls:
+                c = VCAT.get(r.get("verdict"))
+                if c:
+                    cur_fu[c + "|" + r["pid"] + "|" + r["date"]] = dict(r, cat=c)
+            for r in fu_order:
+                cur_fu["order|" + r["pid"] + "|" + r["date"] + "|" + str(r.get("issue", ""))] = dict(r, cat="order")
+            snap_f = seen.setdefault("fu_issues", {})
+            for k, r in cur_fu.items():
+                if k in snap_f:
+                    snap_f[k].pop("fixed_at", None)          # رجعت تاني → لسه
+                if k not in snap_f:
+                    snap_f[k] = {f: r.get(f) for f in ("cat", "pid", "name", "phone", "doctor", "branch", "date", "kind", "step", "type",
+                                                       "note", "verdict", "detail", "issue", "is_today", "referral", "age") if r.get(f) is not None}
+                    snap_f[k]["seen"] = hm
+            by_pid_f = defaultdict(list)
+            for v in patients_all.values():
+                for a in v:
+                    by_pid_f[a["pid"]].append(a)
+            fu_resolved = []
+            for k, x in snap_f.items():
+                if k in cur_fu:
+                    continue
+                ap = sorted(by_pid_f.get(x.get("pid"), []), key=lambda a: a["start"])
+                try:
+                    d0 = datetime.fromisoformat(x.get("date"))
+                except Exception:
+                    d0 = None
+                same = next((a for a in ap if d0 and a["start"] == d0), None)
+                nxt = next((a for a in ap if d0 and a["start"] > d0 and a["status"] not in ("canceled", "cancelled")), None)
+                parts, by_ = [], ""
+                if same and (same.get("note") or "").strip() and (same.get("note") or "").strip() != (x.get("note") or "").strip():
+                    parts.append("الملحوظة اتحدّثت: " + (same.get("note") or "").strip()[:160])
+                if nxt:
+                    parts.append("اتحجز " + nxt["type"] + " يوم " + nxt["start"].strftime("%d/%m"))
+                    by_ = nxt.get("by") or ""
+                if same and not parts:
+                    parts.append("الموعد اتعدّل: " + same["type"] + " · " + same["status"].title())
+                if not same and not parts:
+                    parts.append("الموعد اتشال / اتعدّل")
+                if not x.get("fixed_at"):
+                    x["fixed_at"] = hm
+                fu_resolved.append(dict(x, key=k, what=" · ".join(parts), by=by_, at=x["fixed_at"]))
+            followups["resolved"] = fu_resolved
             # 📞 مواعيد النهارده لسه Open (مش Confirmed) → تأكيد على مسئولة الشيفت الصباحي · بتتقفل لما الحالة تتغير
             tod_open = {}
             for v in patients_all.values():

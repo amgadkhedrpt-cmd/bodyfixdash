@@ -11782,7 +11782,7 @@ function planRow(t){
 }
 function planRender(){
   var box=document.getElementById('planBox'); if(!box) return;
-  var T=planTasks();
+  var T; try{ T=planTasks(); }catch(err){ box.innerHTML='<div style="padding:24px;text-align:center;color:var(--r)">⚠️ حصلت مشكلة في عرض خطة اليوم — اعمل Refresh. لو فضلت، ابعت الرسالة دي: '+alEsc(String(err&&err.message||err))+'</div>'; return; }
   if(!T){ box.innerHTML='<div style="padding:30px;text-align:center;color:var(--mute)">⏳ بيحمل التنبيهات...</div>'; if(typeof alertsLoad==='function'&&!ALERTS_DATA) alertsLoad(); return; }
   var all=[].concat(T.mgr,T.morning,T.rec,T.office,T.evening), today=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   PLAN_TASKIDX={}; all.forEach(function(t){ PLAN_TASKIDX[t.key]=t; });

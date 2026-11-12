@@ -3823,8 +3823,7 @@ function audAutoRun(){
   if(d.debts){
     var act={}; d.appts.concat(d.steps).forEach(function(r){ if(inR(r)&&r.pid&&(!act[r.pid]||r.d>act[r.pid])) act[r.pid]=r.d; });
     var cur=d.debts.filter(function(r){ return inR(r)&&L.S[audN(r.s)]; });
-    var old=d.debts.filter(function(r){ return r.d<f&&act[r.pid]&&L.S[audN(r.s)]; }).map(function(r){ return Object.assign({},r,{old:1,seen:act[r.pid]}); });
-    AUD_UNPAID=cur.concat(old);
+    AUD_UNPAID=cur;
   } else AUD_UNPAID=S.filter(function(r){return r.u;});
   AUD_UNPAID.sort(function(a,b){ return (a.old||0)-(b.old||0) || (a.d<b.d?1:a.d>b.d?-1:0); });
   audUnpaidRender();
@@ -4884,7 +4883,7 @@ font-size: 13px; align-items: center; transition: background 0.1s;
 
   <div class="card" id="audUnpaidCard">
     <div class="card-title">💸 خدمات غير مدفوعة <span id="audUnpaidN" style="color:#E74C3C"></span></div>
-    <div style="font-size:12px;color:#94A3B8;margin-bottom:10px">خطوات C المدفوع جنبها أقل من (الـ Total − الخصم)، ومفيش فلوس على خطوات P في نفس الباقة تغطيها. «مدفوع» = اللي اتدفع للخدمة (شامل اللي اتغطى من P) · «باقي» = اللي ناقص عشان تتغطى. الجزء البرتقالي تحت: مرضى جم في الفترة اللي اخترتها، وعليهم خدمات من قبلها لسه مش مدفوعة (ومكتوب جم إمتى).</div>
+    <div style="font-size:12px;color:#94A3B8;margin-bottom:10px">خطوات C المدفوع جنبها أقل من (الـ Total − الخصم)، ومفيش فلوس على خطوات P في نفس الباقة تغطيها. «مدفوع» = اللي اتدفع للخدمة (شامل اللي اتغطى من P) · «باقي» = اللي ناقص عشان تتغطى.</div>
     <div class="table-wrap">
       <div class="table-head" style="grid-template-columns:95px 1.3fr 1fr 1fr 70px 90px 90px 150px"><div>التاريخ</div><div>المريض</div><div>الدكتور</div><div>الخدمة</div><div>الفرع</div><div>مدفوع</div><div>باقي</div><div>ملحوظة</div></div>
       <div class="table-body" id="audUnpaidBody"><div class="empty">⏳</div></div>

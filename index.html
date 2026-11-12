@@ -11581,15 +11581,29 @@ function planTasks(useAll){
       lines:['مع '+alEsc(doc(x.doctor))+' '+alEsc(planT(x.kashf_date))]});
   });
   (D.sudden||[]).filter(function(x){ return inb(x)&&String(x.date).slice(0,10)===today; }).forEach(function(x){
-    add('evening',{grp:['sudden'], key:today+'|sudden|'+x.pid, icon:'⚡', kind:(x.kind==='noshow'?'No Show':'اعتذار مفاجئ')+' النهارده — سجّل السبب وحدد ميعاد', name:x.name, phone:x.phone, br:brOf(x),
-      lines:[alEsc(x.type)+' '+alEsc(planT(x.date))+' مع '+alEsc(doc(x.doctor))+((x.prior_sudden&&x.prior_sudden.length)||x.prior_noshow?' · <span style="color:var(--r)">متكرر</span>':''), x.note?'📝 '+alEsc(x.note):'']});
+    var k=today+'|sudden|'+x.pid, n=(x.prior_sudden||[]).length, second=n>=1;
+    var wa=PLAN_ST[k+'|wa'], conv=!!x.converted;
+    var ded=false; if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.steps) ded=AUD_DATA.steps.some(function(r){ return r.pid===x.pid&&r.d===today&&/complet/i.test(r.st||''); });
+    var ok=function(b,t){ return '<div style="font-size:.64rem;margin-top:3px">'+(b?'<span style="color:var(--g)">✅</span> ':'<span style="color:var(--r)">⬜</span> ')+t+'</div>'; };
+    var digits=String(x.phone||'').replace(/\D/g,''), br=alBranchOf(x.doctor,x.branch)==='FIX ZONE'?'FIX ZONE':'BODYFIX';
+    var msg=planSuddenMsg(x.name, br, x.kind==='noshow', second);
+    var waBtn=digits?'<a href="https://wa.me/'+digits+'?text='+encodeURIComponent(msg)+'" target="_blank" onclick="planWa(\''+k+'\')" style="display:inline-block;margin-top:4px;background:#25D366;color:#06281a;border-radius:7px;padding:3px 10px;font-size:.62rem;font-weight:800;text-decoration:none">📲 ابعت رسالة واتساب '+(second?'(تاني مرة — خصم)':'(أول مرة)')+'</a>':'';
+    var done=!!wa&&conv&&(!second||ded);
+    add('office',{grp:['sudden'], sys:done?'كل الخطوات اتعملت':'', key:k, icon:'⚡',
+      kind:(x.kind==='noshow'?'No Show':'اعتذار مفاجئ')+' النهارده — '+(second?'<b style="color:var(--r)">مرة '+(n+1)+' (خصم جلسة)</b>':'<b>أول مرة</b>'),
+      name:x.name, phone:x.phone, br:brOf(x),
+      lines:[alEsc(x.type)+' '+alEsc(planT(x.date))+' مع '+alEsc(doc(x.doctor))+(n?' · مرات قبل كده: '+x.prior_sudden.map(alFmtDay).join('، '):''),
+             x.note?'📝 '+alEsc(x.note):'',
+             ok(!!wa,'رسالة واتساب'+(wa?' <span style="color:var(--mute)">— '+alEsc(wa.by||'')+' '+alEsc(wa.at||'')+'</span>':'')+'<br>'+waBtn),
+             ok(conv,'الموعد اتحول لـ «الغاء مفاجئ» وبقى Completed على Medicolize'),
+             second?ok(ded,'الجلسة اتخصمت (خطوة عملية Completed النهارده)'):'']});
   });
   return T;
 }
 var PLAN_GT={
   call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي'], drop:['🚶','مرضى جداد وقفوا بدري'],
   renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','حصّل فلوس'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
-  stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده وما حجزش'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده']
+  stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده وما حجزش'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — رسالة + تسجيل + خصم']
 };
 var PLAN_OPEN_G={};
 
@@ -11618,6 +11632,19 @@ function planSecPanel(){
     '<div style="font-weight:800;font-size:.72rem;margin-bottom:6px">👩‍💼 الإنجاز لكل سكرتيرة — النهارده</div>'+
     '<table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr style="color:var(--mute);font-size:.56rem"><th style="text-align:right;padding:3px">السكرتيرة</th><th>مسئولة عن</th><th>مهام الفرع اتعمل</th><th>نسبة الإنجاز</th><th>عملتها بإيدها</th></tr>'+rows+'</table>'+
     '<div style="font-size:.54rem;color:var(--mute);margin-top:5px">نسبة الإنجاز = اللي اتعمل من مهام الفرع اللي هي مسئولة عنه (شامل اللي اتعمل على السيستم: '+sysN+' مهمة) · «عملتها بإيدها» = دوست ✅ أو 📞 ما ردش</div></div>';
+}
+
+function planSuddenMsg(name, br, noshow, second){
+  var first=String(name||'').split(' ')[0];
+  var what=noshow?'ما حضرتش ميعاد جلستك النهارده':'ميعاد جلستك النهارده اتلغى قبلها بوقت قصير';
+  return 'أهلاً '+first+' 🌷\nمعاك '+br+'.\n'+what+'.\n'+
+    (second?'وده تاني مرة يحصل، فحسب سياسة المركز الجلسة اتخصمت من رصيد باقتك.\n':'نحب نفكّرك إن الاعتذار لازم يكون قبل الميعاد بـ 3 ساعات على الأقل، وفي حالة التكرار الجلسة بتتخصم من الباقة.\n')+
+    'يسعدنا نحددلك ميعاد جديد — ابعتلنا الوقت المناسب ليك 🙏';
+}
+function planWa(k){
+  var o={s:'wa', by:PLAN_ME||'', at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
+  PLAN_ST[k+'|wa']=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
+  planSaveRaw('PLAN|'+k+'|wa', JSON.stringify(o)); setTimeout(planRender,300);
 }
 function planState(t){
   var st=PLAN_ST[t.key]||{}, today=(ALERTS_DATA&&ALERTS_DATA.today)||'';

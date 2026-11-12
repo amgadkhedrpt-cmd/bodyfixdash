@@ -12694,6 +12694,12 @@ function alPickChips(kind){
     return r.filter(function(x){ if(kind==='streaks'){ var g=AL_STREAK_GROUPS[+v]; return alGrpHas(g,x); } if(kind==='milestones') return String(x.session_no)===v; return x._br===v; }).length;
   };
   d.innerHTML=chip('','الكل ('+cnt('')+')')+alPickOptions(kind).map(function(o){ return chip(o.v,o.t+' ('+cnt(o.v)+')'); }).join('');
+  if(kind==='streaks'&&full&&full.rows){   // ⬜ لسه / ✅ اتعمل النهارده — على كل المجموعات
+    var base2=(full.rows||[]).filter(function(x){ return !x.removed&&(!AL_PICK||AL_PICK.kind!==kind||isNaN(+AL_PICK.val)||alGrpHas(AL_STREAK_GROUPS[+AL_PICK.val],x)); });
+    var nD=base2.filter(alActedToday).length, nT=base2.length-nD, pv2=(AL_PICK&&AL_PICK.kind===kind?'\''+AL_PICK.val+'\'':'null');
+    var ab=function(v,t,col){ var on=AL_ACT_F===v; return '<button onclick="AL_ACT_F=\''+v+'\';alOpenPick(\'streaks\','+pv2+')" style="border:1px solid '+(on?col:'var(--brd)')+';background:'+(on?col:'transparent')+';color:'+(on?'#fff':col)+';border-radius:14px;padding:4px 12px;font-family:Cairo,sans-serif;font-size:.64rem;font-weight:800;cursor:pointer">'+t+'</button>'; };
+    d.innerHTML+='<span style="width:100%;height:0"></span>'+ab('','كل الحالات ('+base2.length+')','var(--acc)')+ab('todo','⬜ لسه محدش عمل حاجة ('+nT+')','#ef4444')+ab('done','✅ اتعمل النهارده ('+nD+')','#10b981');
+  }
   if(kind==='milestones'){
     var base=(full&&full.rows||[]).filter(function(x){ return !AL_PICK||AL_PICK.kind!==kind||String(x.session_no)===AL_PICK.val; });
     var nIn=base.filter(alInSession).length;

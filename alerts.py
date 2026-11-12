@@ -609,13 +609,17 @@ def build_alerts(appointments, now=None, packages=None):
                 nb = sorted([x for x in srt if x["start"] > a["start"] and x["doctor"].lower() not in SKIP_DOCS
                              and x["status"] not in ("canceled", "cancelled", "no show", "noshow", "note", "waiting list", "waiting")
                              and not _fu_kind(x["type"])], key=lambda x: x["start"])
+                nf = sorted([x for x in srt if x["start"] > a["start"] and x["status"] not in ("canceled", "cancelled", "no show", "noshow")],
+                            key=lambda x: x["start"])   # أي خطوة جاية محجوزة (متابعة تانية / منقطع نهائي / ميعاد)
                 res = ("حجز: " + nb[0]["type"] + " يوم " + nb[0]["start"].strftime("%d/%m") + " " + nb[0]["start"].strftime("%H:%M")
                        + " مع " + nb[0]["doctor"] + " (" + nb[0]["status"].title() + ")") if nb else ""
                 calls_today.append({"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
                                     "time": a["start"].isoformat(), "type": a["type"], "step": step(a), "status": a["status"].title(),
                                     "note": note[:300], "times": times, "verdict": verdict, "reached": reached or cb, "result": res,
-                                    # تمت: (1) المريض حجز ميعاد بعد المتابعة، أو (2) الموعد Completed + ملحوظة باللي حصل، أو (3) اتصالين على الأقل مكتوب وقتهم
-                                    "done": bool(nb) or (a["status"] in ATTENDED and bool(note.strip())) or len(times) >= 2})
+                                    "next_fu": (nf[0]["type"] + " يوم " + nf[0]["start"].strftime("%d/%m")) if nf else "",
+                                    # تمت: (1) المريض حجز ميعاد بعد المتابعة، أو (2) ملحوظة باللي حصل (أو اتصالين بوقتهم) + الخطوة الجاية محجوزة
+                                    #       (متابعة تانية / منقطع نهائي) — «هيتوقف شوية» مش عذر، لازم يتحجز ميعاد نتابعه فيه
+                                    "done": bool(nb) or ((a["status"] in ATTENDED and bool(note.strip()) or len(times) >= 2) and bool(nf))})
             if verdict in ("ok", "callback_ok"):
                 continue
             rec = base(a, {"date": a["start"].isoformat(), "kind": _fu_kind(a["type"]), "step": step(a), "type": a["type"],
@@ -1102,7 +1106,9 @@ def build_alerts(appointments, now=None, packages=None):
                           r"غلط ?في ?(?:الحساب|الفاتور)|اتخصم ?غلط|زياد[هة] ?في ?السعر|غالي|السعر|خصم|"
                           r"يغير ?الدكتور|تغيير ?الدكتور|مش ?مرتاح|مش ?مرتاحه|معامل[هة]|اسلوب|أسلوب|وحش|سيئ|"
                           r"اتأخر ?عليه|اتاخر ?عليه|استنى ?كتير|استنت ?كتير|التأخير|"
-                          r"الوجع ?زاد|الألم ?زاد|الالم ?زاد|تعب ?بعد ?الجلس|اتعور|اصاب[هة]|إصاب[هة]|حرق|كدمه|التهاب", _re.I)
+                          r"الوجع ?زاد|الألم ?زاد|الالم ?زاد|تعب ?بعد ?الجلس|اتعور|اصاب[هة]|إصاب[هة]|حرق|كدمه|التهاب|"
+                          r"(?<!خطوة )(?<!خطوه )(?<!خطوات )عملي[هةات]|جراح[هةي]", _re.I)
+        SURG = _re.compile(r"(?<!خطوة )(?<!خطوه )(?<!خطوات )عملي[هةات]|جراح[هةي]", _re.I)
         mgr = []
         for appts in patients_all.values():
             for a in appts:
@@ -1114,8 +1120,13 @@ def build_alerts(appointments, now=None, packages=None):
                     continue
                 nx = min((x for x in appts if x["start"] > now and x["status"] not in NOT_FUTURE and x["doctor"].lower() not in SKIP_DOCS),
                          key=lambda x: x["start"], default=None)
+                surg = bool(SURG.search(n))
+                # عملية: الموضوع ما بيخلصش غير لما يتحجز له متابعة مع د. أمجد بعدها
+                amg = min((x for x in appts if x["start"] > a["start"] and "amgad" in x["doctor"].lower()
+                           and x["status"] not in ("canceled", "cancelled", "no show", "noshow")), key=lambda x: x["start"], default=None) if surg else None
                 mgr.append({"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
                             "time": a["start"].isoformat(), "type": a["type"], "status": a["status"].title(), "note": n[:400], "hit": m.group(0),
+                            "surgery": surg, "amgad_fu": ({"time": amg["start"].isoformat(), "type": amg["type"], "status": amg["status"].title()} if amg else None),
                             "next": ({"time": nx["start"].isoformat(), "type": nx["type"], "status": nx["status"].title(), "doctor": nx["doctor"]} if nx else None)})
         mgr.sort(key=lambda x: x["time"], reverse=True)
         plan["manager"] = mgr

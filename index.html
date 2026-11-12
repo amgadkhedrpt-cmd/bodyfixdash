@@ -11547,8 +11547,9 @@ function planTasks(useAll){
   // 👔 محتاج المدير
   (P.manager||[]).filter(inb).forEach(function(x){
     var n=alEsc(x.note), h=alEsc(x.hit); if(h) n=n.split(h).join('<mark style="background:#fde68a;color:#111;border-radius:3px;padding:0 2px">'+h+'</mark>');
-    add('mgr',{grp:['mgr'], key:'mgr|'+x.pid+'|'+x.time, icon:'👔', kind:alEsc(x.type)+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' '+alEsc(planT(x.time))+' · '+alEsc(x.status)+' · '+alEsc(doc(x.doctor)), name:x.name, phone:x.phone, br:brOf(x),
-      lines:['📝 '+n, x.next?'📅 الميعاد الجاي: <b>'+alEsc(x.next.type)+'</b> '+alEsc(alFmtDay(String(x.next.time).slice(0,10)))+' '+alEsc(planT(x.next.time))+' مع '+alEsc(doc(x.next.doctor))+' · <b style="color:'+(/confirm/i.test(x.next.status)?'var(--g)':'var(--am)')+'">'+alEsc(x.next.status)+'</b>':'<span style="color:var(--r)">📅 مالوش ميعاد جاي</span>']});
+    var sgDone=x.surgery&&x.amgad_fu;
+    add('mgr',{grp:['mgr'], sys:sgDone?'اتحجزله متابعة مع د. أمجد':'', what:sgDone?('متابعة مع د. أمجد '+alFmtDay(String(x.amgad_fu.time).slice(0,10))+' '+planT(x.amgad_fu.time)):'', key:'mgr|'+x.pid+'|'+x.time, icon:x.surgery?'🩺':'👔', kind:alEsc(x.type)+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' '+alEsc(planT(x.time))+' · '+alEsc(x.status)+' · '+alEsc(doc(x.doctor)), name:x.name, phone:x.phone, br:brOf(x),
+      lines:['📝 '+n, x.surgery?(x.amgad_fu?'<span style="color:var(--g)">🩺 اتحجزله متابعة مع د. أمجد: '+alEsc(x.amgad_fu.type)+' '+alEsc(alFmtDay(String(x.amgad_fu.time).slice(0,10)))+' '+alEsc(planT(x.amgad_fu.time))+' ('+alEsc(x.amgad_fu.status)+')</span>':'<b style="color:var(--r)">🩺 هيعمل عملية — لازم يتحجزله متابعة مع د. أمجد بعد العملية (الموضوع ما خلصش)</b>'):'', x.next?'📅 الميعاد الجاي: <b>'+alEsc(x.next.type)+'</b> '+alEsc(alFmtDay(String(x.next.time).slice(0,10)))+' '+alEsc(planT(x.next.time))+' مع '+alEsc(doc(x.next.doctor))+' · <b style="color:'+(/confirm/i.test(x.next.status)?'var(--g)':'var(--am)')+'">'+alEsc(x.next.status)+'</b>':'<span style="color:var(--r)">📅 مالوش ميعاد جاي</span>']});
   });
   // ☀️ أول الشيفت
   // ⏳ الويتنج: النهارده + يوم الشغل الجاي — بتتقفل لما الميعاد يتنقل/يتلغى أو تتكتب ملحوظة النهارده
@@ -11583,8 +11584,9 @@ function planTasks(useAll){
   CT.filter(inb).forEach(function(x){
     var ok=!!x.done, tm=(x.times||[]);
     // اللي اتعمل على السيستم: حجز بعد المتابعة / الحالة / الملحوظة / عدد الاتصالات
-    var why=x.result?'المريض حجز بعد المتابعة':(/completed|checked|progress/i.test(x.status||'')&&(x.note||'').trim())?'الموعد Completed وفيه ملحوظة':tm.length>=2?'اتكتب '+tm.length+' اتصالات بوقتها':'';
-    var miss=[]; if(!x.result){ if(!/completed|checked|progress/i.test(x.status||'')) miss.push('الموعد لسه <b>'+alEsc(x.status||'')+'</b> — يتقفل Completed بعد الاتصال'); if(!(x.note||'').trim()) miss.push('مفيش ملحوظة باللي حصل'); else if(tm.length<2&&!/completed|checked|progress/i.test(x.status||'')) miss.push('لو ما ردش: اكتبي وقت كل محاولة (محتاجين محاولتين على الأقل)'); }
+    var why=x.result?'المريض حجز بعد المتابعة':((/completed|checked|progress/i.test(x.status||'')&&(x.note||'').trim())?'الموعد Completed وفيه ملحوظة':tm.length>=2?'اتكتب '+tm.length+' اتصالات بوقتها':'')+(x.next_fu&&!x.result?' + اتحجز '+x.next_fu:'');
+    var miss=[]; if(!x.result){ if(!/completed|checked|progress/i.test(x.status||'')) miss.push('الموعد لسه <b>'+alEsc(x.status||'')+'</b> — يتقفل Completed بعد الاتصال'); if(!(x.note||'').trim()) miss.push('مفيش ملحوظة باللي حصل'); else if(tm.length<2&&!/completed|checked|progress/i.test(x.status||'')) miss.push('لو ما ردش: اكتبي وقت كل محاولة (محتاجين محاولتين على الأقل)');
+      if(!x.next_fu) miss.push('<b>لازم يتحجز ميعاد متابعة جاي</b> — حتى لو قال هيتوقف شوية / مسافر، نحدد يوم نكلمه فيه'); }
     add('morning',{grp:['call'], sys:ok?why:'', what:ok?((x.result?'📅 '+x.result+' · ':'')+(x.note?'📝 '+x.note:'')):'', key:today+'|call|'+x.pid, icon:'📞', kind:'مكالمة متابعة — '+alEsc(x.type||'')+(x.step?' '+x.step:''), name:x.name, phone:x.phone, br:brOf(x),
       lines:['الموعد على Medicolize: <b style="color:'+(/completed|checked|progress/i.test(x.status||'')?'var(--g)':'var(--am)')+'">'+alEsc(x.status||'')+'</b>'+(tm.length?' · اتصالات مكتوبة: '+tm.map(alEsc).join('، '):''),
              x.note?'📝 '+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة لسه</span>',

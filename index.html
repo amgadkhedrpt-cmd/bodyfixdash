@@ -11433,6 +11433,22 @@ function planBR(){
 var PLAN_NAMES_DEF=['Engy','Dalia','Mariam','Nada','Georgina','Bassant'];
 var PLAN_NAMES=PLAN_NAMES_DEF.slice(), PLAN_ST={}, PLAN_LOADED=false, PLAN_TIMER=null, PLAN_OPEN_DONE={};
 var PLAN_ME=''; try{ PLAN_ME=localStorage.getItem('planMe')||''; PLAN_ST=JSON.parse(localStorage.getItem('planSt')||'{}'); var _pn=JSON.parse(localStorage.getItem('planNames')||'null'); if(_pn&&_pn.length) PLAN_NAMES=_pn; }catch(e){}
+/* أسامي السكرتيرات لكل فرع لوحده — الشيت: PLANCFG|names|<الفرع> (الهرم بياخد القايمة القديمة لو لسه مفيش) */
+var PLAN_NAMES_BR={'BODYFIX Center':PLAN_NAMES.slice(), 'FIX ZONE':[]};
+try{ var _pnb=JSON.parse(localStorage.getItem('planNamesBr')||'null'); if(_pnb) Object.keys(_pnb).forEach(function(k){ if(_pnb[k]) PLAN_NAMES_BR[k]=_pnb[k]; }); }catch(e){}
+function planShiftBr(x){ return x&&x.branch==='dokki'?'FIX ZONE':'BODYFIX Center'; }
+/* أسامي الفرع = المتسجلة للفرع + اللي مسجّلين شيفت خزنة النهارده في نفس الفرع */
+function planNames(bkey){
+  var out=(PLAN_NAMES_BR[bkey]||[]).slice();
+  (PLAN_SHIFTS||[]).forEach(function(x){ var n=String(x.name||'').trim(); if(n&&planShiftBr(x)===bkey&&out.indexOf(n)<0) out.push(n); });
+  return out;
+}
+function planNamesAll(){ var out=[]; planBR().forEach(function(b){ planNames(b.key).forEach(function(n){ if(out.indexOf(n)<0) out.push(n); }); }); return out; }
+function planAddName(n, bkey){
+  var L=PLAN_NAMES_BR[bkey]=PLAN_NAMES_BR[bkey]||[]; if(L.indexOf(n)>=0) return;
+  L.push(n); try{ localStorage.setItem('planNamesBr',JSON.stringify(PLAN_NAMES_BR)); }catch(e){}
+  planSaveRaw('PLANCFG|names|'+bkey, JSON.stringify(L));
+}
 function planOpen(){
   planShiftsLoad(); planRender(); [6000,15000,30000].forEach(function(ms){ setTimeout(function(){ var t=document.getElementById('tab-plan'); if(t&&t.classList.contains('active')) planRender(); },ms); });
   if(!PLAN_LOADED) planLoad();
@@ -11449,10 +11465,11 @@ function planLoad(){
     var r=(data&&data.reasons)||{}, st={};
     Object.keys(r).forEach(function(k){
       var v=String(r[k]||'').trim(); if(!v) return;
-      if(k==='PLANCFG|names'){ try{ var a=JSON.parse(v); if(a&&a.length){ PLAN_NAMES=a; localStorage.setItem('planNames',JSON.stringify(a)); } }catch(e){} return; }
+      if(k==='PLANCFG|names'){ try{ var a=JSON.parse(v); if(a&&a.length){ PLAN_NAMES=a; localStorage.setItem('planNames',JSON.stringify(a)); if(!r['PLANCFG|names|BODYFIX Center']) PLAN_NAMES_BR['BODYFIX Center']=a.slice(); } }catch(e){} return; }
+      if(k.indexOf('PLANCFG|names|')===0){ try{ var b=JSON.parse(v); if(b) PLAN_NAMES_BR[k.slice(14)]=b; }catch(e){} return; }
       if(k.indexOf('PLAN|')===0){ try{ st[k.slice(5)]=JSON.parse(v); }catch(e){} }
     });
-    PLAN_ST=st; PLAN_LOADED=true; try{ localStorage.setItem('planSt',JSON.stringify(st)); }catch(e){}
+    PLAN_ST=st; PLAN_LOADED=true; try{ localStorage.setItem('planSt',JSON.stringify(st)); localStorage.setItem('planNamesBr',JSON.stringify(PLAN_NAMES_BR)); }catch(e){}
     fin(); var typing=document.activeElement&&document.getElementById('planBox')&&document.getElementById('planBox').contains(document.activeElement)&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if(!typing) planRender();
   };
@@ -11469,13 +11486,15 @@ function planSaveRaw(reqId, val, onok){
 }
 function planSetMe(v){
   if(v==='__add'){
-    var n=prompt('اسم السكرتيرة الجديدة:'); if(!n||!n.trim()){ planRender(); return; } n=n.trim();
-    if(PLAN_NAMES.indexOf(n)<0){ PLAN_NAMES.push(n); try{ localStorage.setItem('planNames',JSON.stringify(PLAN_NAMES)); }catch(e){} planSaveRaw('PLANCFG|names', JSON.stringify(PLAN_NAMES)); }
+    var brs=planBR(), n=prompt('اسم السكرتيرة الجديدة'+(brs.length===1?' ('+brs[0].label+')':'')+':'); if(!n||!n.trim()){ planRender(); return; } n=n.trim();
+    brs.forEach(function(b){ planAddName(n,b.key); });
     v=n;
   }
   PLAN_ME=v; try{ localStorage.setItem('planMe',v); }catch(e){}
   if(v&&ALERTS_DATA){ var td=ALERTS_DATA.today||'';
-    planBR().forEach(function(b){ var k='resp|'+td+'|'+b.key, cur=PLAN_ST[k]||{};
+    // مسئولة عن فرعها بس (لو اسمها متسجل في فرع واحد)
+    var mineBr=planBR().filter(function(b){ return planNames(b.key).indexOf(v)>=0; }); if(!mineBr.length) mineBr=planBR();
+    mineBr.forEach(function(b){ var k='resp|'+td+'|'+b.key, cur=PLAN_ST[k]||{};
       if(cur.by===v) return; var o={s:'resp', by:v, at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
       PLAN_ST[k]=o; planSaveRaw('PLAN|'+k, JSON.stringify(o)); }); try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} }
   planRender();
@@ -11720,7 +11739,11 @@ function planCashOwner(t){
 function planOwner(t,g){ if(g==='debt'||g==='debtph'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
 function planAssign(gk, v, bkey){
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||'';
-  if(v==='__add'){ var n=prompt('اسم السكرتيرة الجديدة:'); if(!n||!n.trim()){ planRender(); return; } n=n.trim(); if(PLAN_NAMES.indexOf(n)<0){ PLAN_NAMES.push(n); try{ localStorage.setItem('planNames',JSON.stringify(PLAN_NAMES)); }catch(e){} planSaveRaw('PLANCFG|names', JSON.stringify(PLAN_NAMES)); } v=n; }
+  if(v==='__del'){ var L=PLAN_NAMES_BR[bkey]||[], bl=(planBR().filter(function(b){ return b.key===bkey; })[0]||{}).label||'';
+    var n=prompt('اكتبي الاسم اللي يتشال من سكرتيرات '+bl+':\n'+L.join(' · ')); n=(n||'').trim();
+    if(n&&L.indexOf(n)>=0){ L.splice(L.indexOf(n),1); try{ localStorage.setItem('planNamesBr',JSON.stringify(PLAN_NAMES_BR)); }catch(e){} planSaveRaw('PLANCFG|names|'+bkey, JSON.stringify(L)); }
+    planRender(); return; }
+  if(v==='__add'){ var bl=(planBR().filter(function(b){ return b.key===bkey; })[0]||{}).label||''; var n=prompt('اسم السكرتيرة الجديدة'+(bl?' ('+bl+')':'')+':'); if(!n||!n.trim()){ planRender(); return; } n=n.trim(); (bkey?[bkey]:planBR().map(function(b){ return b.key; })).forEach(function(k){ planAddName(n,k); }); v=n; }
   planBR().filter(function(b){ return !bkey||b.key===bkey; }).forEach(function(b){ var k='asg|'+td+'|'+gk+'|'+b.key, o={s:'asg', by:v, set:PLAN_ME||'', at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
     PLAN_ST[k]=o; planSaveRaw('PLAN|'+k, JSON.stringify(o)); });
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender();
@@ -11883,7 +11906,8 @@ function planRender(){
   var pc=vis.length?Math.round(dn*100/vis.length):0;
   var c=document.getElementById('plan-cnt'); if(c){ var left=vis.length-dn; c.textContent=left; c.style.display=left?'inline':'none'; }
   var hr=new Date().getHours();
-  var opts=PLAN_NAMES.map(function(n){ return '<option'+(n===PLAN_ME?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('');
+  var ALLN=planNamesAll(); if(PLAN_ME&&ALLN.indexOf(PLAN_ME)<0) ALLN.push(PLAN_ME);
+  var opts=ALLN.map(function(n){ return '<option'+(n===PLAN_ME?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('');
   var mine=all.filter(function(t){ var s=PLAN_ST[t.key]; return s&&s.by===PLAN_ME&&(s.s==='done'||s.s==='nr'); }).length;
   var h='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:5">'+
     '<b style="font-size:.85rem">📋 خطة اليوم</b><span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){return b.label;}).join(' + ')+'</span>'+
@@ -11892,7 +11916,7 @@ function planRender(){
       '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'<option value="__add">➕ اسم جديد</option></select></label>'+
     '<label style="font-size:.62rem;color:var(--mute)">عرض مهام '+
     '<select onchange="PLAN_VIEW=this.value;try{localStorage.setItem(\'planView\',PLAN_VIEW)}catch(e){};planRender()" style="background:var(--bg);border:1px solid '+(PLAN_VIEW?'#ec4899':'var(--brd)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
-      '<option value="">كل السكرتيرات</option>'+PLAN_NAMES.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label></div>'+
+      '<option value="">كل السكرتيرات</option>'+ALLN.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label></div>'+
     '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
       '<div style="display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:6px"><span>اتعمل <b style="color:var(--g)">'+dn+'</b> من <b>'+vis.length+'</b> مهمة'+(PLAN_VIEW?' (مهام '+alEsc(PLAN_VIEW)+')':'')+' · منهم <b>'+vis.filter(function(t){ var x=PLAN_ST[t.key]||{}; return planState(t)==='done'&&x.s!=='done'; }).length+'</b> اتعملوا على Medicolize و<b>'+vis.filter(function(t){ return (PLAN_ST[t.key]||{}).s==='done'; }).length+'</b> اتقفلوا بزرار ✅</span><b>'+pc+'%</b></div>'+
       '<div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:linear-gradient(90deg,#10b981,#00c6ff)"></div></div>'+
@@ -11917,7 +11941,7 @@ function planRender(){
           var brsHere=brs.filter(function(bb){ return A.some(function(t){ return t.br===bb.key; }); }); if(!brsHere.length) brsHere=brs;
           return brsHere.map(function(bb){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+bb.key], cur=a&&a.by||'';
             return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value,\''+bb.key+'\')" title="المسئولة عن المهمة دي في '+bb.label+'" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:'+(many?'120':'110')+'px">'+
-              '<option value="">👤 '+(many?bb.label+'…':'المسئولة…')+'</option>'+PLAN_NAMES.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>'+(many?bb.label+': ':'')+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option></select>'; }).join(''); })())+
+              '<option value="">👤 '+(many?bb.label+'…':'المسئولة…')+'</option>'+(function(L){ if(cur&&L.indexOf(cur)<0) L.push(cur); return L; })(planNames(bb.key)).map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>'+(many?bb.label+': ':'')+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option><option value="__del">➖ شيل اسم</option></select>'; }).join(''); })())+
         (allDone?'<span style="color:var(--g);font-size:.64rem;font-weight:800">✅ خلصت</span>':'<span style="background:'+(hot?'var(--r)':'#ec4899')+';color:#fff;border-radius:10px;padding:1px 10px;font-size:.68rem;font-weight:900">'+open.length+'</span>')+
         '<span style="width:60px;height:6px;background:var(--bg);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:'+pc+'%;background:var(--g)"></span></span>'+
         '<b style="font-size:.66rem;min-width:34px;text-align:center;color:'+(pc>=80?'var(--g)':pc>=40?'var(--am)':'var(--r)')+'">'+pc+'%</b>'+

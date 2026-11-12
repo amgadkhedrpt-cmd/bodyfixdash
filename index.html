@@ -11898,7 +11898,7 @@ var PLAN_COVER={
 };
 var PLAN_NO_H=['confsp'];
 /* اللي ينفع يتنقل لـ عيادة 1 (Mariam) لما حد يغيب: التأكيدات والمكالمات البسيطة بس — أي مهمة فيها هندلة للمريض (تجديد، تقييم، حجز، شكاوى، خصم، فلوس، ويتنج…) لأ */
-var PLAN_H_OK=['conf','conftoday','call','drop','late'];                              // Mariam (عيادة 1) ما تستلمش تأكيد التغذية
+var PLAN_H_OK=['conf','conftoday','call','drop','late','nonext','svc'];                              // Mariam (عيادة 1) ما تستلمش تأكيد التغذية
 var PLAN_EVE_G=['stale','kashf0'];                     // مهام آخر اليوم — ما تروحش للي جاية الصبح
 function planTeam(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var o=PLAN_ST['team|'+td]||{}; o.p=o.p||{}; o.am=o.am||{}; return o; }
 function planRoleOf(name, br){ var R=PLAN_ROLES[br]||{}; for(var k in R) if(R[k]===name) return k; return ''; }

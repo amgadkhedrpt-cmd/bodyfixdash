@@ -38,7 +38,7 @@ OPS_Q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!
          " patient{referenceId firstName lastName tags{name}} branch{name}}}")
 XP_Q = ("query X($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter)"
         "{expenses(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
-        "{id name type amount paid date refunded salaryAdjustment createdAt branch{name} createdBy{name}}}")
+        "{id name type mainType details amount paid date isDebt salaryAdjustment{id} user{name} supplier{name} createdAt branch{name} createdBy{name}}}")
 # nutrition section: only nutrition / slimming services are kept from the operation steps (keeps the file small)
 def _norm_ar(t):
     t = re.sub("[أإآ]", "ا", str(t or "")).replace("ة", "ه").replace("ى", "ي")
@@ -298,6 +298,7 @@ def main():
                 o = decrypt(open(fn).read())
                 old.setdefault("branches", {}).update(o.get("branches", {}))
                 old.setdefault("types", {}).update(o.get("types", {}))
+                old["xpv"] = max(old.get("xpv", 0), o.get("xpv", 0))
                 old.setdefault("exp_types", {}).update(o.get("exp_types", {}))
                 for kind, bs in (o.get("kinds") or {}).items():
                     for b, ms in bs.items():
@@ -307,6 +308,9 @@ def main():
     data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {}), "types": old.get("types", {}),
             "exp_types": old.get("exp_types", {})}
     ALL = months(START, CUR)
+    if old.get("xpv", 0) < 2:                     # expenses list gained details / employee / supplier: fetch it again
+        data["kinds"].pop("xp", None)
+    data["xpv"] = 2
     # the history is filled on every run; once complete, scheduled runs refresh only a few times a day (keeps the repo small)
     full = all(len(data["kinds"].get(kd, {}).get(b, {})) >= len(ALL) - 2 for kd in ("pay", "exp", "inv", "apt")
                for b in (data["branches"] or {"x": 0})) and data["branches"] \
@@ -485,7 +489,7 @@ def main():
     old_h = json.load(open(META)).get("hash", {}) if os.path.exists(META) else {}
     META_D["hash"] = {}
     for fn, keep in ((ENC, lambda k, kd: k not in (cur_ops if kd == "ops" else cur)), (ENC_C, lambda k, kd: k in (cur_ops if kd == "ops" else cur))):
-        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}),
+        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}), "xpv": data.get("xpv", 0),
                 "kinds": {kd: {b: {k: v for k, v in ms.items() if keep(k, kd)} for b, ms in bs.items()} for kd, bs in data["kinds"].items()}}
         body = dict(part, at="")
         for bs in body["kinds"].values():

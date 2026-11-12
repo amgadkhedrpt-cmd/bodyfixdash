@@ -77,19 +77,19 @@ const R_AGG=/اجمالي رواتب شهر|رواتب فرع الهرم|مرت�
   R_SUP=/شيماء|نيوتري|vitalita|فيتاليتا|trilosvit|كويك سليم|whey|protix|فات زورب|ليبو|اسكنيم|prakuten|تولانجو/,R_DEVS=/كرايو|ار اف|ديرما|اسكن كير|سيرم|ماسك|عنايه بالبشره/;
 function staffAt(k){return (NUT.cfg.staff||[]).filter(s=>(!s.from||k>=s.from)&&(!s.to||k<=s.to))}
 function classify(x,ctx){
-  const d=nAr(x.desc),t=nAr(x.type),k=x.k;
+  const d=nAr([x.desc,x.sup,x.user].filter(Boolean).join(' ')),t=nAr(x.type),k=x.k;
   if(x.refunded)return ['excl',0,'سطر مسترد (Refunded)'];
   if(/الدقي/.test(d))return ['excl',0,'فيه كلمة «الدقي»'];
   if(/مردود/.test(t)){const m=ctx.refundMatch(x);return m.ok?['refund_nut',1,m.why]:['refund_pt',0,m.why]}
   if(R_AGG.test(d))return ['salary_agg',0,'إجمالي رواتب — بتتحسب من ملفات المرتبات'];
-  const sal=/مرتب|راتب|رواتب|سلف/.test(t);
+  const sal=/مرتب|راتب|رواتب|سلف/.test(t)||x.salAdj;
   if(sal&&/(^|\s)د(\s|\.)|دكتور|^د\.?\s/.test(d))return ['physio',0,'مرتب دكتور'];
   if(R_PHY.test(d))return ['physio',0,'مستلزمات علاج طبيعي'];
   if(R_INJB.test(d)&&!/ميزو/.test(d))return ['inj_buy',1,'شراء حقن تخسيس'];
   if(R_MEZO.test(d))return ['special',1,'ميزوثيرابي'];
   if(R_SUP.test(d))return ['special',1,'مكملات / أدوية تخسيس'];
   if(R_DEVS.test(d))return ['special',1,'مستلزمات أجهزة النحت والبشرة'];
-  if(sal){const st=staffAt(k).find(s=>s.ar&&d.includes(nAr(s.ar)));if(st)return ['adv',+st.share||0,`مرتب/سلفة ${st.ar} (${st.role}) × ${pc(+st.share||0)}`];
+  if(sal){const un=nAr(x.user||'');const st=staffAt(k).find(s=>(s.ar&&d.includes(nAr(s.ar)))||(un&&s.en&&un.includes(nAr(s.en).split(' ')[0])));if(st)return ['adv',+st.share||0,`مرتب/سلفة ${st.ar} (${st.role}) × ${pc(+st.share||0)}`];
     return ['adv',NUT.cfg.shareGen,'مرتب/سلفة موظف تاني × '+pc(NUT.cfg.shareGen)]}
   if(/اصول ثابت|أصول ثابت|اصل ثابت/.test(t))return ['asset',NUT.cfg.assetShare,'أصل ثابت — إهلاك على '+NUT.cfg.assetLife+' شهر'];
   return ['shared',NUT.cfg.sharedPct,'مصروف مشترك × '+pc(NUT.cfg.sharedPct)];
@@ -113,9 +113,9 @@ function nutBuild(){
   // expenses (accrued "Expenses"; falls back to expense payments for months without it)
   const xs=[],xpH=(K.xp&&K.xp.haram)||{};
   for(const m in xpH){const t=xpH[m];if(!t||!t.cols||!t.rows.length)continue;
-    const c=pick(t.cols,{desc:['name','details','description'],type:['type','expenseType','type.name'],amt:['amount'],paid:['paid'],date:['date','createdAt'],ref:['refunded'],br:['branch.name']});
+    const c=pick(t.cols,{desc:['name','description'],det:['details'],type:['type','expenseType','type.name'],amt:['amount'],paid:['paid'],date:['date','createdAt'],ref:['refunded'],br:['branch.name'],user:['user.name'],sup:['supplier.name'],sal:['salaryAdjustment.id']});
     for(const r of t.rows){const cd=cairo(c.date>=0?r[c.date]:null);if(!cd)continue;
-      xs.push({k:cd[0].slice(0,7),d:cd[0],desc:nm(r,c.desc),type:eName(nm(r,c.type)),amt:num(r,c.amt),paid:c.paid>=0?num(r,c.paid):num(r,c.amt),refunded:truthy(r[c.ref]),src:'Expenses'})}}
+      xs.push({k:cd[0].slice(0,7),d:cd[0],desc:[nm(r,c.desc),nm(r,c.det)].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' — '),user:nm(r,c.user),sup:nm(r,c.sup),salAdj:!!nm(r,c.sal),type:eName(nm(r,c.type)),amt:num(r,c.amt),paid:c.paid>=0?num(r,c.paid):num(r,c.amt),refunded:truthy(r[c.ref]),src:'Expenses'})}}
   const xpMonths=new Set(xs.map(x=>x.k));
   for(const e of D.exp)if(e.b==='haram'&&!xpMonths.has(e.k))xs.push({k:e.k,d:e.d,desc:e.info,type:e.type,amt:e.amt,paid:e.amt,refunded:false,src:'Expense payments'});
   // refund rule 4.1
@@ -200,7 +200,7 @@ function nExp(){const {xs}=nutBuild();const X=xs.filter(x=>nIn(x.k,S.from,S.to))
   <div class="card" style="margin-top:12px"><h3>كل السطور وتصنيفها<small>غيّر التصنيف من القايمة — ويتحفظ لما تدوس «احفظ»</small></h3>
    <div class="bar"><input type="search" id="nxQ" placeholder="دوّر" style="flex:1"><button class="pri" id="nxSave">💾 احفظ التعديلات</button></div><div id="nxT"></div></div>`}
 function cnExp(){const draw=()=>{const q=nAr($('#nxQ').value);const {xs}=nutBuild();const X=xs.filter(x=>nIn(x.k,S.from,S.to)&&(!q||nAr(x.desc+' '+x.type+' '+XCLS[x.cls][0]).includes(q))).sort((a,b)=>a.d<b.d?1:-1).slice(0,600);
-    $('#nxT').innerHTML=tableHTML(['التاريخ','الوصف','النوع',{t:'المبلغ',n:1},'','التصنيف',{t:'النسبة',n:1},'السبب'],X.map(x=>[x.d,esc(x.desc),esc(x.type),x.amt,x.paid<x.amt-0.5?'<span class="chip w">غير مدفوع</span>':'',
+    $('#nxT').innerHTML=tableHTML(['التاريخ','الوصف','النوع',{t:'المبلغ',n:1},'','التصنيف',{t:'النسبة',n:1},'السبب'],X.map(x=>[x.d,esc(x.desc)+(x.user||x.sup?` <span class="muted">(${esc(x.user||x.sup)})</span>`:''),esc(x.type),x.amt,x.paid<x.amt-0.5?'<span class="chip w">غير مدفوع</span>':'',
       `<select data-xk="${esc(x.key)}" style="max-width:190px">${Object.entries(XCLS).map(([c,v])=>`<option value="${c}"${c===x.cls?' selected':''}>${v[0]}</option>`).join('')}</select>`,
       `<input data-xs="${esc(x.key)}" type="number" step="0.05" min="0" max="1" value="${x.share??''}" style="width:64px">`,(x.ov?'✏️ ':'')+esc(x.why)]),{h:560});
     document.querySelectorAll('[data-xk]').forEach(s=>s.onchange=()=>{const k=s.dataset.xk,d=XCLS[s.value][1];const inp=document.querySelector(`[data-xs="${CSS.escape(k)}"]`);if(d!=null&&inp)inp.value=d;nutOv(k,s.value,inp?inp.value:d)});

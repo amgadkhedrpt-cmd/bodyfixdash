@@ -17,7 +17,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
 
     steps:
       - name: Checkout repo
@@ -42,7 +42,7 @@ jobs:
           key: playwright-chromium-${{ runner.os }}-v2
 
       - name: Install dependencies
-        run: pip install playwright
+        run: pip install playwright cryptography
 
       - name: Install Chromium
         run: python -m playwright install --with-deps chromium
@@ -80,6 +80,21 @@ jobs:
           SHEET_KEY:       ${{ secrets.SHEET_KEY }}
           SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
         run: python collect_sync.py
+
+      - name: Finance sync (encrypted with the owner's password)
+        if: steps.dash.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 13
+        env:
+          MZ_STATE: .session/state.json
+          FIN_PASS:        ${{ secrets.FIN_PASS }}
+          MEDICOLIZE_USER: ${{ secrets.MEDICOLIZE_USER }}
+          MEDICOLIZE_PASS: ${{ secrets.MEDICOLIZE_PASS }}
+          GMAIL_USER:      ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
+          SHEET_KEY:       ${{ secrets.SHEET_KEY }}
+          SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
+        run: python fin_sync.py
 
       - name: Daily email summary (11 PM)
         if: always() && steps.dash.outcome == 'success'

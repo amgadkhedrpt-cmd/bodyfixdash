@@ -11496,8 +11496,6 @@ function planTasks(useAll){
       name:x.name, phone:x.phone, br:brOf(x), time:x.time,
       lines:[x.note?(x.note_today?'📝 ':'<span style="color:var(--am)">📝 ملحوظة قديمة (مش النهارده): </span>')+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة</span>', sug]});
   });
-  sysAdd('morning','waittoday','waittoday','اتنقل من الويتنج','⏳',function(x){return 'waittoday|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)); });
-  sysAdd('morning','waitnext','waitnext','اتنقل من الويتنج','⏳',function(x){return 'waitnext|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
   var stk=(typeof alStreaks==='function')?alStreaks():null;
   if(stk&&stk.gone) stk.gone.forEach(function(x){ var f0=x.fixed[0]||{};
     add('morning',{grp:['streak'], sys:'اتشال من الشيت', what:'اتشال من شيت التثبيت (كان عند '+(f0.doctor||'')+(x.removed_on?' — اتشال '+x.removed_on:'')+')', key:today+'|streak|'+x.pid, icon:'⚠️', kind:'مثبت وبيلغي — اتشال من التثبيت', name:x.name, phone:x.phone, br:f0.branch||brOf(x),
@@ -11540,6 +11538,8 @@ function planTasks(useAll){
   sysAdd('morning','miss','miss','اتحجزله / جه','🙋',function(x){return today+'|miss|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
   sysAdd('morning','kashf','kashf','حجز جلسات','🩺',function(x){return today+'|kashf|'+x.pid;},function(x){ return 'الكشف مع '+alEsc(doc(x.doctor)); });
   sysAdd('morning','drop','drop','اتحجزله ميعاد','🚶',function(x){return today+'|drop|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
+  sysAdd('morning','waittoday','waittoday','اتنقل من الويتنج','⏳',function(x){return 'waittoday|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)); });
+  sysAdd('morning','waitnext','waitnext','اتنقل من الويتنج','⏳',function(x){return 'waitnext|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
   // 🧾 عند الاستقبال
   var by=function(arr,f){ var m={}; (arr||[]).forEach(function(x){ if(f(x)) m[x.pid]=x; }); return m; };
   var renew=by(D.renew_today,function(x){ return x.session_no>=(x.size||12)-1; });
@@ -11782,7 +11782,7 @@ function planRow(t){
 }
 function planRender(){
   var box=document.getElementById('planBox'); if(!box) return;
-  var T=planTasks();
+  var T; try{ T=planTasks(); }catch(err){ box.innerHTML='<div style="padding:24px;text-align:center;color:var(--r)">⚠️ حصلت مشكلة في عرض خطة اليوم — اعمل Refresh. لو فضلت، ابعت الرسالة دي: '+alEsc(String(err&&err.message||err))+'</div>'; return; }
   if(!T){ box.innerHTML='<div style="padding:30px;text-align:center;color:var(--mute)">⏳ بيحمل التنبيهات...</div>'; if(typeof alertsLoad==='function'&&!ALERTS_DATA) alertsLoad(); return; }
   var all=[].concat(T.mgr,T.morning,T.rec,T.office,T.evening), today=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   PLAN_TASKIDX={}; all.forEach(function(t){ PLAN_TASKIDX[t.key]=t; });

@@ -11467,7 +11467,7 @@ function planLoad(){
       var v=String(r[k]||'').trim(); if(!v) return;
       if(k==='PLANCFG|names'){ try{ var a=JSON.parse(v); if(a&&a.length){ PLAN_NAMES=a; localStorage.setItem('planNames',JSON.stringify(a)); if(!r['PLANCFG|names|BODYFIX Center']) PLAN_NAMES_BR['BODYFIX Center']=a.slice(); } }catch(e){} return; }
       if(k.indexOf('PLANCFG|phcol|')===0){ PLAN_PHCOL[k.slice(14)]=v; return; }
-      if(k==='PLANCFG|roles'){ try{ var rr=JSON.parse(v); if(rr) PLAN_ROLES=rr; }catch(e){} return; }
+      if(k==='PLANCFG|roles'){ try{ var rr=JSON.parse(v); if(rr){ PLAN_ROLES=rr; localStorage.setItem('planRoles',v); } }catch(e){} return; }
       if(k.indexOf('PLANCFG|names|')===0){ try{ var b=JSON.parse(v); if(b) PLAN_NAMES_BR[k.slice(14)]=b; }catch(e){} return; }
       if(k.indexOf('PLAN|')===0){ try{ st[k.slice(5)]=JSON.parse(v); }catch(e){} }
     });
@@ -11846,15 +11846,43 @@ function planOwner0(t,g){
     if(g==='conftoday') return R.F||R.DM||'';                                   // تأكيد النهارده = مسئولة الشيفت الصباحي
     if(R.H||R.J){ var gd=(typeof resolveDocGender==='function')?resolveDocGender(t.doctor):''; return gd==='female'?(R.J||''):(R.H||''); }   // اتأخر: رجالي عيادة 1 · ستات عيادة 2
   }
-  if(g==='invfix'){ var tdi=(ALERTS_DATA&&ALERTS_DATA.today)||'', ai=PLAN_ST['asg|'+tdi+'|'+t.sec+'|invfix|'+t.br]; return ai&&ai.by?ai.by:PLAN_INV_OWNER_DEF; }
+  if(g==='invfix'){ var tdi=(ALERTS_DATA&&ALERTS_DATA.today)||'', ai=PLAN_ST['asg|'+tdi+'|'+t.sec+'|invfix|'+t.br]; return ai&&ai.by?ai.by:((PLAN_ROLES['BODYFIX Center']||{}).L||PLAN_INV_OWNER_DEF); }
   if(g==='debtph'){ if(PLAN_PHCOL[t.br]) return PLAN_PHCOL[t.br]; }
-  if(g==='debt'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
+  if(g==='debt'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by;
+  var bn=planBaseOwner(t,g); if(bn) return bn;   // الأساس: كل نوع مهمة ليه دور ثابت (والتغيير من الخانة جنب المهمة للنهارده بس)
+  var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
 /* ═══ 👥 الفريق النهارده: غياب / تغطية + توزيع المهام أوتوماتيك ═══
    الأدوار: الهرم L المشرف · F الصباحي · H عيادة 1 · J عيادة 2 — الدقي DM الصباحي · DE المسائي
    الحالة: PLAN|team|<اليوم> = {p:{اسم:{st:'in'|'out'|'cover', br, for}}, am:{فرع:اسم}} · الأدوار: PLANCFG|roles */
 var PLAN_ROLES_DEF={'BODYFIX Center':{L:'Dalia',F:'Nada',J:'Engy',H:'Mariam'}, 'FIX ZONE':{DM:'Bassant',DE:'Georgina'}};
 var PLAN_ROLE_LBL={L:'المشرف',F:'الشيفت الصباحي',H:'عيادة 1',J:'عيادة 2',DM:'الشيفت الصباحي',DE:'الشيفت المسائي'};
 var PLAN_ROLES=JSON.parse(JSON.stringify(PLAN_ROLES_DEF));
+try{ var _rl=JSON.parse(localStorage.getItem('planRoles')||'null'); if(_rl) PLAN_ROLES=_rl; }catch(e){}
+/* 📌 الأساس: كل نوع مهمة على أنهي دور (كل يوم بيفتح على كده — التغيير اليومي من الخانة جنب المهمة مؤقت) */
+var PLAN_GROUP_ROLE={
+  'BODYFIX Center':{mgr:'L', nonext:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
+    waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', renew:'F', svc:'F', kashf:'F',
+    waitnext:'J', streak:'J', conf:'J', stale:'J', fix:'J', kashf0:'J',
+    call:'H', drop:'H'},
+  'FIX ZONE':{mgr:'DM', streak:'DM', call:'DM', conf:'DM', drop:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
+    waitnext:'DE', nonext:'DE', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', svc:'DE', sudden:'DE', late:'DE'}
+};
+function planBaseOwner(t,g){ var rk=(PLAN_GROUP_ROLE[t.br]||{})[g]; return rk?((PLAN_ROLES[t.br]||{})[rk]||''):''; }
+function planSetRole(br, rk, v){
+  if(v==='__add'){ var n=prompt('الاسم:'); if(!n||!n.trim()){ planRender(); return; } v=n.trim(); planAddName(v,br); }
+  PLAN_ROLES[br]=PLAN_ROLES[br]||{}; PLAN_ROLES[br][rk]=v; try{ localStorage.setItem('planRoles',JSON.stringify(PLAN_ROLES)); }catch(e){}
+  planSaveRaw('PLANCFG|roles', JSON.stringify(PLAN_ROLES)); planRender();
+}
+/* سطر فوق: مين ماسك أنهي دور (ثابت) */
+function planRolesBar(){
+  var brs=planBR();
+  return '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:8px 12px;margin-bottom:8px">'+brs.map(function(b){
+    var R=PLAN_ROLES[b.key]||{}, order=b.key==='FIX ZONE'?['DM','DE']:['F','H','J','L'];
+    return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:3px 0"><b style="font-size:.66rem;min-width:44px">📌 '+alEsc(b.label)+'</b>'+order.map(function(rk){ var cur=R[rk]||'', L=planNames(b.key).slice(); if(cur&&L.indexOf(cur)<0) L.push(cur);
+      return '<label style="font-size:.6rem;color:var(--mute)">'+alEsc(PLAN_ROLE_LBL[rk])+': <select onchange="planSetRole(\''+b.key+'\',\''+rk+'\',this.value)" title="ده الأساس — بيتغير لكل الأيام" style="background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:6px;padding:2px 4px;font-family:Cairo,sans-serif;font-size:.62rem;font-weight:800">'+
+        L.map(function(n){ return '<option'+(n===cur?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option></select></label>'; }).join('')+'</div>'; }).join('')+
+    '<div style="font-size:.54rem;color:var(--mute);margin-top:3px">ده التوزيع الأساسي (بيفتح عليه كل يوم). تغيير المسئولة جنب أي مهمة بيبقى للنهارده بس.</div></div>';
+}
 /* مين يمسك مهمة الغايبة: لكل دور ولكل نوع مهمة ترتيب البدايل (أدوار) — POST = تتأجل · AM = اللي جاية الصبح */
 var PLAN_COVER={
   'BODYFIX Center':{
@@ -11963,8 +11991,11 @@ function planTeamPanel(){
     return '<div style="margin-top:6px"><div style="font-size:.6rem;font-weight:800;margin-bottom:4px">'+alEsc(b.label)+' · '+amSel+'</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+cells+'</div></div>';
   }).join('');
   var anyOut=Object.keys(T.p).some(function(n){ return T.p[n].st&&T.p[n].st!=='in'; });
+  var roleLine=brs.map(function(b){ var R=PLAN_ROLES[b.key]||{}, order=b.key==='FIX ZONE'?['DM','DE']:['F','H','J','L'];
+    return alEsc(b.label)+': '+order.map(function(rk){ var n=R[rk]||'—', x=T.p[n]; return alEsc(PLAN_ROLE_LBL[rk])+' <b style="color:'+(x&&x.st&&x.st!=='in'?'var(--r)':'var(--txt)')+'">'+alEsc(n)+'</b>'; }).join(' · '); }).join(' &nbsp;|&nbsp; ');
   return '<details'+(anyOut?' open':'')+' style="background:var(--card);border:1px solid '+(anyOut?'#f59e0b':'var(--brd)')+';border-radius:12px;padding:8px 12px;margin-bottom:12px"><summary style="cursor:pointer;font-weight:800;font-size:.72rem">👥 الفريق النهارده'+
-    (anyOut?' — <span style="color:#f59e0b">'+moved+' مهمة اتنقلت · '+posted+' متأجلة بسبب غياب</span>':' <span style="font-size:.58rem;color:var(--mute);font-weight:400">— كل الفريق موجود (لو حد غايب علّميه هنا والمهام تتوزع لوحدها)</span>')+'</summary>'+rows+
+    '<div style="font-size:.6rem;font-weight:400;color:var(--mute);margin-top:3px">'+roleLine+'</div>'+
+    (anyOut?' — <span style="color:#f59e0b">'+moved+' مهمة اتنقلت · '+posted+' متأجلة بسبب غياب</span>':' <span style="font-size:.58rem;color:var(--mute);font-weight:400">— كل الفريق موجود (لو حد غايب علّميه هنا والمهام تتوزع لوحدها)</span>')+'</summary>'+planRolesBar()+rows+
     (T.by?'<div style="font-size:.54rem;color:var(--mute);margin-top:5px">آخر تعديل: '+alEsc(T.by)+' '+alEsc(T.at||'')+'</div>':'')+'</details>';
 }
 function planAssign(gk, v, bkey){
@@ -12209,11 +12240,12 @@ function planRender(){
               '<option value="">📞 '+(many?bb.label+': ':'')+'مسئولة التليفون…</option>'+(function(L){ if(cur&&L.indexOf(cur)<0) L.push(cur); return L; })(planNames(bb.key)).map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>📞 '+(many?bb.label+': ':'')+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option></select>'; }).join(''); })():
          g==='debt'?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', brs=planBR(), many=brs.length>1;
           var brsHere=brs.filter(function(bb){ return A.some(function(t){ return t.br===bb.key; }); }); if(!brsHere.length) brsHere=brs;
-          return brsHere.map(function(bb){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+bb.key], cur=a&&a.by||(g==='invfix'?PLAN_INV_OWNER_DEF:'');
+          return brsHere.map(function(bb){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+bb.key], t0=A.filter(function(t){ return t.br===bb.key; })[0]||{br:bb.key,sec:id};
+            var base=planOwner0(Object.assign({},t0,{br:bb.key}),g); var cur=a&&a.by||base||'';
             var t1=A.filter(function(t){ return t.br===bb.key; })[0], ci1=t1?planCoverInfo(t1,g):{};
             var mvTag=ci1.from?'<span title="'+alEsc(ci1.from)+' غايبة النهارده" style="font-size:.6rem;color:'+(ci1.post?'#f59e0b':'#38bdf8')+';border:1px solid currentColor;border-radius:7px;padding:2px 6px;margin-inline-start:4px">'+(ci1.post?'⏸ متأجل ('+alEsc(ci1.from)+' غايبة)':'🔁 '+alEsc(ci1.from)+' ← <b>'+alEsc(ci1.owner)+'</b>')+'</span>':'';
             return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value,\''+bb.key+'\')" title="المسئولة عن المهمة دي في '+bb.label+'" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:'+(many?'120':'110')+'px">'+
-              '<option value="">👤 '+(many?bb.label+'…':'المسئولة…')+'</option>'+(function(L){ if(cur&&L.indexOf(cur)<0) L.push(cur); return L; })(planNames(bb.key)).map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>'+(many?bb.label+': ':'')+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option><option value="__del">➖ شيل اسم</option></select>'+mvTag; }).join(''); })())+
+              '<option value="">👤 '+(many?bb.label+'…':'المسئولة…')+'</option>'+(function(L){ if(cur&&L.indexOf(cur)<0) L.push(cur); return L; })(planNames(bb.key)).map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>'+(many?bb.label+': ':'')+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option><option value="__del">➖ شيل اسم</option></select>'+(a&&a.by?'<span style="font-size:.54rem;color:#f59e0b;margin-inline-start:3px" title="التغيير ده للنهارده بس — بكره يرجع للأساس">⏱ النهارده بس</span>':'')+mvTag; }).join(''); })())+
         (allDone?'<span style="color:var(--g);font-size:.64rem;font-weight:800">✅ خلصت</span>':'<span style="background:'+(hot?'var(--r)':'#ec4899')+';color:#fff;border-radius:10px;padding:1px 10px;font-size:.68rem;font-weight:900">'+open.length+'</span>')+
         '<span style="width:60px;height:6px;background:var(--bg);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:'+pc+'%;background:var(--g)"></span></span>'+
         '<b style="font-size:.66rem;min-width:34px;text-align:center;color:'+(pc>=80?'var(--g)':pc>=40?'var(--am)':'var(--r)')+'">'+pc+'%</b>'+

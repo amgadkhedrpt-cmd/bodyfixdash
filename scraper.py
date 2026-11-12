@@ -67,6 +67,7 @@ PAT_CANDIDATES = ["notes", "note", "details", "description", "comment", "comment
                   "tags{name}", "tags{id name}", "status", "patientStatus", "type", "category"]
 PAT_PROBE = {}
 CANCEL_FIELD = None  # وقت الإلغاء (عشان نعرف اعتذر قبل ميعاده بكام ساعة)
+BY_FIELD = None      # مين عمل الميعاد على Medicolize (createdBy{name}) — عشان نعرف مين رجّع المريض من المتابعة
 CANCEL_CANDIDATES = ["canceledAt", "cancelledAt", "cancelDate", "cancellationDate", "statusUpdatedAt", "statusChangedAt", "updatedAt"]
 CANCEL_PROBE = {}
 NOTE_PAST_DAYS = 7    # ملحوظات المواعيد اللي بتظهر في الداشبورد: من أسبوع فات
@@ -81,6 +82,8 @@ def gql_query_with_note():
         q = q.replace("type other ", "type other " + CANCEL_FIELD + " ", 1)
     if PAT_FIELDS:
         q = q.replace("phoneNumber birthDate __typename}", "phoneNumber birthDate " + " ".join(PAT_FIELDS) + " __typename}", 1)
+    if BY_FIELD:
+        q = q.replace("type other ", "type other " + BY_FIELD + " ", 1)
     return q
 
 
@@ -143,6 +146,8 @@ def parse_flat_array(flat):
             note_v   = resolve_val(flat, appt_obj.get(NOTE_FIELD)) if NOTE_FIELD else None
             cancel_v = resolve_val(flat, appt_obj.get(CANCEL_FIELD)) if CANCEL_FIELD else None
             created  = resolve_val(flat, appt_obj.get('createdAt'))
+            by_obj   = resolve_obj(flat, appt_obj.get(BY_FIELD.split("{")[0])) if BY_FIELD else None
+            by_name  = (by_obj or {}).get("name") if isinstance(by_obj, dict) else None
             doctor_obj  = resolve_obj(flat, appt_obj.get('doctor'))
             branch_obj  = resolve_obj(flat, appt_obj.get('branch'))
             patient_obj = resolve_obj(flat, appt_obj.get('patient'))
@@ -168,6 +173,7 @@ def parse_flat_array(flat):
                 "createdAt": created,
                 "note":      (note_v.strip()[:300] if isinstance(note_v, str) and note_v.strip() else None),
                 "cancel_at": cancel_v if isinstance(cancel_v, str) else None,
+                "by":        by_name if isinstance(by_name, str) else None,
                 "doctor":  {"name": doctor_obj.get('name'), "color": doctor_obj.get('color')},
                 "branch":  {"name": branch_obj.get('name')},
                 "patient": {
@@ -487,6 +493,17 @@ async def detect_note_field(page, cookie_str, extra_headers):
         except Exception as e:
             CANCEL_PROBE[f] = "ERR " + str(e)[:60]
     print(f"   ⏱ خانة وقت الإلغاء: {CANCEL_FIELD or 'مش موجودة'} · {CANCEL_PROBE}")
+    global BY_FIELD
+    for f in ("createdBy{name}", "user{name}", "creator{name}"):
+        q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
+             "{createdAppointments(orderBy:$orderBy skip:$skip take:$take rangeDate:$rangeDate){id " + f + "}}")
+        try:
+            d = await gql_call(page, cookie_str, extra_headers, q, {"orderBy": "createdAt", "skip": 0, "take": 10, "rangeDate": rng})
+            gql_dec(d, "createdAppointments")
+            BY_FIELD = f; break
+        except Exception as e:
+            print(f"   ℹ️ {f}: {str(e)[:80]}")
+    print(f"   👤 خانة مين عمل الميعاد: {BY_FIELD or 'مش موجودة'}")
     # تفاصيل المريض نفسه (مش الميعاد)
     seen_keys = set()
     for f in PAT_CANDIDATES:
@@ -1515,7 +1532,7 @@ async def main():
                 json.dump({
                     "last_updated": now_str,
                     "total": len(appointments),
-                    "appointments": [{**{k: v for k, v in a.items() if k not in ("note", "cancel_at")}, "patient": {k: v for k, v in (a.get("patient") or {}).items() if k not in ("birthDate", "pnote")}} for a in appointments[:500]],   # تاريخ الميلاد ما يتنشرش
+                    "appointments": [{**{k: v for k, v in a.items() if k not in ("note", "cancel_at", "by")}, "patient": {k: v for k, v in (a.get("patient") or {}).items() if k not in ("birthDate", "pnote")}} for a in appointments[:500]],   # تاريخ الميلاد ما يتنشرش
                     "analysis": analysis
                 }, f, ensure_ascii=False, indent=2)
 

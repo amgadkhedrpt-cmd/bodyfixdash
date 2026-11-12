@@ -178,6 +178,7 @@ def _norm(a):
         "note": (a.get("note") or "").strip() if isinstance(a.get("note"), str) else "",
         "pnote": str(pnote or "").strip(),
         "cancel_at": _parse_dt(a.get("cancel_at")),
+        "by": str(a.get("by") or "").strip(),
     }
 
 
@@ -569,7 +570,10 @@ def build_alerts(appointments, now=None, packages=None):
                                 "state": "came" if came else "booked",
                                 "ret_date": (came[0] if came else booked[0])["start"].isoformat(),
                                 "ret_doctor": (came[0] if came else booked[0])["doctor"],
-                                "ret_status": (came[0] if came else booked[0])["status"].title()})
+                                "ret_status": (came[0] if came else booked[0])["status"].title(),
+                                "ret_by": (came[0] if came else booked[0]).get("by") or "",
+                                "fu_by": fr.get("by") or "",
+                                "fu_note": (fr.get("note") or "")[:200]})
                 rec.update(who(fr))
                 fu_return.append(rec)
         # الاتصالات: كل متابعة في الفترة

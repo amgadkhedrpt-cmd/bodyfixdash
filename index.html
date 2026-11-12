@@ -11668,10 +11668,10 @@ function planCashOwner(t){
   return hit?hit.name:'';
 }
 function planOwner(t,g){ if(g==='debt'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
-function planAssign(gk, v){
+function planAssign(gk, v, bkey){
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   if(v==='__add'){ var n=prompt('اسم السكرتيرة الجديدة:'); if(!n||!n.trim()){ planRender(); return; } n=n.trim(); if(PLAN_NAMES.indexOf(n)<0){ PLAN_NAMES.push(n); try{ localStorage.setItem('planNames',JSON.stringify(PLAN_NAMES)); }catch(e){} planSaveRaw('PLANCFG|names', JSON.stringify(PLAN_NAMES)); } v=n; }
-  alActiveBranches().forEach(function(b){ var k='asg|'+td+'|'+gk+'|'+b.key, o={s:'asg', by:v, set:PLAN_ME||'', at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
+  alActiveBranches().filter(function(b){ return !bkey||b.key===bkey; }).forEach(function(b){ var k='asg|'+td+'|'+gk+'|'+b.key, o={s:'asg', by:v, set:PLAN_ME||'', at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
     PLAN_ST[k]=o; planSaveRaw('PLAN|'+k, JSON.stringify(o)); });
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender();
 }
@@ -11752,6 +11752,40 @@ function planSummarySave(){
   if(j===PLAN_SUM_LAST&&Date.now()-PLAN_SUM_AT<15*60000) return;
   PLAN_SUM_LAST=j; PLAN_SUM_AT=Date.now(); planSaveRaw('PLANSUM|'+td, JSON.stringify(sum));
 }
+
+/* 📈 نتيجة المتابعة (أرقام بس — مش مهام): اللي اتتابعوا آخر 14 يوم · حجزوا · جم فعلاً · مين كانت مسئولة عن المتابعة ومين حجز */
+var PLAN_FU_OPEN=false;
+function planFuPanel(){
+  var D=ALERTS_DATA; if(!D||!D.followups) return '';
+  var act=alActiveBranches().map(function(b){return b.key;}), inb=function(x){ return act.indexOf(alBranchOf(x.doctor,x.branch))>=0; };
+  var F=D.followups, pool=(Array.isArray(F.pool)?F.pool:[]).filter(inb), R=(F.returned||[]).filter(inb), td=D.today||'';
+  var bk=R.filter(function(x){return x.state==='booked';}), cm=R.filter(function(x){return x.state==='came';});
+  var pc=function(a){ return pool.length?Math.round(a*100/pool.length)+'%':'—'; };
+  var first=function(n){ return String(n||'').trim().split(/\s+/)[0].toLowerCase(); };
+  var respOf=function(x){ var d=String(x.fu_date||'').slice(0,10), b=alBranchOf(x.doctor,x.branch); var a=PLAN_ST['asg|'+d+'|morning|call|'+b]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+d+'|'+b]; return r&&r.by?r.by:''; };
+  var per={}, add=function(n,k){ if(!n) return; var o=per[n]||(per[n]={resp:0,came:0,booked:0,bookedBy:0}); o[k]++; };
+  R.forEach(function(x){ var rs=respOf(x); add(rs,'resp'); if(rs) add(rs,x.state==='came'?'came':'booked'); if(x.ret_by) add(x.ret_by,'bookedBy'); });
+  var names=Object.keys(per).sort(function(a,b){ return (per[b].resp+per[b].bookedBy)-(per[a].resp+per[a].bookedBy); });
+  var cmT=cm.filter(function(x){ return String(x.ret_date).slice(0,10)===td; }).length;
+  var h='<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
+    '<div onclick="PLAN_FU_OPEN=!PLAN_FU_OPEN;planRender()" style="display:flex;gap:10px;align-items:center;cursor:pointer;flex-wrap:wrap"><b style="font-size:.72rem;flex:1">📈 نتيجة المتابعة — آخر '+(F.window||14)+' يوم</b>'+
+      '<span style="font-size:.64rem">اتتابعوا <b>'+pool.length+'</b></span>'+
+      '<span style="font-size:.64rem;color:var(--am)">📅 حجزوا <b>'+bk.length+'</b> ('+pc(bk.length)+')</span>'+
+      '<span style="font-size:.64rem;color:var(--g)">✅ جم فعلاً <b>'+cm.length+'</b> ('+pc(cm.length)+')</span>'+
+      '<span style="font-size:.6rem;color:var(--mute)">النهارده جه '+cmT+' · '+(PLAN_FU_OPEN?'▾':'◂')+'</span></div>';
+  if(!PLAN_FU_OPEN) return h+'</div>';
+  if(names.length) h+='<table style="width:100%;border-collapse:collapse;font-size:.62rem;margin-top:8px"><tr style="color:var(--mute);font-size:.55rem"><th style="text-align:right;padding:3px">السكرتيرة</th><th>رجعوا من متابعتها</th><th>منهم جم</th><th>منهم حجزوا</th><th>حجزت هي على Medicolize</th></tr>'+
+    names.map(function(n){ var o=per[n]; return '<tr style="border-top:1px solid var(--brd)"><td style="padding:5px 4px;font-weight:800">'+alEsc(n)+'</td><td style="text-align:center">'+(o.resp||'—')+'</td><td style="text-align:center;color:var(--g)">'+(o.came||'—')+'</td><td style="text-align:center;color:var(--am)">'+(o.booked||'—')+'</td><td style="text-align:center">'+(o.bookedBy||'—')+'</td></tr>'; }).join('')+'</table>';
+  h+='<div style="margin-top:8px">'+R.slice().sort(function(a,b){ return String(b.ret_date).localeCompare(String(a.ret_date)); }).map(function(x){
+    var rs=respOf(x), by=x.ret_by||'', diff=rs&&by&&first(rs)!==first(by);
+    return '<div style="border-top:1px solid var(--brd);padding:6px 2px;font-size:.62rem">'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>'+alEsc(x.name)+'</b>'+
+      (x.state==='came'?'<span style="color:var(--g);font-weight:800">✅ جه '+alEsc(alFmtDay(String(x.ret_date).slice(0,10)))+'</span>':'<span style="color:var(--am);font-weight:800">📅 حاجز '+alEsc(alFmtDay(String(x.ret_date).slice(0,10)))+' ('+alEsc(x.ret_status||'')+')</span>')+
+      '<span style="color:var(--mute)">· اتتابع '+alEsc(alFmtDay(String(x.fu_date).slice(0,10)))+' ('+alEsc(x.fu_type||'')+(x.fu_count>1?' × '+x.fu_count:'')+')</span></div>'+
+      '<div style="margin-top:2px">👤 مسئولة المتابعة: <b>'+(rs?alEsc(rs):'<span style="color:var(--mute)">مش متسجّلة</span>')+'</b> · 📲 حجز الميعاد: <b style="color:'+(diff?'#f59e0b':'var(--txt)')+'">'+(by?alEsc(by):'<span style="color:var(--mute)">—</span>')+'</b>'+(diff?' <span style="color:#f59e0b">(حد تاني رجّعه)</span>':'')+'</div>'+
+      (x.fu_note?'<div style="color:var(--mute);margin-top:2px">📝 '+alEsc(x.fu_note)+'</div>':'')+'</div>'; }).join('')+'</div>';
+  return h+'<div style="font-size:.54rem;color:var(--mute);margin-top:6px">«مسئولة المتابعة» = اللي كانت متعيّنة على مكالمات المتابعة يوم ما المريض اتتابع (أو المسئولة عن الفرع) · «حجز الميعاد» = اسم الحساب اللي عمل الميعاد على Medicolize</div></div>';
+}
 function planState(t){
   var st=PLAN_ST[t.key]||{}, today=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   if(st.s==='later'&&st.until&&st.until>today) return 'snz';
@@ -11809,6 +11843,7 @@ function planRender(){
       '<div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:linear-gradient(90deg,#10b981,#00c6ff)"></div></div>'+
       (PLAN_LOADED?'':'<div style="font-size:.56rem;color:var(--mute);margin-top:5px">⏳ بيجيب حالة المهام من الشيت...</div>')+'</div>';
   h+=planSecPanel();
+  try{ h+=planFuPanel(); }catch(e){}
   var sec=function(id,title,sub,arr,hot){
     if(!arr.length) return '';
     var live=arr.filter(function(t){ return planState(t)!=='snz'; }), dnS=live.filter(function(t){ return planState(t)==='done'; }).length;
@@ -11823,9 +11858,11 @@ function planRender(){
       var head='<div onclick="PLAN_OPEN_G[\''+gk+'\']=!PLAN_OPEN_G[\''+gk+'\'];planRender()" style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid '+(isOpen?'var(--acc,#00c6ff)':'var(--brd)')+';border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer'+(allDone?';opacity:.6':'')+'">'+
         '<span style="font-size:1rem">'+gt[0]+'</span><b style="font-size:.7rem;flex:1">'+gt[1]+'</b>'+
         (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'<span title="المسئولة = اللي على الخزنة وقت ميعاد المريض (من تاب التحصيل)" style="font-size:.6rem;color:var(--mute);border:1px solid var(--brd);border-radius:7px;padding:2px 6px">🧾 حسب الخزنة</span>':'')+
-        (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', cur=''; alActiveBranches().some(function(b){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+b.key]; if(a&&a.by){ cur=a.by; return true; } return false; });
-          return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value)" title="السكرتيرة المسئولة عن المهمة دي" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:110px">'+
-            '<option value="">👤 المسئولة…</option>'+PLAN_NAMES.map(function(n){ return '<option'+(n===cur?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option></select>'; })())+
+        (g==='debt'&&PLAN_SHIFTS&&PLAN_SHIFTS.length?'':(function(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', brs=alActiveBranches(), many=brs.length>1;
+          var brsHere=brs.filter(function(bb){ return A.some(function(t){ return t.br===bb.key; }); }); if(!brsHere.length) brsHere=brs;
+          return brsHere.map(function(bb){ var a=PLAN_ST['asg|'+td+'|'+gk+'|'+bb.key], cur=a&&a.by||'';
+            return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value,\''+bb.key+'\')" title="المسئولة عن المهمة دي في '+bb.label+'" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:'+(many?'120':'110')+'px">'+
+              '<option value="">👤 '+(many?bb.label+'…':'المسئولة…')+'</option>'+PLAN_NAMES.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>'+(many?bb.label+': ':'')+alEsc(n)+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option></select>'; }).join(''); })())+
         (allDone?'<span style="color:var(--g);font-size:.64rem;font-weight:800">✅ خلصت</span>':'<span style="background:'+(hot?'var(--r)':'#ec4899')+';color:#fff;border-radius:10px;padding:1px 10px;font-size:.68rem;font-weight:900">'+open.length+'</span>')+
         '<span style="width:60px;height:6px;background:var(--bg);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:'+pc+'%;background:var(--g)"></span></span>'+
         '<b style="font-size:.66rem;min-width:34px;text-align:center;color:'+(pc>=80?'var(--g)':pc>=40?'var(--am)':'var(--r)')+'">'+pc+'%</b>'+

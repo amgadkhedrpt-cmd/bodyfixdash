@@ -11480,7 +11480,8 @@ function planTasks(useAll){
   var T={mgr:[], morning:[], rec:[], office:[], evening:[]};
   var add=function(sec,t){ t.br=t.br||''; t.sec=sec; T[sec].push(t); };
   var P=D.plan||{}, FU=D.followups||{};
-  var hasNote=function(x,k){ var a=(typeof AL_NOTES!=='undefined'&&AL_NOTES[alNoteId(x)])||{}; var p=PLAN_ST[k]||{}; return !!((a.text||'').trim()||(p.note||'').trim()); };
+  // ملحوظة النهارده بس: ملحوظة الخطة (مفتاحها فيه تاريخ النهارده) أو تعليق التنبيهات اللي اتكتب النهارده
+  var hasNote=function(x,k){ var a=(typeof AL_NOTES!=='undefined'&&AL_NOTES[alNoteId(x)])||{}; var p=PLAN_ST[k]||{}; return !!((p.note||'').trim()||((a.text||'').trim()&&String(a.at||'').slice(0,10)===today)); };
   // 👔 محتاج المدير
   (P.manager||[]).filter(inb).forEach(function(x){
     var n=alEsc(x.note), h=alEsc(x.hit); if(h) n=n.split(h).join('<mark style="background:#fde68a;color:#111;border-radius:3px;padding:0 2px">'+h+'</mark>');
@@ -11497,7 +11498,7 @@ function planTasks(useAll){
       lines:[x.note?(x.note_today?'📝 ':'<span style="color:var(--am)">📝 ملحوظة قديمة (مش النهارده): </span>')+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة</span>', sug]});
   });
   var stk=(typeof alStreaks==='function')?alStreaks():null;
-  if(stk&&stk.gone) stk.gone.forEach(function(x){ var f0=x.fixed[0]||{};
+  if(stk&&stk.gone) stk.gone.filter(function(x){ return x.removed_on===today; }).forEach(function(x){ var f0=x.fixed[0]||{};
     add('morning',{grp:['streak'], sys:'اتشال من الشيت', what:'اتشال من شيت التثبيت (كان عند '+(f0.doctor||'')+(x.removed_on?' — اتشال '+x.removed_on:'')+')', key:today+'|streak|'+x.pid, icon:'⚠️', kind:'مثبت وبيلغي — اتشال من التثبيت', name:x.name, phone:x.phone, br:f0.branch||brOf(x),
       lines:['كان مثبت عند '+alEsc(f0.doctor||'')+(x.removed_on?' · اتشال '+alEsc(alFmtDay(x.removed_on)):'')]}); });
   if(stk&&stk.rows) stk.rows.forEach(function(x){
@@ -11712,7 +11713,7 @@ function planWa(k){
   PLAN_ST[k+'|wa']=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   planSaveRaw('PLAN|'+k+'|wa', JSON.stringify(o)); setTimeout(planRender,300);
 }
-function planNoteText(x,k){ var a=(typeof AL_NOTES!=='undefined'&&AL_NOTES[alNoteId(x)])||{}, p=PLAN_ST[k]||{}; var t=(p.note||'').trim()||(a.text||'').trim(); return t?'📝 '+t:''; }
+function planNoteText(x,k){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', a=(typeof AL_NOTES!=='undefined'&&AL_NOTES[alNoteId(x)])||{}, p=PLAN_ST[k]||{}; var t=(p.note||'').trim()||(String(a.at||'').slice(0,10)===td?(a.text||'').trim():''); return t?'📝 '+t:''; }
 var PLAN_TASKIDX={};
 function planMeta(t){ var g=(t.grp&&t.grp[0])||''; return {name:t.name||'', kind:(PLAN_GT[g]||['',''])[1], br:t.br||'', d:(ALERTS_DATA&&ALERTS_DATA.today)||''}; }
 function planAutoSave(all){

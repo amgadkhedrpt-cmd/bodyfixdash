@@ -481,6 +481,31 @@ def main():
             mk[key] = {"values": vals, "months": len(bs), "first": min(bs) if bs else "", "last": max(bs) if bs else "",
                        "rows": sum(len(x.get("rows", [])) for x in bs.values()), "cols": cols,
                        "missing": [k for k in ALL if k not in bs]}
+    # nutrition sanity check for the page's rules — service NAMES and COUNTS only (no amounts, no patients)
+    try:
+        cats = [("inj", r"مونجار|ويجوفي|ريتا|تيرز|mounjaro|wegovy"), ("mezo", r"ميزو"), ("exam", r"^كشف (ال)?تغذيه"),
+                ("fu", r"^م تغذيه|^م ت \d|^متابعه (ال)?تغذيه|^متابعه ت"),
+                ("dev", r"راديوفريكونسي|كرايو|كافيتيشن|اكسيليس|excilis|بشره|اسكن|\bdo\b|كومبريشن|cryo|cavitation|\brf\b"), ("inbody", r"انبدي|inbody")]
+        unc, cnt = {}, {}
+        for mk, t in (data["kinds"].get("ops", {}).get("all", {}) or {}).items():
+            cols = t.get("cols", [])
+            if "name" not in cols:
+                continue
+            ni, bi, ei = cols.index("name"), cols.index("branch.name") if "branch.name" in cols else -1, cols.index("end") if "end" in cols else -1
+            for r in t["rows"]:
+                if bi >= 0 and "FIX" in str(r[bi] or "").upper():
+                    continue
+                n = _norm_ar(r[ni])
+                c = next((k for k, rx in cats if re.search(rx, n)), None)
+                em = str(r[ei] or "")[:7] if ei >= 0 else ""
+                if c is None:
+                    unc[str(r[ni])] = unc.get(str(r[ni]), 0) + 1
+                elif em in ALL[-3:]:
+                    cnt.setdefault(em, {}).setdefault(c, 0)
+                    cnt[em][c] += 1
+        META_D["nut_check"] = {"unclassified": sorted(unc.items(), key=lambda x: -x[1])[:40], "counts": cnt}
+    except Exception as e:
+        META_D["errors"].append("nut_check: %s" % str(e)[:120])
     META_D["stripped"] = STRIPPED
     data["at"] = C.NOW
     os.makedirs("data", exist_ok=True)

@@ -1145,10 +1145,10 @@ def _cover_unpaid(rows, has_done, inv_money=None):
     return res, k_
 
 INV_PAY_Q = ("query INV($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
-             "{invoices(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate){id paid discount patient{id}}}")
+             "{invoices(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate){id total paid discount patient{id}}}")
 
 async def patient_money(page, cookie_str, extra_headers, days):
-    """مجموع (المدفوع + الخصم) لكل مريض من كل فواتيره في الفترة — الفرعين."""
+    """المتبقي على فواتير كل مريض في الفترة — الفرعين."""
     now = datetime.now(timezone.utc)
     rng = [(now - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00.000Z"), now.strftime("%Y-%m-%dT23:59:59.999Z")]
     me = gql_dec(await gql_call(page, cookie_str, extra_headers, "{me{branches{id name}}}", {}), "me") or {}
@@ -1162,7 +1162,8 @@ async def patient_money(page, cookie_str, extra_headers, days):
                 if r.get("id") in seen: continue
                 seen.add(r.get("id"))
                 pid = str((r.get("patient") or {}).get("id") or "")
-                if pid: money[pid] += float(r.get("paid") or 0) + float(r.get("discount") or 0)
+                if pid:   # المتبقي على الفاتورة (من غير سالب) — الفاتورة هي الحكم
+                    money[pid] += max(0.0, float(r.get("total") or 0) - float(r.get("paid") or 0) - float(r.get("discount") or 0))
             if len(rows) < 500 or skip > 40000: break
             skip += 500
             await asyncio.sleep(0.2)
@@ -1239,6 +1240,29 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
     statuses = collections.Counter(str(x.get("status") or "") for x in rows)
     has_done = any(_RE_DONE.search(k) for k in statuses)
     pay, n_rem = _cover_unpaid(rows, has_done)
+    # الفاتورة هي الحكم: لو المتبقي على فواتير المريض 0 → مفيش عليه حاجة، ولو فيه متبقي → نعرض لحد المبلغ ده بس (الأحدث الأول)
+    inv_rem, n_inv = None, 0
+    try:
+        inv_rem, n_inv = await patient_money(page, cookie_str, extra_headers, STEPS_LOOKBACK + 35)
+    except Exception as e:
+        print(f"[{ts()}] ⚠️ متبقي الفواتير: {str(e)[:150]}")
+    if inv_rem is not None:
+        cleared = 0
+        by_p = defaultdict(list)
+        for x in rows:
+            if pay.get(x.get("id")) == "unpaid":
+                by_p[str((x.get("patient") or {}).get("id") or "")].append(x)
+        for pid_, lst in by_p.items():
+            cap = float(inv_rem.get(pid_) or 0)
+            for x in sorted(lst, key=lambda x: str(x.get("end") or x.get("createdAt") or ""), reverse=True):
+                pd_, net_, rem_ = REM_.get(x.get("id"), (0, 0, 0))
+                if cap <= 1:
+                    pay[x.get("id")] = "covered"; cleared += 1
+                    continue
+                if rem_ > cap:
+                    REM_[x.get("id")] = (round(net_ - cap, 2), net_, round(cap, 2))
+                cap -= min(rem_, cap)
+        print(f"[{ts()}] 🧾 متبقي الفواتير: {n_inv} فاتورة · اتشال {cleared} خدمة فواتيرها مدفوعة")
     steps, n_cov = [], 0
     for x in rows:
         dd = _cairo_date(x.get("end") or x.get("createdAt"))

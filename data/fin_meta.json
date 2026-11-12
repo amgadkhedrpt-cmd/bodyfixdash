@@ -1,5 +1,5 @@
 {
- "at": "2026-11-12T23:43:00.890Z",
+ "at": "2026-11-12T23:54:05.079Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -338,89 +338,6 @@
     "missing": []
    }
   },
-  "xp": {
-   "haram": {
-    "values": {
-     "type": [
-      "Enum1",
-      "Enum12",
-      "Enum13",
-      "Enum15",
-      "Enum16",
-      "Enum2",
-      "Enum3",
-      "Enum30",
-      "Enum31",
-      "Enum36",
-      "Enum4",
-      "Enum46",
-      "Enum49",
-      "Enum5",
-      "Enum53",
-      "Enum57",
-      "Enum59",
-      "Enum6",
-      "Enum60",
-      "Enum8"
-     ],
-     "refunded": [],
-     "salaryAdjustment": []
-    },
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 2994,
-    "cols": [
-     "name",
-     "type",
-     "amount",
-     "paid",
-     "date",
-     "createdAt",
-     "branch.name",
-     "createdBy.name"
-    ],
-    "missing": []
-   },
-   "dokki": {
-    "values": {
-     "type": [
-      "Enum1",
-      "Enum12",
-      "Enum13",
-      "Enum15",
-      "Enum16",
-      "Enum17",
-      "Enum3",
-      "Enum30",
-      "Enum31",
-      "Enum4",
-      "Enum49",
-      "Enum57",
-      "Enum59",
-      "Enum60",
-      "Enum8"
-     ],
-     "refunded": [],
-     "salaryAdjustment": []
-    },
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 260,
-    "cols": [
-     "name",
-     "type",
-     "amount",
-     "paid",
-     "date",
-     "createdAt",
-     "branch.name",
-     "createdBy.name"
-    ],
-    "missing": []
-   }
-  },
   "ops": {
    "all": {
     "values": {
@@ -457,24 +374,112 @@
     ],
     "missing": []
    }
+  },
+  "xp": {
+   "haram": {
+    "values": {
+     "type": [
+      "Enum1",
+      "Enum12",
+      "Enum13",
+      "Enum15",
+      "Enum16",
+      "Enum2",
+      "Enum3",
+      "Enum30",
+      "Enum31",
+      "Enum36",
+      "Enum4",
+      "Enum46",
+      "Enum49",
+      "Enum5",
+      "Enum53",
+      "Enum57",
+      "Enum59",
+      "Enum6",
+      "Enum60",
+      "Enum8"
+     ],
+     "refunded": [],
+     "salaryAdjustment": []
+    },
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 2994,
+    "cols": [
+     "name",
+     "type",
+     "mainType",
+     "amount",
+     "paid",
+     "date",
+     "isDebt",
+     "createdAt",
+     "branch.name",
+     "createdBy.name",
+     "details",
+     "user.name",
+     "supplier.name"
+    ],
+    "missing": []
+   },
+   "dokki": {
+    "values": {
+     "type": [
+      "Enum1",
+      "Enum12",
+      "Enum13",
+      "Enum15",
+      "Enum16",
+      "Enum17",
+      "Enum3",
+      "Enum30",
+      "Enum31",
+      "Enum4",
+      "Enum49",
+      "Enum57",
+      "Enum59",
+      "Enum60",
+      "Enum8"
+     ],
+     "refunded": [],
+     "salaryAdjustment": []
+    },
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 260,
+    "cols": [
+     "name",
+     "type",
+     "mainType",
+     "amount",
+     "paid",
+     "date",
+     "isDebt",
+     "createdAt",
+     "branch.name",
+     "createdBy.name",
+     "user.name",
+     "details"
+    ],
+    "missing": []
+   }
   }
  },
  "stripped": {
-  "expenses": [
-   "refunded",
-   "salaryAdjustment"
-  ],
   "createdOperationSteps": [
    "tags"
   ]
  },
  "hash": {
-  "data/fin.enc": "8d61a7c1dc0119fd",
-  "data/fin_c.enc": "a56630d435e3f285"
+  "data/fin.enc": "41b69f0c5620a5d7",
+  "data/fin_c.enc": "10a82c832f1552c8"
  },
  "written": [
   "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 65
+ "secs": 72
 }

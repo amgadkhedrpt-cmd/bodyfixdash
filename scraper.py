@@ -1264,8 +1264,8 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
     strip = lambda t: re.sub(r"[\s\d.\u0660-\u0669]+$", "", str(t or "").strip()).strip()
     step_names = collections.Counter()
     for x in rows:
-        for nm in {strip(x.get("name")), strip((x.get("operation") or {}).get("name"))}:
-            if nm: step_names[nm] += 1
+        nm = strip(x.get("name"))          # اسم الخطوة بس — اسم الباقة (ب 6 …) مش خطوة
+        if nm: step_names[nm] += 1
     try:
         for nm in await ops_catalog(page, cookie_str, extra_headers, packages):
             nm = strip(nm)

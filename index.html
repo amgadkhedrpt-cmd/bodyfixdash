@@ -11397,7 +11397,7 @@ var PLAN_NAMES_DEF=['Engy','Dalia','Mariam','Nada','Georgina','Bassant'];
 var PLAN_NAMES=PLAN_NAMES_DEF.slice(), PLAN_ST={}, PLAN_LOADED=false, PLAN_TIMER=null, PLAN_OPEN_DONE={};
 var PLAN_ME=''; try{ PLAN_ME=localStorage.getItem('planMe')||''; PLAN_ST=JSON.parse(localStorage.getItem('planSt')||'{}'); var _pn=JSON.parse(localStorage.getItem('planNames')||'null'); if(_pn&&_pn.length) PLAN_NAMES=_pn; }catch(e){}
 function planOpen(){
-  planRender();
+  planRender(); [6000,15000,30000].forEach(function(ms){ setTimeout(function(){ var t=document.getElementById('tab-plan'); if(t&&t.classList.contains('active')) planRender(); },ms); });
   if(!PLAN_LOADED) planLoad();
   if(typeof AUD_DATA!=='undefined'&&!AUD_DATA&&typeof audAutoLoad==='function'){ audAutoLoad(); var t=setInterval(function(){ if(AUD_DATA){ clearInterval(t); planRender(); } },1500); setTimeout(function(){clearInterval(t);},30000); }
   if(!PLAN_TIMER) PLAN_TIMER=setInterval(function(){ var tab=document.getElementById('tab-plan'); if(tab&&tab.classList.contains('active')) planLoad(); },120000);
@@ -11472,6 +11472,13 @@ function planTasks(){
   var add=function(sec,t){ t.br=t.br||''; T[sec].push(t); };
   var P=D.plan||{}, FU=D.followups||{};
   // ☀️ أول الشيفت
+  var stk=(typeof alStreaks==='function')?alStreaks():null;
+  if(stk&&stk.rows) stk.rows.forEach(function(x){
+    var f0=x.fixed[0]||{}, ms=(x.misses||[]).slice(0,4).map(function(m){ return alFmtDay(m.date)+' ('+(/no ?show/i.test(m.status)?'No Show':'إلغاء')+')'; }).join(' · ');
+    add('morning',{grp:['streak'], key:today+'|streak|'+x.pid, icon:'⚠️', kind:'مثبت وبيلغي ورا بعض — '+x.streak+' مرات', name:x.name, phone:x.phone, br:f0.branch||brOf(x),
+      lines:['مثبت عند <b>'+alEsc(f0.doctor||'')+'</b>'+(f0.slot!=null?' الساعة '+alEsc(alSlotTxt(f0.slot)):''), '<span style="color:var(--r)">'+alEsc(ms)+'</span>',
+             'آخر حضور '+alEsc(alFmtDay(x.last_attended))+(x.next_appt?' · ميعاده الجاي '+alEsc(alFmtDay(String(x.next_appt).slice(0,10))):' · <b>مالوش ميعاد جاي</b>')+' — اتصل واعرف هيكمّل ولا نفضّي التثبيت']});
+  });
   (FU.calls||[]).filter(function(x){ return x.is_today&&inb(x); }).forEach(function(x){
     add('morning',{grp:['call'], key:today+'|call|'+x.pid, icon:'📞', kind:'مكالمة متابعة', name:x.name, phone:x.phone, br:brOf(x),
       lines:[alEsc(x.type||'متابعة')+(x.step?' — مكالمة '+x.step:'')+(x.doctor&&!/follow up/i.test(x.doctor)?' · '+alEsc(doc(x.doctor)):''), x.note?'📝 '+alEsc(x.note):'']});
@@ -11514,7 +11521,7 @@ function planTasks(){
     if(evd[x.pid]) R.push('🩺 جلسة '+evd[x.pid].n+' من غير تقييم — <b>احجز تقييم</b>');
     if(debts[x.pid]&&debts[x.pid].sum>=1) R.push('💸 عليه <b style="color:var(--r)">'+planMoney(debts[x.pid].sum)+' ج</b> ('+debts[x.pid].n+' خدمة، أقدمها '+alEsc(alFmtDay(debts[x.pid].old))+') — <b>حصّل</b>');
     if(nonext[x.pid]) R.push('📅 مالوش ميعاد جاي — <b>احجزله قبل ما يمشي</b>');
-    if(svc[x.pid]) R.push('🧩 ناقصه: '+(svc[x.pid].missing||[]).map(function(m){ return alEsc(m.svc); }).join('، '));
+    if(svc[x.pid]) R.push('🧩 محجوز '+alEsc((svc[x.pid].today_svcs||[]).join(' + '))+' وناقصه: '+(svc[x.pid].missing||[]).map(function(m){ return '<b>'+alEsc(m.svc)+'</b>'+(m.last?' (آخر مرة '+alEsc(alFmtDay(m.last))+')':''); }).join('، ')+' — <b>اعرضها عليه</b>');
     if(x.risk>=2) R.push('⚡ عنده '+x.risk+' غياب/اعتذار مفاجئ آخر 3 شهور — <b>أكّد عليه</b>');
     if(!R.length) return;
     var arrived=/checked|progress|completed/i.test(x.status||'');
@@ -11574,8 +11581,8 @@ function planTasks(){
   return T;
 }
 var PLAN_GT={
-  call:['📞','مكالمات المتابعة'], miss:['🙋','منتظمين ومالهمش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي'], drop:['🚶','مرضى جداد وقفوا بدري'],
-  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','حصّل فلوس'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','ناقصه خدمة'], risk:['⚡','بيغيب كتير — أكّد عليه'],
+  call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي'], drop:['🚶','مرضى جداد وقفوا بدري'],
+  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','حصّل فلوس'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
   stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده وما حجزش'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده']
 };
 var PLAN_OPEN_G={};

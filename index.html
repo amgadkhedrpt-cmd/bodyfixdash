@@ -11530,8 +11530,10 @@ function planTasks(useAll){
   var D=ALERTS_DATA; if(!D) return null;
   var BRS=useAll?AL_BRANCHES:planBR();
   var today=D.today||'', act=BRS.map(function(b){return b.key;});
-  var inb=function(x){ return act.indexOf(alBranchOf(x.doctor,x.branch))>=0; };
-  var brOf=function(x){ return alBranchOf(x.doctor,x.branch); };
+  // فرع الموعد نفسه من Medicolize هو الأساس (دكتور شغال في الفرعين زي د. أمجد ما يخليش ملحوظة الدقي تظهر في الهرم)
+  var KEYS=AL_BRANCHES.map(function(b){return b.key;});
+  var brOf=function(x){ return KEYS.indexOf(x.branch)>=0?x.branch:alBranchOf(x.doctor,x.branch); };
+  var inb=function(x){ return act.indexOf(brOf(x))>=0; };
   var doc=function(en){ return alDocAr(en)||en||''; };
   var T={mgr:[], morning:[], rec:[], office:[], evening:[]};
   var add=function(sec,t){ t.br=t.br||''; t.sec=sec; T[sec].push(t); };

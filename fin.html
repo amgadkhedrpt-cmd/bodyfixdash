@@ -123,6 +123,8 @@ const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim
 const SER=()=>[1,2,3,4,5,6,7,8].map(i=>css('--c'+i));
 const DAYS=['الأحد','الاتنين','التلات','الأربع','الخميس','الجمعة','السبت'];
 const REFUND_RX=/مردود|refund|استرداد|مرتجع/i, RENT_RX=/ايجار|إيجار|rent/i, SAL_RX=/مرتب|رواتب|salary|اجور|أجور/i;
+const METH={CASH:'كاش',CARD:'فيزا / كارت',BANK_TRANSFER:'تحويل بنكي',MOBILE_WALLET:'محفظة / إنستاباي',VOUCHER:'قسيمة',OTHER:'أخرى',BALANCE:'من الرصيد'};
+const mName=x=>METH[x]||x;
 const BRN={haram:'الهرم',dokki:'الدقي',both:'الفرعين'};
 let RAW=null, D=null, S={tab:'sum',b:'haram',from:'',to:''}, CH={};
 try{const t=localStorage.getItem('fin_tab');if(t)S.tab=t;const b=localStorage.getItem('fin_b');if(b)S.b=b}catch(e){}
@@ -214,13 +216,13 @@ function build(raw){
     const t=K[kind][b][m];if(!t||!t.cols)continue;const c=pick(t.cols,SP[kind]);out.months.add(m);
     for(const r of t.rows){
       const cd=cairo(c.date>=0?r[c.date]:null);const d=cd?cd[0]:m+'-01';const k=d.slice(0,7);
-      if(kind==='pay'){const amt=num(r,c.amt);const meth=nm(r,c.method)||'—';
-        out.pay.push({b:branchOf(nm(r,c.branch),b),k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,amt,meth,bal:/balance|رصيد/i.test(meth+' '+nm(r,c.type2)),ref:truthy(r[c.refunded]),refd:nm(r,c.refDate).slice(0,10),
+      if(kind==='pay'){const amt=num(r,c.amt);const meth0=nm(r,c.method);const meth=mName(meth0)||'—';
+        out.pay.push({b:branchOf(nm(r,c.branch),b),k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,amt,meth,bal:/balance/i.test(meth0),ref:truthy(r[c.refunded]),refd:nm(r,c.refDate).slice(0,10),
           pid:nm(r,c.pid),pn:pname(r,c),doc:nm(r,c.doc)||'—',by:nm(r,c.by)||'—',inv:nm(r,c.inv),tr:nm(r,c.treas),note:nm(r,c.note)})}
-      else if(kind==='exp'){const bb=b==='all'?(c.branch>=0?branchOf(nm(r,c.branch),'all'):'all'):b;
-        out.exp.push({b:bb,k,d,amt:num(r,c.amt),type:nm(r,c.type)||'غير مصنف',info:[nm(r,c.info),c.det!==c.info?nm(r,c.det):''].filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' — '),meth:nm(r,c.method)||'—',by:nm(r,c.by)||'—',tr:nm(r,c.treas)})}
+      else if(kind==='exp'){if(truthy(r[c.refunded]))continue;const bb=b==='all'?(c.branch>=0?branchOf(nm(r,c.branch),'all'):'all'):b;
+        out.exp.push({b:bb,k,d,amt:num(r,c.amt),type:nm(r,c.type)||'غير مصنف',info:[nm(r,c.info),c.det!==c.info?nm(r,c.det):''].filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' — '),meth:mName(nm(r,c.method))||'—',by:nm(r,c.by)||'—',tr:nm(r,c.treas)})}
       else if(kind==='inv'){out.inv.push({b,k,d,total:num(r,c.total),paid:num(r,c.paid),disc:num(r,c.disc),pid:nm(r,c.pid),pn:pname(r,c),src:nm(r,c.src),doc:nm(r,c.doc),ref:nm(r,c.ref)})}
-      else{const ty=nm(r,c.type),st0=stName(nm(r,c.st));if(NOT_VISIT.has(ty)||/^note$/i.test(st0))continue;out.apt.push({b,k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,st:stName(nm(r,c.st)),type:nm(r,c.type),doc:nm(r,c.doc)||'—',pid:nm(r,c.pid),pn:pname(r,c),room:nm(r,c.room),g:nm(r,c.g)})}
+      else{const ty=nm(r,c.type),st0=stName(nm(r,c.st));if(NOT_VISIT.has(ty)||/^(note|waiting)/i.test(st0))continue;out.apt.push({b,k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,st:stName(nm(r,c.st)),type:nm(r,c.type),doc:nm(r,c.doc)||'—',pid:nm(r,c.pid),pn:pname(r,c),room:nm(r,c.room),g:nm(r,c.g)})}
     }}
   if(out.exp.some(e=>e.b==='all'))out.warn.push('المصروفات في Medicolize مش متقسمة على الفروع — بتظهر كاملة في «الفرعين مع بعض» بس.');
   out.months=[...out.months].sort();
@@ -347,18 +349,18 @@ function cRev(){const P=D.pay.filter(p=>inB(p)&&inR(p)&&!p.bal),I=D.inv.filter(x
   const wd=[0,1,2,3,4,5,6].map(i=>P.filter(p=>p.w===i).reduce((s,p)=>s+p.amt,0));chart('cWd',{type:'bar',data:{labels:DAYS,datasets:[bar('حسب اليوم',wd,c[0])]},options:{plugins:{legend:{display:false}}}});
   const hrs=[...Array(24).keys()].filter(h=>P.some(p=>p.h===h));chart('cHr',{type:'bar',data:{labels:hrs.map(h=>h+':00'),datasets:[bar('حسب الساعة',hrs.map(h=>P.filter(p=>p.h===h).reduce((s,p)=>s+p.amt,0)),c[6])]},options:{plugins:{legend:{display:false}}}})}
 
-function vExp(){const E=D.exp.filter(e=>inR(e)&&expIn(e));const tot=E.reduce((s,e)=>s+e.amt,0);const bt=groupSum(E,'type');
+function vExp(){const E0=D.exp.filter(e=>inR(e)&&expIn(e)),E=E0.filter(e=>!REFUND_RX.test(e.type)),rf=E0.filter(e=>REFUND_RX.test(e.type)).reduce((s,e)=>s+e.amt,0);const tot=E.reduce((s,e)=>s+e.amt,0);const bt=groupSum(E,'type');
   const det=bt.map(([t,v])=>{const inf=groupSum(E.filter(e=>e.type===t),e=>e.info||'—');
     return `<details><summary>${esc(t)} — <span class="num">${fm(v)}</span> <span class="muted">(${pc(v/tot)})</span></summary>${tableHTML(['التفاصيل',{t:'المبلغ',n:1},{t:'عدد',n:1}],inf.map(([k,x])=>[esc(k),x,E.filter(e=>e.type===t&&(e.info||'—')===k).length]),{h:260})}</details>`}).join('');
   return `<div class="grid g2">
-   <div class="card"><h3>المصروفات حسب البند<small>${fm(tot)} جنيه</small></h3><div class="ch lg"><canvas id="cET"></canvas></div></div>
+   <div class="card"><h3>المصروفات حسب البند<small>${fm(tot)} جنيه${rf?' — من غير المردودات للمرضى ('+fm(rf)+')':''}</small></h3><div class="ch lg"><canvas id="cET"></canvas></div></div>
    <div class="card"><h3>البنود الكبيرة شهريًا</h3><div class="ch lg"><canvas id="cEM"></canvas></div></div>
   </div>
   <div class="card" style="margin-top:12px"><h3>تفاصيل كل بند<small>اضغط على البند</small></h3>${det||'<span class="muted">مفيش مصروفات في الفترة دي</span>'}</div>
   <div class="card" style="margin-top:12px"><h3>كل المصروفات</h3><input type="search" id="eQ" placeholder="دوّر في البند أو التفاصيل أو الموظف" style="width:100%;margin-bottom:8px"><div id="eTbl"></div></div>`}
 function eTable(){const q=($('#eQ')?.value||'').trim().toLowerCase();const E=D.exp.filter(e=>inR(e)&&expIn(e)&&(!q||(e.type+' '+e.info+' '+e.by+' '+e.meth).toLowerCase().includes(q))).sort((a,b)=>a.d<b.d?1:-1);
   $('#eTbl').innerHTML=tableHTML(['التاريخ','البند','التفاصيل','طريقة الدفع','سجّلها',{t:'المبلغ',n:1}],E.slice(0,800).map(e=>[e.d,esc(e.type),esc(e.info),esc(e.meth),esc(e.by),e.amt]))+(E.length>800?`<div class="muted">بيظهر أول ٨٠٠ من ${fm(E.length)} — نزّلهم كلهم من «التقارير والتنزيل»</div>`:'')}
-function cExp(){const E=D.exp.filter(e=>inR(e)&&expIn(e)),c=SER();const bt=topN(groupSum(E,'type'),10);
+function cExp(){const E=D.exp.filter(e=>inR(e)&&expIn(e)&&!REFUND_RX.test(e.type)),c=SER();const bt=topN(groupSum(E,'type'),10);
   chart('cET',{type:'bar',data:{labels:bt.map(x=>x[0]),datasets:[bar('المبلغ',bt.map(x=>x[1]),c[1])]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>' '+fm(x.parsed.x)}}},scales:{x:{ticks:{callback:v=>fm(v)}},y:{grid:{display:false}}}}});
   const ks=monthsList(S.from,S.to),top=groupSum(E,'type').slice(0,6).map(x=>x[0]);
   const ds=top.map((t,i)=>bar(t,ks.map(k=>E.filter(e=>e.k===k&&e.type===t).reduce((s,e)=>s+e.amt,0)),c[i],{stack:'s',borderRadius:0}));

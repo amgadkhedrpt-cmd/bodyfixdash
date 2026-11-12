@@ -405,7 +405,7 @@ def main():
                     if c not in cols:
                         cols.append(c)
             vals = {}
-            for col in {"pay": ["type", "balance", "refunded"], "exp": ["type", "refunded"], "apt": ["status"]}.get(kind, []):
+            for col in {"pay": ["type", "refunded"], "exp": ["type", "refunded"], "apt": ["status"]}.get(kind, []):
                 vs = set()
                 for x in bs.values():
                     if col in x.get("cols", []):

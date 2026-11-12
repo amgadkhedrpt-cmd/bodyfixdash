@@ -1091,6 +1091,27 @@ def build_alerts(appointments, now=None, packages=None):
                 for k, x in old_.items():
                     if k not in cur:
                         resolved.append(dict(x, kind=typ, key=k))
+            # اللي اتعمل بالظبط: الميعاد اللي اتحجز / الحالة الجديدة
+            by_pid = defaultdict(list)
+            for v in patients_all.values():
+                for a in v:
+                    by_pid[a["pid"]].append(a)
+            fmt = lambda a: f'{a["type"]} يوم {a["start"].strftime("%d/%m")} الساعة {a["start"].strftime("%H:%M")} مع {a["doctor"]}'
+            for r in resolved:
+                ap = sorted(by_pid.get(r.get("pid"), []), key=lambda a: a["start"])
+                k = r["kind"]
+                if k == "stale":
+                    cur = next((a for a in ap if a["start"].isoformat() == r.get("time")), None)
+                    r["what"] = f'الموعد اتقفل: {cur["status"].title()}' if cur else "الموعد اتقفل / اتمسح"
+                    continue
+                if k == "miss" and any(a["start"].date() == today and a["status"] in LIVE_TODAY for a in ap):
+                    r["what"] = "اتحجزله النهارده / جه النهارده"; continue
+                fut = [a for a in ap if a["start"] > now and a["status"] not in NOT_FUTURE and a["doctor"].lower() not in SKIP_DOCS]
+                if k == "eval":
+                    fut = [a for a in fut if a["type"] in EVAL_TYPES] or fut
+                if k in ("kashf", "kashf0"):
+                    fut = [a for a in fut if _is_pt(a["type"])] or fut
+                r["what"] = ("اتحجز " + fmt(fut[0])) if fut else "اتحلّت على السيستم"
             plan["resolved"] = resolved
             _os.makedirs(".session", exist_ok=True)
             _json.dump(seen, open(fn, "w", encoding="utf-8"), ensure_ascii=False)

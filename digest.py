@@ -93,6 +93,10 @@ def main():
     if paid.get("date") != today_s:
         paid = {}
     html = build(now, alerts, ctx, paid)
+    try:
+        html = html.replace("<!--PLAN-->", plan_section(today_s))
+    except Exception as e:
+        print(f"digest plan: {e}")
     user, pw = os.environ.get("GMAIL_USER", ""), os.environ.get("GMAIL_APP_PASS", "")
     to = os.environ.get("DIGEST_TO", "").strip() or user
     if os.environ.get("DIGEST_PREVIEW"):
@@ -110,6 +114,68 @@ def main():
     with open("packages.json", "w", encoding="utf-8") as f:
         json.dump(pk, f, ensure_ascii=False, separators=(",", ":"))
     print("📧 الملخص اتبعت")
+
+
+
+REQ_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzy1UbUmQmVOLnrgP69vALV_RH8VlejQ5Npo9a9xS1u9Hhz5oRiPKF7GIgSVYAxCp_m/exec"
+BR_AR = {"BODYFIX Center": "الهرم", "FIX ZONE": "الدقي"}
+
+
+def plan_section(today_s):
+    """✅ خطة اليوم: نسبة الإنجاز لكل فرع ولكل سكرتيرة + اللي اتعمل بالظبط مع كل مريض (من شيت الطلبات)."""
+    raw = urllib.request.urlopen(REQ_SCRIPT_URL + "?action=getAll&callback=cb", timeout=40).read().decode("utf-8")
+    m = re.search(r"cb\((.*)\)\s*;?\s*$", raw, re.S)
+    data = json.loads(m.group(1) if m else raw)
+    reasons = data.get("reasons") or {}
+    summ, items = None, []
+    for k, v in reasons.items():
+        try:
+            o = json.loads(v) if isinstance(v, str) and v.strip().startswith("{") else None
+        except Exception:
+            o = None
+        if not o:
+            continue
+        if k == f"PLANSUM|{today_s}":
+            summ = o
+        elif k.startswith("PLAN|") and o.get("d") == today_s and o.get("s") in ("done", "auto", "nr") and o.get("name"):
+            items.append(o)
+    if not summ and not items:
+        return '<h3 style="margin:16px 0 6px">✅ خطة اليوم</h3><div style="color:#64748b;font-size:13px">محدش فتح «خطة اليوم» النهارده</div>'
+    H = lambda t: (str(t or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    pc = lambda a, b: f"{round(a * 100 / b)}%" if b else "—"
+    out = ['<h3 style="margin:16px 0 6px">✅ خطة اليوم — اتعمل إيه</h3>']
+    if summ:
+        rows = "".join(f'<tr><td style="padding:4px 8px">{H(BR_AR.get(b, b))}</td><td style="padding:4px 8px;text-align:center"><b>{pc(x["done"], x["tot"])}</b></td>'
+                       f'<td style="padding:4px 8px;text-align:center">{x["done"]} من {x["tot"]}</td></tr>' for b, x in (summ.get("br") or {}).items() if x.get("tot"))
+        out.append(f'<table style="border-collapse:collapse;font-size:13px;margin-bottom:6px"><tr style="color:#64748b;font-size:12px"><th style="text-align:right;padding:4px 8px">الفرع</th><th>الإنجاز</th><th></th></tr>{rows}</table>')
+        sec = summ.get("sec") or {}
+        if sec:
+            rows = "".join(f'<tr><td style="padding:4px 8px"><b>{H(n)}</b></td><td style="padding:4px 8px;text-align:center"><b>{pc(x["done"], x["tot"])}</b></td>'
+                           f'<td style="padding:4px 8px;text-align:center">{x["done"]} من {x["tot"]}</td><td style="padding:4px 8px;text-align:center">{x.get("hand", 0)}</td></tr>'
+                           for n, x in sorted(sec.items(), key=lambda kv: -(kv[1]["done"] / kv[1]["tot"] if kv[1]["tot"] else 0)))
+            out.append(f'<table style="border-collapse:collapse;font-size:13px;margin-bottom:6px"><tr style="color:#64748b;font-size:12px"><th style="text-align:right;padding:4px 8px">السكرتيرة</th><th>الإنجاز</th><th>مهامها</th><th>بإيدها</th></tr>{rows}</table>')
+        # المهام اللي فاضلة لكل نوع
+        left = []
+        for b, x in (summ.get("br") or {}).items():
+            for g, y in (x.get("groups") or {}).items():
+                if y["tot"] - y["done"] > 0:
+                    left.append(f'{H(g)} ({H(BR_AR.get(b, b))}): {y["tot"] - y["done"]}')
+        if left:
+            out.append(f'<div style="font-size:12px;color:#b91c1c;margin:4px 0 8px">⏳ لسه ما اتعملش — {" · ".join(left[:12])}</div>')
+    groups = {}
+    for o in items:
+        groups.setdefault(o.get("kind") or "أخرى", []).append(o)
+    for g, L in groups.items():
+        L.sort(key=lambda o: o.get("s") != "done")
+        lis = "".join(
+            f'<li style="margin:2px 0">{H(o["name"])} <span style="color:#64748b">— {H(BR_AR.get(o.get("br"), o.get("br", "")))}'
+            f' · {"📞 ما ردش" if o.get("s") == "nr" else ("✅ " + H(o.get("by")) if o.get("s") == "done" else "🤖 على السيستم")} {H(o.get("at", ""))}</span>'
+            + (f'<div style="font-size:12px;color:#0f766e">📌 {H(o.get("what") or o.get("note"))}</div>' if (o.get("what") or o.get("note")) else "")
+            + "</li>" for o in L[:12])
+        more = f'<div style="color:#64748b;font-size:12px">+ {len(L) - 12} كمان</div>' if len(L) > 12 else ""
+        out.append(f'<div style="border-inline-start:3px solid #16a34a;padding:4px 10px;margin:8px 0"><div style="font-size:13px;font-weight:700">{H(g)}: {len(L)}</div>'
+                   f'<ul style="margin:2px 0;padding-inline-start:18px;font-size:13px">{lis}</ul>{more}</div>')
+    return "".join(out)
 
 
 def build(now, alerts, ctx, paid):
@@ -353,6 +419,7 @@ def build(now, alerts, ctx, paid):
         notes.append("المدفوع جاي من الفواتير (أداة التحصيل ما بعتتش أرقام النهارده)")
     if sheet_err:
         notes.append("ما قدرتش أقرا: " + "، ".join(sheet_err))
+    out.append("<!--PLAN-->")
     out.append(f'<div style="margin-top:14px"><a href="{DASH_URL}" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:13px">افتح الداشبورد للتفاصيل ←</a></div>'
                + (f'<div style="color:#94a3b8;font-size:11px;margin-top:10px">{" · ".join(H(n) for n in notes)}</div>' if notes else "") + '</div>')
     return "".join(out)

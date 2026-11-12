@@ -1021,6 +1021,15 @@ def build_alerts(appointments, now=None, packages=None):
                     plan["tomorrow_confirm"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
                                                      "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "why": why,
                                                      "status": a0["status"].title(), "auto": a0["status"] in ("confirmed", "canceled", "cancelled")})
+            for a in appts:   # ⏳ مواعيد على الويتنج ليست النهارده / يوم الشغل الجاي
+                if a["status"] in ("waiting list", "waiting") and a["start"].date() in (today, tomorrow_):
+                    nt = (a.get("note") or "").strip()
+                    upd = a.get("cancel_at")   # = آخر تعديل على الميعاد
+                    plan.setdefault("waiting", []).append({
+                        "pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
+                        "time": a["start"].isoformat(), "type": a["type"], "note": nt[:300],
+                        "day": "today" if a["start"].date() == today else "next",
+                        "note_today": bool(nt) and bool(upd) and upd.date() == today})
             for a in appts:   # مواعيد عدت وما اتقفلتش (لسه Open / Confirmed / Delayed) — آخر 14 يوم
                 if today - timedelta(days=14) <= a["start"].date() < today and a["status"] in ("open", "confirmed", "delayed"):
                     plan["stale_open"].append({"pid": a["pid"], "name": a["name"], "time": a["start"].isoformat(), "doctor": a["doctor"],
@@ -1075,6 +1084,8 @@ def build_alerts(appointments, now=None, packages=None):
                 "nonext": {x["pid"]: x for x in no_next if "waiting" not in str(x.get("status", "")).lower()},
                 "eval":   {x["pid"]: x for x in eval_due if x.get("day") == "today"},
                 "stale":  {x["pid"] + "|" + x["time"]: x for x in plan["stale_open"]},
+                "waittoday": {x["pid"] + "|" + x["time"]: x for x in plan.get("waiting", []) if x["day"] == "today" and not x["note_today"]},
+                "waitnext":  {x["pid"] + "|" + x["time"]: x for x in plan.get("waiting", []) if x["day"] == "next" and not x["note_today"]},
             }
             fn = _os.path.join(".session", "plan_seen.json")
             seen = {}
@@ -1103,6 +1114,18 @@ def build_alerts(appointments, now=None, packages=None):
             for r in resolved:
                 ap = sorted(by_pid.get(r.get("pid"), []), key=lambda a: a["start"])
                 k = r["kind"]
+                if k in ("waittoday", "waitnext"):
+                    try:
+                        d0 = datetime.fromisoformat(r.get("time")).date()
+                    except Exception:
+                        d0 = None
+                    same = [a for a in ap if d0 and a["start"].date() == d0 and a["status"] not in ("waiting list", "waiting")]
+                    if same:
+                        a = same[-1]
+                        r["what"] = (f'اتلغى' if a["status"] in ("canceled", "cancelled") else f'اتنقل من الويتنج: {a["status"].title()} الساعة {a["start"].strftime("%H:%M")} مع {a["doctor"]}')
+                    else:
+                        r["what"] = "اتشال من الويتنج"
+                    continue
                 if k == "stale":
                     cur = next((a for a in ap if a["start"].isoformat() == r.get("time")), None)
                     r["what"] = f'الموعد اتقفل: {cur["status"].title()}' if cur else "الموعد اتقفل / اتمسح"

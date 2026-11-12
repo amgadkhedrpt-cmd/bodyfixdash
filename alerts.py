@@ -1010,6 +1010,14 @@ def build_alerts(appointments, now=None, packages=None):
     try:
         CLOSED_BAD = {"canceled", "cancelled", "no show", "noshow", "note", "waiting list", "waiting"}
         tomorrow_ = next_work
+        # قسم التغذية / التخسيس ليهم أيام شغل لوحدهم (التغذية مثلاً مش بتشتغل السبت) → يوم الشغل الجاي بتاعهم = أول يوم بعد النهارده فيه 3 مواعيد أو أكتر منهم
+        _dep = lambda a: ("nut" if (a["doctor"].strip().lower() in CONF_SP_DOCS or "تغذ" in a["type"]) else
+                          "slim" if a["type"].strip().lower() in CONF_SP_TYPES else "")
+        _isp = lambda a: bool(_dep(a))
+        _spc = Counter((_dep(a), a["start"].date()) for v in patients.values() for a in v
+                       if _isp(a) and a["start"].date() > today and a["status"] in LIVE_TODAY)
+        sp_days = {dp: min((d for (k, d), c in _spc.items() if k == dp and c >= 3), default=tomorrow_) for dp in ("nut", "slim")}
+        plan["confirm_special_day"] = {k: v.isoformat() for k, v in sp_days.items()}
         R_FROM = today - timedelta(days=90)
         for appts in patients.values():
             risk = sum(1 for a in appts if R_FROM <= a["start"].date() < today and
@@ -1022,8 +1030,20 @@ def build_alerts(appointments, now=None, packages=None):
                 plan["today"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
                                       "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "status": a0["status"].title(),
                                       "types": sorted({a["type"] for a in tod}), "risk": risk, "note": (a0.get("note") or "")[:200]})
-            tmr = sorted([a for a in appts if a["start"].date() == tomorrow_ and (a["status"] in LIVE_TODAY or a["status"] in ("canceled", "cancelled"))],
+            tmr = sorted([a for a in appts if a["start"].date() == tomorrow_ and (a["status"] in LIVE_TODAY or a["status"] in ("canceled", "cancelled"))
+                          and not _isp(a)],
                          key=lambda a: (a["status"] in ("canceled", "cancelled"), a["start"]))
+            spl = sorted([a for a in appts if _isp(a) and a["start"].date() == sp_days[_dep(a)] and (a["status"] in LIVE_TODAY or a["status"] in ("canceled", "cancelled"))],
+                         key=lambda a: (a["status"] in ("canceled", "cancelled"), a["start"]))
+            if spl:   # 💜 تأكيد قسم التغذية + جلسات التخسيس (يوم الشغل الجاي بتاعهم)
+                b0 = spl[0]
+                live_s = [a for a in spl if a["status"] not in ("canceled", "cancelled")]
+                done_s = all(a["status"] == "confirmed" for a in live_s) if live_s else True
+                why_s = [f"عنده {risk} غياب/اعتذار مفاجئ آخر 3 شهور"] if risk >= 2 else []
+                plan["confirm_special"].append({"pid": b0["pid"], "name": b0["name"], "phone": b0["phone"], "time": b0["start"].isoformat(),
+                                                "doctor": b0["doctor"], "branch": b0["branch"], "type": b0["type"], "why": why_s, "risk": bool(why_s),
+                                                "sp": sorted({("تغذية: " + a["type"] if (a["doctor"].strip().lower() in CONF_SP_DOCS or "تغذ" in a["type"]) else "تخسيس: " + a["type"]) for a in spl}),
+                                                "status": ("Confirmed" if live_s and done_s else ("Canceled" if not live_s else b0["status"].title())), "auto": done_s})
             if tmr:
                 a0 = tmr[0]
                 pt_before = [a for a in appts if _is_pt(a["type"]) and a["status"] in ATTENDED and a["start"].date() <= today]
@@ -1032,17 +1052,12 @@ def build_alerts(appointments, now=None, packages=None):
                 if risk >= 2: why.append(f"عنده {risk} غياب/اعتذار مفاجئ آخر 3 شهور")
                 if kashf and not pt_before and _is_pt(a0["type"]): why.append("أول جلسة بعد الكشف")
                 # كل اللي عنده ميعاد يوم الشغل الجاي = مهمة تأكيد · «ضروري» لو بيغيب كتير أو أول جلسة بعد الكشف
-                # مواعيد د. آلاء حرفوش وجلسات التخسيس → مهمة تأكيد لوحدها
-                sp_ = [a for a in tmr if a["doctor"].strip().lower() in CONF_SP_DOCS or a["type"].strip().lower() in CONF_SP_TYPES]
-                live_ = [a for a in (sp_ or tmr) if a["status"] not in ("canceled", "cancelled")]
+                live_ = [a for a in tmr if a["status"] not in ("canceled", "cancelled")]
                 done_ = all(a["status"] == "confirmed" for a in live_) if live_ else True
-                if sp_:
-                    a0 = sorted(sp_, key=lambda a: (a["status"] in ("canceled", "cancelled"), a["start"]))[0]
-                    what_ = sorted({("تغذية: " + a["type"] if (a["doctor"].strip().lower() in CONF_SP_DOCS or "تغذ" in a["type"]) else "تخسيس: " + a["type"]) for a in sp_})
-                plan["confirm_special" if sp_ else "tomorrow_confirm"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
+                plan["tomorrow_confirm"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
                                                  "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "why": why, "risk": bool(why),
                                                  "status": ("Confirmed" if live_ and done_ else ("Canceled" if not live_ else a0["status"].title())),
-                                                 "auto": done_, **({"sp": what_} if sp_ else {})})
+                                                 "auto": done_})
             for a in appts:   # ⏳ مواعيد على الويتنج ليست النهارده / يوم الشغل الجاي
                 if a["status"] in ("waiting list", "waiting") and a["start"].date() in (today, tomorrow_):
                     nt = (a.get("note") or "").strip()

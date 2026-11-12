@@ -352,14 +352,14 @@ def build_alerts(appointments, now=None, packages=None):
         })
     dropped.sort(key=lambda x: (x["next_appt"] != "", x["days_since"]))   # الأحدث انقطاعًا فوق
 
-    # ── عندهم ميعاد النهارده (أي حالة) ومالهمش أي ميعاد بعد النهارده (حتى Waiting يتحسب ميعاد) ──
+    # ── عندهم ميعاد النهارده (أي حالة) ومالهمش أي ميعاد بعد النهارده بأي حالة ──
     NOT_FUTURE = {"canceled", "cancelled", "no show", "noshow", "note"}
     no_next = []
     for appts in patients.values():
         today_att = [a for a in appts if a["start"].date() == today]
         if not today_att:
             continue
-        future = [a for a in appts if a["start"].date() > today and a["status"] not in NOT_FUTURE]
+        future = [a for a in appts if a["start"].date() > today]   # أي موعد بعد النهارده بأي حالة (حتى Canceled / No Show) يتحسب
         if future:
             continue
         last = max(today_att, key=lambda a: a["start"])

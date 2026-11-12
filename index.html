@@ -10860,14 +10860,13 @@ function alStreakWarns(rows){
   return W;
 }
 function alStreakWarnBox(rows){
-  var W=alStreakWarns(rows); W.idle=W.idle||[]; var tot=W.broken.length+W.nobook.length+W.nonote.length+W.idle.length; if(!tot) return '';
+  var W=alStreakWarns(rows); var tot=W.broken.length+W.nobook.length+W.nonote.length; if(!tot) return '';   // «مالوش ميعاد 3 أيام+» ظاهرين في مجموعتهم تحت
   var sec=function(L,col,title,f){ if(!L.length) return ''; return '<div style="margin-top:5px"><b style="color:'+col+';font-size:.64rem">'+title+' ('+L.length+')</b><div style="font-size:.6rem;margin-top:2px">'+
     L.map(function(z){ return '• <b>'+alEsc(z[0].name)+'</b> — '+f(z); }).join('<br>')+'</div></div>'; };
   return '<div style="border:1px solid var(--r);background:rgba(239,68,68,.06);border-radius:9px;padding:8px 10px;margin-bottom:10px">'+
     '<div style="font-weight:900;font-size:.7rem;color:var(--r)">⚠️ '+tot+' تحذير</div>'+
     sec(W.broken,'var(--r)','❌ قالوا هييجوا وما جوش — مكالمة تانية، ولو مش هيكمل يتشال من التثبيت',function(z){ return 'وعد '+alEsc(alFmtDay(z[1].p))+' · '+alEsc((AL_NOTES[alNoteId(z[0])]||{}).text||''); })+
     sec(W.nobook,'var(--am)','📅 قالوا هييجوا بس مفيش موعد يومها على Medicolize — احجزله',function(z){ return 'وعد '+alEsc(alFmtDay(z[1].p))+(z[0].next_appt?' · المحجوز '+alEsc(alFmtDay(String(z[0].next_appt).slice(0,10))):' · مالوش ميعاد'); })+
-    sec(W.idle,'#a78bfa','😶 مثبّتين ومالهمش ميعاد من 3 أيام+ — اتصل واحجز أو فضّي التثبيت',function(z){ return 'من '+z[0].days+' يوم · عند '+alEsc(z[0].fixed[0].doctor); })+
     sec(W.nonote,'var(--mute)','💬 محدش كتب عنهم حاجة لسه — اتصل واكتب',function(z){ return z[0].streak+' مرات ورا بعض · آخر حضور '+alEsc(alFmtDay(z[0].last_attended)); })+'</div>';
 }
 /* ── مثبّتين بيلغوا: إلغاء / غياب ورا بعض + الاسم موجود في شيت التثبيتات ── */

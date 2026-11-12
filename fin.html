@@ -380,7 +380,8 @@ function ptIndex(){if(D._pt&&D._pt.b===S.b)return D._pt.v;const P={};
 function vPts(){const P=Object.values(ptIndex()),N=P.filter(p=>p.k>=S.from&&p.k<=S.to&&!p.early);
   const src=groupSum(N,p=>p.src||'مش متسجل',()=>1),srcPay=Object.fromEntries(groupSum(N,p=>p.src||'مش متسجل',p=>p.paid||0));
   const came=new Set(D.apt.filter(a=>inB(a)&&inR(a)&&a.st==='Completed').map(a=>a.pid)).size;
-  return `<div class="grid g4">${kpi('مرضى جداد',fm(N.length),'أول جلسة مكتملة في الفترة')}${kpi('كل المرضى اللي جم',fm(came))}${kpi('متوسط اللي دفعه المريض الجديد',fm(N.length?N.reduce((s,p)=>s+(p.paid||0),0)/N.length:null),'كل مدفوعاته لحد النهارده')}${kpi('متوسط جلسات المريض الجديد',fm(N.length?N.reduce((s,p)=>s+p.sess,0)/N.length:null,1))}</div>
+  const ad=D.exp.filter(e=>inR(e)&&expIn(e)&&/دعاي|اعلان|إعلان|ماركت|marketing|ads|سوشيال/i.test(e.type+' '+e.info)).reduce((s,e)=>s+e.amt,0);
+  return `<div class="grid g4">${kpi('مرضى جداد',fm(N.length),'أول جلسة مكتملة في الفترة')}${kpi('مصاريف الدعاية',fm(ad),N.length&&ad?'تكلفة المريض الجديد '+fm(ad/N.length)+' جنيه':'')}${kpi('كل المرضى اللي جم',fm(came))}${kpi('متوسط اللي دفعه المريض الجديد',fm(N.length?N.reduce((s,p)=>s+(p.paid||0),0)/N.length:null),'كل مدفوعاته لحد النهارده')}${kpi('متوسط جلسات المريض الجديد',fm(N.length?N.reduce((s,p)=>s+p.sess,0)/N.length:null,1))}</div>
   <div class="grid g2" style="margin-top:12px">
    <div class="card"><h3>المرضى الجداد والمرضى اللي جم<small>شهري</small></h3><div class="ch"><canvas id="cNew"></canvas></div></div>
    <div class="card"><h3>مصادر التحويل للمرضى الجداد</h3><div class="ch"><canvas id="cSrc"></canvas></div></div>

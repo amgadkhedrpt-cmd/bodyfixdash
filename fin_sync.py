@@ -21,6 +21,15 @@ APT_Q = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!
 APT_Q2 = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
           "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
           "{id start status type doctor{name} patient{id referenceId firstName lastName}}}")
+PAY_Q = ("query P($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter)"
+         "{payments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
+         "{id type amount balance refunded refundedAt details createdAt createdBy{name} doctor{name} transaction{treasury{publicName}}"
+         " invoice{id referenceId total discount paid patient{id referenceId firstName lastName}}"
+         " patient{id referenceId firstName lastName} appointment{type doctor{name}}}}")
+EXP_Q = ("query E($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter)"
+         "{expensePayments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
+         "{id type amount details refunded refundedAt expenseType expense{name type date branch{name}} transaction{treasury{publicName}}"
+         " createdAt createdBy{name}}}")
 INV_Q = ("query INV($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
          "{invoices(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate)"
          "{id referenceId createdAt total paid discount patient{id referenceId firstName lastName} referralSource{name} doctor{name}}}")
@@ -116,7 +125,40 @@ def table(rows):
 
 
 # ---------- Medicolize ----------
+STRIPPED = {}
+
+
+def strip_field(q, f):
+    """remove field `f` (and its sub-selection) from a query text"""
+    out, i = q, 0
+    m = re.search(r"(?<![\w$])%s\s*(\{)?" % re.escape(f), out[out.index("{"):])
+    if not m:
+        return out
+    st = out.index("{") + m.start()
+    en = out.index("{") + m.end()
+    if m.group(1):
+        depth = 1
+        while depth and en < len(out):
+            depth += {"{": 1, "}": -1}.get(out[en], 0)
+            en += 1
+    return out[:st] + out[en:]
+
+
 def gql(ctx, q, v, key):
+    for _ in range(10):
+        try:
+            return gql1(ctx, q, v, key)
+        except RuntimeError as e:
+            bad = re.findall(r'Cannot query field \\?"(\w+)\\?"', str(e))
+            if not bad:
+                raise
+            for f in bad:
+                STRIPPED.setdefault(key, []).append(f)
+                q = strip_field(q, f)
+    return gql1(ctx, q, v, key)
+
+
+def gql1(ctx, q, v, key):
     r = ctx.request.post(SEEN["url"], data={"query": q, "variables": v}, headers=SEEN["h"], timeout=120000)
     j = r.json()
     if j.get("errors") and not j.get("data"):
@@ -282,9 +324,19 @@ def main():
         if not PASS:
             br.close()
             return
+        def own_or_page(q, root, kind):
+            def f(bid, rng):
+                try:
+                    return run_paged(ctx, [q], root, {"branchId": bid, "orderBy": "createdAt-asc", "filters": {}}, rng)
+                except Exception as e:
+                    META_D["errors"].append("%s own query: %s" % (kind, str(e)[:200]))
+                    if not ops[kind]:
+                        raise
+                    return run_listing(ctx, ops[kind], bid, rng)
+            return f
         kinds = {
-            "pay": (lambda bid, rng: run_listing(ctx, ops["pay"], bid, rng)) if ops["pay"] else None,
-            "exp": (lambda bid, rng: run_listing(ctx, ops["exp"], bid, rng)) if ops["exp"] else None,
+            "pay": own_or_page(PAY_Q, "payments", "pay"),
+            "exp": own_or_page(EXP_Q, "expensePayments", "exp"),
             "inv": lambda bid, rng: run_paged(ctx, [INV_Q, INV_Q2], "invoices", {"branchId": bid, "orderBy": "createdAt-asc"}, rng),
             "apt": lambda bid, rng: run_paged(ctx, [APT_Q, APT_Q2], "createdAppointments",
                                               {"branchId": bid, "orderBy": "start-asc", "filters": {"status": []}}, rng),
@@ -295,13 +347,15 @@ def main():
                 continue
             store = data["kinds"].setdefault(kind, {})
             targets = list(data["branches"].items())
-            if kind == "exp" and not re.search(r"\$branch", ops["exp"]["query"], re.I):
+            if kind == "exp" and ops["exp"] and not re.search(r"\$branch", ops["exp"]["query"], re.I):
                 targets = [("all", {"id": None})]        # one list for both branches (split later by its branch column, if any)
                 META_D["exp_scope"] = "all"
             for key, b in targets:
                 bstore = store.setdefault(key, {})
                 todo = [k for k in ALL if k not in bstore]
                 refresh = [k for k in ALL[-2:] if k in bstore]        # current + last month every run (late edits)
+                if kind == "inv" and (NOW.astimezone(TZ).hour >= 22 or os.environ.get("FIN_FULL")):
+                    refresh = [k for k in ALL if k in bstore]          # every night: old invoices get paid later
                 for k in todo[:MAX_BACKFILL] + refresh:
                     if time.time() - t0 > 10 * 60:
                         META_D["errors"].append("time limit - continues next run")
@@ -326,6 +380,7 @@ def main():
             mk[key] = {"months": len(bs), "first": min(bs) if bs else "", "last": max(bs) if bs else "",
                        "rows": sum(len(x.get("rows", [])) for x in bs.values()), "cols": cols,
                        "missing": [k for k in ALL if k not in bs]}
+    META_D["stripped"] = STRIPPED
     data["at"] = C.NOW
     os.makedirs("data", exist_ok=True)
     with open(ENC, "w") as f:

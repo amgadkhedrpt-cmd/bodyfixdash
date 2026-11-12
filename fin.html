@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>BODYFIX — التحليلات المالية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{color-scheme:light;--bg:#f4f3ef;--s1:#fcfcfb;--s2:#f0efea;--brd:#e1dfd8;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;
+--c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--c5:#e87ba4;--c6:#008300;--c7:#6250d6;--c8:#e34948;
+--good:#1a7f37;--bad:#c62828;--warn:#b26a00;--acc:#ec4899}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#111110;--s1:#1a1a19;--s2:#232321;--brd:#33322f;--t1:#f0efec;--t2:#c3c2b7;--t3:#8f8e86;
+--c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;--c5:#d55181;--c6:#008300;--c7:#9085e9;--c8:#e66767;--good:#4ade80;--bad:#f87171;--warn:#fbbf24}}
+*{box-sizing:border-box}
+body{margin:0;font-family:Cairo,system-ui,sans-serif;background:var(--bg);color:var(--t1);font-size:14px}
+header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 18px;background:var(--s1);border-bottom:1px solid var(--brd);position:sticky;top:0;z-index:5}
+.logo{font-weight:900;font-size:1.3rem;letter-spacing:-1px}.logo b:first-child{color:#ec4899}.logo b:last-child{color:#06b6d4}
+.sub{color:var(--t2);font-size:.8rem}
+.wrap{max-width:1280px;margin:0 auto;padding:14px 16px 60px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+select,input,button{font-family:inherit;font-size:.85rem}
+select,input[type=month],input[type=search],input[type=password]{padding:6px 9px;border:1px solid var(--brd);border-radius:8px;background:var(--s1);color:var(--t1)}
+button{padding:6px 12px;border:1px solid var(--brd);border-radius:8px;background:var(--s1);color:var(--t1);cursor:pointer;font-weight:700}
+button.on,button.pri{background:var(--t1);color:var(--s1);border-color:var(--t1)}
+button:disabled{opacity:.5;cursor:default}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid var(--brd);padding-bottom:8px}
+.tabs button{border:0;background:transparent;color:var(--t2);padding:7px 11px}
+.tabs button.on{background:var(--s2);color:var(--t1);border-radius:8px}
+.grid{display:grid;gap:12px}
+.g4{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))}
+.card{background:var(--s1);border:1px solid var(--brd);border-radius:14px;padding:14px 16px;min-width:0}
+.card h3{margin:0 0 10px;font-size:.95rem}
+.card h3 small{font-weight:600;color:var(--t3);font-size:.75rem;margin-inline-start:6px}
+.kpi .l{color:var(--t2);font-size:.78rem;font-weight:700}
+.kpi .v{font-size:1.55rem;font-weight:900;margin-top:2px;font-variant-numeric:tabular-nums;direction:ltr;text-align:right}
+.kpi .d{font-size:.75rem;color:var(--t3);margin-top:2px}
+.up{color:var(--good)}.down{color:var(--bad)}
+.ch{position:relative;height:300px}.ch.sm{height:240px}.ch.lg{height:360px}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th,td{padding:6px 8px;border-bottom:1px solid var(--brd);text-align:right;white-space:nowrap}
+th{color:var(--t2);font-weight:800;background:var(--s2);position:sticky;top:0}
+td.n,th.n{text-align:left;font-variant-numeric:tabular-nums;direction:ltr}
+tr.tot td{font-weight:900;background:var(--s2)}
+.tw{overflow:auto;max-height:520px;border:1px solid var(--brd);border-radius:10px}
+.neg{color:var(--bad)}
+.note{background:var(--s2);border-radius:10px;padding:10px 12px;font-size:.8rem;color:var(--t2);line-height:1.7}
+.ins li{margin:4px 0;line-height:1.6}
+.chip{display:inline-block;padding:1px 8px;border-radius:20px;font-size:.72rem;font-weight:800;background:var(--s2);color:var(--t2)}
+.chip.w{background:rgba(178,106,0,.15);color:var(--warn)}
+#lock{max-width:420px;margin:12vh auto;text-align:center}
+#lock .card{padding:28px}
+#lock input{width:100%;margin:14px 0 10px;padding:10px;font-size:1rem;text-align:center}
+#lock button{width:100%;padding:10px}
+.err{color:var(--bad);font-size:.85rem;min-height:1.3em;margin-top:8px}
+details summary{cursor:pointer;font-weight:700}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.75rem;color:var(--t2);margin-bottom:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:4px;vertical-align:-1px}
+.muted{color:var(--t3)}
+@media print{header .bar,.tabs,button{display:none!important}}
+</style>
+</head>
+<body>
+<div id="lock">
+  <div class="card">
+    <div class="logo"><b>BODY</b><b>FIX</b></div>
+    <h2 style="margin:12px 0 4px">🔒 التحليلات المالية</h2>
+    <div class="sub">الأرقام مشفّرة. اكتب الباسورد الخاص بيك علشان تتفك على جهازك.</div>
+    <form id="lockForm" autocomplete="off">
+      <input type="password" id="pw" placeholder="الباسورد" aria-label="الباسورد" autocomplete="current-password">
+      <label class="sub" style="display:block;margin-bottom:10px"><input type="checkbox" id="keep"> افتكرني لحد ما أقفل التاب</label>
+      <button class="pri" type="submit" id="unlockBtn">افتح</button>
+    </form>
+    <div class="err" id="lockErr"></div>
+  </div>
+</div>
+
+<div id="app" hidden>
+<header>
+  <div class="logo"><b>BODY</b><b>FIX</b></div>
+  <div style="flex:1;min-width:160px"><div style="font-weight:800">📊 التحليلات المالية</div><div class="sub" id="asOf"></div></div>
+  <div class="bar" style="margin:0">
+    <select id="fBranch" aria-label="الفرع"><option value="haram">BODYFIX Center — الهرم</option><option value="dokki">FIX ZONE — الدقي</option><option value="both">الفرعين مع بعض</option></select>
+    <label class="sub">من <input type="month" id="fFrom"></label>
+    <label class="sub">لحد <input type="month" id="fTo"></label>
+    <button data-q="m">الشهر ده</button><button data-q="3">آخر ٣ شهور</button><button data-q="y">السنة دي</button><button data-q="all">الكل</button>
+    <button id="lockBtn" title="اقفل">🔒</button>
+  </div>
+</header>
+<div class="wrap">
+  <div class="tabs" id="tabs">
+    <button data-t="sum" class="on">الملخص</button>
+    <button data-t="pl">الأرباح والخسائر</button>
+    <button data-t="rev">الإيرادات</button>
+    <button data-t="exp">المصروفات</button>
+    <button data-t="pts">المرضى والتحويلات</button>
+    <button data-t="ret">استمرار المرضى</button>
+    <button data-t="apt">المواعيد</button>
+    <button data-t="debt">المديونيات</button>
+    <button data-t="cash">الخزنة</button>
+    <button data-t="dl">التقارير والتنزيل</button>
+    <button data-t="data">حالة البيانات</button>
+  </div>
+  <div id="main"></div>
+</div>
+</div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fm=(x,d=0)=>x==null||!isFinite(x)?'—':(x<0?'−':'')+Math.abs(x).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pc=x=>x==null||!isFinite(x)?'—':(x*100).toFixed(1)+'%';
+const pad=n=>String(n).padStart(2,'0');
+const MN=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const ml=k=>k?MN[+k.slice(5,7)-1]+' '+k.slice(0,4):'';
+const mls=k=>k?MN[+k.slice(5,7)-1].slice(0,3)+' '+k.slice(2,4):'';
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const SER=()=>[1,2,3,4,5,6,7,8].map(i=>css('--c'+i));
+const DAYS=['الأحد','الاتنين','التلات','الأربع','الخميس','الجمعة','السبت'];
+const REFUND_RX=/مردود|refund|استرداد|مرتجع/i, RENT_RX=/ايجار|إيجار|rent/i, SAL_RX=/مرتب|رواتب|salary|اجور|أجور/i;
+const BRN={haram:'الهرم',dokki:'الدقي',both:'الفرعين'};
+let RAW=null, D=null, S={tab:'sum',b:'haram',from:'',to:''}, CH={};
+try{const t=localStorage.getItem('fin_tab');if(t)S.tab=t;const b=localStorage.getItem('fin_b');if(b)S.b=b}catch(e){}
+
+// ---------------- decrypt ----------------
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKey(pw,salt,iter){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt,iterations:iter},base,{name:'AES-GCM',length:256},true,['decrypt']);
+}
+async function openWith(key,j){
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(j.iv)},key,b64(j.data));
+  const ds=new Blob([pt]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(ds).text());
+}
+async function fetchEnc(){
+  const urls=['https://raw.githubusercontent.com/amgadkhedrpt-cmd/bodyfixdash/main/data/fin.enc?t='+Date.now(),'data/fin.enc?t='+Date.now()];
+  for(const u of urls){try{const r=await fetch(u,{cache:'no-store'});if(r.ok)return await r.json()}catch(e){}}
+  throw new Error('nofile');
+}
+async function unlock(pw,rawKey){
+  const j=await fetchEnc();
+  let key;
+  if(rawKey)key=await crypto.subtle.importKey('raw',b64(rawKey),{name:'AES-GCM'},true,['decrypt']);
+  else key=await deriveKey(pw,b64(j.salt),j.iter||250000);
+  const data=await openWith(key,j);
+  if($('#keep').checked&&!rawKey){const raw=new Uint8Array(await crypto.subtle.exportKey('raw',key));
+    try{sessionStorage.setItem('fin_k',JSON.stringify({salt:j.salt,k:btoa(String.fromCharCode(...raw))}))}catch(e){}}
+  return data;
+}
+$('#lockForm').addEventListener('submit',async e=>{e.preventDefault();const pw=$('#pw').value;if(!pw)return;
+  const btn=$('#unlockBtn');btn.disabled=true;btn.textContent='بيفك التشفير…';$('#lockErr').textContent='';
+  try{RAW=await unlock(pw);$('#pw').value='';start()}
+  catch(err){$('#lockErr').textContent=err.message==='nofile'?'ملف البيانات لسه ما اتعملش — اتأكد إنك ضفت FIN_PASS وإن المزامنة اشتغلت.':'الباسورد غلط.'}
+  finally{btn.disabled=false;btn.textContent='افتح'}});
+$('#lockBtn').onclick=()=>{try{sessionStorage.removeItem('fin_k')}catch(e){}RAW=null;D=null;location.reload()};
+(async()=>{try{const s=JSON.parse(sessionStorage.getItem('fin_k')||'null');if(!s)return;const j=await fetchEnc();if(j.salt!==s.salt){sessionStorage.removeItem('fin_k');return}
+  $('#keep').checked=false;RAW=await unlock(null,s.k);start()}catch(e){}})();
+
+// ---------------- normalise ----------------
+const TZC={};
+function cairo(v){ // ISO/epoch -> [YYYY-MM-DD, hour, weekday]
+  if(v==null||v==='')return null;let iso=typeof v==='number'?new Date(v).toISOString():String(v);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(iso))return [iso,0,new Date(iso+'T12:00:00Z').getUTCDay()];
+  const h=iso.slice(0,13);let c=TZC[h];
+  if(!c){const d=new Date(iso);if(isNaN(d))return null;const s=d.toLocaleString('sv-SE',{timeZone:'Africa/Cairo',hour12:false});
+    const day=s.slice(0,10);c=TZC[h]=[day,+s.slice(11,13),new Date(day+'T12:00:00Z').getUTCDay()]}
+  return c}
+function colIdx(cols,list){
+  for(const n of list){if(n instanceof RegExp){const i=cols.findIndex(c=>n.test(c));if(i>=0)return i}else{const i=cols.indexOf(n);if(i>=0)return i}}
+  return -1}
+function pick(cols,spec){const o={};for(const k in spec)o[k]=colIdx(cols,spec[k]);return o}
+const nm=(r,i)=>i>=0&&r[i]!=null?String(r[i]).trim():'';
+const num=(r,i)=>{if(i<0)return 0;const v=r[i];const x=typeof v==='number'?v:parseFloat(String(v??'').replace(/,/g,''));return isFinite(x)?x:0};
+const truthy=v=>v===true||v===1||/^(true|yes|1)$/i.test(String(v??''));
+function pname(r,c){const a=nm(r,c.fn),b=nm(r,c.ln);return (a+' '+b).trim()||nm(r,c.pn)}
+
+const SP={
+ pay:{date:['createdAt','created','date','paidAt','paymentDate'],amt:['amount','paidAmount','value'],
+   method:['type','method','paymentMethod','paymentMethod.name','method.name','paymentType'],type2:['type','paymentType'],
+   refunded:['refunded','isRefunded',/refund(ed)?$/i],refDate:['refundDate','refundedAt',/refund.*(date|at)/i],
+   pid:['patient.referenceId','invoice.patient.referenceId','patient.id',/patient.*referenceId/],fn:['patient.firstName','invoice.patient.firstName',/patient.*firstName/],ln:['patient.lastName','invoice.patient.lastName',/patient.*lastName/],pn:['patient.name','patientName'],
+   doc:['doctor.name','appointment.doctor.name',/doctor.*name/],by:['createdBy.name',/createdBy/,'user.name'],inv:['invoice.referenceId','invoice.invoiceId','invoice.id'],
+   branch:['branch.name'],treas:['transaction.treasury.publicName','treasury.name',/treasury/],note:['details','notes','note','comment']},
+ exp:{date:['createdAt','created','date','paidAt'],amt:['amount','value','total'],
+   type:['expenseType','expenseType.name','expense.type',/category/i],info:['expense.name','details','expenseInfo','info','description'],det:['details'],
+   method:['type','paymentMethod','method'],by:['createdBy.name','expense.createdBy.name',/createdBy/],branch:['expense.branch.name','branch.name'],treas:['transaction.treasury.publicName',/treasury/],refunded:['refunded']},
+ inv:{date:['createdAt'],total:['total'],paid:['paid'],disc:['discount'],pid:['patient.referenceId','patient.id'],fn:['patient.firstName'],ln:['patient.lastName'],pn:['patient.name'],src:['referralSource.name'],doc:['doctor.name'],ref:['referenceId','id']},
+ apt:{date:['start'],st:['status'],type:['type'],doc:['doctor.name'],pid:['patient.referenceId','patient.id'],fn:['patient.firstName'],ln:['patient.lastName'],pn:['patient.name'],room:['room.name'],g:['patient.gender']}
+};
+const ST={CHECKEDIN:'Checked In',INPROGRESS:'In Progress',COMPLETED:'Completed',CONFIRMED:'Confirmed',DELAYED:'Delayed',OPEN:'Open',WAITING:'Waiting',CANCELED:'Canceled',CANCELLED:'Canceled',NOSHOW:'No Show'};
+const stName=s=>{const u=String(s||'').toUpperCase().replace(/[^A-Z]/g,'');return ST[u]||String(s||'')};
+const TYPE_MAP={};
+const tName=t=>TYPE_MAP[t]||t||'—';
+
+function build(raw){
+  const brs=raw.branches||{},K=raw.kinds||{},bname={};for(const k in brs)bname[k]=brs[k].name||k;
+  const out={pay:[],exp:[],inv:[],apt:[],warn:[],at:raw.at,months:new Set()};
+  const branchOf=(name,fallback)=>{if(!name)return fallback;const u=String(name).toUpperCase().replace(/\s/g,'');return u.includes('FIXZONE')?'dokki':(fallback==='all'?'haram':fallback)};
+  for(const kind of ['pay','exp','inv','apt'])for(const b in (K[kind]||{}))for(const m in K[kind][b]){
+    const t=K[kind][b][m];if(!t||!t.cols)continue;const c=pick(t.cols,SP[kind]);out.months.add(m);
+    for(const r of t.rows){
+      const cd=cairo(c.date>=0?r[c.date]:null);const d=cd?cd[0]:m+'-01';const k=d.slice(0,7);
+      if(kind==='pay'){const amt=num(r,c.amt);const meth=nm(r,c.method)||'—';
+        out.pay.push({b:branchOf(nm(r,c.branch),b),k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,amt,meth,bal:/balance|رصيد/i.test(meth+' '+nm(r,c.type2)),ref:truthy(r[c.refunded]),refd:nm(r,c.refDate).slice(0,10),
+          pid:nm(r,c.pid),pn:pname(r,c),doc:nm(r,c.doc)||'—',by:nm(r,c.by)||'—',inv:nm(r,c.inv),tr:nm(r,c.treas),note:nm(r,c.note)})}
+      else if(kind==='exp'){const bb=b==='all'?(c.branch>=0?branchOf(nm(r,c.branch),'all'):'all'):b;
+        out.exp.push({b:bb,k,d,amt:num(r,c.amt),type:nm(r,c.type)||'غير مصنف',info:[nm(r,c.info),c.det!==c.info?nm(r,c.det):''].filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' — '),meth:nm(r,c.method)||'—',by:nm(r,c.by)||'—',tr:nm(r,c.treas)})}
+      else if(kind==='inv'){out.inv.push({b,k,d,total:num(r,c.total),paid:num(r,c.paid),disc:num(r,c.disc),pid:nm(r,c.pid),pn:pname(r,c),src:nm(r,c.src),doc:nm(r,c.doc),ref:nm(r,c.ref)})}
+      else{out.apt.push({b,k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,st:stName(nm(r,c.st)),type:nm(r,c.type),doc:nm(r,c.doc)||'—',pid:nm(r,c.pid),pn:pname(r,c),room:nm(r,c.room),g:nm(r,c.g)})}
+    }}
+  if(out.exp.some(e=>e.b==='all'))out.warn.push('المصروفات في Medicolize مش متقسمة على الفروع — بتظهر كاملة في «الفرعين مع بعض» بس.');
+  out.months=[...out.months].sort();
+  return out;
+}
+
+// ---------------- selection & core calc ----------------
+function inB(x){return S.b==='both'||x.b===S.b}
+function inR(x){return x.k>=S.from&&x.k<=S.to}
+function expIn(e){if(S.b==='both')return true;return e.b===S.b}
+function monthsList(a,b){const o=[];let y=+a.slice(0,4),m=+a.slice(5,7);while(true){const k=y+'-'+pad(m);if(k>b)break;o.push(k);m++;if(m>12){y++;m=1}}return o}
+function calcMonth(k){
+  const pay=D.pay.filter(p=>p.k===k&&inB(p)),exp=D.exp.filter(e=>e.k===k&&expIn(e)),apt=D.apt.filter(a=>a.k===k&&inB(a));
+  const rev=pay.reduce((s,p)=>s+(p.bal?0:p.amt),0),bal=pay.reduce((s,p)=>s+(p.bal?p.amt:0),0);
+  const refunds=exp.filter(e=>REFUND_RX.test(e.type)).reduce((s,e)=>s+e.amt,0);
+  const opexAll=exp.filter(e=>!REFUND_RX.test(e.type));
+  const opex=opexAll.reduce((s,e)=>s+e.amt,0),rent=opexAll.filter(e=>RENT_RX.test(e.type)).reduce((s,e)=>s+e.amt,0),sal=opexAll.filter(e=>SAL_RX.test(e.type)).reduce((s,e)=>s+e.amt,0);
+  const net=rev-refunds,profit=net-opex;
+  const done=apt.filter(a=>a.st==='Completed');const sessions=done.length;
+  const pts=new Set(done.map(a=>a.pid).filter(Boolean)).size;
+  const payers=new Set(pay.filter(p=>!p.bal&&p.amt>0).map(p=>p.pid).filter(Boolean)).size;
+  const avgS=sessions?net/sessions:null;
+  return {k,rev,bal,refunds,net,opex,rent,sal,other:opex-rent-sal,profit,margin:net?profit/net:null,sessions,pts,payers,avgS,beS:avgS?Math.ceil(opex/avgS):null,
+    canc:apt.filter(a=>/cancel/i.test(a.st)).length,ns:apt.filter(a=>/no ?show/i.test(a.st)).length,nPay:pay.length,nExp:exp.length,hasPay:pay.length>0,hasExp:exp.length>0}
+}
+function series(){return monthsList(S.from,S.to).map(calcMonth)}
+function sumR(R){const o={rev:0,bal:0,refunds:0,net:0,opex:0,rent:0,sal:0,other:0,profit:0,sessions:0,canc:0,ns:0};for(const r of R)for(const k in o)o[k]+=r[k]||0;
+  o.margin=o.net?o.profit/o.net:null;o.avgS=o.sessions?o.net/o.sessions:null;const mo=R.length||1;o.beS=o.avgS?Math.ceil(o.opex/mo/o.avgS):null;return o}
+function shiftK(k,n){let y=+k.slice(0,4),m=+k.slice(5,7)+n;while(m>12){m-=12;y++}while(m<1){m+=12;y--}return y+'-'+pad(m)}
+function curK(){const s=new Date().toLocaleString('sv-SE',{timeZone:'Africa/Cairo'});return s.slice(0,7)}
+
+// ---------------- charts ----------------
+function chart(id,cfg){if(CH[id])CH[id].destroy();const el=document.getElementById(id);if(!el)return;
+  const t1=css('--t2'),grid=css('--brd');
+  cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'top',align:'start',rtl:true,labels:{color:t1,boxWidth:10,boxHeight:10,font:{family:'Cairo'}}},
+      tooltip:{rtl:true,titleFont:{family:'Cairo'},bodyFont:{family:'Cairo'},callbacks:{label:c=>' '+c.dataset.label+': '+fm(c.parsed.y??c.parsed.x??c.parsed)}}},
+    scales:cfg.type==='doughnut'?{}:{x:{ticks:{color:t1,font:{family:'Cairo'}},grid:{display:false}},y:{ticks:{color:t1,font:{family:'Cairo'},callback:v=>fm(v)},grid:{color:grid},border:{display:false}}}},cfg.options||{});
+  CH[id]=new Chart(el,cfg)}
+const bar=(label,data,color,extra)=>Object.assign({type:'bar',label,data,backgroundColor:color,borderRadius:4,borderSkipped:'start',maxBarThickness:28},extra||{});
+const line=(label,data,color,extra)=>Object.assign({type:'line',label,data,borderColor:color,backgroundColor:color,borderWidth:2,pointRadius:3,tension:.25},extra||{});
+
+// ---------------- views ----------------
+const kpi=(l,v,d,cls)=>`<div class="card kpi"><div class="l">${l}</div><div class="v ${cls||''}">${v}</div>${d?`<div class="d">${d}</div>`:''}</div>`;
+const delta=(a,b)=>{if(!b||a==null)return '';const x=(a-b)/Math.abs(b);return `<span class="${x>=0?'up':'down'}">${x>=0?'▲':'▼'} ${pc(Math.abs(x))}</span>`};
+function tableHTML(head,rows,opt){opt=opt||{};
+  return `<div class="tw"${opt.h?` style="max-height:${opt.h}px"`:''}><table><thead><tr>${head.map(h=>`<th class="${h.n?'n':''}">${esc(h.t||h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr class="${r._c||''}">${r.map((c,i)=>`<td class="${head[i]&&head[i].n?'n':''}${typeof c==='number'&&c<0?' neg':''}">${typeof c==='number'?fm(c):c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
+
+function vSum(){
+  const R=series(),T=sumR(R),n=R.length;
+  const prevR=monthsList(shiftK(S.from,-n),shiftK(S.from,-1)).map(calcMonth),P=sumR(prevR);
+  const lyR=monthsList(shiftK(S.from,-12),shiftK(S.to,-12)).map(calcMonth),LY=sumR(lyR);
+  const hasPrev=prevR.some(r=>r.hasPay),hasLY=lyR.some(r=>r.hasPay);
+  const cmp=(a,b,ok)=>ok?`مقارنة بالفترة اللي قبلها ${delta(a,b)}`:'';
+  const ins=insights(R,T);
+  return `${D.warn.map(w=>`<div class="note" style="margin-bottom:10px">⚠️ ${esc(w)}</div>`).join('')}
+  <div class="grid g4">
+   ${kpi('الإيرادات (المحصّل)',fm(T.rev),cmp(T.rev,P.rev,hasPrev)+(hasLY?` · السنة اللي فاتت ${delta(T.rev,LY.rev)}`:''))}
+   ${kpi('المردودات للمرضى',fm(T.refunds),T.rev?pc(T.refunds/T.rev)+' من الإيرادات':'')}
+   ${kpi('المصروفات',fm(T.opex),cmp(T.opex,P.opex,hasPrev))}
+   ${kpi('صافي الربح',fm(T.profit),'هامش الربح '+pc(T.margin),T.profit<0?'down':'')}
+   ${kpi('الجلسات المكتملة',fm(T.sessions),cmp(T.sessions,P.sessions,hasPrev))}
+   ${kpi('متوسط الإيراد للجلسة',fm(T.avgS),'صافي الإيراد ÷ الجلسات')}
+   ${kpi('نقطة التعادل',T.beS?fm(T.beS)+' جلسة/شهر':'—','المصروفات الشهرية ÷ متوسط الجلسة')}
+   ${kpi('الدفع من الرصيد',fm(T.bal),'مش محسوب في الإيرادات (اتحصّل قبل كده)')}
+  </div>
+  <div class="grid g2" style="margin-top:12px">
+   <div class="card"><h3>الإيرادات والمصروفات وصافي الربح<small>شهري — جنيه</small></h3><div class="ch lg"><canvas id="cMain"></canvas></div></div>
+   <div class="card"><h3>ملاحظات سريعة</h3><ul class="ins">${ins.map(x=>`<li>${x}</li>`).join('')||'<li class="muted">مفيش بيانات كفاية</li>'}</ul></div>
+  </div>
+  <div class="grid g2" style="margin-top:12px">
+   <div class="card"><h3>هامش الربح<small>شهري</small></h3><div class="ch sm"><canvas id="cMargin"></canvas></div></div>
+   <div class="card"><h3>الجلسات المكتملة مقابل نقطة التعادل<small>جلسة/شهر</small></h3><div class="ch sm"><canvas id="cBE"></canvas></div></div>
+  </div>`}
+function cSum(){const R=series(),L=R.map(r=>mls(r.k)),c=SER();
+  chart('cMain',{data:{labels:L,datasets:[bar('الإيرادات',R.map(r=>r.net),c[0]),bar('المصروفات',R.map(r=>r.opex),c[1]),line('صافي الربح',R.map(r=>r.profit),c[2])]}});
+  chart('cMargin',{type:'line',data:{labels:L,datasets:[line('هامش الربح %',R.map(r=>r.margin==null?null:+(r.margin*100).toFixed(1)),c[0])]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}},plugins:{tooltip:{callbacks:{label:x=>' '+x.parsed.y+'%'}}}}});
+  chart('cBE',{data:{labels:L,datasets:[bar('الجلسات المكتملة',R.map(r=>r.sessions),c[0]),line('نقطة التعادل',R.map(r=>r.beS),c[7],{borderDash:[5,4],pointRadius:0})]}})}
+function insights(R,T){const o=[],F=R.filter(r=>r.hasPay);if(!F.length)return o;
+  const best=F.reduce((a,b)=>b.profit>a.profit?b:a),worst=F.reduce((a,b)=>b.profit<a.profit?b:a);
+  o.push(`أحسن شهر ربح: <b>${ml(best.k)}</b> (${fm(best.profit)} جنيه، هامش ${pc(best.margin)}).`);
+  if(F.length>1)o.push(`أضعف شهر: <b>${ml(worst.k)}</b> (${fm(worst.profit)} جنيه).`);
+  const loss=F.filter(r=>r.profit<0);if(loss.length)o.push(`<span class="down">${loss.length} شهر بخسارة</span>: ${loss.map(r=>mls(r.k)).join('، ')}.`);
+  const last=F[F.length-1],prev=F[F.length-2];if(prev)o.push(`${ml(last.k)} مقارنة بـ${ml(prev.k)}: الإيرادات ${delta(last.net,prev.net)}، المصروفات ${delta(last.opex,prev.opex)}.`);
+  const exp=D.exp.filter(e=>inR(e)&&expIn(e)&&!REFUND_RX.test(e.type));const bt={};exp.forEach(e=>bt[e.type]=(bt[e.type]||0)+e.amt);
+  const top=Object.entries(bt).sort((a,b)=>b[1]-a[1])[0];if(top&&T.opex)o.push(`أكبر بند مصروفات: <b>${esc(top[0])}</b> = ${pc(top[1]/T.opex)} من المصروفات.`);
+  if(T.rev&&T.refunds/T.rev>0.03)o.push(`<span class="down">المردودات ${pc(T.refunds/T.rev)} من الإيرادات</span> — أعلى من ٣٪.`);
+  const missE=R.filter(r=>r.hasPay&&!r.hasExp).map(r=>mls(r.k));if(missE.length)o.push(`<span class="chip w">تنبيه</span> شهور فيها إيرادات من غير مصروفات: ${missE.join('، ')}.`);
+  return o}
+
+function vPL(){const R=series(),T=sumR(R);let cum=0;
+  const rows=R.map(r=>{cum+=r.profit;return [ml(r.k),r.rev,r.refunds,r.net,r.sal,r.rent,r.other,r.opex,r.profit,pc(r.margin),cum,r.sessions,r.avgS==null?'—':fm(r.avgS)]});
+  rows.push(Object.assign(['الإجمالي',T.rev,T.refunds,T.net,T.sal,T.rent,T.other,T.opex,T.profit,pc(T.margin),cum,T.sessions,T.avgS==null?'—':fm(T.avgS)],{_c:'tot'}));
+  return `<div class="card"><h3>قائمة الأرباح والخسائر<small>${BRN[S.b]} — ${ml(S.from)} لـ ${ml(S.to)}</small></h3>
+  ${tableHTML(['الشهر',{t:'الإيرادات',n:1},{t:'المردودات',n:1},{t:'صافي الإيراد',n:1},{t:'المرتبات',n:1},{t:'الإيجار',n:1},{t:'مصروفات تانية',n:1},{t:'إجمالي المصروفات',n:1},{t:'صافي الربح',n:1},{t:'الهامش',n:1},{t:'الربح التراكمي',n:1},{t:'الجلسات',n:1},{t:'متوسط الجلسة',n:1}],rows)}
+  <div class="note" style="margin-top:8px">الإيرادات = مدفوعات Finances → Payments من غير الدفع من الرصيد. المردودات = مصروفات بند «أموال مردودة للمريض». المصروفات = Finances → Expense payments من غير المردودات. مفيش نسبة إدارة ولا شركاء.</div></div>
+  <div class="card" style="margin-top:12px"><h3>الربح التراكمي<small>جنيه</small></h3><div class="ch"><canvas id="cCum"></canvas></div></div>`}
+function cPL(){const R=series();let c=0;chart('cCum',{type:'line',data:{labels:R.map(r=>mls(r.k)),datasets:[line('الربح التراكمي',R.map(r=>c+=r.profit),SER()[0],{fill:false})]}})}
+
+function groupSum(arr,key,val){const o={};for(const x of arr){const k=typeof key==='function'?key(x):x[key];o[k]=(o[k]||0)+(val?val(x):x.amt)}return Object.entries(o).sort((a,b)=>b[1]-a[1])}
+function topN(entries,n){if(entries.length<=n)return entries;const t=entries.slice(0,n-1),rest=entries.slice(n-1).reduce((s,e)=>s+e[1],0);return t.concat([['أخرى',rest]])}
+
+function vRev(){const P=D.pay.filter(p=>inB(p)&&inR(p)&&!p.bal);const I=D.inv.filter(x=>inB(x)&&inR(x));
+  const tot=P.reduce((s,p)=>s+p.amt,0);
+  const byM=groupSum(P,'meth'),byDoc=groupSum(P,'doc'),byBy=groupSum(P,'by');
+  const byPt={};P.forEach(p=>{const k=p.pid||p.pn;if(!k)return;(byPt[k]=byPt[k]||{n:p.pn,pid:p.pid,amt:0,c:0}).amt+=p.amt;byPt[k].c++});
+  const topP=Object.values(byPt).sort((a,b)=>b.amt-a.amt).slice(0,25);
+  const it=I.reduce((o,x)=>(o.t+=x.total,o.p+=x.paid,o.d+=x.disc,o.n++,o),{t:0,p:0,d:0,n:0});
+  return `<div class="grid g4">${kpi('المحصّل',fm(tot),fm(P.length)+' عملية دفع')}${kpi('متوسط عملية الدفع',fm(P.length?tot/P.length:null))}
+   ${kpi('إجمالي الفواتير',fm(it.t),fm(it.n)+' فاتورة')}${kpi('الخصومات',fm(it.d),it.t?pc(it.d/it.t)+' من الفواتير':'')}${kpi('المدفوع من الفواتير دي',fm(it.p),it.t?pc(it.p/(it.t-it.d||1))+' من الصافي':'')}</div>
+  <div class="grid g2" style="margin-top:12px">
+   <div class="card"><h3>الفواتير مقابل المحصّل<small>شهري</small></h3><div class="ch"><canvas id="cInv"></canvas></div></div>
+   <div class="card"><h3>طرق الدفع</h3><div class="ch"><canvas id="cMeth"></canvas></div>${tableHTML(['الطريقة',{t:'المبلغ',n:1},{t:'النسبة',n:1}],byM.map(([k,v])=>[esc(k),v,pc(v/tot)]),{h:200})}</div>
+   <div class="card"><h3>الإيرادات حسب الدكتور</h3><div class="ch"><canvas id="cDoc"></canvas></div></div>
+   <div class="card"><h3>الإيرادات حسب أيام الأسبوع والساعة</h3><div class="ch sm"><canvas id="cWd"></canvas></div><div class="ch sm"><canvas id="cHr"></canvas></div></div>
+   <div class="card"><h3>أعلى ٢٥ مريض دفعوا</h3>${tableHTML(['المريض','رقم',{t:'المدفوع',n:1},{t:'عمليات',n:1}],topP.map(p=>[esc(p.n),esc(p.pid),p.amt,p.c]),{h:360})}</div>
+   <div class="card"><h3>مين سجّل الدفع</h3>${tableHTML(['الموظف',{t:'المبلغ',n:1},{t:'النسبة',n:1}],byBy.map(([k,v])=>[esc(k),v,pc(v/tot)]),{h:360})}</div>
+  </div>`}
+function cRev(){const P=D.pay.filter(p=>inB(p)&&inR(p)&&!p.bal),I=D.inv.filter(x=>inB(x)&&inR(x)),ks=monthsList(S.from,S.to),c=SER();
+  const g=(arr,f)=>ks.map(k=>arr.filter(x=>x.k===k).reduce((s,x)=>s+f(x),0));
+  chart('cInv',{data:{labels:ks.map(mls),datasets:[bar('إجمالي الفواتير',g(I,x=>x.total),c[0]),bar('الخصومات',g(I,x=>x.disc),c[3]),bar('المحصّل (Payments)',g(P,x=>x.amt),c[2])]}});
+  const m=topN(groupSum(P,'meth'),6);chart('cMeth',{type:'doughnut',data:{labels:m.map(x=>x[0]),datasets:[{data:m.map(x=>x[1]),backgroundColor:c.slice(0,m.length),borderColor:css('--s1'),borderWidth:2}]},options:{plugins:{tooltip:{callbacks:{label:x=>' '+x.label+': '+fm(x.parsed)}}}}});
+  const d=topN(groupSum(P,'doc'),12);chart('cDoc',{type:'bar',data:{labels:d.map(x=>x[0]),datasets:[bar('المحصّل',d.map(x=>x[1]),c[0])]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>' '+fm(x.parsed.x)}}},scales:{x:{ticks:{callback:v=>fm(v)}},y:{grid:{display:false}}}}});
+  const wd=[0,1,2,3,4,5,6].map(i=>P.filter(p=>p.w===i).reduce((s,p)=>s+p.amt,0));chart('cWd',{type:'bar',data:{labels:DAYS,datasets:[bar('حسب اليوم',wd,c[0])]},options:{plugins:{legend:{display:false}}}});
+  const hrs=[...Array(24).keys()].filter(h=>P.some(p=>p.h===h));chart('cHr',{type:'bar',data:{labels:hrs.map(h=>h+':00'),datasets:[bar('حسب الساعة',hrs.map(h=>P.filter(p=>p.h===h).reduce((s,p)=>s+p.amt,0)),c[6])]},options:{plugins:{legend:{display:false}}}})}
+
+function vExp(){const E=D.exp.filter(e=>inR(e)&&expIn(e));const tot=E.reduce((s,e)=>s+e.amt,0);const bt=groupSum(E,'type');
+  const det=bt.map(([t,v])=>{const inf=groupSum(E.filter(e=>e.type===t),e=>e.info||'—');
+    return `<details><summary>${esc(t)} — <span class="num">${fm(v)}</span> <span class="muted">(${pc(v/tot)})</span></summary>${tableHTML(['التفاصيل',{t:'المبلغ',n:1},{t:'عدد',n:1}],inf.map(([k,x])=>[esc(k),x,E.filter(e=>e.type===t&&(e.info||'—')===k).length]),{h:260})}</details>`}).join('');
+  return `<div class="grid g2">
+   <div class="card"><h3>المصروفات حسب البند<small>${fm(tot)} جنيه</small></h3><div class="ch lg"><canvas id="cET"></canvas></div></div>
+   <div class="card"><h3>البنود الكبيرة شهريًا</h3><div class="ch lg"><canvas id="cEM"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>تفاصيل كل بند<small>اضغط على البند</small></h3>${det||'<span class="muted">مفيش مصروفات في الفترة دي</span>'}</div>
+  <div class="card" style="margin-top:12px"><h3>كل المصروفات</h3><input type="search" id="eQ" placeholder="دوّر في البند أو التفاصيل أو الموظف" style="width:100%;margin-bottom:8px"><div id="eTbl"></div></div>`}
+function eTable(){const q=($('#eQ')?.value||'').trim().toLowerCase();const E=D.exp.filter(e=>inR(e)&&expIn(e)&&(!q||(e.type+' '+e.info+' '+e.by+' '+e.meth).toLowerCase().includes(q))).sort((a,b)=>a.d<b.d?1:-1);
+  $('#eTbl').innerHTML=tableHTML(['التاريخ','البند','التفاصيل','طريقة الدفع','سجّلها',{t:'المبلغ',n:1}],E.slice(0,800).map(e=>[e.d,esc(e.type),esc(e.info),esc(e.meth),esc(e.by),e.amt]))+(E.length>800?`<div class="muted">بيظهر أول ٨٠٠ من ${fm(E.length)} — نزّلهم كلهم من «التقارير والتنزيل»</div>`:'')}
+function cExp(){const E=D.exp.filter(e=>inR(e)&&expIn(e)),c=SER();const bt=topN(groupSum(E,'type'),10);
+  chart('cET',{type:'bar',data:{labels:bt.map(x=>x[0]),datasets:[bar('المبلغ',bt.map(x=>x[1]),c[1])]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>' '+fm(x.parsed.x)}}},scales:{x:{ticks:{callback:v=>fm(v)}},y:{grid:{display:false}}}}});
+  const ks=monthsList(S.from,S.to),top=groupSum(E,'type').slice(0,6).map(x=>x[0]);
+  const ds=top.map((t,i)=>bar(t,ks.map(k=>E.filter(e=>e.k===k&&e.type===t).reduce((s,e)=>s+e.amt,0)),c[i],{stack:'s',borderRadius:0}));
+  ds.push(bar('أخرى',ks.map(k=>E.filter(e=>e.k===k&&!top.includes(e.type)).reduce((s,e)=>s+e.amt,0)),css('--t3'),{stack:'s',borderRadius:0}));
+  chart('cEM',{data:{labels:ks.map(mls),datasets:ds},options:{scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:v=>fm(v)}}}}});
+  eTable();$('#eQ').oninput=eTable}
+
+// patients: first completed visit (since the data starts) = new patient; referral from their invoices
+function ptIndex(){if(D._pt&&D._pt.b===S.b)return D._pt.v;const P={};
+  for(const a of D.apt){if(!inB(a)||a.st!=='Completed'||!a.pid)continue;const p=P[a.pid]=P[a.pid]||{pid:a.pid,n:a.pn,first:a.d,last:a.d,sess:0,seq:[],g:a.g};
+    p.sess++;if(a.d<p.first)p.first=a.d;if(a.d>p.last)p.last=a.d;p.seq.push([a.d,a.doc,a.type])}
+  for(const x of D.inv){if(!inB(x)||!x.pid)continue;const p=P[x.pid];if(!p){continue}if(x.src&&(!p.srcD||x.d<p.srcD)){p.src=x.src;p.srcD=x.d}}
+  for(const x of D.pay){if(!inB(x)||x.bal||!x.pid)continue;const p=P[x.pid];if(p)p.paid=(p.paid||0)+x.amt}
+  const first=D.months[0];for(const p of Object.values(P)){p.k=p.first.slice(0,7);p.early=p.k===first}
+  D._pt={b:S.b,v:P};return P}
+function vPts(){const P=Object.values(ptIndex()),N=P.filter(p=>p.k>=S.from&&p.k<=S.to&&!p.early);
+  const src=groupSum(N,p=>p.src||'مش متسجل',()=>1),srcPay=Object.fromEntries(groupSum(N,p=>p.src||'مش متسجل',p=>p.paid||0));
+  const came=new Set(D.apt.filter(a=>inB(a)&&inR(a)&&a.st==='Completed').map(a=>a.pid)).size;
+  return `<div class="grid g4">${kpi('مرضى جداد',fm(N.length),'أول جلسة مكتملة في الفترة')}${kpi('كل المرضى اللي جم',fm(came))}${kpi('متوسط اللي دفعه المريض الجديد',fm(N.length?N.reduce((s,p)=>s+(p.paid||0),0)/N.length:null),'كل مدفوعاته لحد النهارده')}${kpi('متوسط جلسات المريض الجديد',fm(N.length?N.reduce((s,p)=>s+p.sess,0)/N.length:null,1))}</div>
+  <div class="grid g2" style="margin-top:12px">
+   <div class="card"><h3>المرضى الجداد والمرضى اللي جم<small>شهري</small></h3><div class="ch"><canvas id="cNew"></canvas></div></div>
+   <div class="card"><h3>مصادر التحويل للمرضى الجداد</h3><div class="ch"><canvas id="cSrc"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>المصادر بالتفصيل</h3>${tableHTML(['المصدر',{t:'مرضى جداد',n:1},{t:'النسبة',n:1},{t:'دفعوا',n:1},{t:'متوسط المريض',n:1}],src.map(([k,v])=>[esc(k),v,pc(v/(N.length||1)),srcPay[k]||0,fm((srcPay[k]||0)/v)]))}
+  <div class="note" style="margin-top:8px">المريض الجديد = أول جلسة مكتملة ليه من ${ml(D.months[0])}؛ أول شهر في البيانات مش محسوب جداد لأنه فيه مرضى قدام. المصدر من «Referral Source» في فواتيره.</div></div>`}
+function cPts(){const P=Object.values(ptIndex()),ks=monthsList(S.from,S.to),c=SER();
+  chart('cNew',{data:{labels:ks.map(mls),datasets:[bar('مرضى جداد',ks.map(k=>P.filter(p=>p.k===k&&!p.early).length),c[0]),line('كل اللي جم',ks.map(k=>new Set(D.apt.filter(a=>inB(a)&&a.k===k&&a.st==='Completed').map(a=>a.pid)).size),c[1])]}});
+  const N=P.filter(p=>p.k>=S.from&&p.k<=S.to&&!p.early),s=topN(groupSum(N,p=>p.src||'مش متسجل',()=>1),8);
+  chart('cSrc',{type:'doughnut',data:{labels:s.map(x=>x[0]),datasets:[{data:s.map(x=>x[1]),backgroundColor:SER().slice(0,s.length),borderColor:css('--s1'),borderWidth:2}]},options:{plugins:{tooltip:{callbacks:{label:x=>' '+x.label+': '+x.parsed}}}}})}
+
+const BK=[{k:'b1',t:'١–٥ جلسات'},{k:'b6',t:'٦ جلسات'},{k:'b7',t:'٧–١١'},{k:'b12',t:'١٢'},{k:'b13',t:'١٣+'}];
+const bucket=s=>s<=5?'b1':s===6?'b6':s<=11?'b7':s===12?'b12':'b13';
+function vRet(){const P=Object.values(ptIndex()).filter(p=>!p.early),ks=monthsList(S.from,S.to);
+  const rows=ks.map(k=>{const ps=P.filter(p=>p.k===k);const c={};BK.forEach(b=>c[b.k]=0);ps.forEach(p=>c[bucket(p.sess)]++);const n=ps.length;
+    return [ml(k),n,...BK.map(b=>n?`${c[b.k]} <span class="muted">(${pc(c[b.k]/n)})</span>`:'—'),n?fm(ps.reduce((s,p)=>s+p.sess,0)/n,1):'—',n?pc(ps.filter(p=>p.sess>=6).length/n):'—']});
+  const th={};for(const p of P.filter(p=>p.k>=S.from&&p.k<=S.to)){const s=p.seq.slice().sort((a,b)=>a[0]<b[0]?-1:1);const d=(s.find(x=>!/follow|متابع|كشف|تقييم/i.test(x[2]))||s[0]||[])[1]||'—';
+    const t=th[d]=th[d]||{n:0,s:0,six:0};t.n++;t.s+=p.sess;if(p.sess>=6)t.six++}
+  const thr=Object.entries(th).filter(x=>x[1].n>=3).sort((a,b)=>b[1].s/b[1].n-a[1].s/a[1].n);
+  return `<div class="card"><h3>المرضى الجداد حسب عدد الجلسات اللي كملوها<small>كل شهر = مرضى بدأوا فيه</small></h3><div class="ch"><canvas id="cRet"></canvas></div></div>
+  <div class="card" style="margin-top:12px">${tableHTML(['شهر البداية',{t:'مرضى',n:1},...BK.map(b=>({t:b.t,n:1})),{t:'متوسط الجلسات',n:1},{t:'كمّلوا ٦+',n:1}],rows)}
+  <div class="note" style="margin-top:8px">الشهور الأخيرة لسه بتكمل — الأرقام بتزيد مع الوقت.</div></div>
+  <div class="card" style="margin-top:12px"><h3>الاستمرار حسب الأخصائي<small>أول جلسة علاج للمريض — ٣ مرضى أو أكتر</small></h3>${tableHTML(['الأخصائي',{t:'مرضى',n:1},{t:'متوسط الجلسات',n:1},{t:'كمّلوا ٦+',n:1}],thr.map(([d,t])=>[esc(d),t.n,fm(t.s/t.n,1),pc(t.six/t.n)]))}</div>`}
+function cRet(){const P=Object.values(ptIndex()).filter(p=>!p.early),ks=monthsList(S.from,S.to),c=SER();
+  chart('cRet',{data:{labels:ks.map(mls),datasets:BK.map((b,i)=>bar(b.t,ks.map(k=>P.filter(p=>p.k===k&&bucket(p.sess)===b.k).length),c[i],{stack:'s',borderRadius:0}))},options:{scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true}}}})}
+
+function vApt(){const A=D.apt.filter(a=>inB(a)&&inR(a)&&!/^Waiting/i.test(a.room||''));const done=A.filter(a=>a.st==='Completed'),ca=A.filter(a=>/cancel/i.test(a.st)),ns=A.filter(a=>/no ?show/i.test(a.st));
+  const byDoc=groupSum(done,'doc',()=>1),byType=groupSum(done,a=>tName(a.type),()=>1);
+  return `<div class="grid g4">${kpi('كل المواعيد',fm(A.length))}${kpi('مكتملة',fm(done.length),pc(done.length/(A.length||1)))}${kpi('ملغية',fm(ca.length),pc(ca.length/(A.length||1)))}${kpi('ما جاش (No Show)',fm(ns.length),pc(ns.length/(A.length||1)))}</div>
+  <div class="grid g2" style="margin-top:12px">
+   <div class="card"><h3>المواعيد حسب الحالة<small>شهري</small></h3><div class="ch"><canvas id="cAS"></canvas></div></div>
+   <div class="card"><h3>نسبة الإلغاء والغياب<small>شهري</small></h3><div class="ch"><canvas id="cAR"></canvas></div></div>
+   <div class="card"><h3>الجلسات المكتملة حسب الدكتور</h3>${tableHTML(['الدكتور',{t:'جلسات',n:1},{t:'النسبة',n:1}],byDoc.map(([k,v])=>[esc(k),v,pc(v/(done.length||1))]),{h:360})}</div>
+   <div class="card"><h3>الجلسات المكتملة حسب النوع</h3>${tableHTML(['النوع',{t:'جلسات',n:1},{t:'النسبة',n:1}],byType.map(([k,v])=>[esc(k),v,pc(v/(done.length||1))]),{h:360})}</div>
+   <div class="card"><h3>الجلسات المكتملة حسب اليوم</h3><div class="ch sm"><canvas id="cAW"></canvas></div></div>
+  </div>`}
+function cApt(){const A=D.apt.filter(a=>inB(a)&&inR(a)&&!/^Waiting/i.test(a.room||'')),ks=monthsList(S.from,S.to),c=SER();
+  const cnt=(k,f)=>A.filter(a=>a.k===k&&f(a)).length;
+  chart('cAS',{data:{labels:ks.map(mls),datasets:[bar('مكتملة',ks.map(k=>cnt(k,a=>a.st==='Completed')),c[0],{stack:'s',borderRadius:0}),bar('ملغية',ks.map(k=>cnt(k,a=>/cancel/i.test(a.st))),c[1],{stack:'s',borderRadius:0}),bar('ما جاش',ks.map(k=>cnt(k,a=>/no ?show/i.test(a.st))),c[7],{stack:'s',borderRadius:0})]},options:{scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true}}}});
+  const rate=f=>ks.map(k=>{const n=A.filter(a=>a.k===k).length;return n?+(100*cnt(k,f)/n).toFixed(1):null});
+  chart('cAR',{type:'line',data:{labels:ks.map(mls),datasets:[line('إلغاء %',rate(a=>/cancel/i.test(a.st)),c[1]),line('غياب %',rate(a=>/no ?show/i.test(a.st)),c[7])]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}},plugins:{tooltip:{callbacks:{label:x=>' '+x.dataset.label+': '+x.parsed.y+'%'}}}}});
+  chart('cAW',{type:'bar',data:{labels:DAYS,datasets:[bar('جلسات',[0,1,2,3,4,5,6].map(i=>A.filter(a=>a.w===i&&a.st==='Completed').length),c[0])]},options:{plugins:{legend:{display:false}}}})}
+
+function vDebt(){const I=D.inv.filter(x=>inB(x)&&x.k<=S.to);const today=new Date().toISOString().slice(0,10);
+  const open=I.map(x=>Object.assign({},x,{rem:Math.max(0,x.total-x.disc-x.paid)})).filter(x=>x.rem>1);
+  const age=x=>(Date.parse(today)-Date.parse(x.d))/864e5;const AG=[['٠–٣٠ يوم',0,30],['٣١–٩٠',31,90],['٩١–١٨٠',91,180],['أكتر من ١٨٠',181,1e9]];
+  const ag=AG.map(([t,a,b])=>{const xs=open.filter(x=>age(x)>=a&&age(x)<=b);return [t,xs.length,xs.reduce((s,x)=>s+x.rem,0)]});
+  const byP={};open.forEach(x=>{const k=x.pid||x.pn;(byP[k]=byP[k]||{n:x.pn,pid:x.pid,rem:0,c:0,old:x.d}).rem+=x.rem;byP[k].c++;if(x.d<byP[k].old)byP[k].old=x.d});
+  const top=Object.values(byP).sort((a,b)=>b.rem-a.rem).slice(0,40);const tot=open.reduce((s,x)=>s+x.rem,0);
+  return `<div class="grid g4">${kpi('إجمالي الباقي على المرضى',fm(tot),fm(Object.keys(byP).length)+' مريض')}${ag.map(a=>kpi('عمر الدين: '+a[0],fm(a[2]),fm(a[1])+' فاتورة')).join('')}</div>
+  <div class="grid g2" style="margin-top:12px"><div class="card"><h3>الباقي حسب شهر الفاتورة</h3><div class="ch"><canvas id="cDebt"></canvas></div></div>
+  <div class="card"><h3>أكبر ٤٠ مديونية</h3>${tableHTML(['المريض','رقم',{t:'الباقي',n:1},{t:'فواتير',n:1},'أقدم فاتورة'],top.map(p=>[esc(p.n),esc(p.pid),p.rem,p.c,p.old]),{h:360})}</div></div>
+  <div class="note" style="margin-top:8px">الباقي = إجمالي الفاتورة − الخصم − المدفوع. الفواتير القديمة بتتحدث مرة كل يوم بالليل.</div>`}
+function cDebt(){const I=D.inv.filter(x=>inB(x)&&x.k<=S.to),ks=monthsList(D.months[0]||S.from,S.to);
+  chart('cDebt',{type:'bar',data:{labels:ks.map(mls),datasets:[bar('الباقي',ks.map(k=>I.filter(x=>x.k===k).reduce((s,x)=>s+Math.max(0,x.total-x.disc-x.paid),0)),SER()[7])]},options:{plugins:{legend:{display:false}}}})}
+
+function vCash(){const P=D.pay.filter(p=>inB(p)&&inR(p)&&!p.bal),E=D.exp.filter(e=>inR(e)&&expIn(e));
+  const key=x=>x.tr||x.meth||'—';const meths=[...new Set(P.map(key).concat(E.map(key)))];
+  const rows=meths.map(m=>{const i=P.filter(p=>key(p)===m).reduce((s,p)=>s+p.amt,0),o=E.filter(e=>key(e)===m).reduce((s,e)=>s+e.amt,0);return [esc(m),i,o,i-o]}).sort((a,b)=>b[1]-a[1]);
+  const T=rows.reduce((t,r)=>[t[0],t[1]+r[1],t[2]+r[2],t[3]+r[3]],['الإجمالي',0,0,0]);rows.push(Object.assign(T,{_c:'tot'}));
+  return `<div class="card"><h3>الداخل والخارج حسب الخزنة / طريقة الدفع<small>${ml(S.from)} لـ ${ml(S.to)}</small></h3>${tableHTML(['الخزنة / الطريقة',{t:'داخل (مدفوعات)',n:1},{t:'خارج (مصروفات ومردودات)',n:1},{t:'الصافي',n:1}],rows)}</div>
+  <div class="card" style="margin-top:12px"><h3>صافي الكاش التراكمي<small>الداخل − الخارج من أول الفترة</small></h3><div class="ch"><canvas id="cCash"></canvas></div></div>
+  <div class="note" style="margin-top:8px">ده حساب حركة الفلوس من Medicolize بس — مش رصيد الخزنة الفعلي (ما فيهوش رصيد افتتاحي ولا سحب أرباح).</div>`}
+function cCash(){const ks=monthsList(S.from,S.to);let c=0;const P=D.pay.filter(p=>inB(p)&&!p.bal),E=D.exp.filter(e=>expIn(e));
+  chart('cCash',{type:'line',data:{labels:ks.map(mls),datasets:[line('صافي تراكمي',ks.map(k=>c+=P.filter(p=>p.k===k).reduce((s,p)=>s+p.amt,0)-E.filter(e=>e.k===k).reduce((s,e)=>s+e.amt,0)),SER()[0])]}})}
+
+function vDL(){return `<div class="card"><h3>تنزيل Excel<small>${BRN[S.b]} — ${ml(S.from)} لـ ${ml(S.to)}</small></h3>
+  <div class="bar"><button class="pri" id="dFull">📗 التقرير الكامل</button><button id="dRev">الإيرادات تفصيلي</button><button id="dExp">المصروفات تفصيلي</button><button id="dApt">المواعيد شهري</button><button onclick="window.print()">🖨 اطبع الصفحة</button></div>
+  <div class="note">التقرير الكامل فيه: ملخص، الأرباح والخسائر، المصروفات حسب البند، الإيرادات حسب الطريقة والدكتور، الإيرادات تفصيلي، المصروفات تفصيلي، المواعيد شهري، المرضى الجداد حسب المصدر. الملف بيتعمل على جهازك ومحدش غيرك بيشوفه.</div></div>`}
+function sheetOf(aoa){const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=aoa[0].map((_,i)=>({wch:Math.min(40,Math.max(10,...aoa.slice(0,200).map(r=>String(r[i]??'').length+2)))}));ws['!views']=[{RTL:true}];return ws}
+function wbSave(sheets,name){if(!window.XLSX){alert('مكتبة Excel ما اتحملتش — اعمل تحديث');return}const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};
+  for(const [n,a] of sheets)XLSX.utils.book_append_sheet(wb,sheetOf(a),n.slice(0,31));XLSX.writeFile(wb,name)}
+const per=()=>`${BRN[S.b]} ${S.from} الى ${S.to}`;
+const revAoa=()=>[['التاريخ','الساعة','المريض','رقم المريض','المبلغ','طريقة الدفع','الدكتور','الفاتورة','سجّلها','مردود','الفرع']].concat(D.pay.filter(p=>inB(p)&&inR(p)).sort((a,b)=>a.d<b.d?-1:1).map(p=>[p.d,pad(p.h)+':00',p.pn,p.pid,p.amt,p.meth,p.doc,p.inv,p.by,p.ref?'نعم':'',BRN[p.b]||p.b]));
+const expAoa=()=>[['التاريخ','البند','التفاصيل','المبلغ','طريقة الدفع','سجّلها']].concat(D.exp.filter(e=>inR(e)&&expIn(e)).sort((a,b)=>a.d<b.d?-1:1).map(e=>[e.d,e.type,e.info,e.amt,e.meth,e.by]));
+const aptAoa=()=>{const A=D.apt.filter(a=>inB(a)&&inR(a));return [['الشهر','كل المواعيد','مكتملة','ملغية','ما جاش','مرضى مختلفين']].concat(monthsList(S.from,S.to).map(k=>{const x=A.filter(a=>a.k===k);return [k,x.length,x.filter(a=>a.st==='Completed').length,x.filter(a=>/cancel/i.test(a.st)).length,x.filter(a=>/no ?show/i.test(a.st)).length,new Set(x.filter(a=>a.st==='Completed').map(a=>a.pid)).size]}))};
+function bindDL(){
+  $('#dRev').onclick=()=>wbSave([['الإيرادات',revAoa()]],`إيرادات ${per()}.xlsx`);
+  $('#dExp').onclick=()=>wbSave([['المصروفات',expAoa()]],`مصروفات ${per()}.xlsx`);
+  $('#dApt').onclick=()=>wbSave([['المواعيد',aptAoa()]],`مواعيد ${per()}.xlsx`);
+  $('#dFull').onclick=()=>{const R=series(),T=sumR(R);let cum=0;
+    const pl=[['الشهر','الإيرادات','المردودات','صافي الإيراد','المرتبات','الإيجار','مصروفات تانية','إجمالي المصروفات','صافي الربح','الهامش %','الربح التراكمي','الجلسات','متوسط الجلسة','نقطة التعادل (جلسة)']]
+      .concat(R.map(r=>{cum+=r.profit;return [r.k,r.rev,r.refunds,r.net,r.sal,r.rent,r.other,r.opex,r.profit,r.margin==null?'':+(r.margin*100).toFixed(1),cum,r.sessions,r.avgS==null?'':Math.round(r.avgS),r.beS??'']}))
+      .concat([['الإجمالي',T.rev,T.refunds,T.net,T.sal,T.rent,T.other,T.opex,T.profit,T.margin==null?'':+(T.margin*100).toFixed(1),cum,T.sessions,T.avgS==null?'':Math.round(T.avgS),'']]);
+    const E=D.exp.filter(e=>inR(e)&&expIn(e)),P=D.pay.filter(p=>inB(p)&&inR(p)&&!p.bal);
+    const sum=[['البند','القيمة'],['الفرع',BRN[S.b]],['الفترة',`${S.from} الى ${S.to}`],['الإيرادات',T.rev],['المردودات',T.refunds],['صافي الإيراد',T.net],['المصروفات',T.opex],['صافي الربح',T.profit],['هامش الربح %',T.margin==null?'':+(T.margin*100).toFixed(1)],['الجلسات المكتملة',T.sessions],['متوسط الجلسة',T.avgS==null?'':Math.round(T.avgS)],['نقطة التعادل (جلسة/شهر)',T.beS??''],['آخر تحديث للبيانات',D.at||'']];
+    const N=Object.values(ptIndex()).filter(p=>inR(p)&&!p.early);
+    wbSave([['ملخص',sum],['الأرباح والخسائر',pl],['المصروفات حسب البند',[['البند','التفاصيل','المبلغ']].concat(groupSum(E,e=>e.type+'\u0001'+(e.info||'—')).map(([k,v])=>[...k.split('\u0001'),v]))],
+      ['الإيرادات حسب الطريقة',[['الطريقة','المبلغ']].concat(groupSum(P,'meth'))],['الإيرادات حسب الدكتور',[['الدكتور','المبلغ']].concat(groupSum(P,'doc'))],
+      ['المرضى الجداد حسب المصدر',[['المصدر','مرضى جداد','دفعوا']].concat(groupSum(N,p=>p.src||'مش متسجل',()=>1).map(([k,v])=>[k,v,N.filter(p=>(p.src||'مش متسجل')===k).reduce((s,p)=>s+(p.paid||0),0)]))],
+      ['الإيرادات تفصيلي',revAoa()],['المصروفات تفصيلي',expAoa()],['المواعيد شهري',aptAoa()]],`تقرير BODYFIX ${per()}.xlsx`)}}
+
+function vData(){const K=RAW.kinds||{},names={pay:'المدفوعات (Payments)',exp:'المصروفات (Expense payments)',inv:'الفواتير',apt:'المواعيد'};
+  const all=monthsList(RAW.start||'2024-06',curK());
+  let h=`<div class="card"><h3>حالة البيانات<small>آخر تحديث ${esc((RAW.at||'').replace('T',' ').slice(0,16))} UTC</small></h3>`;
+  for(const kind in names){h+=`<h4 style="margin:12px 0 6px">${names[kind]}</h4>`;const bs=K[kind]||{};if(!Object.keys(bs).length){h+='<span class="chip w">لسه ما اتسحبتش</span>';continue}
+    h+=tableHTML(['الفرع',{t:'شهور',n:1},{t:'صفوف',n:1},'ناقص'],Object.entries(bs).map(([b,ms])=>[esc(b==='all'?'كل الفروع':BRN[b]||b),Object.keys(ms).length,Object.values(ms).reduce((s,m)=>s+(m.rows||[]).length,0),all.filter(k=>!ms[k]).map(mls).join('، ')||'✓']))}
+  return h+`<div class="note" style="margin-top:10px">المزامنة بتسحب الشهر الحالي واللي قبله كل مرة، وبتكمّل الشهور القديمة الناقصة شوية شوية لحد ما توصل لـ${ml(RAW.start||'2024-06')}.</div></div>`}
+
+const VIEWS={sum:[vSum,cSum],pl:[vPL,cPL],rev:[vRev,cRev],exp:[vExp,cExp],pts:[vPts,cPts],ret:[vRet,cRet],apt:[vApt,cApt],debt:[vDebt,cDebt],cash:[vCash,cCash],dl:[vDL,bindDL],data:[vData,null]};
+function render(){
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===S.tab));
+  for(const k in CH){CH[k].destroy();delete CH[k]}
+  const [v,c]=VIEWS[S.tab]||VIEWS.sum;
+  try{$('#main').innerHTML=v();if(c)c()}catch(e){console.error(e);$('#main').innerHTML=`<div class="card">حصل خطأ في العرض: ${esc(e.message)}</div>`}
+}
+function setRange(a,b){S.from=a;S.to=b;$('#fFrom').value=a;$('#fTo').value=b;render()}
+function start(){
+  D=build(RAW);$('#lock').hidden=true;$('#app').hidden=false;
+  const first=D.months[0]||RAW.start||'2024-06',last=curK();
+  $('#asOf').textContent='آخر تحديث: '+(RAW.at?new Date(RAW.at).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',dateStyle:'medium',timeStyle:'short'}):'—')+' · البيانات من '+ml(first);
+  $('#fFrom').min=$('#fTo').min=first;$('#fFrom').max=$('#fTo').max=last;$('#fBranch').value=S.b;
+  S.from=first;S.to=last;$('#fFrom').value=first;$('#fTo').value=last;render();
+}
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-t]');if(!b)return;S.tab=b.dataset.t;try{localStorage.setItem('fin_tab',S.tab)}catch(x){}render()});
+$('#fBranch').onchange=e=>{S.b=e.target.value;try{localStorage.setItem('fin_b',S.b)}catch(x){}render()};
+$('#fFrom').onchange=e=>{if(e.target.value){S.from=e.target.value;if(S.from>S.to)S.to=S.from,$('#fTo').value=S.to;render()}};
+$('#fTo').onchange=e=>{if(e.target.value){S.to=e.target.value;if(S.to<S.from)S.from=S.to,$('#fFrom').value=S.from;render()}};
+document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const c=curK(),f=D.months[0]||c;const q=b.dataset.q;
+  if(q==='m')setRange(c,c);else if(q==='3')setRange(shiftK(c,-2)<f?f:shiftK(c,-2),c);else if(q==='y')setRange((c.slice(0,4)+'-01')<f?f:c.slice(0,4)+'-01',c);else setRange(f,c)});
+</script>
+</body>
+</html>

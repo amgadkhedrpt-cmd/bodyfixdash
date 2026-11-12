@@ -11635,7 +11635,7 @@ var PLAN_GT={
   renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','حصّل فلوس'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
   fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — رسالة + تسجيل + خصم']
 };
-var PLAN_OPEN_G={};
+var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView')||''; }catch(e){}
 
 /* 👩‍💼 الإنجاز لكل سكرتيرة: المسئولة عن الفرع النهارده (اللي اختارت اسمها) — مهام فرعها اتعمل منها كام % · وكام مهمة عملتها بإيدها */
 function planOwner(t,g){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by; var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
@@ -11695,6 +11695,20 @@ function planAutoSave(all){
   if(n) try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
 }
 var PLAN_SUM_LAST='', PLAN_SUM_AT=0;
+/* للمزامنة بالليل (digest.py بيفتح الصفحة ويناديها): الملخص + كل اللي اتعمل بالتفصيل */
+function planSummaryObj(){
+  if(!ALERTS_DATA) return null; var T=planTasks(true); if(!T) return null;
+  var td=ALERTS_DATA.today||'', sum={d:td, br:{}, sec:{}}, items=[];
+  ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){
+    var stt=planState(t); if(stt==='snz') return; var b=sum.br[t.br]||(sum.br[t.br]={tot:0,done:0,groups:{}}); b.tot++; if(stt==='done') b.done++;
+    var g=(t.grp&&t.grp[0])||'other', gt=(PLAN_GT[g]||['',g])[1], gg=b.groups[gt]||(b.groups[gt]={tot:0,done:0}); gg.tot++; if(stt==='done') gg.done++;
+    var o=planOwner(t,g); if(o){ var x=sum.sec[o]||(sum.sec[o]={tot:0,done:0,hand:0}); x.tot++; if(stt==='done') x.done++; }
+    var s=PLAN_ST[t.key]||{}; if(s.s==='done'&&s.by){ var y=sum.sec[s.by]||(sum.sec[s.by]={tot:0,done:0,hand:0}); y.hand++; }
+    if(stt==='done'||s.s==='nr') items.push({name:t.name||'', kind:gt, br:t.br, s:(s.s==='done'||s.s==='nr')?s.s:'auto', by:s.by||'', at:s.at||'', note:s.note||'',
+      what:String(t.what||(s.s==='done'?'':t.sys)||'').replace(/<[^>]+>/g,'')});
+  }); });
+  return {sum:sum, items:items};
+}
 function planSummarySave(){
   if(!PLAN_LOADED||!ALERTS_DATA) return; var T=planTasks(true); if(!T) return;
   var td=ALERTS_DATA.today||'', sum={d:td, br:{}, sec:{}, at:new Date().toISOString()};
@@ -11740,7 +11754,8 @@ function planRender(){
   PLAN_TASKIDX={}; all.forEach(function(t){ PLAN_TASKIDX[t.key]=t; });
   try{ planAutoSave(all); planSummarySave(); }catch(e){}
   var cnt=function(arr,s){ return arr.filter(function(t){ return planState(t)===s; }).length; };
-  var vis=all.filter(function(t){ return planState(t)!=='snz'; }), dn=cnt(vis,'done');
+  var mineT=PLAN_VIEW?all.filter(function(t){ return (t.grp&&t.grp.length?t.grp:['other']).some(function(g){ return planOwner(t,g)===PLAN_VIEW; }); }):all;
+  var vis=mineT.filter(function(t){ return planState(t)!=='snz'; }), dn=cnt(vis,'done');
   var pc=vis.length?Math.round(dn*100/vis.length):0;
   var c=document.getElementById('plan-cnt'); if(c){ var left=vis.length-dn; c.textContent=left; c.style.display=left?'inline':'none'; }
   var hr=new Date().getHours();
@@ -11750,7 +11765,10 @@ function planRender(){
     '<b style="font-size:.85rem">📋 خطة اليوم</b><span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+alActiveBranches().map(function(b){return b.label;}).join(' + ')+'</span>'+
     '<span style="flex:1"></span><label style="font-size:.62rem;color:var(--mute)">السكرتيرة المسئولة '+
     '<select id="planMeSel" onchange="planSetMe(this.value)" style="background:var(--bg);border:1px solid '+(PLAN_ME?'var(--brd)':'var(--r)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
-      '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'<option value="__add">➕ اسم جديد</option></select></label></div>'+
+      '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'<option value="__add">➕ اسم جديد</option></select></label>'+
+    '<label style="font-size:.62rem;color:var(--mute)">عرض مهام '+
+    '<select onchange="PLAN_VIEW=this.value;try{localStorage.setItem(\'planView\',PLAN_VIEW)}catch(e){};planRender()" style="background:var(--bg);border:1px solid '+(PLAN_VIEW?'#ec4899':'var(--brd)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
+      '<option value="">كل السكرتيرات</option>'+PLAN_NAMES.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label></div>'+
     '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
       '<div style="display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:6px"><span>اتعمل <b style="color:var(--g)">'+dn+'</b> من <b>'+vis.length+'</b> مهمة'+(PLAN_ME?' · إنتي عملتي '+mine:'')+'</span><b>'+pc+'%</b></div>'+
       '<div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:linear-gradient(90deg,#10b981,#00c6ff)"></div></div>'+
@@ -11760,7 +11778,8 @@ function planRender(){
     if(!arr.length) return '';
     var live=arr.filter(function(t){ return planState(t)!=='snz'; }), dnS=live.filter(function(t){ return planState(t)==='done'; }).length;
     var order=[], groups={};
-    arr.forEach(function(t){ (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ if(!groups[g]){ groups[g]=[]; order.push(g); } groups[g].push(t); }); });
+    arr.forEach(function(t){ (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ if(PLAN_VIEW&&planOwner(t,g)!==PLAN_VIEW) return; if(!groups[g]){ groups[g]=[]; order.push(g); } groups[g].push(t); }); });
+    if(PLAN_VIEW){ var keep={}; order.forEach(function(g){ groups[g].forEach(function(t){ keep[t.key]=1; }); }); arr=arr.filter(function(t){ return keep[t.key]; }); if(!arr.length) return ''; live=arr.filter(function(t){ return planState(t)!=='snz'; }); dnS=live.filter(function(t){ return planState(t)==='done'; }).length; }
     var out='<div style="margin:16px 0 8px;display:flex;align-items:center;gap:8px"><b style="font-size:.8rem;'+(hot?'color:var(--r)':'')+'">'+title+'</b><span style="font-size:.6rem;color:var(--mute)">'+sub+'</span><span style="flex:1"></span><span style="font-size:.64rem;font-weight:800">'+dnS+' / '+live.length+' · '+(live.length?Math.round(dnS*100/live.length):100)+'%</span></div>';
     out+=order.map(function(g){
       var A=groups[g], gk=id+'|'+g, isOpen=!!PLAN_OPEN_G[gk], gt=PLAN_GT[g]||['•','أخرى'];
@@ -11791,6 +11810,7 @@ function planRender(){
      sec('office','📋 شغل مكتب','مواعيد تتقفل · أخطاء كومبليت امبارح · تحصيل بالتليفون',T.office,false)+
      sec('evening','🌙 آخر اليوم','قبل ما تقفلي'+(hr>=21?' — <b style="color:var(--r)">الساعة عدت 9</b>':''),T.evening,hr>=21);
   if(!all.length) h+='<div style="padding:30px;text-align:center;color:var(--mute)">مفيش مهام النهارده 🎉</div>';
+  else if(PLAN_VIEW&&!mineT.length) h+='<div style="padding:24px;text-align:center;color:var(--mute)">مفيش مهام متعيّنة على '+alEsc(PLAN_VIEW)+' النهارده — المهام بتتعيّن من «👤 المسئولة» جنب كل مهمة، أو لو هي اختارت اسمها فوق بتبقى مسئولة عن مهام الفرع اللي مش متعيّنة لحد</div>';
   var sc=window.scrollY; box.innerHTML=h; window.scrollTo(0,sc);
 }
 /* ══ التقييم والتجديد (alerts.eval_renew) ══ */

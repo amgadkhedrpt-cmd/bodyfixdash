@@ -2,7 +2,7 @@
 """ملخص آخر اليوم بالإيميل — بيشتغل بعد السحب وأداة التحصيل، مرة واحدة في اليوم بعد الساعة 9 بالليل.
 المصادر: alerts.json (من السحب) · .session/digest_ctx.json (المواعيد + فواتير اليوم) · .session/paid.json (المدفوعات من التحصيل)
          · شيت التثبيتات (الشيفتات والمرضى المتثبتين) · شيت الغيابات."""
-import json, os, re, smtplib, urllib.request
+import json, os, re, smtplib, urllib.request, urllib.parse
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
@@ -114,6 +114,10 @@ def main():
     with open("packages.json", "w", encoding="utf-8") as f:
         json.dump(pk, f, ensure_ascii=False, separators=(",", ":"))
     print("📧 الملخص اتبعت")
+    try:
+        plan_cleanup(30)
+    except Exception as e:
+        print(f"plan cleanup: {e}")
 
 
 
@@ -139,6 +143,9 @@ def plan_section(today_s):
             summ = o
         elif k.startswith("PLAN|") and o.get("d") == today_s and o.get("s") in ("done", "auto", "nr") and o.get("name"):
             items.append(o)
+    pg = plan_from_page()
+    if pg:   # الحساب من الصفحة نفسها (المزامنة فتحت «خطة اليوم») — مش محتاج حد يكون فتحها
+        summ, items = pg.get("sum") or summ, pg.get("items") or items
     if not summ and not items:
         return '<h3 style="margin:16px 0 6px">✅ خطة اليوم</h3><div style="color:#64748b;font-size:13px">محدش فتح «خطة اليوم» النهارده</div>'
     H = lambda t: (str(t or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -177,6 +184,77 @@ def plan_section(today_s):
                    f'<ul style="margin:2px 0;padding-inline-start:18px;font-size:13px">{lis}</ul>{more}</div>')
     return "".join(out)
 
+
+
+def plan_from_page():
+    """بيفتح index.html في Chromium (اللي متثبت للمزامنة) ويحسب «خطة اليوم» بنفس كود الصفحة — ببيانات المزامنة الجديدة."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        return None
+    root = os.path.abspath(".")
+    try:
+        with sync_playwright() as p:
+            b = p.chromium.launch()
+            pg = b.new_page()
+
+            def route(r):
+                u = r.request.url
+                if "raw.githubusercontent.com" in u and "alerts.json" in u and os.path.exists("alerts.json"):
+                    return r.fulfill(path=os.path.join(root, "alerts.json"), content_type="application/json")
+                if "raw.githubusercontent.com" in u and "audit.json" in u and os.path.exists("data/audit.json"):
+                    return r.fulfill(path=os.path.join(root, "data", "audit.json"), content_type="application/json")
+                return r.continue_()
+            pg.route("**/*", route)
+            pg.goto("file://" + os.path.join(root, "index.html"), wait_until="domcontentloaded", timeout=60000)
+            pg.wait_for_timeout(6000)
+            pg.evaluate("()=>{ try{ sw('plan', document.querySelector('.tab[onclick*=plan]')); }catch(e){ try{ planOpen(); }catch(_){} } }")
+            for _ in range(30):   # لحد ما حالة المهام من الشيت + شيتات التثبيت يحمّلوا
+                ok = pg.evaluate("()=> !!(window.PLAN_LOADED && window.ALERTS_DATA && (typeof AUD_DATA==='undefined' || AUD_DATA))")
+                if ok:
+                    break
+                pg.wait_for_timeout(2000)
+            pg.wait_for_timeout(8000)
+            res = pg.evaluate("()=> (typeof planSummaryObj==='function') ? planSummaryObj() : null")
+            pg.evaluate("()=>{ try{ planRender(); }catch(e){} }")   # بيحفظ اللي اتعمل على السيستم في الشيت كمان
+            pg.wait_for_timeout(5000)
+            b.close()
+            print(f"🗂️ خطة اليوم من الصفحة: {len((res or {}).get('items') or [])} مهمة اتعملت")
+            return res
+    except Exception as e:
+        print(f"digest plan page: {str(e)[:200]}")
+        return None
+
+
+def plan_cleanup(days=30):
+    """بيمسح سطور «خطة اليوم» من شيت الطلبات اللي أقدم من 30 يوم (طلبات الموظفين والربط مش بيتلمسوا)."""
+    raw = urllib.request.urlopen(REQ_SCRIPT_URL + "?action=getAll&callback=cb", timeout=40).read().decode("utf-8")
+    m = re.search(r"cb\((.*)\)\s*;?\s*$", raw, re.S)
+    reasons = (json.loads(m.group(1) if m else raw).get("reasons") or {})
+    cut = (datetime.now(CAIRO) - timedelta(days=days)).strftime("%Y-%m-%d")
+    old = []
+    for k, v in reasons.items():
+        if not (k.startswith("PLAN|") or k.startswith("PLANSUM|")) or not str(v or "").strip():
+            continue
+        d = None
+        try:
+            o = json.loads(v) if str(v).strip().startswith("{") else {}
+            d = o.get("d")
+        except Exception:
+            pass
+        if not d:
+            mm = re.search(r"\d{4}-\d{2}-\d{2}", k)
+            d = mm.group(0) if mm else None
+        if d and d < cut:
+            old.append(k)
+    n = 0
+    for k in old[:500]:
+        try:
+            urllib.request.urlopen(REQ_SCRIPT_URL + "?action=saveAction&reqId=" + urllib.parse.quote(k) + "&decision=plan&reason=&callback=cb", timeout=20).read()
+            n += 1
+        except Exception:
+            pass
+    print(f"🧹 اتمسح {n} سطر قديم من خطة اليوم (أقدم من {days} يوم)")
 
 def build(now, alerts, ctx, paid):
     today = now.date()

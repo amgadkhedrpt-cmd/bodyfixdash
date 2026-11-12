@@ -10483,13 +10483,13 @@ function alertsRender(){
         return '<div style="font-size:.62rem;font-weight:800;color:var(--r);border:1px solid var(--r);border-radius:7px;padding:3px 8px;margin-bottom:6px">⚠️ '+(b?b+' قالوا هييجوا وما جوش ('+W.broken.map(function(z){return alEsc(z[0].name.split(' ')[0]);}).join('، ')+')':'')+(b&&nb?' · ':'')+(nb?nb+' قالوا هييجوا ومفيش موعد':'')+'</div>'; })()+
       '<div style="display:flex;gap:6px;margin-bottom:6px">'+AL_STREAK_GROUPS.map(function(g){
         var arrG=sk.rows.filter(function(x){return alGrpHas(g,x);}), c=arrG.length, cA=arrG.filter(alActedToday).length;
-        return '<div onclick="event.stopPropagation();alOpenPick(\'streaks\',\''+AL_STREAK_GROUPS.indexOf(g)+'\')" title="اضغط لأسامي الرقم ده بس" style="flex:1;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:8px;padding:6px;text-align:center;cursor:pointer">'+
+        return '<div onclick="event.stopPropagation();AL_ACT_F=\'\';alOpenPick(\'streaks\',\''+AL_STREAK_GROUPS.indexOf(g)+'\')" title="اضغط لأسامي الرقم ده بس" style="flex:1;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:8px;padding:6px;text-align:center;cursor:pointer">'+
                '<div style="font-size:1.1rem;font-weight:900;color:'+g.color+'">'+c+'</div><div style="font-size:.52rem;color:var(--mute)">'+g.short+'</div>'+
-               (c?'<div style="font-size:.54rem;margin-top:3px"><span style="color:var(--g)">✅ '+cA+' اتعمل</span> · <span style="color:'+(c-cA?'var(--r)':'var(--mute)')+'">⬜ '+(c-cA)+' لسه</span></div>':'')+'</div>';
+               (c?'<div style="font-size:.54rem;margin-top:3px"><span onclick="event.stopPropagation();AL_ACT_F=\'done\';alOpenPick(\'streaks\',\''+AL_STREAK_GROUPS.indexOf(g)+'\')" style="color:var(--g);cursor:pointer;text-decoration:underline dotted">✅ '+cA+' اتعمل</span> · <span onclick="event.stopPropagation();AL_ACT_F=\'todo\';alOpenPick(\'streaks\',\''+AL_STREAK_GROUPS.indexOf(g)+'\')" style="color:'+(c-cA?'var(--r)':'var(--mute)')+';cursor:pointer;text-decoration:underline dotted">⬜ '+(c-cA)+' لسه</span></div>':'')+'</div>';
       }).join('')+'</div>'+
       (s0.idle?'':'<div style="font-size:.62rem;color:var(--txt)">الأكتر: <b>'+alEsc(s0.name)+'</b> — '+s0.streak+' مرات · عند '+alEsc(s0.fixed[0].doctor)+' الساعة '+alEsc(alSlotTxt(s0.fixed[0].slot))+'</div>')+
       '<div style="font-size:.54rem;color:var(--mute);margin-top:3px">مثبّت في الشيت · ألغى أو ما حضرش مرتين أو أكتر ورا بعض</div>',
-      'alertsOpenStreaks()');
+      'AL_ACT_F=\'\';alertsOpenStreaks()');
   }
 
   /* 0.1) اعتذار مفاجئ / No Show */
@@ -11011,9 +11011,12 @@ function alertsOpenStreaks(fromNotes){
     AL_STREAK_GROUPS.map(function(g){
       var arr=st.rows.filter(function(x){ return alGrpHas(g,x); });
       if(!arr.length) return '';
-      var aA=arr.filter(alActedToday).length;
-      arr.sort(function(a,b){ return (alActedToday(a)?1:0)-(alActedToday(b)?1:0); });   // اللي لسه محدش عمل معاهم حاجة فوق
-      return '<div style="font-weight:700;font-size:.7rem;color:'+g.color+';margin:12px 0 6px">'+g.label+' ('+arr.length+') <span style="font-size:.6rem;font-weight:400"><span style="color:var(--g)">✅ '+aA+' اتعمل النهارده</span> · <span style="color:var(--r)">⬜ '+(arr.length-aA)+' لسه</span></span></div>'+arr.map(row).join('');
+      var done=arr.filter(alActedToday), todo=arr.filter(function(x){ return !alActedToday(x); });
+      var gi=AL_STREAK_GROUPS.indexOf(g), fb=function(v,txt,col){ var on=AL_ACT_F===v; return '<span onclick="AL_ACT_F=\''+v+'\';alOpenPick(\'streaks\',\''+gi+'\')" style="cursor:pointer;font-size:.6rem;font-weight:700;color:'+col+';border:1px solid '+(on?col:'var(--brd)')+';border-radius:7px;padding:1px 7px">'+txt+'</span>'; };
+      var head='<div style="font-weight:700;font-size:.7rem;color:'+g.color+';margin:12px 0 6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+g.label+' ('+arr.length+') '+
+        fb('todo','⬜ '+todo.length+' لسه','var(--r)')+fb('done','✅ '+done.length+' اتعمل النهارده','var(--g)')+(AL_ACT_F?fb('','الكل','var(--mute)'):'')+'</div>';
+      var sub=function(L,t,col){ return L.length?'<div style="font-size:.62rem;font-weight:800;color:'+col+';margin:6px 0 4px">'+t+' ('+L.length+')</div>'+L.map(row).join(''):''; };
+      return head+(AL_ACT_F!=='done'?sub(todo,'⬜ لسه محدش عمل معاهم حاجة النهارده','var(--r)'):'')+(AL_ACT_F!=='todo'?sub(done,'✅ اتعمل معاهم النهارده','var(--g)'):'');
     }).join('')+
     (function(){ var rest=st.rows.filter(function(x){ return !AL_STREAK_GROUPS.some(function(g){ return alGrpHas(g,x); }); }); if(!rest.length) return '';
       return '<div style="font-weight:700;font-size:.7rem;color:var(--am);margin:12px 0 6px">🗑️ اتشالوا من التثبيت ('+rest.length+')</div>'+rest.map(row).join(''); })()+'</div>';
@@ -11026,6 +11029,7 @@ var AL_STREAK_GROUPS=[
   {idle:true,      label:'😶 مثبّتين ومالهمش أي ميعاد — آخر جلسة من 3 أيام أو أكتر', color:'#a78bfa', short:'مالوش ميعاد 3 أيام+'}
 ];
 /* اتاخد أكشن النهارده؟ تعليق اتكتب النهارده في الكارت، أو ملحوظة / ✅ / ما ردش في خطة اليوم */
+var AL_ACT_F='';
 function alActedToday(x){
   var td=alCairoToday(), n=(AL_NOTES[alNoteId(x)]||{});
   if(String(n.at||'').slice(0,10)===td&&(n.text||'').trim()) return true;

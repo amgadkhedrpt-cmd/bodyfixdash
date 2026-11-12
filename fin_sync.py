@@ -167,16 +167,25 @@ def strip_field(q, f):
     return out[:st] + out[en:]
 
 
+FIXED_Q = {}
+
+
 def gql(ctx, q, v, key):
+    q0 = q
+    q = FIXED_Q.get(q0, q)
     for _ in range(10):
         try:
-            return gql1(ctx, q, v, key)
+            r = gql1(ctx, q, v, key)
+            FIXED_Q[q0] = q
+            return r
         except RuntimeError as e:
-            bad = re.findall(r'Cannot query field \\?"(\w+)\\?"', str(e))
+            bad = re.findall(r'Cannot query field \\?"(\w+)\\?"', str(e)) + \
+                  re.findall(r'Field \\?"(\w+)\\?" of type [^.]*must have a selection', str(e))
             if not bad:
                 raise
             for f in bad:
-                STRIPPED.setdefault(key, []).append(f)
+                if f not in STRIPPED.setdefault(key, []):
+                    STRIPPED[key].append(f)
                 q = strip_field(q, f)
     return gql1(ctx, q, v, key)
 
@@ -384,7 +393,7 @@ def main():
         ops["pay"], META_D["pay_pages"] = capture(pg, list(dict.fromkeys(pay_paths)), r"payment", r"total|count|sum|stat|expens")
         n_exp0 = len(CAPT)
         ops["exp"], META_D["exp_pages"] = capture(pg, list(dict.fromkeys(exp_paths)), r"expens")
-        ops["xp"], META_D["xp_pages"] = capture(pg, ["/finances/expenses", "/expenses", "/finances/expense"], r"^EXPENSES\b", r"PAYMENT|total|count|sum|stat")
+        ops["xp"], META_D["xp_pages"] = capture(pg, ["/finances/expenses", "/expenses", "/finances/expense"], r"^(GET_)?EXPENSES\b", r"PAYMENT|total|count|sum|stat")
         META_D["exp_page_ops"] = sorted({re.sub(r"\s+", " ", b.get("query") or "")[:300] for b in CAPT[n_exp0:]
                                          if re.search(r"expenseType|company|setting", b.get("query") or "", re.I)})[:8]
         for k in ("pay", "exp", "xp"):

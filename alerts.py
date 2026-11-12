@@ -144,6 +144,8 @@ MISS_ONLY = {"canceled", "cancelled", "no show", "noshow"}   # Waiting List بي
 
 ATTENDED  = {"completed", "checked in", "checkedin", "in progress", "inprogress"}
 BOOKED    = {"open", "confirmed", "checked in", "checkedin", "delayed"}
+CONF_SP_DOCS  = {"dr. alaa harfoush", "alaa harfoush"}          # تأكيداتهم مهمة لوحدها
+CONF_SP_TYPES = {"cavitation", "cryo", "cryo-blade", "cryo-air", "rf", "excilis", "العنايه بالبشره", "العناية بالبشرة"}   # جلسات التخسيس
 MISSED    = {"canceled", "cancelled", "no show", "noshow", "waiting list", "waiting"}
 NOT_COUNT ={"canceled", "cancelled", "waiting list", "waiting", "note"}
 SKIP_DOCS = {"follow up"}  # طابور المتابعة مش جلسات فعلية
@@ -1003,7 +1005,7 @@ def build_alerts(appointments, now=None, packages=None):
         print(f"⚠️ eval_due: {e}")
 
     # ── خطة اليوم: مواعيد النهارده (للاستقبال) · تأكيد بكره · مواعيد Open قديمة · وقفوا بدري ──
-    plan = {"today": [], "tomorrow_confirm": [], "stale_open": [], "early_drop": []}
+    plan = {"today": [], "tomorrow_confirm": [], "confirm_special": [], "stale_open": [], "early_drop": []}
     try:
         CLOSED_BAD = {"canceled", "cancelled", "no show", "noshow", "note", "waiting list", "waiting"}
         tomorrow_ = next_work
@@ -1028,10 +1030,18 @@ def build_alerts(appointments, now=None, packages=None):
                 why = []
                 if risk >= 2: why.append(f"عنده {risk} غياب/اعتذار مفاجئ آخر 3 شهور")
                 if kashf and not pt_before and _is_pt(a0["type"]): why.append("أول جلسة بعد الكشف")
-                if why:
-                    plan["tomorrow_confirm"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
-                                                     "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "why": why,
-                                                     "status": a0["status"].title(), "auto": a0["status"] in ("confirmed", "canceled", "cancelled")})
+                # كل اللي عنده ميعاد يوم الشغل الجاي = مهمة تأكيد · «ضروري» لو بيغيب كتير أو أول جلسة بعد الكشف
+                # مواعيد د. آلاء حرفوش وجلسات التخسيس → مهمة تأكيد لوحدها
+                sp_ = [a for a in tmr if a["doctor"].strip().lower() in CONF_SP_DOCS or a["type"].strip().lower() in CONF_SP_TYPES]
+                live_ = [a for a in (sp_ or tmr) if a["status"] not in ("canceled", "cancelled")]
+                done_ = all(a["status"] == "confirmed" for a in live_) if live_ else True
+                if sp_:
+                    a0 = sorted(sp_, key=lambda a: (a["status"] in ("canceled", "cancelled"), a["start"]))[0]
+                    what_ = sorted({("د. آلاء حرفوش" if a["doctor"].strip().lower() in CONF_SP_DOCS else "تخسيس: " + a["type"]) for a in sp_})
+                plan["confirm_special" if sp_ else "tomorrow_confirm"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
+                                                 "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "why": why, "risk": bool(why),
+                                                 "status": ("Confirmed" if live_ and done_ else ("Canceled" if not live_ else a0["status"].title())),
+                                                 "auto": done_, **({"sp": what_} if sp_ else {})})
             for a in appts:   # ⏳ مواعيد على الويتنج ليست النهارده / يوم الشغل الجاي
                 if a["status"] in ("waiting list", "waiting") and a["start"].date() in (today, tomorrow_):
                     nt = (a.get("note") or "").strip()
@@ -1127,6 +1137,7 @@ def build_alerts(appointments, now=None, packages=None):
             # مهام بتتقفل بعلامة من غير ما تختفي: المكالمات (اتعملت واتكتبت) + تأكيد بكره (Confirmed/Cancelled) + الويتنج بملحوظة النهارده
             flagged = [("call", x["pid"], bool(x.get("done"))) for x in calls_today if x.get("is_today", True)]
             flagged += [("conf", x["pid"], bool(x.get("auto"))) for x in plan.get("tomorrow_confirm", [])]
+            flagged += [("confsp", x["pid"], bool(x.get("auto"))) for x in plan.get("confirm_special", [])]
             flagged += [("wait" + x["day"], x["pid"] + "|" + x["time"], bool(x.get("note_today"))) for x in plan.get("waiting", [])]
             for typ, k, done_ in flagged:
                 t_ = times.setdefault(typ + "|" + k, [hm, ""])

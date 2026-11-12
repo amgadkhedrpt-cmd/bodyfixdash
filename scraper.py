@@ -66,6 +66,8 @@ PAT_FIELDS = []     # خانات تفاصيل المريض (ملحوظة / تا�
 PAT_CANDIDATES = ["notes", "note", "details", "description", "comment", "comments", "remarks", "info", "medicalNotes",
                   "tags{name}", "tags{id name}", "status", "patientStatus", "type", "category"]
 PAT_PROBE = {}
+PAT_UPD_FIELD = None  # آخر تعديل على المريض نفسه — عشان «منقطع» القديمة ما تخبيش مريض رجع
+PAT_UPD_CANDIDATES = ["updatedAt", "modifiedAt", "lastModified", "lastUpdate"]
 CANCEL_FIELD = None  # وقت الإلغاء (عشان نعرف اعتذر قبل ميعاده بكام ساعة)
 REASON_FIELD = None  # سبب الإلغاء / الاعتذار (لو Medicolize بيسجّله في خانة لوحدها)
 REASON_CANDIDATES = ["cancelReason", "cancellationReason", "cancelationReason", "canceledReason", "cancelledReason",
@@ -83,8 +85,9 @@ def gql_query_with_note():
         q = q.replace("type other ", "type other " + NOTE_FIELD + " ", 1)
     if CANCEL_FIELD and CANCEL_FIELD != NOTE_FIELD:
         q = q.replace("type other ", "type other " + CANCEL_FIELD + " ", 1)
-    if PAT_FIELDS:
-        q = q.replace("phoneNumber birthDate __typename}", "phoneNumber birthDate " + " ".join(PAT_FIELDS) + " __typename}", 1)
+    if PAT_FIELDS or PAT_UPD_FIELD:
+        extra = " ".join(PAT_FIELDS + ([PAT_UPD_FIELD] if PAT_UPD_FIELD and PAT_UPD_FIELD not in PAT_FIELDS else []))
+        q = q.replace("phoneNumber birthDate __typename}", "phoneNumber birthDate " + extra + " __typename}", 1)
     if BY_FIELD:
         q = q.replace("type other ", "type other " + BY_FIELD + " ", 1)
     if REASON_FIELD and REASON_FIELD not in (NOTE_FIELD, CANCEL_FIELD):
@@ -190,6 +193,7 @@ def parse_flat_array(flat):
                     "phoneNumber": patient_obj.get('phoneNumber'),
                     "birthDate":   patient_obj.get('birthDate'),
                     "pnote":       pnote[:300] or None,
+                    "pupd":        (resolve_val(flat, pat_raw.get(PAT_UPD_FIELD)) if PAT_UPD_FIELD and isinstance(pat_raw, dict) else None),
                 },
             })
         except Exception:
@@ -546,6 +550,18 @@ async def detect_note_field(page, cookie_str, extra_headers):
         except Exception as e:
             PAT_PROBE[f] = "ERR " + str(e)[:60]
     print(f"   👤 خانات تفاصيل المريض: {PAT_FIELDS or 'مفيش'} · {PAT_PROBE}")
+    global PAT_UPD_FIELD
+    for f in PAT_UPD_CANDIDATES:
+        q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
+             "{createdAppointments(orderBy:$orderBy skip:$skip take:$take rangeDate:$rangeDate){id patient{id " + f + "}}}")
+        try:
+            d = await gql_call(page, cookie_str, extra_headers, q, {"orderBy": "createdAt", "skip": 0, "take": 10, "rangeDate": rng})
+            lst = gql_dec(d, "createdAppointments") or []
+            if any(isinstance(((x.get("patient") or {}) if isinstance(x, dict) else {}).get(f), str) for x in lst):
+                PAT_UPD_FIELD = f; break
+        except Exception as e:
+            print(f"   ℹ️ patient.{f}: {str(e)[:80]}")
+    print(f"   🕓 آخر تعديل على المريض: {PAT_UPD_FIELD or 'مش موجود'}")
     print(f"   📝 خانة الملحوظة: {NOTE_FIELD or 'مش موجودة'} · {NOTE_PROBE}")
 
 
@@ -1557,7 +1573,7 @@ async def main():
                 json.dump({
                     "last_updated": now_str,
                     "total": len(appointments),
-                    "appointments": [{**{k: v for k, v in a.items() if k not in ("note", "cancel_at", "by", "reason")}, "patient": {k: v for k, v in (a.get("patient") or {}).items() if k not in ("birthDate", "pnote")}} for a in appointments[:500]],   # تاريخ الميلاد ما يتنشرش
+                    "appointments": [{**{k: v for k, v in a.items() if k not in ("note", "cancel_at", "by", "reason")}, "patient": {k: v for k, v in (a.get("patient") or {}).items() if k not in ("birthDate", "pnote", "pupd")}} for a in appointments[:500]],   # تاريخ الميلاد ما يتنشرش
                     "analysis": analysis
                 }, f, ensure_ascii=False, indent=2)
 

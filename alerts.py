@@ -162,9 +162,11 @@ def _norm(a):
         pid = pat.get("id") or ""
         bdate = pat.get("birthDate") or ""
         pnote = pat.get("pnote") or ""
+        pupd = pat.get("pupd") or ""
     else:
         bdate = ""
         pnote = ""
+        pupd = ""
         name, phone, pid = (pat or "").strip(), a.get("phone") or "", a.get("patient_id") or ""
     try:
         start = datetime.fromisoformat(str(a.get("start")).replace("Z", "+00:00")).astimezone(CAIRO)
@@ -177,6 +179,7 @@ def _norm(a):
         "type": str(a.get("type") or "").strip(), "bdate": str(bdate or "")[:10],
         "note": (a.get("note") or "").strip() if isinstance(a.get("note"), str) else "",
         "pnote": str(pnote or "").strip(),
+        "pupd": _parse_dt(pupd),
         "cancel_at": _parse_dt(a.get("cancel_at")),
         "by": str(a.get("by") or "").strip(),
         "reason": str(a.get("reason") or "").strip(),
@@ -364,7 +367,10 @@ def build_alerts(appointments, now=None, packages=None):
             continue
         last = max(today_att, key=lambda a: a["start"])
         # مكتوب في تفاصيل المريض "منقطع" / "منقطع نهائي" (أو آخر ميعاد ليه منقطع نهائي) → مش محتاج ميعاد جاي
-        if any("منقطع" in (a.get("pnote") or "") for a in appts) or \
+        # «منقطع» في تفاصيل المريض تتحسب بس لو آخر تعديل على المريض كان النهارده — غير كده ممكن تكون قديمة والمريض رجع
+        upd = max((a["pupd"] for a in appts if a.get("pupd")), default=None)
+        munq = any("منقطع" in (a.get("pnote") or "") for a in appts) and (upd is None or upd.astimezone(CAIRO).date() == today)
+        if munq or \
            "منقطع" in max(appts, key=lambda a: a["start"])["type"]:
             continue
         no_next.append({

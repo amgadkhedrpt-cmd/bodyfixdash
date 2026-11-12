@@ -939,11 +939,16 @@ def build_alerts(appointments, now=None, packages=None):
     except Exception as e:
         print(f"⚠️ eval_renew: {e}")
 
+    # أول يوم شغل بعد النهارده (الجمعة مثلاً مقفول) = أقرب يوم فيه 5 مواعيد أو أكتر
+    _dc = Counter(a["start"].date() for v in patients.values() for a in v
+                  if a["start"].date() > today and a["status"] in LIVE_TODAY)
+    next_work = min([d for d, c in _dc.items() if c >= 5] or [today + timedelta(days=1)])
+
     # ── تنبيه: 6 جلسات علاج طبيعي من غير أي تقييم (الجلسه الأخيره / اعادة تقييم) — على جلسة النهارده أو بكره ──
     EVAL_DUE_N = 6
     eval_due = []
     try:
-        tomorrow = today + timedelta(days=1)
+        tomorrow = next_work
         for appts in patients.values():
             nxt = sorted([a for a in appts if _is_pt(a["type"]) and a["start"].date() in (today, tomorrow)
                           and a["status"] in LIVE_TODAY], key=lambda a: a["start"])
@@ -981,7 +986,7 @@ def build_alerts(appointments, now=None, packages=None):
     plan = {"today": [], "tomorrow_confirm": [], "stale_open": [], "early_drop": []}
     try:
         CLOSED_BAD = {"canceled", "cancelled", "no show", "noshow", "note", "waiting list", "waiting"}
-        tomorrow_ = today + timedelta(days=1)
+        tomorrow_ = next_work
         R_FROM = today - timedelta(days=90)
         for appts in patients.values():
             risk = sum(1 for a in appts if R_FROM <= a["start"].date() < today and

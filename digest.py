@@ -294,7 +294,7 @@ def build(now, alerts, ctx, paid):
         for x in mt:
             acts.append(("🙋", "بييجي بانتظام ومالوش ميعاد النهارده", "#e11d48", br_ar, x["name"], ""))
         for x in [x for x in alerts.get("eval_due") or [] if inb(x) and x.get("day") == "tomorrow"]:
-            acts.append(("🩺", "بكره جلسته السادسة أو أكتر من غير تقييم — احجزله تقييم", "#db2777", br_ar, x["name"], f'جلسة {x.get("n")}'))
+            acts.append(("🩺", "يوم الشغل الجاي جلسته السادسة أو أكتر من غير تقييم — احجزله تقييم", "#db2777", br_ar, x["name"], f'جلسة {x.get("n")}'))
         acts.append(("📅", "حضروا النهارده ومالهمش ميعاد جاي", "#0284c7", br_ar, None, len(nn)))
 
     labels = ["✅ حضروا النهارده", "❌ إلغاء + No Show", "📆 من أول الأسبوع", "📊 الإشغال النهارده", "💰 المدفوع النهارده",

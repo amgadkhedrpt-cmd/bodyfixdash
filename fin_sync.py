@@ -270,12 +270,14 @@ def main():
                 o = decrypt(open(fn).read())
                 old.setdefault("branches", {}).update(o.get("branches", {}))
                 old.setdefault("types", {}).update(o.get("types", {}))
+                old.setdefault("exp_types", {}).update(o.get("exp_types", {}))
                 for kind, bs in (o.get("kinds") or {}).items():
                     for b, ms in bs.items():
                         old.setdefault("kinds", {}).setdefault(kind, {}).setdefault(b, {}).update(ms)
             except Exception as e:
                 print("old data not readable with this password (password changed?) - full refill:", str(e)[:80])
-    data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {}), "types": old.get("types", {})}
+    data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {}), "types": old.get("types", {}),
+            "exp_types": old.get("exp_types", {})}
     ALL = months(START, CUR)
     # the history is filled on every run; once complete, scheduled runs refresh only a few times a day (keeps the repo small)
     full = all(len(data["kinds"].get(kd, {}).get(b, {})) >= len(ALL) - 2 for kd in ("pay", "exp", "inv", "apt")
@@ -334,6 +336,22 @@ def main():
             data["types"] = {t["enum"]: str(t["name"]).strip() for t in lst if isinstance(t, dict) and t.get("enum") and t.get("name")}
         except Exception as e:
             META_D["errors"].append("types: %s" % str(e)[:120])
+        # expense items are saved as codes (Enum1…): their names live in the company settings, like appointment types
+        data.setdefault("exp_types", {})
+        for qq, path in (("{me{company{expenseTypes}}}", ("company", "expenseTypes")), ("{me{company{expensesTypes}}}", ("company", "expensesTypes")),
+                         ("{me{company{expenseCategories}}}", ("company", "expenseCategories"))):
+            try:
+                o = gql(ctx, qq, {}, "me")
+                raw = (o.get(path[0]) or {}).get(path[1])
+                lst = json.loads(raw) if isinstance(raw, str) else (raw or [])
+                mp_ = {str(t.get("enum") or t.get("id") or t.get("value")): str(t.get("name") or t.get("label") or "").strip()
+                       for t in lst if isinstance(t, dict) and (t.get("enum") or t.get("id") or t.get("value")) and (t.get("name") or t.get("label"))}
+                if mp_:
+                    data["exp_types"] = mp_
+                    META_D["exp_types_from"] = qq
+                    break
+            except Exception as e:
+                META_D.setdefault("exp_types_tries", []).append(str(e)[:150])
         mp = menu_paths(pg)
         META_D["finance_links"] = mp
         pay_paths = [x for x in mp if re.search("payment", x, re.I) and not re.search("expens", x, re.I)] + \
@@ -343,7 +361,10 @@ def main():
                      "/finances/expenses", "/finances/expense", "/expenses"]
         ops = {}
         ops["pay"], META_D["pay_pages"] = capture(pg, list(dict.fromkeys(pay_paths)), r"payment", r"total|count|sum|stat|expens")
+        n_exp0 = len(CAPT)
         ops["exp"], META_D["exp_pages"] = capture(pg, list(dict.fromkeys(exp_paths)), r"expens")
+        META_D["exp_page_ops"] = sorted({re.sub(r"\s+", " ", b.get("query") or "")[:300] for b in CAPT[n_exp0:]
+                                         if re.search(r"expenseType|company|setting", b.get("query") or "", re.I)})[:8]
         for k in ("pay", "exp"):
             if ops[k]:
                 META_D[k + "_op"] = {"name": ops[k].get("operationName"), "vars": sorted((ops[k].get("variables") or {}).keys()),
@@ -422,7 +443,7 @@ def main():
     old_h = json.load(open(META)).get("hash", {}) if os.path.exists(META) else {}
     META_D["hash"] = {}
     for fn, keep in ((ENC, lambda k: k not in cur), (ENC_C, lambda k: k in cur)):
-        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}),
+        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}),
                 "kinds": {kd: {b: {k: v for k, v in ms.items() if keep(k)} for b, ms in bs.items()} for kd, bs in data["kinds"].items()}}
         body = dict(part, at="")
         for bs in body["kinds"].values():

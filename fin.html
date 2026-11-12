@@ -156,7 +156,7 @@ async function fetchEnc(name){
   return null;
 }
 function merge(parts){const out={v:1,start:'2024-06',branches:{},kinds:{},at:''};
-  for(const o of parts){if(!o)continue;Object.assign(out.branches,o.branches||{});Object.assign(TYPE_MAP,o.types||{});if(o.start)out.start=o.start;if((o.at||'')>out.at)out.at=o.at;
+  for(const o of parts){if(!o)continue;Object.assign(out.branches,o.branches||{});Object.assign(TYPE_MAP,o.types||{});Object.assign(EXP_T,o.exp_types||{});if(o.start)out.start=o.start;if((o.at||'')>out.at)out.at=o.at;
     for(const kd in o.kinds||{})for(const b in o.kinds[kd]){const t=((out.kinds[kd]=out.kinds[kd]||{})[b]=out.kinds[kd][b]||{});Object.assign(t,o.kinds[kd][b])}}
   return out}
 async function unlock(pw,saved){
@@ -214,6 +214,7 @@ const SP={
 };
 const ST={CHECKEDIN:'Checked In',INPROGRESS:'In Progress',COMPLETED:'Completed',CONFIRMED:'Confirmed',DELAYED:'Delayed',OPEN:'Open',WAITING:'Waiting',CANCELED:'Canceled',CANCELLED:'Canceled',NOSHOW:'No Show'};
 const stName=s=>{const u=String(s||'').toUpperCase().replace(/[^A-Z]/g,'');return ST[u]||String(s||'')};
+const EXP_T={};const eName=t=>EXP_T[t]||t;
 const TYPE_MAP={"Enum1":"كشف علاج طبيعي","Enum40":"تقييم الجلسه الأخيره","Enum12":"اعادة تقييم","Enum5":"جلسة علاج طبيعي","Enum11":"ج ريكفري","Enum14":"ج حجامه","Enum2":"كشف تغذيه","Enum3":"متابعة تغذيه","Enum4":"متابعة تغذيه اونلاين","Enum6":"جلسة تغذيه","Enum7":"حقن ميزوثيرابي","Enum8":"شوك ويف منطقه واحده","Enum15":"شوك ويف علي منطقتين","Enum29":"شد فقرات","Enum10":"ماجنتك","Enum13":"جلسة علاج طبيعي علي منطقتين","Enum17":"جلسه منزليه","Enum18":"موعد محجوز","Enum19":"العنايه بالبشره","Enum20":"أجهزه","Enum21":"استرداد","Enum22":"تقرير بالحاله","Enum24":"Feedback","Enum25":"الغاء مفاجئ","Enum26":"Cavitation","Enum28":"RF","Enum16":"Cryo","Enum27":"Cryo-blade","Enum9":"Cryo-Air","Enum30":"Excilis","Enum32":"علاج طبيعي اونلاين","Enum31":"حقن مونجارو","Enum33":"متابعه","Enum23":"متابعه انقطاع","Enum34":"منقطع نهائي","Enum35":"شكوي","Enum36":"تصوير","Enum37":"مساج فقرات","Enum38":"تيكار","Enum39":"gym","Enum41":"ليزر","Enum42":"جلسه تصريف ليمفاوي"};
 // phone follow-ups, notes and placeholders are not visits
 const NOT_VISIT=new Set(['Enum23','Enum33','Enum34','Enum18','Enum24','Enum35','Enum22','Enum21','Enum25']);
@@ -231,7 +232,7 @@ function build(raw){
         out.pay.push({b:branchOf(nm(r,c.branch),b),k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,amt,meth,bal:/balance/i.test(meth0),ref:truthy(r[c.refunded]),refd:nm(r,c.refDate).slice(0,10),
           pid:nm(r,c.pid),pn:pname(r,c),doc:nm(r,c.doc)||'—',by:nm(r,c.by)||'—',inv:nm(r,c.inv),tr:nm(r,c.treas),note:nm(r,c.note)})}
       else if(kind==='exp'){if(truthy(r[c.refunded]))continue;const bb=b==='all'?(c.branch>=0?branchOf(nm(r,c.branch),'all'):'all'):b;
-        out.exp.push({b:bb,k,d,amt:num(r,c.amt),type:nm(r,c.type)||'غير مصنف',info:[nm(r,c.info),c.det!==c.info?nm(r,c.det):''].filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' — '),meth:mName(nm(r,c.method))||'—',by:nm(r,c.by)||'—',tr:nm(r,c.treas)})}
+        out.exp.push({b:bb,k,d,amt:num(r,c.amt),type:eName(nm(r,c.type))||'غير مصنف',info:[nm(r,c.info),c.det!==c.info?nm(r,c.det):''].filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' — '),meth:mName(nm(r,c.method))||'—',by:nm(r,c.by)||'—',tr:nm(r,c.treas)})}
       else if(kind==='inv'){out.inv.push({b,k,d,total:num(r,c.total),paid:num(r,c.paid),disc:num(r,c.disc),pid:nm(r,c.pid),pn:pname(r,c),src:nm(r,c.src),doc:nm(r,c.doc),ref:nm(r,c.ref)})}
       else{const ty=nm(r,c.type),st0=stName(nm(r,c.st));if(NOT_VISIT.has(ty)||/^(note|waiting)/i.test(st0))continue;out.apt.push({b,k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,st:stName(nm(r,c.st)),type:nm(r,c.type),doc:nm(r,c.doc)||'—',pid:nm(r,c.pid),pn:pname(r,c),room:nm(r,c.room),g:nm(r,c.g)})}
     }}

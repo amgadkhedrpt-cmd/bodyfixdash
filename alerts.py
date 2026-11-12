@@ -605,11 +605,17 @@ def build_alerts(appointments, now=None, packages=None):
             else:
                 verdict = "ok"
             if a["start"].date() == today:
+                # اللي اتعمل مع المريض على السيستم: رجع / حجز ميعاد بعد المتابعة؟
+                nb = sorted([x for x in srt if x["start"] > a["start"] and x["doctor"].lower() not in SKIP_DOCS
+                             and x["status"] not in ("canceled", "cancelled", "no show", "noshow", "note", "waiting list", "waiting")
+                             and not _fu_kind(x["type"])], key=lambda x: x["start"])
+                res = ("حجز: " + nb[0]["type"] + " يوم " + nb[0]["start"].strftime("%d/%m") + " " + nb[0]["start"].strftime("%H:%M")
+                       + " مع " + nb[0]["doctor"] + " (" + nb[0]["status"].title() + ")") if nb else ""
                 calls_today.append({"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
                                     "time": a["start"].isoformat(), "type": a["type"], "step": step(a), "status": a["status"].title(),
-                                    "note": note[:300], "times": times, "verdict": verdict, "reached": reached or cb,
-                                    # تمت: الموعد Completed + فيه ملحوظة باللي حصل، أو اتصال مرتين على الأقل مكتوب وقتهم ونتيجتهم
-                                    "done": a["status"] in ATTENDED and bool(note.strip()) and (verdict in ("ok", "callback_ok") or reached or cb or len(times) >= 2)})
+                                    "note": note[:300], "times": times, "verdict": verdict, "reached": reached or cb, "result": res,
+                                    # تمت: (1) المريض حجز ميعاد بعد المتابعة، أو (2) الموعد Completed + ملحوظة باللي حصل، أو (3) اتصالين على الأقل مكتوب وقتهم
+                                    "done": bool(nb) or (a["status"] in ATTENDED and bool(note.strip())) or len(times) >= 2})
             if verdict in ("ok", "callback_ok"):
                 continue
             rec = base(a, {"date": a["start"].isoformat(), "kind": _fu_kind(a["type"]), "step": step(a), "type": a["type"],

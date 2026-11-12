@@ -11582,11 +11582,16 @@ function planTasks(useAll){
   var CT=P.calls_today||(FU.calls||[]).filter(function(x){ return x.is_today; });
   CT.filter(inb).forEach(function(x){
     var ok=!!x.done, tm=(x.times||[]);
-    add('morning',{grp:['call'], sys:ok?'المتابعة اتعملت واتكتبت':'', what:ok?('📝 '+(x.note||'')):'', key:today+'|call|'+x.pid, icon:'📞', kind:'مكالمة متابعة — '+alEsc(x.type||'')+(x.step?' '+x.step:''), name:x.name, phone:x.phone, br:brOf(x),
-      lines:['الموعد: <b style="color:'+(/completed|checked|progress/i.test(x.status||'')?'var(--g)':'var(--am)')+'">'+alEsc(x.status||'')+'</b>'+(tm.length?' · أوقات الاتصال المكتوبة: '+tm.map(alEsc).join('، '):''),
+    // اللي اتعمل على السيستم: حجز بعد المتابعة / الحالة / الملحوظة / عدد الاتصالات
+    var why=x.result?'المريض حجز بعد المتابعة':(/completed|checked|progress/i.test(x.status||'')&&(x.note||'').trim())?'الموعد Completed وفيه ملحوظة':tm.length>=2?'اتكتب '+tm.length+' اتصالات بوقتها':'';
+    var miss=[]; if(!x.result){ if(!/completed|checked|progress/i.test(x.status||'')) miss.push('الموعد لسه <b>'+alEsc(x.status||'')+'</b> — يتقفل Completed بعد الاتصال'); if(!(x.note||'').trim()) miss.push('مفيش ملحوظة باللي حصل'); else if(tm.length<2&&!/completed|checked|progress/i.test(x.status||'')) miss.push('لو ما ردش: اكتبي وقت كل محاولة (محتاجين محاولتين على الأقل)'); }
+    add('morning',{grp:['call'], sys:ok?why:'', what:ok?((x.result?'📅 '+x.result+' · ':'')+(x.note?'📝 '+x.note:'')):'', key:today+'|call|'+x.pid, icon:'📞', kind:'مكالمة متابعة — '+alEsc(x.type||'')+(x.step?' '+x.step:''), name:x.name, phone:x.phone, br:brOf(x),
+      lines:['الموعد على Medicolize: <b style="color:'+(/completed|checked|progress/i.test(x.status||'')?'var(--g)':'var(--am)')+'">'+alEsc(x.status||'')+'</b>'+(tm.length?' · اتصالات مكتوبة: '+tm.map(alEsc).join('، '):''),
              x.note?'📝 '+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة لسه</span>',
-             ok?'':'<span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها لما الموعد يبقى Completed وفيه ملحوظة باللي حصل، أو اتصالين على الأقل مكتوب وقتهم ونتيجتهم</span>']});
+             x.result?'<span style="color:var(--g)">📅 '+alEsc(x.result)+'</span>':'',
+             ok?'<span style="color:var(--g);font-size:.6rem">✅ '+alEsc(why)+'</span>':'<span style="color:var(--r);font-size:.6rem">⬜ '+miss.join(' · ')+'</span>']});
   });
+
 
   (D.missing_today||[]).filter(inb).forEach(function(x){
     add('morning',{grp:['miss'], key:today+'|miss|'+x.pid, icon:'🙋', kind:'بييجي بانتظام ومالوش ميعاد النهارده', name:x.name, phone:x.phone, br:brOf(x),
@@ -12195,7 +12200,7 @@ function planState(t){
   return 'open';
 }
 /* المهام اللي بتتقفل لوحدها من Medicolize — مفيش زرار ✅ (الملحوظة / ما ردش / أجّل موجودين) */
-var PLAN_AUTO_G={conftoday:'الموعد يبقى Confirmed أو Cancelled أو يوصل', late:'تتكتب ملحوظة على الموعد في Medicolize (هيوصل امتى / ما ردش)', waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'الموعد Completed + ملحوظة باللي حصل (أو اتصالين بالوقت والنتيجة)', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
+var PLAN_AUTO_G={conftoday:'الموعد يبقى Confirmed أو Cancelled أو يوصل', late:'تتكتب ملحوظة على الموعد في Medicolize (هيوصل امتى / ما ردش)', waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'المريض يحجز، أو الموعد يتقفل Completed بملحوظة باللي حصل، أو يتكتب اتصالين بوقتهم', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
   eval:'يتحجز تقييم', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'الموعد يتحول «الغاء مفاجئ» Completed على Medicolize + خصم الجلسة من تاني مرة'};
 function planIsAuto(t){ if(t.carry) return false; var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_AUTO_G[x]; }); }
 function planRow(t){

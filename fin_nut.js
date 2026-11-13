@@ -63,13 +63,15 @@ async function nutCfgSave(btn){
 
 // ---------------- classification ----------------
 const NCAT=[['inj','حقن تخسيس',/مونجار|ويجوفي|ريتا|تيرز|mounjaro|wegovy/],['mezo','حقن ميزوثيرابي',/ميزو/],['exam','كشف تغذية',/^كشف (ال)?تغذيه/],
-  ['fu','متابعة تغذية',/^م تغذيه|^م ت \d|^متابعه (ال)?تغذيه|^متابعه ت/],['dev','أجهزة تخسيس وبشرة',/راديوفريكونسي|كرايو|كافيتيشن|اكسيليس|excilis|بشره|اسكن|\bdo\b|كومبريشن|cryo|cavitation|\brf\b/],
+  ['fu','متابعة تغذية',/^م تغذيه|^م ت \d|^متابعه (ال)?تغذيه|^متابعه ت|تغذيه اون ?لاين/],['dev','أجهزة تخسيس وبشرة',/راديوفريكونسي|كر ?ايو|كافيتي?ت?شن|اكسيليس|excilis|بشره|اسكن|\bdo\b|كومبريشن|cryo|cavitation|\brf\b/],
   ['inbody','إنبدي',/انبدي|inbody/]];
-const NCATN=Object.fromEntries(NCAT.map(c=>[c[0],c[1]]));NCATN.other='غير مصنف';
-const DEVT=[['كافيتيشن',/كافيتيشن|cavitation/],['RF',/راديوفريكونسي|\brf\b|ار اف/],['كرايو بليد',/كرايو بليد|cryo.?blade/],['كرايو اير',/كرايو اير|cryo.?air/],['كرايو',/كرايو|cryo/],
+const NCATN=Object.fromEntries(NCAT.map(c=>[c[0],c[1]]));NCATN.other='غير مصنف';NCATN.prod='منتجات ومكملات';
+// physio sessions by the same doctor are not nutrition; sold supplements are tracked apart (not in the section revenue, like the spec)
+const N_PHYSIO=/ع ط|علاج طبيعي|ريكفري|حجام/,N_PROD=/شريط|علبه|امبول|كبسول|slim|lipotrix|fatzorb|diet|metabolites/;
+const DEVT=[['كافيتيشن',/كافيتي?ت?شن|cavitation/],['RF',/راديوفريكونسي|\brf\b|ار اف/],['كرايو بليد',/كر ?ايو بليد|cryo.?blade/],['كرايو اير',/كر ?ايو اير|cryo.?air/],['كرايو',/كر ?ايو|cryo/],
   ['إكسيليس',/اكسيليس|excilis/],['DO',/\bdo\b/],['عناية بالبشرة',/بشره|اسكن|skin/],['كومبريشن',/كومبريشن/]];
 const INJT=[['مونجارو',/مونجار|mounjaro|تيرز/],['ويجوفي',/ويجوفي|wegovy/],['ريتا',/ريتا/]];
-const ncat=n=>{for(const c of NCAT)if(c[2].test(n))return c[0];return 'other'};
+const ncat=n=>{if(N_PHYSIO.test(n))return 'physio';for(const c of NCAT)if(c[2].test(n))return c[0];if(N_PROD.test(n))return 'prod';return 'other'};
 const XCLS={excl:['مستبعد',0],refund_nut:['مرتجع تغذية',1],refund_pt:['مرتجع علاج طبيعي',0],salary_agg:['مرتبات مجمعة (من ملفات المرتبات)',0],physio:['علاج طبيعي',0],
   inj_buy:['حقن تخسيس (مشتريات)',null],special:['خاص بالتغذية',1],adv:['مرتب/سلفة بنسبة الموظف',null],asset:['أصل ثابت (إهلاك)',null],shared:['مشترك (عام)',null]};
 const R_AGG=/اجمالي رواتب شهر|رواتب فرع الهرم|مرتبات الموظفين|رواتب الموظفين/,R_PHY=/physitrack|حجام|kinesio|برافين|تيكار|شوك ويف|التراسوند|الترا ساوند|كمادات|اربطه|مستهلكات العلاج الطبيعي/,
@@ -98,7 +100,7 @@ function classify(x,ctx){
 // ---------------- build ----------------
 function nutBuild(){
   if(NUT.data)return NUT.data;const C=NUT.cfg||nutMerge(null);NUT.cfg=C;
-  const K=RAW.kinds||{},ops=[],dokki=[],oth=[];
+  const K=RAW.kinds||{},ops=[],dokki=[],oth=[],prods=[];
   for(const m in (K.ops&&K.ops.all)||{}){const t=K.ops.all[m];if(!t||!t.cols)continue;
     const c=pick(t.cols,{name:['name'],end:['end'],cr:['createdAt'],st:['status'],tot:['total'],paid:['paid'],disc:['discount'],op:['operation.name'],doc:['doctor.name'],pid:['patient.referenceId'],fn:['patient.firstName'],ln:['patient.lastName'],br:['branch.name']});
     const rows=t.rows.map(r=>({r,paid:num(r,c.paid),tot:num(r,c.tot),disc:num(r,c.disc)}));
@@ -109,7 +111,7 @@ function nutBuild(){
       if(o.cat==='dev')o.dev=(DEVT.find(z=>z[1].test(n))||['أخرى'])[0];
       if(o.cat==='inj')o.inj=(INJT.find(z=>z[1].test(n))||['أخرى'])[0];
       if(/REJECT|CANCEL/i.test(o.st))continue;
-      if(/FIX ?ZONE/i.test(nm(r,c.br)))dokki.push(o);else if(o.cat==='other')oth.push(o);else ops.push(o)}}
+      if(o.cat==='physio')continue;if(/FIX ?ZONE/i.test(nm(r,c.br))){if(o.cat!=='prod')dokki.push(o)}else if(o.cat==='other')oth.push(o);else if(o.cat==='prod')prods.push(o);else ops.push(o)}}
   // expenses (accrued "Expenses"; falls back to expense payments for months without it)
   const xs=[],xpH=(K.xp&&K.xp.haram)||{};
   for(const m in xpH){const t=xpH[m];if(!t||!t.cols||!t.rows.length)continue;
@@ -128,7 +130,7 @@ function nutBuild(){
     if(phyPids.has(p.pid))return {ok:false,why:hit+': مريض علاج طبيعي كمان'};return {ok:true,why:hit+': مريض تغذية بس وله جلسة قريبة'}}};
   for(const x of xs){x.key=(x.d+'|'+Math.round(x.amt)+'|'+nAr(x.desc).slice(0,40));const [cl,sh,why]=classify(x,ctx);x.cls=cl;x.share=sh;x.why=why;
     const ov=C.overrides[x.key];if(ov){x.cls=ov.cls;x.share=+ov.share;x.why='تعديل يدوي'+(ov.note?' — '+ov.note:'');x.ov=1}}
-  NUT.data={ops,dokki,oth,xs,phyPids};return NUT.data;
+  NUT.data={ops,dokki,oth,prods,xs,phyPids};return NUT.data;
 }
 const nIn=(k,a,b)=>k>=a&&k<=b;
 function payrollAt(k){const C=NUT.cfg,P=C.payroll||{};const have=Object.keys(P).filter(m=>P[m]&&Object.keys(P[m]).length).sort();
@@ -187,11 +189,13 @@ function cnSum(){const M=nutMonth(S.to),c=SER(),cs=NCAT.map(x=>x[0]);
   chart('nS1',{type:'doughnut',data:{labels:cs.map(x=>NCATN[x]),datasets:[{data:cs.map(x=>M.byC[x].paid),backgroundColor:c.slice(0,cs.length),borderColor:css('--s1'),borderWidth:2}]},options:{plugins:{tooltip:{callbacks:{label:x=>' '+x.label+': '+fm(x.parsed)}}}}});
   const ks=monthsList(shiftK(S.to,-11),S.to),R=ks.map(nutMonth);chart('nS2',{data:{labels:ks.map(mls),datasets:[bar('قبل راتب د. آلاء',R.map(r=>r.before),c[0]),bar('بعد راتبها',R.map(r=>r.after),c[2])]}})}
 function nRev(){const ks=nMonths(),R=ks.map(nutMonth);const T={};NCAT.forEach(c=>T[c[0]]={n:0,paid:0,tot:0,disc:0});R.forEach(r=>NCAT.forEach(c=>{for(const f in T[c[0]])T[c[0]][f]+=r.byC[c[0]][f]}));
-  const tot=Object.values(T).reduce((s,x)=>s+x.paid,0);const {oth}=nutBuild();const O=oth.filter(o=>nIn(o.k,S.from,S.to));
+  const tot=Object.values(T).reduce((s,x)=>s+x.paid,0);const {oth,prods}=nutBuild();const O=oth.filter(o=>nIn(o.k,S.from,S.to));
+  const PR=prods.filter(o=>nIn(o.k,S.from,S.to)),pg={};PR.forEach(o=>{const g=pg[o.name]=pg[o.name]||{n:0,paid:0};g.n++;g.paid+=o.paid});
   const og={};O.forEach(o=>{const g=og[o.name]=og[o.name]||{n:0,paid:0};g.n++;g.paid+=o.paid});
   return `<div class="card"><h3>الإيراد حسب الفئة شهري<small>المدفوع فعلاً</small></h3><div class="ch lg"><canvas id="nR1"></canvas></div></div>
   <div class="card" style="margin-top:12px"><h3>الفئات والخصومات<small>${ml(S.from)} لـ ${ml(S.to)}</small></h3>${tableHTML(['الفئة',{t:'عدد',n:1},{t:'قبل الخصم',n:1},{t:'المدفوع',n:1},{t:'النسبة من الإيراد',n:1},{t:'الخصم',n:1},{t:'نسبة الخصم',n:1}],
     NCAT.map(c=>{const x=T[c[0]];return [c[1],x.n,x.tot,x.paid,pc(tot?x.paid/tot:null),x.disc,pc(x.tot?x.disc/x.tot:null)]}).concat([Object.assign(['الإجمالي',Object.values(T).reduce((s,x)=>s+x.n,0),Object.values(T).reduce((s,x)=>s+x.tot,0),tot,'100%',Object.values(T).reduce((s,x)=>s+x.disc,0),''],{_c:'tot'})]))}</div>
+  <div class="card" style="margin-top:12px"><h3>منتجات ومكملات اتباعت<small>مش داخلة في إيراد القسم ولا في نسبة د. آلاء — ${fm(PR.reduce((s,o)=>s+o.paid,0))} جنيه</small></h3>${PR.length?tableHTML(['المنتج',{t:'عدد',n:1},{t:'المدفوع',n:1}],Object.entries(pg).sort((a,b)=>b[1].paid-a[1].paid).map(([n,g])=>[esc(n),g.n,g.paid]),{h:300}):'<span class="muted">مفيش</span>'}</div>
   <div class="card" style="margin-top:12px"><h3>خدمات غير مصنفة<small>مش محسوبة في الإيراد — راجعها</small></h3>${O.length?tableHTML(['الخدمة',{t:'عدد',n:1},{t:'المدفوع',n:1}],Object.entries(og).sort((a,b)=>b[1].paid-a[1].paid).map(([n,g])=>[esc(n),g.n,g.paid]),{h:300}):'<span class="muted">مفيش ✓</span>'}</div>`}
 function cnRev(){const ks=nMonths(),R=ks.map(nutMonth),c=SER();chart('nR1',{data:{labels:ks.map(mls),datasets:NCAT.map((x,i)=>bar(x[1],R.map(r=>r.byC[x[0]].paid),c[i],{stack:'s',borderRadius:0}))},options:{scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:v=>fm(v)}}}}})}
 function nExp(){const {xs}=nutBuild();const X=xs.filter(x=>nIn(x.k,S.from,S.to)).sort((a,b)=>a.d<b.d?1:-1);

@@ -484,8 +484,8 @@ def main():
     # nutrition sanity check for the page's rules — service NAMES and COUNTS only (no amounts, no patients)
     try:
         cats = [("inj", r"مونجار|ويجوفي|ريتا|تيرز|mounjaro|wegovy"), ("mezo", r"ميزو"), ("exam", r"^كشف (ال)?تغذيه"),
-                ("fu", r"^م تغذيه|^م ت \d|^متابعه (ال)?تغذيه|^متابعه ت"),
-                ("dev", r"راديوفريكونسي|كرايو|كافيتيشن|اكسيليس|excilis|بشره|اسكن|\bdo\b|كومبريشن|cryo|cavitation|\brf\b"), ("inbody", r"انبدي|inbody")]
+                ("fu", r"^م تغذيه|^م ت \d|^متابعه (ال)?تغذيه|^متابعه ت|تغذيه اون ?لاين"),
+                ("dev", r"راديوفريكونسي|كر ?ايو|كافيتي?ت?شن|اكسيليس|excilis|بشره|اسكن|\bdo\b|كومبريشن|cryo|cavitation|\brf\b"), ("inbody", r"انبدي|inbody")]
         unc, cnt = {}, {}
         for mk, t in (data["kinds"].get("ops", {}).get("all", {}) or {}).items():
             cols = t.get("cols", [])
@@ -496,7 +496,9 @@ def main():
                 if bi >= 0 and "FIXZONE" in str(r[bi] or "").upper().replace(" ", ""):
                     continue
                 n = _norm_ar(r[ni])
-                c = next((k for k, rx in cats if re.search(rx, n)), None)
+                c = "physio" if re.search(r"ع ط|علاج طبيعي|ريكفري|حجام", n) else next((k for k, rx in cats if re.search(rx, n)), None)
+                if c is None and re.search(r"شريط|علبه|امبول|كبسول|slim|lipotrix|fatzorb|diet|metabolites", n):
+                    c = "prod"
                 em = str(r[ei] or "")[:7] if ei >= 0 else ""
                 if c is None:
                     unc[str(r[ni])] = unc.get(str(r[ni]), 0) + 1

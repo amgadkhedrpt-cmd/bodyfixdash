@@ -1,5 +1,5 @@
 {
- "at": "2026-11-13T09:58:03.841Z",
+ "at": "2026-11-13T10:05:43.630Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -30,7 +30,7 @@
  "att_pages": {
   "/logs/attendance": {
    "url": "https://my.medicolize.com/logs/attendance",
-   "op": "CURRENT_USER_QUERY"
+   "op": "GET_ATTENDANCES"
   }
  },
  "pay_op": {
@@ -78,9 +78,17 @@
   "query": "query GET_EXPENSES($orderBy: String!, $skip: Int!, $take: Int!, $branchId: ID, $assignedToId: ID, $userId: ID, $supplier: ID, $lab: ID, $labItem: ID, $rangeDate: [DateTime!]!, $filters: Filter, $searchTerm: String) { expenses( orderBy: $orderBy skip: $skip take: $take branchId: $branchId assignedToId: $assignedToId userId: $userId supplier: $supplier lab: $lab labItem: $labItem rangeDate: $rangeDate filters: $filters searchTerm: $searchTerm ) { id name type mainType details amount other date paid items automatic isInstallments installment every interval confirmed isDebt salaryAdjustment { id __typename } branch { id name __typename } supplier { id name number __typename } lab { id name number __typename } labOrder { id received delivered patient { id firstName lastName __typename } __typename } user { id name group { id color __typename } __typename } createdBy { id name __typename } updatedBy { id name __typename } createdAt updatedAt _count { payments __typename } __typename } }"
  },
  "att_op": {
-  "name": "CURRENT_USER_QUERY",
-  "vars": [],
-  "query": "query CURRENT_USER_QUERY { me { id sessionIdleMinutes email username name phoneNumber hasValidNumber twoFactorAuth language isDoctor showAttendance requireScreenshot isOwner color showOverdue shouldResetPassword order medicalNumber job specialityCode dentalNotation doctorPercentage diagnosticFee diagnosticFeePercent labOrderPercent automatic paymentType automaticExpenses autoAppointmentStatus expensesFrom images chart calendarSync userColumns maxDiscount maxDiscountAnd maxDiscountPercent starredReports testPermissions profiles { id locale title profession bio __typename } userSystemChat { id unreadSupport unreadPrivate unreadInternal mentionSupport mentionPrivate mentionInternal supportNotification internalNotification __typename } loggedUsers { id name company { id companyName __typename } __typename } alertSettings { id inventory masterInventory invoice reminder appointmentQrCode pendingPatients onlineAppointment orders operations calendar treasury summaryCron appointmentsCron newAppointment editAppointment appointmentStatus webNotifications __typename } group { id permissions __typename } branches { id name nphiesCode diagnosticFee disabled __typename } profiles { id locale title profession bio __typename } company { id companyName companyLoginName allowReportedInvoiceEdits insuranceEInvoiceLevel tierExpiry country currency code attendanceLocations acceptedRange timeZone messagesLeft showLogoInQr confirmInventory messagesLimit sizeLeft sizeLimit companyLogo tax requiredToP"
+  "name": "GET_ATTENDANCES",
+  "vars": [
+   "branchId",
+   "filters",
+   "id",
+   "orderBy",
+   "rangeDate",
+   "skip",
+   "take"
+  ],
+  "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "conf": {
   "confirmed_now": 45,
@@ -544,13 +552,62 @@
    }
   },
   "att": {
-   "all": {
+   "haram": {
     "values": {},
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 0,
-    "cols": [],
+    "rows": 7849,
+    "cols": [
+     "createdIp",
+     "updatedIp",
+     "startUseragent",
+     "endUseragent",
+     "duration",
+     "createdAt",
+     "updatedAt",
+     "startLatitude",
+     "startLongitude",
+     "startApproved",
+     "endLatitude",
+     "endLongitude",
+     "endApproved",
+     "approved",
+     "branch.name",
+     "user.name",
+     "startImage",
+     "endImage",
+     "details"
+    ],
+    "missing": []
+   },
+   "dokki": {
+    "values": {},
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 1342,
+    "cols": [
+     "createdIp",
+     "updatedIp",
+     "startUseragent",
+     "endUseragent",
+     "startImage",
+     "endImage",
+     "duration",
+     "createdAt",
+     "updatedAt",
+     "startLatitude",
+     "startLongitude",
+     "startApproved",
+     "endLatitude",
+     "endLongitude",
+     "endApproved",
+     "approved",
+     "branch.name",
+     "user.name",
+     "details"
+    ],
     "missing": []
    }
   }
@@ -757,12 +814,12 @@
   ]
  },
  "hash": {
-  "data/fin.enc": "b55366208afcdd7f",
-  "data/fin_c.enc": "052c47c93cca4e8e"
+  "data/fin.enc": "e34a74822cfef231",
+  "data/fin_c.enc": "cf7485411fa99aba"
  },
  "written": [
   "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 65
+ "secs": 75
 }

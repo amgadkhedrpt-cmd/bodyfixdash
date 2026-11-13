@@ -6,15 +6,18 @@ const prDay=(d,n)=>new Date(Date.parse(d+'T00:00:00Z')+n*864e5).toISOString().sl
 const prDays=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5)+1;
 // ---------- اكتشاف تغيّر الأسعار ----------
 function prDetect(){const key=S.b;PRC.det=PRC.det||{};if(PRC.det[key])return PRC.det[key];const ev=[];
-  // 1) الفواتير: أسعار متكررة (الإجمالي قبل الخصم) — سعر جديد بيظهر وسعر قريب منه بيختفي
-  const I=D.inv.filter(x=>inB(x)&&x.total>0),cnt={},byM={};I.forEach(x=>{const v=Math.round(x.total/10)*10;cnt[v]=(cnt[v]||0)+1;const z=byM[v]=byM[v]||{};z[x.k]=(z[x.k]||0)+1});
-  const freq=Object.keys(cnt).map(Number).filter(v=>cnt[v]>=15&&v>=100);const ks=D.months.filter(k=>k<=curK());
-  const life={};freq.forEach(v=>{const ms=ks.filter(k=>(byM[v][k]||0)>=4);if(ms.length)life[v]={first:ms[0],last:ms[ms.length-1],n:cnt[v]}});
+  // 1) الفواتير: أسعار متكررة (الإجمالي قبل الخصم) لكل قسم — سعر جديد بيظهر وسعر قريب منه بيختفي
+  // قسم الفاتورة = نوع موعد المريض الأقرب ليها (−7..+30 يوم)، زي توزيع الدفعات في تحليلات المركز
+  const byP=cenBuild().byP,dOf=x=>{const l=byP[x.pid];if(l){const t=Date.parse(x.d);let best=null,bd=1e9;for(const a of l){const dd=(t-Date.parse(a[0]))/864e5;if(dd>=-7&&dd<=30&&Math.abs(dd)<bd){bd=Math.abs(dd);best=a}}if(best)return best[1]}return ALAA.test(x.doc||'')?'nut':'phy'};
+  const I=D.inv.filter(x=>inB(x)&&x.total>0).map(x=>({x,dp:dOf(x),v:Math.round(x.total/10)*10})),cnt={},byM={};
+  I.forEach(({x,dp,v})=>{const key=dp+'|'+v;cnt[key]=(cnt[key]||0)+1;const z=byM[key]=byM[key]||{};z[x.k]=(z[x.k]||0)+1});
+  const freq=Object.keys(cnt).filter(k=>cnt[k]>=15&&+k.split('|')[1]>=100);const ks=D.months.filter(k=>k<=curK());
+  const life={};freq.forEach(key=>{const ms=ks.filter(k=>(byM[key][k]||0)>=4);if(ms.length)life[key]={first:ms[0],last:ms[ms.length-1],n:cnt[key],dp:key.split('|')[0],v:+key.split('|')[1]}});
   const first=ks[0];
-  Object.entries(life).forEach(([nv,L])=>{nv=+nv;if(L.first<=shiftK(first,1))return;
-    const old=Object.entries(life).map(([ov,O])=>({ov:+ov,O})).filter(({ov,O})=>nv>=ov*1.03&&nv<=ov*1.6&&O.first<L.first&&O.last>=shiftK(L.first,-1)&&O.last<=shiftK(L.first,2)).sort((a,b)=>b.O.n-a.O.n)[0];
-    if(!old)return;const d0=I.filter(x=>Math.round(x.total/10)*10===nv&&x.k===L.first).map(x=>x.d).sort()[0]||L.first+'-01';
-    ev.push({d:d0,label:`فاتورة ${fm(old.ov)} ← ${fm(nv)}`,pct:(nv-old.ov)/old.ov,auto:'inv',dept:'',n:L.n})});
+  Object.values(life).forEach(L=>{if(L.first<=shiftK(first,1))return;const nv=L.v;
+    const old=Object.values(life).filter(O=>O.dp===L.dp&&nv>=O.v*1.03&&nv<=O.v*1.6&&O.first<L.first&&O.last>=shiftK(L.first,-1)&&O.last<=shiftK(L.first,2)).sort((a,b)=>b.n-a.n)[0];
+    if(!old)return;const d0=I.filter(o=>o.dp===L.dp&&o.v===nv&&o.x.k===L.first).map(o=>o.x.d).sort()[0]||L.first+'-01';
+    ev.push({d:d0,label:`${DEPN[L.dp]}: فاتورة ${fm(old.v)} ← ${fm(nv)}`,pct:(nv-old.v)/old.v,auto:'inv',dept:L.dp,n:L.n,nOld:old.n})});
   // 2) خدمات التغذية: سعر القايمة لكل خدمة كل شهر
   try{if(typeof nutBuild==='function'&&(S.b==='haram'||S.b==='both')){const {ops}=nutBuild();const g={};ops.forEach(o=>{if(!(o.tot>0))return;const nmx=o.op||o.n;const z=(g[nmx]=g[nmx]||{});const zz=(z[o.k]=z[o.k]||{});const v=Math.round(o.tot/10)*10;zz[v]=(zz[v]||0)+1});
     for(const nmx in g){const ms=Object.keys(g[nmx]).sort();let prev=null,pm=null;for(const m of ms){const c=g[nmx][m],tot=Object.values(c).reduce((a,b)=>a+b,0);if(tot<3)continue;const mode=+Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0];
@@ -52,25 +55,29 @@ function prVerdict(I,R){const g=k=>{const r=R.find(x=>x.k===k);return r.adj!=nul
 function prWeeks(e,dept,mk){const sv=GR.dept;GR.dept=dept;try{const out=[];for(let w=-12;w<12;w++){const d1=prDay(e.d,w*7),d2=prDay(d1,6);if(d1>todayC())break;out.push({w,lbl:(w===0?'◀ الزيادة ':'')+d1.slice(8,10)+'/'+d1.slice(5,7),v:mk(grAgg(d1,[d2,prDay(todayC(),-1)].sort()[0]))})}return out}finally{GR.dept=sv}}
 function vPrice(){if(!NUT.cfg)NUT.cfg=nutMerge(null);const E=prEvents(),dept=PRC.dept;
   if(PRC.sel==null||!E[PRC.sel])PRC.sel=0;const e=E[PRC.sel];
-  const evRows=E.map((x,i)=>[`<input type="radio" name="prE" value="${i}"${i===PRC.sel?' checked':''}>`,x.d,esc(x.label),x.pct!=null?pc(x.pct):'—',x.dept?DEPN[x.dept]:'الكل',x.man?'مسجلة':'<span class="sub">اتكشفت لوحدها</span>',x.man?`<button data-prdel="${x.i}">حذف</button>`:`<button data-prok="${i}">اعتمدها</button>`]);
+  const evRows=E.map((x,i)=>[`<input type="radio" name="prE" value="${i}"${i===PRC.sel?' checked':''}>`,x.d,esc(x.label),x.pct!=null?pc(x.pct):'—',x.dept?`<b>${DEPN[x.dept]}</b>`:'الكل',x.man?'مسجلة':'<span class="sub">اتكشفت لوحدها</span>',x.man?`<button data-prdel="${x.i}">حذف</button>`:`<button data-prok="${i}">اعتمدها</button>`]);
   let h=`<div class="card"><h3>💲 الأسعار وأثر الزيادات<small>${BRN[S.b]}</small></h3>
    <div class="note" style="line-height:1.9">أي زيادة سعر بتتكشف لوحدها: <b>فواتير</b> بسعر جديد متكرر حلّ مكان سعر أقل، أو <b>خدمة تغذية</b> سعرها في القايمة اتغير. وتقدر تسجل أي زيادة بنفسك (تاريخها ونسبتها). لكل زيادة: الأرقام قبلها وبعدها بنفس عدد الأيام، ومصحّحة بنفس الأيام من السنة اللي فاتت — يعني لو الشهر ده كل سنة بيقل، ده مش هيتحسب على الزيادة.</div>
-   <div class="bar" style="margin-top:8px"><label class="sub">القسم <select id="prDep"><option value="">المركز كله</option>${DEPTS.map(([d,t])=>`<option value="${d}"${dept===d?' selected':''}>${t}</option>`).join('')}</select></label>
+   <div class="bar" style="margin-top:8px"><label class="sub">القسم <select id="prDep"><option value="">قسم الزيادة نفسه</option><option value="all"${dept==='all'?' selected':''}>المركز كله</option>${DEPTS.map(([d,t])=>`<option value="${d}"${dept===d?' selected':''}>${t}</option>`).join('')}</select></label>
    <label class="sub">أيام قبل/بعد <select id="prN">${[30,45,60,90,120].map(n=>`<option${n===PRC.N?' selected':''}>${n}</option>`).join('')}</select></label></div>
    ${E.length?tableHTML(['','التاريخ','الزيادة',{t:'النسبة',n:1},'القسم','',''],evRows,{h:260}):'<div class="note">مفيش زيادات اتكشفت أو اتسجلت لسه.</div>'}
    <div class="bar" style="margin-top:8px"><span class="sub">سجّل زيادة:</span><input type="date" id="prD"><input id="prL" placeholder="إيه اللي زاد (مثلاً: الكشف 400←500)" style="min-width:220px"><input id="prP" type="number" step="1" placeholder="النسبة %" style="width:90px">
     <select id="prDp"><option value="">الكل</option>${DEPTS.map(([d,t])=>`<option value="${d}">${t}</option>`).join('')}</select><button class="pri" id="prAdd">➕ ضيف واحفظ</button></div></div>`;
-  if(!e)return h;const I=prImpact(e,dept||e.dept||'');if(!I)return h+`<div class="card" style="margin-top:12px">الزيادة دي لسه ما بدأتش.</div>`;
+  if(!e)return h;const deptX=dept==='all'?'':(dept||e.dept||'');const I=prImpact(e,deptX);if(!I)return h+`<div class="card" style="margin-top:12px">الزيادة دي لسه ما بدأتش.</div>`;
   const R=prRows(I),V=prVerdict(I,R);
   // مراقبة: آخر زيادة خلال 120 يوم
   const live=E.find(x=>prDays(x.d,todayC())<=120&&x.d<=todayC());
-  h+=`<div class="card" style="margin-top:12px;border-inline-start:4px solid ${/^✅/.test(V.v)?'var(--good)':/^⚠️/.test(V.v)?'var(--warn)':'var(--bad)'}"><h3>📊 أثر الزيادة${live&&live===e?' <span class="sub">— بتتراقب دلوقتي</span>':''}<small>${I.a1} → ${I.a2} مقابل ${I.b1} → ${I.b2}${(dept||e.dept)?' · '+DEPN[dept||e.dept]:''}</small></h3>
+  h+=`<div class="card" style="margin-top:12px;border-inline-start:4px solid ${/^✅/.test(V.v)?'var(--good)':/^⚠️/.test(V.v)?'var(--warn)':'var(--bad)'}"><h3>📊 أثر الزيادة${live&&live===e?' <span class="sub">— بتتراقب دلوقتي</span>':''}<small>${I.a1} → ${I.a2} مقابل ${I.b1} → ${I.b2}${deptX?' · '+DEPN[deptX]:' · المركز كله'}</small></h3>
    ${V.v?`<div style="font-weight:700;margin-bottom:6px">${V.v}</div>`:''}<ul class="ins">${V.L.map(x=>`<li>${x}</li>`).join('')}</ul>
    ${tableHTML(['',{t:'قبل',n:1},{t:'بعد',n:1},{t:'التغيير',n:1},{t:'نفس الأيام السنة اللي فاتت',n:1},{t:'التغيير المصحّح',n:1}],R.map(r=>r.row),{h:340})}
    <div class="note">«التغيير المصحّح» = التغيير بعد الزيادة − التغيير اللي حصل في نفس الأيام السنة اللي فاتت (من غير زيادة). ده الأقرب لأثر السعر لوحده. الشراء والرجوع بيتحسبوا للمرضى اللي عدّى عليهم 14 / 30 يوم بس.</div></div>
-  <div class="grid g2" style="margin-top:12px"><div class="card"><h3>الإيراد كل أسبوع حوالين الزيادة</h3><div class="ch"><canvas id="pr1"></canvas></div></div>
+  ${prCross(e)}
+  <div class="grid g2" style="margin-top:12px"><div class="card"><h3>الإيراد كل أسبوع حوالين الزيادة${deptX?' — '+DEPN[deptX]:''}</h3><div class="ch"><canvas id="pr1"></canvas></div></div>
    <div class="card"><h3>الجلسات كل أسبوع حوالين الزيادة</h3><div class="ch"><canvas id="pr2"></canvas></div></div></div>`;
   return h}
+function prCross(e){const rows=[['',...DEPTS.map(d=>d)],].length&&DEPTS.concat([['','المركز كله']]).map(([d,t])=>{const I=prImpact(e,d);if(!I)return null;const R=prRows(I);const g=k=>{const r=R.find(x=>x.k===k);return r.adj!=null?r.adj:r.d};
+    const c=v=>v==null?'—':`<span class="${v>=0?'up':'down'}">${v>=0?'▲':'▼'} ${pc(Math.abs(v))}</span>`;return [(d===(e.dept||'')?'<b>':'')+t+(d===(e.dept||'')?' (قسم الزيادة)</b>':''),c(g('revPD')),c(g('sesPD')),c(g('npPD')),c(g('avgS'))]}).filter(Boolean);
+  return `<div class="card" style="margin-top:12px"><h3>الأثر على كل قسم<small>التغيير المصحّح بعد الزيادة — علشان تشوف لو زيادة قسم أثّرت على قسم تاني</small></h3>${tableHTML(['القسم',{t:'الإيراد/يوم',n:1},{t:'الجلسات/يوم',n:1},{t:'مرضى جداد/يوم',n:1},{t:'متوسط الجلسة',n:1}],rows,{h:240})}</div>`}
 function cPrice(){const E=prEvents();document.querySelectorAll('input[name="prE"]').forEach(r=>r.onchange=()=>{PRC.sel=+r.value;render()});
   const dp=$('#prDep');if(dp)dp.onchange=()=>{PRC.dept=dp.value;try{localStorage.setItem('fin_pr_dept',PRC.dept)}catch(e){}render()};
   const n=$('#prN');if(n)n.onchange=()=>{PRC.N=+n.value;try{localStorage.setItem('fin_pr_n',PRC.N)}catch(e){}render()};
@@ -79,7 +86,7 @@ function cPrice(){const E=prEvents();document.querySelectorAll('input[name="prE"
     NUT.cfg.priceEvents=(NUT.cfg.priceEvents||[]).concat([{d,label:l||'زيادة سعر',pct:p===''?null:(+p)/100,dept:$('#prDp').value}]);await save(add)};
   document.querySelectorAll('[data-prdel]').forEach(b=>b.onclick=async()=>{if(!confirm('أحذف الزيادة دي؟'))return;NUT.cfg.priceEvents=(NUT.cfg.priceEvents||[]).filter((_,i)=>i!==+b.dataset.prdel);PRC.sel=0;await save(b)});
   document.querySelectorAll('[data-prok]').forEach(b=>b.onclick=async()=>{const x=E[+b.dataset.prok];NUT.cfg.priceEvents=(NUT.cfg.priceEvents||[]).concat([{d:x.d,label:x.label,pct:x.pct,dept:x.dept||''}]);await save(b)});
-  const e=E[PRC.sel||0];if(!e)return;const dept=PRC.dept||e.dept||'',c=SER();
+  const e=E[PRC.sel||0];if(!e)return;const dept=PRC.dept==='all'?'':(PRC.dept||e.dept||''),c=SER();
   const W1=prWeeks(e,dept,a=>Math.round(a.net)),W2=prWeeks(e,dept,a=>a.sessions);
   chart('pr1',{data:{labels:W1.map(x=>x.lbl),datasets:[bar('الإيراد',W1.map(x=>x.v),c[0])]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{maxRotation:60,minRotation:45}}}}});
   chart('pr2',{data:{labels:W2.map(x=>x.lbl),datasets:[bar('الجلسات',W2.map(x=>x.v),c[2])]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{maxRotation:60,minRotation:45}}}}})}

@@ -3637,6 +3637,8 @@ function audMapBuild(){
   });
   AUD_MAP=m; return m;
 }
+/* خدمات مجموعاتها مقفولة في جدول المطابقة — بس دول اللي مش بيتحصّلوا من الخطة (أي خدمة تانية حتى لو مش متربطة بتتحصّل) */
+function audOffSvc(){ var O={}; (AUD_MAP||audMapBuild()).forEach(function(r){ if(r.on) return; r.s.forEach(function(x){ var k=audN(x); if(k) O[k]=1; }); }); return O; }
 function audMapLook(cat){
   var A={}, S={};
   (AUD_MAP||audMapBuild()).forEach(function(r){ if(!r.on) return; if(cat&&r.cat!==cat) return;
@@ -11861,7 +11863,7 @@ function planTasks(useAll){
   var evd=by(D.eval_due,function(x){ return x.day==='today'; });
   var nonext=by(D.today_no_next,function(){ return true; });
   var svc=by(D.svc_gap,function(){ return true; });
-  var debts={}; if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.debts){ var L=audMapLook(); AUD_DATA.debts.forEach(function(r){ if(!L.S[audN(r.s)]) return; var o=debts[r.pid]||(debts[r.pid]={n:0,sum:0,old:r.d}); o.n++; o.sum+=(+r.rem||0); if(r.d<o.old) o.old=r.d; }); }
+  var debts={}; if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.debts){ var OFF=audOffSvc(); AUD_DATA.debts.forEach(function(r){ if(OFF[audN(r.s)]) return; var o=debts[r.pid]||(debts[r.pid]={n:0,sum:0,old:r.d}); o.n++; o.sum+=(+r.rem||0); if(r.d<o.old) o.old=r.d; }); }
   var todayPids={}, INVF=planInvFixMap();
   (P.today||[]).filter(inb).forEach(function(x){
     todayPids[x.pid]=1;
@@ -11939,8 +11941,9 @@ function planTasks(useAll){
     var cut=new Date(Date.now()-60*864e5).toISOString().slice(0,10), old30=new Date(Date.now()-30*864e5).toISOString().slice(0,10), Ld=audMapLook(), ph={};
     var SOON={}; (P.soon||[]).forEach(function(p){ SOON[p]=1; });
     var dayDiff=function(a,b){ return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5); };
-    AUD_DATA.debts.forEach(function(r){ if(todayPids[r.pid]||r.d<cut||!Ld.S[audN(r.s)]) return; var o=ph[r.pid]||(ph[r.pid]={r:r,n:0,sum:0,old:r.d}); o.n++; o.sum+=(+r.rem||0); if(r.d<o.old) o.old=r.d; if(r.d>o.r.d) o.r=r; });
-    Object.keys(ph).forEach(function(pid){ var o=ph[pid]; if(o.sum<200) return; var bk=o.r.b||'';
+    var OFFd=audOffSvc();
+    AUD_DATA.debts.forEach(function(r){ if(todayPids[r.pid]||OFFd[audN(r.s)]) return; var o=ph[r.pid]||(ph[r.pid]={r:r,n:0,sum:0,old:r.d}); o.n++; o.sum+=(+r.rem||0); if(r.d<o.old) o.old=r.d; if(r.d>o.r.d) o.r=r; });
+    Object.keys(ph).forEach(function(pid){ var o=ph[pid]; if(o.sum<20) return; var bk=o.r.b||'';
       if(act.indexOf(bk)<0||SOON[pid]) return;
       var iv=INVF[pid];
       if(iv){ add('office',{grp:['debtph'], sys:'كتبت إن الفاتورة محتاجة تتعدل', what:'🧾 '+(iv.by||'')+': '+iv.note+' → اتحولت لـ '+PLAN_INV_OWNER_DEF, key:'debtph|'+pid, icon:'💸', kind:'تحصيل بالتليفون', name:o.r.p, br:bk, lines:['عليه '+planMoney(o.sum)+' ج']}); return; }
@@ -12030,7 +12033,7 @@ function planCarrySave(){
     if(!part.length&&!PLAN_ST[key]) continue; var o={d:td, L:part}; PLAN_ST[key]=o; planSaveRaw('PLAN|'+key, part.length?JSON.stringify(o):''); }
 }
 var PLAN_GT={
-  debtph:['📞','تحصيل بالتليفون (200 ج+ ومش جايين خلال أسبوع)'], invrev:['🔎','فلوس قديمة (أكتر من 30 يوم) — مراجعة الفاتورة قبل التحصيل'], invfix:['🧾','فواتير محتاجة تتعدل (الخزنة كتبت كده في التحصيلات)'],
+  debtph:['📞','تحصيل بالتليفون (خدمة اتعملت ومتدفعتش ومش جاي خلال أسبوع)'], invrev:['🔎','فلوس قديمة (أكتر من 30 يوم) — مراجعة الفاتورة قبل التحصيل'], invfix:['🧾','فواتير محتاجة تتعدل (الخزنة كتبت كده في التحصيلات)'],
   mgr:['👔','ملحوظات محتاجة المدير (شكوى · فلوس · الدكتور · الألم …)'],
   waittoday:['⏳','مواعيد على الويتنج النهارده'], conftoday:['📞','تأكيد مواعيد النهارده اللي كانت لسه Open'], late:['⏰','اتأخر ربع ساعة من غير Check In — اتكتب متابعة ولا لأ؟'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'], waitnut:['💜','ويتنج قسم التغذية يوم الشغل الجاي'],
   call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], recur:['🔁','بيلغوا كتير ومحجوزلهم مواعيد جاية'], idle:['😶','مثبّتين ومالهمش ميعاد من 3 أيام أو أكتر'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي (🔴 الضروري فوق)'], confsp:['💜','تأكيد مواعيد قسم التغذية (د. آلاء حرفوش) وجلسات التخسيس'], drop:['🚶','مرضى جداد وقفوا بدري'],
@@ -12368,7 +12371,16 @@ function planSummaryObj(){
       what:String(t.what||(s.s==='done'?'':t.sys)||'').replace(/<[^>]+>/g,'')});
   }); });
   var perf={}; try{ perf=planPerfObj(T); }catch(e){}
-  return {sum:sum, items:items, perf:perf};
+  // 📋 كل مهمة بحالتها ومسئولتها — الإيميل بيراجع عليها (اتعملت على السيستم ولا بالزرار بس · فاضل إيه وعلى مين · مترحّلة من كام يوم)
+  var tasks=[], UU=/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){
+    var stt=planState(t); if(stt==='snz') return; var s=PLAN_ST[t.key]||{}, m=String(t.key||'').match(UU);
+    (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ if(g==='risk') return;
+      var ci=sec==='mgr'?{owner:'المدير'}:planCoverInfo(t,g), tm={}; try{ tm=planTaskTimes(t,g)||{}; }catch(e){}
+      tasks.push({k:String(t.key||''), g:g, gt:(PLAN_GT[g]||['',g])[1], sec:sec, br:t.br||'', o:ci.owner||'', from:ci.from||'', st:stt, how:stt==='done'?(s.s==='done'?'btn':'sys'):'',
+        by:s.by||'', at:s.at||'', n:String(t.name||'').replace(/<[^>]+>/g,''), pid:t.pid||(m?m[0]:''), done:tm.done||''});
+    }); }); });
+  return {sum:sum, items:items, perf:perf, tasks:tasks};
 }
 function planSummarySave(){
   if(!PLAN_LOADED||!ALERTS_DATA) return; var T=planTasks(true); if(!T) return;

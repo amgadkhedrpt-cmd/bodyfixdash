@@ -356,7 +356,7 @@ def section(today_s):
             old = max([i["age"] for i in p["items"] if i["age"] is not None] or [0])
             tr = "" if p["prev"] is None else (f'<span style="color:#dc2626">▲ زادت (امبارح {p["prev"]})</span>' if p["n"] > p["prev"] else f'<span style="color:#16a34a">▼ قلّت (امبارح {p["prev"]})</span>' if p["n"] < p["prev"] else sub("زي امبارح"))
             col = "#b91c1c" if p["lvl"] == 3 else "#dc2626" if p["lvl"] == 2 else "#ea580c"
-            names = "".join(f'<li style="margin:1px 0">{H(i["n"] or "—")} {sub("— " + H(i["x"]) + ((" · من " + str(i["age"]) + " يوم") if i["age"] else ""))}</li>' for i in p["items"][:6])
+            names = "".join(f'<li style="margin:1px 0">{H(i["n"] or "—")} {sub("— " + (i["x"] if i.get("raw") else H(i["x"])) + ((" · من " + str(i["age"]) + " يوم") if i["age"] else ""))}</li>' for i in p["items"][:6])
             more = sub(f"+ {len(p['items']) - 6} كمان") if len(p["items"]) > 6 else ""
             out.append(f'<div style="border-inline-start:3px solid {col};padding:4px 10px;margin:8px 0;font-size:13px">'
                        f'<div style="font-weight:700">{p["t"]}: {p["n"]} {p["unit"]}</div>'
@@ -370,6 +370,7 @@ def section(today_s):
 AUD_B = {"BODYFIX Center": "haram", "FIX ZONE": "dokki"}
 CALL_T = re.compile(r"متابع|انقطاع|منقطع|استرداد|ملاحظ|تقييم الجلسه|اتصال|مكالم", re.I)
 STATE_F = "data/digest_open.json"
+PLAN = None   # pid → مهام التحصيل في خطة النهارده (digest.py بيملاها)
 nrm = lambda t: re.sub(r"\s+", " ", re.sub("[أإآ]", "ا", str(t or "")).replace("ة", "ه").replace("ى", "ي")).strip()
 
 
@@ -432,7 +433,7 @@ def steps_money(b, x, T, AUD, STATE):
         first = min(d["d"] for d in L)
         later = {v for v in seen["id:" + pid] if v > first}
         rem = sum(float(d.get("rem") or 0) for d in L)
-        item = {"n": L[0].get("p") or "", "age": age(first, T), "rem": rem, "k": len(L),
+        item = {"n": L[0].get("p") or "", "age": age(first, T), "rem": rem, "k": len(L), "pid": pid,
                 "s": "، ".join(sorted({str(d.get("s") or "") for d in L}))[:60], "dr": L[0].get("dr") or "", "later": len(later), "ids": {str(d["id"]) for d in L}}
         if rem < 20:      # فروق قروش/تقريب
             continue
@@ -443,18 +444,23 @@ def steps_money(b, x, T, AUD, STATE):
         else:
             today.append(item)
     solved = len([i for i in prev_ids if i not in now_ids]) if STATE else 0
-    fmt = lambda i, extra="": f"{i['s']} · {i['k']} خدمة · باقي {money(i['rem'])} جنيه{extra}"
+    def fmt(i, extra=""):
+        t = f"{H(i['s'])} · {i['k']} خدمة · باقي {money(i['rem'])} جنيه{extra}"
+        if PLAN is not None:
+            import digest_plan
+            t += " · " + digest_plan.task_badge(PLAN.get(i["pid"]))
+        return t
     if came:
         out.append({"lvl": 3, "b": b, "t": "🚨 حضر تاني وسايب خدمة اتعملت ومتدفعتش", "own": "الاستقبال + الحسابات",
-                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i, f" · حضر {i['later']} مرة بعدها")} for i in came), key=lambda i: -i["age"]),
+                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i, f" · حضر {i['later']} مرة بعدها"), "raw": 1} for i in came), key=lambda i: -i["age"]),
                     "n": len(came), "val": sum(i["rem"] for i in came), "prev": None, "solved": 0, "unit": "مريض"})
     if older:
         out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت ومتدفعتش (من يوم أو أكتر)", "own": "الاستقبال + الحسابات",
-                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i)} for i in older), key=lambda i: -i["age"]),
+                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i), "raw": 1} for i in older), key=lambda i: -i["age"]),
                     "n": len(older), "val": sum(i["rem"] for i in older), "prev": None, "solved": 0, "unit": "مريض"})
     if today:
         out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت النهارده ومتدفعتش", "own": "الاستقبال",
-                    "items": [{"n": i["n"], "age": None, "x": fmt(i) + (" · " + i["dr"] if i["dr"] else "")} for i in today],
+                    "items": [{"n": i["n"], "age": None, "x": fmt(i) + (" · " + H(i["dr"]) if i["dr"] else ""), "raw": 1} for i in today],
                     "n": len(today), "val": sum(i["rem"] for i in today), "prev": None, "solved": 0, "unit": "مريض"})
     if out and solved:
         out[0]["solved"] = solved   # خدمات اتدفعت (اتقفلت) من امبارح

@@ -92,6 +92,12 @@ def main():
     paid = load(".session/paid.json", {})
     if paid.get("date") != today_s:
         paid = {}
+    try:
+        import digest_fin, digest_plan
+        res, _ = plan_data(today_s)
+        digest_fin.PLAN = digest_plan.plan_by_pid(res) if res else None
+    except Exception as e:
+        print(f"digest plan data: {e}")
     html = build(now, alerts, ctx, paid)
     try:
         html = html.replace("<!--PLAN-->", plan_section(today_s))
@@ -125,7 +131,47 @@ REQ_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzy1UbUmQmVOLnrgP69vAL
 BR_AR = {"BODYFIX Center": "الهرم", "FIX ZONE": "الدقي"}
 
 
+_PLAN = {}
+
+
+def plan_data(today_s):
+    """خطة اليوم من الصفحة + سطور شيت الطلبات — مرة واحدة لكل تشغيل"""
+    if "res" in _PLAN:
+        return _PLAN["res"], _PLAN["reasons"]
+    reasons = {}
+    try:
+        raw = urllib.request.urlopen(REQ_SCRIPT_URL + "?action=getAll&callback=cb", timeout=40).read().decode("utf-8")
+        m = re.search(r"cb\((.*)\)\s*;?\s*$", raw, re.S)
+        reasons = json.loads(m.group(1) if m else raw).get("reasons") or {}
+    except Exception as e:
+        print(f"plan reasons: {e}")
+    res = plan_from_page()
+    if res and res.get("perf"):
+        try:
+            perf_save(today_s, res["perf"])
+        except Exception as e:
+            print(f"perf save: {e}")
+    _PLAN["res"], _PLAN["reasons"] = res, reasons
+    return res, reasons
+
+
 def plan_section(today_s):
+    """📋 مراجعة خطة اليوم + تقييم السكرتارية من أول الشهر"""
+    res, reasons = plan_data(today_s)
+    if not res:
+        return plan_section_old(today_s)
+    import digest_plan
+    debts = {}
+    try:
+        for r in json.load(open("data/audit.json", encoding="utf-8")).get("debts") or []:
+            debts[str(r.get("pid"))] = debts.get(str(r.get("pid")), 0) + float(r.get("rem") or 0)
+    except Exception as e:
+        print(f"plan audit: {e}")
+    debts = {k: v for k, v in debts.items() if v >= 20}
+    return digest_plan.review(today_s, res, reasons, debts) or plan_section_old(today_s)
+
+
+def plan_section_old(today_s):
     """✅ خطة اليوم: نسبة الإنجاز لكل فرع ولكل سكرتيرة + اللي اتعمل بالظبط مع كل مريض (من شيت الطلبات)."""
     raw = urllib.request.urlopen(REQ_SCRIPT_URL + "?action=getAll&callback=cb", timeout=40).read().decode("utf-8")
     m = re.search(r"cb\((.*)\)\s*;?\s*$", raw, re.S)
@@ -143,13 +189,9 @@ def plan_section(today_s):
             summ = o
         elif k.startswith("PLAN|") and o.get("d") == today_s and o.get("s") in ("done", "auto", "nr") and o.get("name"):
             items.append(o)
-    pg = plan_from_page()
-    if pg:   # الحساب من الصفحة نفسها (المزامنة فتحت «خطة اليوم») — مش محتاج حد يكون فتحها
+    pg = _PLAN.get("res")
+    if pg:
         summ, items = pg.get("sum") or summ, pg.get("items") or items
-        try:
-            perf_save(today_s, pg.get("perf") or {})
-        except Exception as e:
-            print(f"perf save: {e}")
     if not summ and not items:
         return '<h3 style="margin:16px 0 6px">✅ خطة اليوم</h3><div style="color:#64748b;font-size:13px">محدش فتح «خطة اليوم» النهارده</div>'
     H = lambda t: (str(t or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -495,6 +537,7 @@ def build(now, alerts, ctx, paid):
            f'<h2 style="margin:0">📋 تقرير يوم {today_s}</h2>']
     if perf:
         out += ['<h3 style="margin:14px 0 6px">📈 أداء النهارده</h3>', perf]
+    out.append("<!--PLAN-->")
     if probs:
         out += ['<h3 style="margin:18px 0 6px">🔴 مشاكل لسه مفتوحة</h3>',
                 '<div style="color:#64748b;font-size:11px">بتتقفل لوحدها أول ما تتحل · مترتبة: الفلوس الأول بعدين القيمة</div>', probs]
@@ -532,7 +575,6 @@ def build(now, alerts, ctx, paid):
         notes.append("المدفوع جاي من الفواتير (أداة التحصيل ما بعتتش أرقام النهارده)")
     if sheet_err:
         notes.append("ما قدرتش أقرا: " + "، ".join(sheet_err))
-    out.append("<!--PLAN-->")
     out.append(f'<div style="margin-top:14px"><a href="{DASH_URL}fin.html" style="background:#0f766e;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:13px;margin-inline-end:6px">🔒 التحليلات المالية</a> <a href="{DASH_URL}" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:13px">افتح الداشبورد للتفاصيل ←</a></div>'
                + (f'<div style="color:#94a3b8;font-size:11px;margin-top:10px">{" · ".join(H(n) for n in notes)}</div>' if notes else "") + '</div>')
     return "".join(out)

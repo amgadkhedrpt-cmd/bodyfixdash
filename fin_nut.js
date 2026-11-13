@@ -166,10 +166,10 @@ function nutMonth(k){const C=NUT.cfg,{ops,xs}=nutBuild();
 const NSUB=[['sum','ملخص الشهر'],['rev','الإيراد'],['exp','المصروفات'],['pl','الربح'],['inj','الحقن'],['pts','المرضى والمتابعات'],['dev','الأجهزة'],['alaa','مستحقات د. آلاء'],['price','أثر الأسعار'],['cfg','الإعدادات']];
 function vNut(){if(!(RAW.kinds||{}).ops)return '<div class="card">بيانات عمليات التغذية لسه بتتسحب — جرّب كمان شوية.</div>';
   const top=`<div class="tabs" id="nsub" style="border:0;margin-bottom:8px">${NSUB.map(([k,t])=>`<button data-n="${k}" class="${NUT.sub===k?'on':''}">${t}</button>`).join('')}</div>
-   <div class="note" style="margin-bottom:10px">🥗 قسم التغذية — <b>فرع الهرم بس</b>. ${NUT.sub==='sum'||NUT.sub==='alaa'?'الشهر = «لحد» اللي فوق':'الفترة = «من» و«لحد» اللي فوق'}. ${NUT.cfgState?'<span class="chip w">'+esc(NUT.cfgState)+'</span>':''}</div>`;
-  const f={sum:nSum,rev:nRev,exp:nExp,pl:nPL,inj:nInj,pts:nPts,dev:nDev,alaa:nAlaa,price:nPrice,cfg:nCfg}[NUT.sub]||nSum;return top+f()}
+   <div class="note" style="margin-bottom:10px">🥗 قسم التغذية — <b>فرع الهرم بس</b>. ${NUT.sub==='sum'||NUT.sub==='alaa'||NUT.sub==='trend'?'الشهر = «لحد» اللي فوق':'الفترة = «من» و«لحد» اللي فوق'}. ${NUT.cfgState?'<span class="chip w">'+esc(NUT.cfgState)+'</span>':''}</div>`;
+  const f={sum:nSum,rev:nRev,exp:nExp,pl:nPL,inj:nInj,pts:nPts,dev:nDev,alaa:nAlaa,price:nPrice,cfg:nCfg,trend:nTrend,deep:nDeep}[NUT.sub]||nSum;return top+f()}
 function cNut(){document.querySelectorAll('#nsub button').forEach(b=>b.onclick=()=>{NUT.sub=b.dataset.n;try{localStorage.setItem('fin_nsub',NUT.sub)}catch(e){}render()});
-  const f={sum:cnSum,rev:cnRev,exp:cnExp,pl:cnPL,inj:cnInj,pts:cnPts,dev:cnDev,alaa:cnAlaa,price:null,cfg:cnCfg}[NUT.sub];if(f)f()}
+  const f={sum:cnSum,rev:cnRev,exp:cnExp,pl:cnPL,inj:cnInj,pts:cnPts,dev:cnDev,alaa:cnAlaa,price:null,cfg:cnCfg,trend:cnTrend,deep:cnDeep}[NUT.sub];if(f)f()}
 try{const s=localStorage.getItem('fin_nsub');if(s)NUT.sub=s}catch(e){}
 const nMonths=()=>monthsList(S.from,S.to);
 function nAlerts(M){const C=NUT.cfg,a=[];if(M.rev&&M.injRev/M.rev>C.alertInjShare)a.push(`الحقن ${pc(M.injRev/M.rev)} من الإيراد — أعلى من ${pc(C.alertInjShare)}`);
@@ -349,5 +349,100 @@ function nutExcel(){const ks=nMonths(),R=ks.map(nutMonth),{xs}=nutBuild();
   const al=[['الشهر','الفئة','عدد','قبل الخصم','المدفوع']];R.forEach(r=>{NCAT.forEach(c=>al.push([r.k,c[1],r.byC[c[0]].n,r.byC[c[0]].tot,r.byC[c[0]].paid]));al.push([r.k,'المرتب','','',r.alaa??'نظام الـ50%'])});
   const ex=[['التاريخ','الوصف','النوع','المبلغ','المدفوع','التصنيف','النسبة','السبب','المصدر']].concat(xs.filter(x=>nIn(x.k,S.from,S.to)).sort((a,b)=>a.d<b.d?-1:1).map(x=>[x.d,x.desc,x.type,x.amt,x.paid,XCLS[x.cls][0],x.share??'',x.why,x.src]));
   wbSave([['قائمة الدخل',pl],['حساب د. آلاء',al],['المصروفات المصنفة',ex]],`التغذية ${S.from} الى ${S.to}.xlsx`)}
+
+
+// ================= تحليلات متقدمة =================
+const hm=(v,max)=>{const p=max?Math.round(12+78*v/max):0;return v?`background:color-mix(in srgb, var(--c1) ${p}%, transparent);${p>55?'color:#fff;':''}`:''};
+function nFirstSteps(){const byP=nPtsData(),first=D.months[0];for(const p of Object.values(byP)){p.k0=p.first.slice(0,7);p.early=p.k0===first;p.paid=p.steps.reduce((s,o)=>s+o.paid,0);p.entry=p.steps[0].cat}return byP}
+const wdays=(a,b)=>{let n=0;for(let t=Date.parse(a);t<=Date.parse(b);t+=864e5)if(new Date(t).getUTCDay()!==5)n++;return n};
+const todayC=()=>new Date().toLocaleString('sv-SE',{timeZone:'Africa/Cairo'}).slice(0,10);
+
+// ---- الاتجاهات والتوقع ----
+function nTrend(){const k=S.to,C=NUT.cfg,{ops}=nutBuild(),td=todayC();
+  // 8) forecast
+  let fc='';if(k===td.slice(0,7)){const mtd=ops.filter(o=>o.k===k&&o.d<=td),rev=mtd.reduce((s,o)=>s+o.paid,0);const last=new Date(Date.UTC(+k.slice(0,4),+k.slice(5,7),0)).toISOString().slice(0,10);
+    const done=wdays(k+'-01',td),all=wdays(k+'-01',last),fcv=done?rev/done*all:null;const pk=shiftK(k,-1),pd=pk+td.slice(7);const pm=ops.filter(o=>o.k===pk&&o.d<=pd).reduce((s,o)=>s+o.paid,0),pfull=nutMonth(pk).rev;
+    fc=`<div class="grid g4">${kpi('الإيراد لحد النهارده',fm(rev),done+' يوم شغل من '+all)}${kpi('المتوقع آخر الشهر',fm(fcv),'بنفس معدل الأيام اللي فاتت (الجمعة إجازة)')}${kpi('الشهر اللي فات لنفس اليوم',fm(pm),delta(rev,pm))}${kpi('الشهر اللي فات كامل',fm(pfull),fcv?'المتوقع '+delta(fcv,pfull):'')}</div>`}
+  else fc=`<div class="note">التوقع بيظهر لما «لحد» يبقى الشهر الحالي.</div>`;
+  // 2) bridge
+  const M1=nutMonth(k),M0=nutMonth(shiftK(k,-1)),{ops:O}=nutBuild();const pp=(m,c)=>new Set(O.filter(o=>o.k===m&&o.cat===c).map(o=>o.pid)).size;
+  const br=NCAT.map(([c,t])=>{const n0=pp(M0.k,c),n1=pp(k,c),r0=M0.byC[c].paid,r1=M1.byC[c].paid,a0=n0?r0/n0:0,a1=n1?r1/n1:0;const vol=(n1-n0)*a0,price=r1-r0-vol;return {c,t,n0,n1,a0,a1,vol,price,r0,r1}});
+  return `${fc}
+  <div class="card" style="margin-top:12px"><h3>الإيراد اتغير ليه؟<small>${ml(M0.k)} ← ${ml(k)}: ${fm(M0.rev)} ← ${fm(M1.rev)} (${fm(M1.rev-M0.rev)})</small></h3><div class="ch lg"><canvas id="nT1"></canvas></div>
+   ${tableHTML(['الفئة',{t:'مرضى قبل',n:1},{t:'مرضى بعد',n:1},{t:'إيراد المريض قبل',n:1},{t:'إيراد المريض بعد',n:1},{t:'أثر عدد المرضى',n:1},{t:'أثر إيراد المريض',n:1}],br.filter(b=>b.r0||b.r1).map(b=>[b.t,b.n0,b.n1,b.a0,b.a1,b.vol,b.price]))}
+   <div class="note" style="margin-top:8px">«أثر عدد المرضى» = الفرق في عدد المرضى × إيراد المريض الشهر اللي فات. «أثر إيراد المريض» = الباقي (سعر وخصم وعدد جلسات للمريض).</div></div>
+  <div class="grid g2" style="margin-top:12px"><div class="card"><h3>الحقن مقابل باقي القسم<small>شهري</small></h3><div class="ch"><canvas id="nT2"></canvas></div></div>
+   <div class="card"><h3>المواسم<small>إيراد كل شهر — كل سنة خط</small></h3><div class="ch"><canvas id="nT3"></canvas></div></div></div>
+  <div class="card" style="margin-top:12px"><h3>نقطة التعادل للقسم<small>مرضى نشطين محتاجهم في الشهر علشان ما يخسرش</small></h3><div class="ch"><canvas id="nT4"></canvas></div>
+   <div class="note" style="margin-top:8px">الثابت = نصيب الرواتب + السلف + إهلاك الأجهزة + نصيب العام. المتغير = تكلفة الحقن + المصروفات الخاصة + راتب د. آلاء (${pc(C.alaaRate)}). نقطة التعادل = الثابت ÷ (الإيراد − المتغير) لكل مريض.</div></div>`}
+function cnTrend(){const k=S.to,c=SER(),{ops}=nutBuild();
+  const M1=nutMonth(k),M0=nutMonth(shiftK(k,-1));const pp=(m,cat)=>new Set(ops.filter(o=>o.k===m&&o.cat===cat).map(o=>o.pid)).size;
+  const L=[ml(M0.k)],V=[[0,M0.rev]],COL=[css('--t3')];let run=M0.rev;
+  NCAT.forEach(([cat,t])=>{const n0=pp(M0.k,cat),n1=pp(k,cat),r0=M0.byC[cat].paid,r1=M1.byC[cat].paid;if(!r0&&!r1)return;const a0=n0?r0/n0:0,vol=(n1-n0)*a0,pr=r1-r0-vol;
+    [[t+': عدد المرضى',vol],[t+': إيراد المريض',pr]].forEach(([l,v])=>{if(Math.abs(v)<1)return;L.push(l);V.push([run,run+v]);COL.push(v>=0?css('--good'):css('--bad'));run+=v})});
+  L.push(ml(k));V.push([0,M1.rev]);COL.push(css('--t3'));
+  chart('nT1',{type:'bar',data:{labels:L,datasets:[{label:'التغيير',data:V,backgroundColor:COL,borderRadius:3,maxBarThickness:34}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>{const r=x.raw;return ' '+fm(r[1]-r[0])}}}},scales:{x:{ticks:{maxRotation:60,minRotation:45}}}}});
+  const ks=nMonths(),R=ks.map(nutMonth);chart('nT2',{data:{labels:ks.map(mls),datasets:[line('الحقن (تخسيس + ميزو)',R.map(r=>r.byC.inj.paid+r.byC.mezo.paid),c[1]),line('باقي القسم',R.map(r=>r.rev-r.byC.inj.paid-r.byC.mezo.paid),c[0]),line('نسبة الحقن %',R.map(r=>r.rev?Math.round(100*(r.byC.inj.paid+r.byC.mezo.paid)/r.rev):null),c[3],{hidden:true})]}});
+  const yrs=[...new Set(D.months.map(m=>m.slice(0,4)))];chart('nT3',{type:'line',data:{labels:MN.map(x=>x.slice(0,3)),datasets:yrs.map((y,i)=>line(y,MN.map((_,j)=>{const m=y+'-'+pad(j+1);return D.months.includes(m)&&m<=curK()?nutMonth(m).rev:null}),c[i]))}});
+  const k12=monthsList(shiftK(k,-11),k),B=k12.map(m=>{const r=nutMonth(m);const fixed=r.sal.tot+r.adv+r.devDep+r.general,vari=r.injCost+r.special+(r.alaa??(+NUT.cfg.alaaRate||0)*r.rev);const cm=r.pts?(r.rev-vari)/r.pts:0;return {pts:r.pts,be:cm>0?Math.ceil(fixed/cm):null}});
+  chart('nT4',{data:{labels:k12.map(mls),datasets:[bar('مرضى نشطين فعلاً',B.map(b=>b.pts),c[0]),line('نقطة التعادل',B.map(b=>b.be),c[7],{borderDash:[5,4],pointRadius:2})]}})}
+
+// ---- الاحتفاظ والقيمة ----
+function nDeep(){const byP=nFirstSteps(),P=Object.values(byP),{ops}=nutBuild(),td=todayC();
+  // 1) cohort
+  const coh=monthsList(S.from,S.to).filter(k=>k!==D.months[0]).slice(-18);const OFF=[1,2,3,4,5,6];
+  const crow=coh.map(k=>{const ps=P.filter(p=>p.k0===k);return {k,n:ps.length,v:OFF.map(o=>{const m=shiftK(k,o);return m>curK()?null:(ps.length?ps.filter(p=>p.months.has(m)).length/ps.length:null)})}});
+  const coht=`<div class="tw"><table><thead><tr><th>شهر البداية</th><th class="n">مرضى</th>${OFF.map(o=>`<th class="n">شهر ${o}</th>`).join('')}</tr></thead><tbody>${crow.map(r=>`<tr><td>${ml(r.k)}</td><td class="n">${r.n}</td>${r.v.map(v=>`<td class="n" style="${v==null?'':hm(v,1)}">${v==null?'':pc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  // 4) LTV
+  const N=P.filter(p=>!p.early&&nIn(p.k0,S.from,S.to));const ENT={exam:'دخل بكشف',inj:'دخل بحقنة على طول',mezo:'دخل بميزوثيرابي',dev:'دخل بالأجهزة',fu:'دخل بمتابعة',inbody:'دخل بإنبدي'};
+  const eg={};N.forEach(p=>{const e=ENT[p.entry]||'أخرى';const g=eg[e]=eg[e]||{n:0,paid:0,mo:0};g.n++;g.paid+=p.paid;g.mo+=p.months.size});
+  const fi={};D.inv.filter(x=>x.b==='haram'&&x.src).forEach(x=>{if(!fi[x.pid]||x.d<fi[x.pid].d)fi[x.pid]=x});const sg={};N.forEach(p=>{const s=(fi[p.pid]||{}).src||'مش متسجل';const g=sg[s]=sg[s]||{n:0,paid:0};g.n++;g.paid+=p.paid});
+  const ad=D.exp.filter(e=>e.b==='haram'&&nIn(e.k,S.from,S.to)&&/دعاي|اعلان|إعلان|ماركت|marketing|ads|سوشيال/i.test(e.type+' '+e.info)).reduce((s,e)=>s+e.amt,0);
+  const ltv=N.length?N.reduce((s,p)=>s+p.paid,0)/N.length:null;
+  // 5) renewals
+  const pk={};ops.filter(o=>o.cat==='fu').forEach(o=>{const id=o.pid+'|'+o.op+'|'+(o.cr||o.d).slice(0,10);const g=pk[id]=pk[id]||{pid:o.pid,cr:(o.cr||o.d).slice(0,10),size:((o.op.match(/(?<!\d)(4|8|12)(?!\d)/)||[])[1]||'فردي'),end:o.d};if(o.d>g.end)g.end=o.d});
+  const PK=Object.values(pk).sort((a,b)=>a.cr<b.cr?-1:1);const byPid={};PK.forEach(x=>(byPid[x.pid]=byPid[x.pid]||[]).push(x));
+  const fin=PK.filter(x=>(Date.parse(td)-Date.parse(x.end))/864e5>30&&nIn(x.end.slice(0,7),S.from,S.to));
+  fin.forEach(x=>{const nx=(byPid[x.pid]||[]).find(y=>y.cr>x.cr&&y!==x);x.ren=nx&&(Date.parse(nx.cr)-Date.parse(x.end))/864e5<=60?Math.max(0,Math.round((Date.parse(nx.cr)-Date.parse(x.end))/864e5)):null});
+  const rs={};fin.forEach(x=>{const g=rs[x.size]=rs[x.size]||{n:0,r:0,days:[]};g.n++;if(x.ren!=null){g.r++;g.days.push(x.ren)}});const med=a=>a.length?a.slice().sort((x,y)=>x-y)[a.length>>1]:null;
+  // 3) dose journey (Mounjaro-type)
+  const inj=ops.filter(o=>o.cat==='inj');const dose=o=>{const m=o.name.replace(/٫/g,'.').match(/(\d+(?:\.\d+)?)/);return m?+m[1]:null};const iby={};inj.forEach(o=>(iby[o.pid]=iby[o.pid]||[]).push(o));
+  const lvl={},stop={},cnts=[];Object.values(iby).forEach(a=>{a.sort((x,y)=>x.d<y.d?-1:1);const ds=[...new Set(a.map(dose).filter(x=>x!=null&&x<20))];ds.forEach(d=>lvl[d]=(lvl[d]||0)+1);
+    if((Date.parse(td)-Date.parse(a[a.length-1].d))/864e5>45){cnts.push(a.length);const l=dose(a[a.length-1]);if(l!=null&&l<20)stop[l]=(stop[l]||0)+1}});
+  const DL=Object.keys(lvl).map(Number).sort((a,b)=>a-b);
+  // 6) device funnel
+  const fun=monthsList(S.from,S.to).map(k=>{const ps=P.filter(p=>{const f=p.steps.find(s=>s.cat==='inj'||s.cat==='fu');return f&&f.k===k&&!p.early});
+    const hit=ps.filter(p=>{const f=p.steps.find(s=>s.cat==='inj'||s.cat==='fu');return p.steps.some(s=>s.cat==='dev'&&s.d>=f.d&&(Date.parse(s.d)-Date.parse(f.d))/864e5<=30)});return [k,ps.length,hit.length]});
+  // 10) schedule heatmap
+  const AP=D.apt.filter(a=>a.b==='haram'&&inR(a)&&/الاء|آلاء|alaa|حرفوش/i.test(a.doc)&&!/cancel/i.test(a.st));const hrs=[...new Set(AP.map(a=>a.h))].sort((a,b)=>a-b);const dd=[6,0,1,2,3,4];
+  const g={};AP.forEach(a=>{const k=a.w+'|'+a.h;g[k]=(g[k]||0)+1});const mx=Math.max(0,...Object.values(g));const nweeks=Math.max(1,monthsList(S.from,S.to).length*4.3);
+  const heat=`<div class="tw"><table><thead><tr><th>اليوم</th>${hrs.map(h=>`<th class="n">${h}:00</th>`).join('')}</tr></thead><tbody>${dd.map(w=>`<tr><td>${DAYS[w]}</td>${hrs.map(h=>{const v=g[w+'|'+h]||0;return `<td class="n" style="${hm(v,mx)}" title="${v} موعد">${v?(v/nweeks).toFixed(1):''}</td>`}).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="card"><h3>خريطة الاحتفاظ لكل دفعة<small>نسبة المرضى اللي ليهم جلسة بعد كام شهر من أول شهر</small></h3>${coht}<div class="note" style="margin-top:8px">كل صف = المرضى اللي بدأوا الشهر ده. اللون الغامق = استمرار أعلى. الخانات الفاضية لسه ما جاش وقتها.</div></div>
+  <div class="grid g2" style="margin-top:12px"><div class="card"><h3>قيمة المريض (LTV) حسب طريقة الدخول<small>مرضى بدأوا في الفترة — اللي دفعوه في التغذية لحد النهارده</small></h3>
+    ${tableHTML(['الدخول',{t:'مرضى',n:1},{t:'متوسط اللي دفعه',n:1},{t:'متوسط شهور الاستمرار',n:1}],Object.entries(eg).sort((a,b)=>b[1].n-a[1].n).map(([e,g])=>[e,g.n,g.paid/g.n,fm(g.mo/g.n,1)]))}
+    <div class="grid g4" style="margin-top:10px">${kpi('متوسط قيمة المريض',fm(ltv))}${kpi('دعاية المركز في الفترة',fm(ad),'المركز كله مش التغذية بس')}${kpi('قيمة المريض ÷ تكلفة جلبه',ad&&N.length?fm(ltv/(ad/N.length),1)+'×':'—',ad&&N.length?'تكلفة المريض '+fm(ad/N.length):'')}</div></div>
+   <div class="card"><h3>قيمة المريض حسب مصدر الإحالة</h3>${tableHTML(['المصدر',{t:'مرضى',n:1},{t:'متوسط اللي دفعه',n:1},{t:'الإجمالي',n:1}],Object.entries(sg).sort((a,b)=>b[1].paid-a[1].paid).map(([s,g])=>[esc(s),g.n,g.paid/g.n,g.paid]),{h:380})}</div></div>
+  <div class="grid g2" style="margin-top:12px"><div class="card"><h3>تجديد الباقات<small>باقات خلصت في الفترة (من +30 يوم) — اتجددت خلال 60 يوم</small></h3>
+    ${tableHTML(['الباقة',{t:'خلصت',n:1},{t:'اتجددت',n:1},{t:'نسبة التجديد',n:1},{t:'وسيط الأيام للتجديد',n:1}],Object.entries(rs).sort().map(([s,g])=>[s==='فردي'?'فردي':'باقة '+s,g.n,g.r,pc(g.n?g.r/g.n:null),med(g.days)??'—']))}
+    <div class="ch sm" style="margin-top:10px"><canvas id="nX5"></canvas></div></div>
+   <div class="card"><h3>رحلة الجرعات — حقن التخسيس<small>كل المرضى من أول البيانات</small></h3><div class="ch sm"><canvas id="nX3"></canvas></div>
+    <div class="grid g4" style="margin-top:8px">${kpi('متوسط عدد الحقن للمريض',cnts.length?fm(cnts.reduce((s,x)=>s+x,0)/cnts.length,1):'—','للي وقفوا (آخر حقنة من +45 يوم)')}${kpi('وسيط عدد الحقن',med(cnts)??'—')}</div></div></div>
+  <div class="grid g2" style="margin-top:12px"><div class="card"><h3>قمع الأجهزة لمساعدة التخسيس<small>مرضى حقن/متابعة جداد أخدوا أول جلسة أجهزة خلال 30 يوم</small></h3><div class="ch sm"><canvas id="nX6"></canvas></div>
+    ${tableHTML(['الشهر',{t:'مرضى جداد',n:1},{t:'أخدوا أجهزة',n:1},{t:'النسبة',n:1}],fun.map(r=>[ml(r[0]),r[1],r[2],pc(r[1]?r[2]/r[1]:null)]),{h:240})}</div>
+   <div class="card"><h3>زحمة مواعيد د. آلاء<small>متوسط المواعيد في الأسبوع لكل يوم وساعة (من غير الملغي)</small></h3>${heat}</div></div>`}
+function cnDeep(){const byP=nFirstSteps(),P=Object.values(byP),{ops}=nutBuild(),c=SER(),td=todayC();
+  const inj=ops.filter(o=>o.cat==='inj');const dose=o=>{const m=o.name.replace(/٫/g,'.').match(/(\d+(?:\.\d+)?)/);return m?+m[1]:null};const iby={};inj.forEach(o=>(iby[o.pid]=iby[o.pid]||[]).push(o));
+  const lvl={},stop={};Object.values(iby).forEach(a=>{a.sort((x,y)=>x.d<y.d?-1:1);[...new Set(a.map(dose).filter(x=>x!=null&&x<20))].forEach(d=>lvl[d]=(lvl[d]||0)+1);if((Date.parse(td)-Date.parse(a[a.length-1].d))/864e5>45){const l=dose(a[a.length-1]);if(l!=null&&l<20)stop[l]=(stop[l]||0)+1}});
+  const DL=[...new Set(Object.keys(lvl).concat(Object.keys(stop)))].map(Number).sort((a,b)=>a-b);
+  chart('nX3',{type:'bar',data:{labels:DL.map(String),datasets:[bar('وصلوا للجرعة دي',DL.map(d=>lvl[d]||0),c[0]),bar('وقفوا عندها',DL.map(d=>stop[d]||0),c[1])]}});
+  const fun=monthsList(S.from,S.to).map(k=>{const ps=P.filter(p=>{const f=p.steps.find(s=>s.cat==='inj'||s.cat==='fu');return f&&f.k===k&&!p.early});
+    const hit=ps.filter(p=>{const f=p.steps.find(s=>s.cat==='inj'||s.cat==='fu');return p.steps.some(s=>s.cat==='dev'&&s.d>=f.d&&(Date.parse(s.d)-Date.parse(f.d))/864e5<=30)});return ps.length?Math.round(100*hit.length/ps.length):null});
+  chart('nX6',{type:'line',data:{labels:monthsList(S.from,S.to).map(mls),datasets:[line('% أخدوا أجهزة',fun,c[2])]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}},plugins:{tooltip:{callbacks:{label:x=>' '+x.parsed.y+'%'}}}}});
+  const pk={};ops.filter(o=>o.cat==='fu').forEach(o=>{const id=o.pid+'|'+o.op+'|'+(o.cr||o.d).slice(0,10);const g=pk[id]=pk[id]||{pid:o.pid,cr:(o.cr||o.d).slice(0,10),end:o.d};if(o.d>g.end)g.end=o.d});
+  const PK=Object.values(pk);const byPid={};PK.forEach(x=>(byPid[x.pid]=byPid[x.pid]||[]).push(x));const ks=monthsList(S.from,S.to);
+  const rr=ks.map(k=>{const f=PK.filter(x=>x.end.slice(0,7)===k&&(Date.parse(td)-Date.parse(x.end))/864e5>30);if(!f.length)return null;
+    const r=f.filter(x=>(byPid[x.pid]||[]).some(y=>y.cr>x.cr&&(Date.parse(y.cr)-Date.parse(x.end))/864e5<=60));return Math.round(100*r.length/f.length)});
+  chart('nX5',{type:'line',data:{labels:ks.map(mls),datasets:[line('% تجديد حسب شهر انتهاء الباقة',rr,c[0])]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}},plugins:{tooltip:{callbacks:{label:x=>' '+x.parsed.y+'%'}}}}})}
+NSUB.splice(NSUB.length-1,0,['trend','📈 الاتجاهات والتوقع'],['deep','🔁 الاحتفاظ والقيمة']);
 
 VIEWS.nut=[vNut,cNut];

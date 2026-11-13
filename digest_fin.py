@@ -343,24 +343,26 @@ def section(today_s):
                           "n": len(now), "val": len(now) * v, "prev": len(yd), "solved": solved, "unit": "مريض"})
     save_state(T, AUD)
     P.sort(key=lambda p: (-p["lvl"], -(p["val"] or 0)))
-    tot_solved = sum(p["solved"] for p in P)
-    shown = [p for p in P if p["n"]][:8]
     out = []
-    if tot_solved:
-        out.append(f'<div style="color:#16a34a;font-size:13px;margin:4px 0">✓ اتحل {tot_solved} من امبارح</div>')
-    for p in shown:
-        old = max([i["age"] for i in p["items"] if i["age"] is not None] or [0])
-        tr = "" if p["prev"] is None else (f'<span style="color:#dc2626">▲ زادت (امبارح {p["prev"]})</span>' if p["n"] > p["prev"] else f'<span style="color:#16a34a">▼ قلّت (امبارح {p["prev"]})</span>' if p["n"] < p["prev"] else sub("زي امبارح"))
-        col = "#b91c1c" if p["lvl"] == 3 else "#dc2626" if p["lvl"] == 2 else "#ea580c"
-        names = "".join(f'<li style="margin:1px 0">{H(i["n"] or "—")} {sub("— " + H(i["x"]) + ((" · من " + str(i["age"]) + " يوم") if i["age"] else ""))}</li>' for i in p["items"][:6])
-        more = sub(f"+ {len(p['items']) - 6} كمان") if len(p["items"]) > 6 else ""
-        out.append(f'<div style="border-inline-start:3px solid {col};padding:4px 10px;margin:8px 0;font-size:13px">'
-                   f'<div style="font-weight:700">{BR[p["b"]]} · {p["t"]}: {p["n"]} {p["unit"]}</div>'
-                   f'<div>{tr}{" · " if tr else ""}{("أقدم واحدة من " + str(old) + " يوم · ") if old else ""}{("القيمة " + money(p["val"]) + " جنيه · ") if p["val"] else ""}{sub("المسئول: " + p["own"])}'
-                   f'{(" · <span style=color:#16a34a>✓ اتحل " + str(p["solved"]) + " " + p.get("unitS", "") + " من امبارح</span>") if p["solved"] else ""}</div>'
-                   f'<ul style="margin:2px 0;padding-inline-start:18px">{names}</ul>{more}</div>')
-    if not shown:
-        out.append('<div style="color:#16a34a;font-size:13px">✅ مفيش مشاكل مفتوحة</div>')
+    for b in B:
+        PB = [p for p in P if p["b"] == b]
+        shown = [p for p in PB if p["n"]][:7]
+        sol = sum(p["solved"] for p in PB)
+        out.append(f'<div style="background:#eff6ff;color:#1d4ed8;font-weight:700;padding:5px 10px;border-radius:6px;margin:14px 0 4px">🏥 {BR[b]}'
+                   + (f' <span style="color:#16a34a;font-weight:400;font-size:12px">· ✓ اتحل {sol} من امبارح</span>' if sol else "") + '</div>')
+        if not shown:
+            out.append('<div style="color:#16a34a;font-size:13px">✅ مفيش مشاكل مفتوحة</div>')
+        for p in shown:
+            old = max([i["age"] for i in p["items"] if i["age"] is not None] or [0])
+            tr = "" if p["prev"] is None else (f'<span style="color:#dc2626">▲ زادت (امبارح {p["prev"]})</span>' if p["n"] > p["prev"] else f'<span style="color:#16a34a">▼ قلّت (امبارح {p["prev"]})</span>' if p["n"] < p["prev"] else sub("زي امبارح"))
+            col = "#b91c1c" if p["lvl"] == 3 else "#dc2626" if p["lvl"] == 2 else "#ea580c"
+            names = "".join(f'<li style="margin:1px 0">{H(i["n"] or "—")} {sub("— " + H(i["x"]) + ((" · من " + str(i["age"]) + " يوم") if i["age"] else ""))}</li>' for i in p["items"][:6])
+            more = sub(f"+ {len(p['items']) - 6} كمان") if len(p["items"]) > 6 else ""
+            out.append(f'<div style="border-inline-start:3px solid {col};padding:4px 10px;margin:8px 0;font-size:13px">'
+                       f'<div style="font-weight:700">{p["t"]}: {p["n"]} {p["unit"]}</div>'
+                       f'<div>{tr}{" · " if tr else ""}{("أقدم واحدة من " + str(old) + " يوم · ") if old else ""}{("القيمة " + money(p["val"]) + " جنيه · ") if p["val"] else ""}{sub("المسئول: " + p["own"])}'
+                       f'{(" · <span style=color:#16a34a>✓ اتحل " + str(p["solved"]) + " " + p.get("unitS", "") + " من امبارح</span>") if p["solved"] else ""}</div>'
+                       f'<ul style="margin:2px 0;padding-inline-start:18px">{names}</ul>{more}</div>')
     return perf, "".join(out)
 
 

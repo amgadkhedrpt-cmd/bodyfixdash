@@ -92,6 +92,7 @@ details summary{cursor:pointer;font-weight:700}
 <div class="wrap">
   <div class="tabs" id="tabs">
     <button data-t="sum" class="on">الملخص</button>
+    <button data-t="full">📋 الصورة الكاملة</button>
     <button data-t="pl">الأرباح والخسائر</button>
     <button data-t="rev">الإيرادات</button>
     <button data-t="exp">المصروفات</button>
@@ -167,6 +168,11 @@ function merge(parts){const out={v:1,start:'2024-06',branches:{},kinds:{},at:''}
   for(const o of parts){if(!o)continue;Object.assign(out.branches,o.branches||{});Object.assign(TYPE_MAP,o.types||{});Object.assign(EXP_T,o.exp_types||{});if(o.start)out.start=o.start;if((o.at||'')>out.at)out.at=o.at;
     for(const kd in o.kinds||{})for(const b in o.kinds[kd]){const t=((out.kinds[kd]=out.kinds[kd]||{})[b]=out.kinds[kd][b]||{});Object.assign(t,o.kinds[kd][b])}}
   return out}
+function applyToday(out,T){const m=T.day.slice(0,7),dc={pay:'createdAt',apt:'start'},day=v=>{if(!v)return '';const d=new Date(v);return isNaN(d)?'':d.toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})};
+  for(const kd in T.kinds||{})for(const b in T.kinds[kd]){const tt=T.kinds[kd][b];if(!tt||!tt.cols)continue;const K=(out.kinds[kd]=out.kinds[kd]||{}),B=(K[b]=K[b]||{});const t=B[m];
+    if(!t||!t.cols){B[m]=tt;continue}const ci=t.cols.indexOf(dc[kd]);const keep=ci<0?t.rows:t.rows.filter(r=>day(r[ci])!==T.day);
+    const map=t.cols.map(c=>tt.cols.indexOf(c));B[m]={cols:t.cols,rows:keep.concat(tt.rows.map(r=>map.map(i=>i>=0?r[i]:null)))}}
+  out.todayAt=T.at;out.at=T.at}
 async function unlock(pw,saved){
   const say=t=>{const b=$('#unlockBtn');if(b&&pw)b.textContent=t};say('بيحمّل البيانات…');
   const files=await Promise.all(['fin.enc','fin_c.enc'].map(fetchEnc));say('بيفك التشفير…');
@@ -180,6 +186,10 @@ async function unlock(pw,saved){
     keys[j.salt]=btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey('raw',key))))}
   if(pw&&$('#keep').checked){try{sessionStorage.setItem('fin_k',JSON.stringify(keys))}catch(e){}}
   const out=merge(parts);
+  // 🕒 ملف النهارده (بيتحدث كل نص ساعة): مدفوعات ومواعيد النهارده بس
+  try{const tj=await fetchEnc('fin_today.enc');if(tj){let key;if(saved&&saved[tj.salt])key=await crypto.subtle.importKey('raw',b64(saved[tj.salt]),{name:'AES-GCM'},true,['decrypt']);else if(pw)key=await deriveKey(pw,b64(tj.salt),tj.iter||250000);
+    if(key){const T=await openWith(key,tj);keys[tj.salt]=btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey('raw',key))));if(pw&&$('#keep').checked){try{sessionStorage.setItem('fin_k',JSON.stringify(keys))}catch(e){}}
+      if(T&&T.day&&(T.at||'')>(out.at||''))applyToday(out,T)}}}catch(e){console.warn('today file',e)}
   setTimeout(()=>{if(typeof nutCfgInit==='function')nutCfgInit(pw,saved||null)},0);
   return out;
 }
@@ -531,7 +541,7 @@ document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const c=curK(),f
 </script>
 <script>
 // the section files always load fresh (GitHub Pages lets browsers keep old copies for 10 minutes)
-(function(){const v=Date.now(),files=['fin_nut.js','fin_center.js','fin_reco.js','fin_read.js','fin_cancel.js','fin_compare.js','fin_pay.js','fin_why.js','fin_kashf.js','fin_conf.js','fin_growth.js','fin_occ.js','fin_price.js'];let i=0;
+(function(){const v=Date.now(),files=['fin_nut.js','fin_center.js','fin_reco.js','fin_read.js','fin_cancel.js','fin_compare.js','fin_pay.js','fin_why.js','fin_kashf.js','fin_conf.js','fin_growth.js','fin_occ.js','fin_price.js','fin_daily.js'];let i=0;
   const next=()=>{if(i>=files.length){if(D)render();return}const sc=document.createElement('script');sc.src=files[i++]+'?v='+v;sc.onload=next;sc.onerror=next;document.body.appendChild(sc)};next()})();
 </script>
 </body>

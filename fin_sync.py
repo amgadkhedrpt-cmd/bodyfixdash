@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright
 PASS = os.environ.get("FIN_PASS", "")
 START = "2024-06"
 ENC, META = "data/fin.enc", "data/fin_meta.json"          # fin.enc = closed months (rarely rewritten)
+ENC_T = "data/fin_today.enc"                               # today only: payments + appointments, every run (end-of-day summary)
 ENC_C = "data/fin_c.enc"                                    # the last 2 months (small, rewritten when they change)
 DROP_COLS = {"apt": {"patient.firstName", "patient.lastName"},
              "att": {"createdIp", "updatedIp", "startUseragent", "endUseragent", "startImage", "endImage",   # fingerprint: times + who only
@@ -334,6 +335,58 @@ def run_paged(ctx, qs, root, var, rng):
     raise last
 
 
+def today_snapshot(branches):
+    """light run (every 30 min): today's payments + appointments into a small encrypted file"""
+    import hashlib
+    c = NOW.astimezone(TZ)
+    a = dt.datetime(c.year, c.month, c.day, tzinfo=TZ)
+    rng = [C.iso(a.astimezone(dt.timezone.utc)), C.iso((a + dt.timedelta(days=1) - dt.timedelta(milliseconds=1)).astimezone(dt.timezone.utc))]
+    out = {"v": 1, "day": a.strftime("%Y-%m-%d"), "at": C.NOW, "kinds": {"pay": {}, "apt": {}}}
+    with sync_playwright() as p:
+        try:
+            br = p.chromium.launch(channel="chrome")
+        except Exception:
+            br = p.chromium.launch()
+        ctx = br.new_context(storage_state=C.STATE) if os.path.exists(C.STATE) else br.new_context()
+        pg = ctx.new_page()
+
+        def on_req(r):
+            try:
+                b = r.post_data_json
+            except Exception:
+                return
+            if isinstance(b, dict) and "query" in b:
+                SEEN["url"] = r.url
+                SEEN["h"] = {k: v for k, v in r.headers.items() if k[:2] == "x-" or k in ("content-type", "authorization")}
+        pg.on("request", on_req)
+        pg.goto(C.SITE + "/calendar", wait_until="domcontentloaded", timeout=90000)
+        for _ in range(30):
+            pg.wait_for_timeout(500)
+            if SEEN.get("url") or "/auth/login" in pg.url:
+                break
+        if not SEEN.get("url"):
+            C.login(pg, [])
+            pg.goto(C.SITE + "/calendar", wait_until="domcontentloaded", timeout=90000)
+            for _ in range(30):
+                pg.wait_for_timeout(500)
+                if SEEN.get("url"):
+                    break
+        for key, b in branches.items():
+            pay = run_paged(ctx, [PAY_Q], "payments", {"branchId": b["id"], "orderBy": "createdAt-asc", "filters": {}}, rng)
+            apt = run_paged(ctx, [APT_Q, APT_Q2], "createdAppointments", {"branchId": b["id"], "orderBy": "start-asc", "filters": {"status": []}}, rng)
+            out["kinds"]["pay"][key] = table(pay, "pay")
+            out["kinds"]["apt"][key] = table(apt, "apt")
+        br.close()
+    body = json.dumps(dict(out, at=""), sort_keys=True, ensure_ascii=False).encode()
+    h = hashlib.sha256(body).hexdigest()[:16]
+    if h != META_D.get("today_hash") or not os.path.exists(ENC_T):
+        with open(ENC_T, "w") as f:
+            f.write(encrypt(out))
+    META_D["today_hash"] = h
+    META_D["today_at"] = C.NOW
+    META_D["today_n"] = {k: {b: len(v.get("rows", [])) for b, v in bs.items()} for k, bs in out["kinds"].items()}
+
+
 def main():
     if not PASS:
         print("FIN_PASS secret not set - finance sync skipped (add it in GitHub → Settings → Secrets → Actions)")
@@ -380,7 +433,11 @@ def main():
             META_D.clear()
             META_D.update(prev)
         META_D["skipped_at"] = C.NOW
-        print("finance: history complete - this scheduled run skips (refreshes at 11, 14, 17, 20, 23)")
+        print("finance: history complete - this scheduled run only refreshes today (full refresh at 11, 14, 17, 20, 23)")
+        try:
+            today_snapshot(data["branches"])
+        except Exception as e:
+            META_D.setdefault("errors", []).append("today: %s" % str(e)[:160])
         return
     t0 = time.time()
     with sync_playwright() as p:

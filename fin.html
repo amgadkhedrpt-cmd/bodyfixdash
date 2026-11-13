@@ -102,6 +102,7 @@ details summary{cursor:pointer;font-weight:700}
     <button data-t="cash">الخزنة</button>
     <button data-t="dl">التقارير والتنزيل</button>
     <button data-t="cen">🏥 تحليلات المركز</button>
+    <button data-t="cmp">⚖️ الهرم والدقي</button>
     <button data-t="nut">🥗 التغذية</button>
     <button data-t="data">حالة البيانات</button>
   </div>
@@ -389,14 +390,14 @@ function cExp(){const E=D.exp.filter(e=>inR(e)&&expIn(e)&&!REFUND_RX.test(e.type
   eTable();$('#eQ').oninput=eTable}
 
 // patients: first completed visit (since the data starts) = new patient; referral from their invoices
-function ptIndex(){if(D._pt&&D._pt.b===S.b)return D._pt.v;const P={};
+function ptIndex(){D._pt=D._pt||{};if(D._pt[S.b])return D._pt[S.b];const P={};
   for(const a of D.apt){if(!inB(a)||a.st!=='Completed'||!a.pid)continue;const p=P[a.pid]=P[a.pid]||{pid:a.pid,n:a.pn,first:a.d,last:a.d,sess:0,seq:[],g:a.g};
     p.sess++;if(a.d<p.first)p.first=a.d;if(a.d>p.last)p.last=a.d;p.seq.push([a.d,a.doc,a.type])}
   for(const x of D.inv){if(!inB(x)||!x.pid)continue;const p=P[x.pid];if(!p){continue}if(x.src&&(!p.srcD||x.d<p.srcD)){p.src=x.src;p.srcD=x.d}}
   for(const x of D.pay){if(!inB(x)||x.bal||!x.pid)continue;const p=P[x.pid];if(p)p.paid=(p.paid||0)+x.amt}
   const NM={};for(const x of D.inv)if(x.pid&&x.pn)NM[x.pid]=x.pn;for(const x of D.pay)if(x.pid&&x.pn&&!NM[x.pid])NM[x.pid]=x.pn;
   const first=D.months[0];for(const p of Object.values(P)){if(!p.n)p.n=NM[p.pid]||'';p.k=p.first.slice(0,7);p.early=p.k===first}
-  D._pt={b:S.b,v:P};return P}
+  D._pt[S.b]=P;return P}
 function vPts(){const P=Object.values(ptIndex()),N=P.filter(p=>p.k>=S.from&&p.k<=S.to&&!p.early);
   const src=groupSum(N,p=>p.src||'مش متسجل',()=>1),srcPay=Object.fromEntries(groupSum(N,p=>p.src||'مش متسجل',p=>p.paid||0));
   const came=new Set(D.apt.filter(a=>inB(a)&&inR(a)&&a.st==='Completed').map(a=>a.pid)).size;
@@ -525,7 +526,7 @@ document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const c=curK(),f
 </script>
 <script>
 // the section files always load fresh (GitHub Pages lets browsers keep old copies for 10 minutes)
-(function(){const v=Date.now(),files=['fin_nut.js','fin_center.js','fin_reco.js','fin_read.js','fin_cancel.js'];let i=0;
+(function(){const v=Date.now(),files=['fin_nut.js','fin_center.js','fin_reco.js','fin_read.js','fin_cancel.js','fin_compare.js'];let i=0;
   const next=()=>{if(i>=files.length){if(D)render();return}const sc=document.createElement('script');sc.src=files[i++]+'?v='+v;sc.onload=next;sc.onerror=next;document.body.appendChild(sc)};next()})();
 </script>
 </body>

@@ -229,6 +229,38 @@ def capture(pg, paths, want, avoid=r"total|count|sum|stat"):
     return None, tried
 
 
+def capture_att(pg, paths):
+    """Logs → Attendance (fingerprint): keep the first list query about attendance; record what each page asked for"""
+    tried = {}
+    want = r"attend|clock|punch|finger|checkin|check_in|timesheet|presence"
+    for path in paths:
+        n0 = len(CAPT)
+        try:
+            pg.goto(C.SITE + path, wait_until="domcontentloaded", timeout=60000)
+        except Exception as e:
+            tried[path] = "goto: %s" % str(e)[:80]
+            continue
+        for i in range(15):
+            pg.wait_for_timeout(1000)
+            if i == 3:
+                for t in ("Attendance", "Attendances", "الحضور", "Attendance Logs"):
+                    try:
+                        loc = pg.get_by_text(t, exact=True)
+                        if loc.count():
+                            loc.first.click(timeout=3000)
+                            break
+                    except Exception:
+                        pass
+            for b in CAPT[n0:]:
+                q = b.get("query") or ""
+                name = b.get("operationName") or (re.findall(r"(?:query|mutation)\s+(\w+)", q) or [""])[0]
+                if q.lstrip().startswith("query") and re.search(want, name + " " + q[:300], re.I) and not re.search(r"count|total|stat|summary", name, re.I):
+                    tried[path] = {"url": pg.url, "op": name}
+                    return b, tried
+        tried[path] = {"url": pg.url, "ops": sorted({(b.get("operationName") or "?") for b in CAPT[n0:]})[:40]}
+    return None, tried
+
+
 def menu_paths(pg):
     """links under Finances in the app's own menu"""
     try:
@@ -417,7 +449,13 @@ def main():
         ops["xp"], META_D["xp_pages"] = capture(pg, ["/finances/expenses", "/expenses", "/finances/expense"], r"^(GET_)?EXPENSES\b", r"PAYMENT|total|count|sum|stat")
         META_D["exp_page_ops"] = sorted({re.sub(r"\s+", " ", b.get("query") or "")[:300] for b in CAPT[n_exp0:]
                                          if re.search(r"expenseType|company|setting", b.get("query") or "", re.I)})[:8]
-        for k in ("pay", "exp", "xp"):
+        try:
+            ops["att"], META_D["att_pages"] = capture_att(pg, ["/logs/attendance", "/logs/attendances", "/logs/attendance-logs", "/logs/attendanceLogs",
+                                                               "/logs/employees-attendance", "/logs/employee-attendance", "/attendance", "/logs"])
+        except Exception as e:
+            ops["att"] = None
+            META_D["errors"].append("att capture: %s" % str(e)[:160])
+        for k in ("pay", "exp", "xp", "att"):
             if ops.get(k):
                 META_D[k + "_op"] = {"name": ops[k].get("operationName"), "vars": sorted((ops[k].get("variables") or {}).keys()),
                                     "query": re.sub(r"\s+", " ", ops[k]["query"])[:1500]}
@@ -441,6 +479,7 @@ def main():
             "apt": lambda bid, rng: run_paged(ctx, [APT_Q, APT_Q2], "createdAppointments",
                                               {"branchId": bid, "orderBy": "start-asc", "filters": {"status": []}}, rng),
             "xp": own_or_page(XP_Q, "expenses", "xp"),
+            "att": (lambda bid, rng: run_listing(ctx, ops["att"], bid, rng)) if ops.get("att") else None,
             "ops": lambda bid, rng: [r for r in run_paged(ctx, [OPS_Q, OPS_Q.replace(" discount", "")], "createdOperationSteps",
                                                           {"orderBy": "createdAt"}, rng) if isinstance(r, dict) and keep_ops(r)],
         }
@@ -452,6 +491,8 @@ def main():
             targets = list(data["branches"].items())
             if kind == "ops":
                 targets = [("all", {"id": None})]        # steps have no branch filter: one list, split by branch.name in the page
+            if kind == "att" and not re.search(r"\$branch", ops["att"]["query"], re.I):
+                targets = [("all", {"id": None})]        # fingerprint logs: one list, split by branch / employee in the page
             if kind == "exp" and ops["exp"] and not re.search(r"\$branch", ops["exp"]["query"], re.I):
                 targets = [("all", {"id": None})]        # one list for both branches (split later by its branch column, if any)
                 META_D["exp_scope"] = "all"

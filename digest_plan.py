@@ -140,7 +140,8 @@ def review(today_s, res, reasons, debts_by_pid):
     tasks = [t for t in (res or {}).get("tasks") or [] if t.get("br")]
     if not tasks:
         return ""
-    ages = carry(today_s, tasks)
+    A = _ages(today_s, tasks)
+    ages = {id(t): A.get((t["k"], t["g"]), 1) for t in tasks}
     perf = (res or {}).get("perf") or {}
     fast = {n: perf_sum(o) for n, o in perf.items()}
     out = ['<h3 style="margin:18px 0 6px">📋 مراجعة خطة اليوم</h3>',
@@ -200,3 +201,122 @@ def review(today_s, res, reasons, debts_by_pid):
             out.append(f'<div style="border-inline-start:3px solid #ea580c;padding:4px 10px;margin:8px 0;font-size:13px"><b>⏳ اللي ما اتعملش النهارده</b>{"".join(blocks)}</div>')
     out.append(month_eval(today_s, reasons, perf))
     return "".join(out)
+
+
+# ================= 📌 كروت السكرتارية (كارت لكل فرع — بيتصوّر ويتبعت) =================
+# من غير أي إيراد ولا خصومات ولا تقييم: بس الشغل المطلوب من كل واحدة بالاسم
+BRK = {"haram": "BODYFIX Center", "dokki": "FIX ZONE"}
+WD = ["الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت", "الحد"]
+
+
+def _owner_g(tasks, br, groups):
+    cnt = defaultdict(int)
+    for t in tasks:
+        if t.get("br") == br and t.get("g") in groups and t.get("o") and t["o"] != "المدير":
+            cnt[t["o"]] += 2 if t["g"] == groups[0] else 1
+    return max(cnt, key=lambda o: cnt[o]) if cnt else None
+
+
+def _next_day(today_s):
+    from datetime import date, timedelta
+    d = date.fromisoformat(today_s) + timedelta(days=1)
+    while d.weekday() == 4:   # الجمعة إجازة
+        d += timedelta(days=1)
+    return f"{WD[d.weekday()]} {d.day}/{d.month}"
+
+
+def cards(today_s, res, P, alerts):
+    tasks = [t for t in (res or {}).get("tasks") or [] if t.get("br")]
+    ages = _ages(today_s, tasks)
+    byp = plan_by_pid(res)
+    nd = _next_day(today_s)
+    out = []
+    for b, br in BRK.items():
+        T = [t for t in tasks if t["br"] == br]
+        PB = [p for p in P if p.get("b") == b]
+        if not T and not PB:
+            continue
+        S = defaultdict(lambda: defaultdict(list))   # السكرتيرة → القسم → سطور
+
+        def put(o, sec, line):
+            S[o or "⚠️ مالهاش مسئولة (للمدير)"][sec].append(line)
+        # 💸 حصّلي — كل مريض عند صاحبة مهمته في الخطة
+        dflt = _owner_g(T, br, ["debtph", "debt"])
+        oldq = None
+        for p in PB:
+            if p.get("oldq"):
+                oldq = p
+            if p.get("mgr_only") or p.get("oldq"):
+                continue
+            for i in p["items"]:
+                if "remv" not in i:
+                    continue
+                ow = next((t["o"] for t in byp.get(i["pid"]) or [] if t.get("o") and t["o"] != "المدير"), None) or dflt
+                tag = ' <b style="color:#b91c1c">(حضر تاني)</b>' if i.get("came") else (" (النهارده)" if i.get("today") else (f" (من {i['age']} يوم)" if i.get("age") else ""))
+                put(ow, "💸 حصّلي", (i.get("came", 0), i.get("age") or 0, f'{H(i["n"])} — باقي {int(i["remv"]):,} ج{tag}'))
+        # 🩺 كشوفات · 🔁 بيلغوا
+        for key, sec, gs in (("عملوا كشف", "🩺 كشوفات ما اتحجزلهاش — احجزيلهم", ["kashf", "kashf0", "fix"]),
+                             ("بيلغوا ورا بعض", "🔁 بيلغوا ورا بعض — كلميهم", ["streak", "recur"]),
+                             ("مرضى جداد", "🚶 مرضى جداد ما رجعوش — كلميهم", ["drop", "idle", "call"])):
+            ow = _owner_g(T, br, gs)
+            for p in PB:
+                if key in p["t"]:
+                    for i in p["items"]:
+                        put(ow, sec, (0, i.get("age") or 0, H(i["n"]) + (f' {sub("(من " + str(i["age"]) + " يوم)")}' if i.get("age") else "")))
+        # 🔁 خلص الباقة ومالوش ميعاد (آخر 7 أيام)
+        ow = _owner_g(T, br, ["renew", "call", "drop"])
+        for x in (alerts or {}).get("finished_packages") or []:
+            if x.get("branch") == br and (x.get("days_since") or 99) <= 7:
+                put(ow, "🔁 خلص الباقة ومالوش ميعاد — اعرضي التجديد", (0, x.get("days_since") or 0, H(x.get("name")) + " " + sub(f'(آخر جلسة من {x.get("days_since")} يوم)')))
+        # 📞 تأكيد يوم الشغل الجاي · ⏳ مترحّل · ما اتعملش النهارده
+        for o in {t["o"] for t in T if t.get("o") and t["o"] != "المدير"}:
+            L = [t for t in T if t["o"] == o and t["st"] != "done"]
+            cf = [t for t in L if t["g"] in ("conf", "confsp", "waitnext", "waitnut")]
+            if cf:
+                put(o, f"📞 مواعيد {nd} لسه ما اتأكدتش", (0, 0, f"{len(cf)} ميعاد — في خطة اليوم"))
+            g = defaultdict(list)
+            for t in L:
+                if t["g"] in ("conf", "confsp", "waitnext", "waitnut", "conftoday", "late", "waittoday", "risk", "mgr") or money_task(t) or t["g"] in ("kashf", "kashf0", "streak", "recur"):   # مهام يومها خلص مش بتترحّل
+                    continue
+                g[t["gt"].split("(")[0].strip()].append(t)
+            for gt, LL in sorted(g.items(), key=lambda kv: -len(kv[1])):
+                mx = max(ages.get((t["k"], t["g"]), 1) for t in LL)
+                nm = "، ".join(H(t["n"]) for t in LL[:4] if t["n"]) + (f" +{len(LL) - 4}" if len(LL) > 4 else "")
+                sec = "⏳ مترحّل من أيام — أول حاجة الصبح" if mx >= 2 else "📝 ما اتعملش النهارده — كمّليه"
+                put(o, sec, (mx, len(LL), f'{H(gt)}: <b>{len(LL)}</b>' + (f' <span style="color:#dc2626">(من {mx} يوم)</span>' if mx >= 2 else "") + (f' {sub("— " + nm)}' if nm else "")))
+        if not S:
+            continue
+        ORDER = ["⏳ مترحّل من أيام — أول حاجة الصبح", "💸 حصّلي", f"📞 مواعيد {nd} لسه ما اتأكدتش", "🩺 كشوفات ما اتحجزلهاش — احجزيلهم",
+                 "🔁 بيلغوا ورا بعض — كلميهم", "🔁 خلص الباقة ومالوش ميعاد — اعرضي التجديد", "🚶 مرضى جداد ما رجعوش — كلميهم", "📝 ما اتعملش النهارده — كمّليه"]
+        blocks = []
+        for o in sorted(S, key=lambda o: (o.startswith("⚠️"), -sum(len(v) for v in S[o].values()))):
+            secs = []
+            for sec in ORDER:
+                L = sorted(S[o].get(sec) or [], key=lambda x: (-x[0], -x[1]))
+                if not L:
+                    continue
+                cap = 8
+                lis = "".join(f'<li style="margin:1px 0">{x[2]}</li>' for x in L[:cap])
+                more = f'<li style="color:#64748b;list-style:none">+ {len(L) - cap} كمان — في خطة اليوم</li>' if len(L) > cap else ""
+                secs.append(f'<div style="margin:4px 0 0"><b style="font-size:12.5px">{sec}</b> <span style="color:#64748b;font-size:11px">({len(L)})</span>'
+                            f'<ul style="margin:1px 0;padding-inline-start:18px">{lis}{more}</ul></div>')
+            blocks.append(f'<div style="border-top:1px dashed #cbd5e1;padding:6px 0"><div style="font-weight:800;color:#0f766e;font-size:14px">👤 {H(o)}</div>{"".join(secs)}</div>')
+        foot = (f'<div style="color:#64748b;font-size:11px;margin-top:4px">🗂️ {oldq["n"]} حالة فلوس قديمة (أكتر من 30 يوم) في مراجعة الفواتير</div>' if oldq else "")
+        out.append(f'<div style="border:2px solid #0f766e;border-radius:10px;padding:10px 12px;margin:10px 0;font-size:13px;background:#fff">'
+                   f'<div style="font-size:16px;font-weight:800">🏥 {BR_AR[br]} — مهام {nd} الصبح</div>'
+                   f'<div style="color:#64748b;font-size:11px">من تقرير {today_s} · القايمة الكاملة لكل مهمة في «خطة اليوم» على الداشبورد</div>{"".join(blocks)}{foot}</div>')
+    if not out:
+        return ""
+    return ('<h3 style="margin:14px 0 4px">📌 كروت السكرتارية</h3>'
+            '<div style="color:#64748b;font-size:11px">كارت لكل فرع — صوّره وابعته · مفيهوش إيراد ولا خصومات ولا تقييم</div>' + "".join(out))
+
+
+_AGES = {}
+
+
+def _ages(today_s, tasks):
+    """كام يوم كل مهمة مفتوحة (مرة واحدة لكل تشغيل — الكروت والمراجعة بيستخدموها)"""
+    if "a" not in _AGES:
+        a = carry(today_s, tasks)
+        _AGES["a"] = {(t["k"], t["g"]): a[id(t)] for t in tasks if id(t) in a}
+    return _AGES["a"]

@@ -101,6 +101,13 @@ def main():
         print(f"digest plan data: {e}")
     html = build(now, alerts, ctx, paid)
     try:
+        import digest_fin, digest_plan
+        res, _ = plan_data(today_s)
+        html = html.replace("<!--CARDS-->", digest_plan.cards(today_s, res, digest_fin.LAST_P, alerts))
+    except Exception as e:
+        print(f"digest cards: {e}")
+    html = html.replace("<!--CARDS-->", "")
+    try:
         html = html.replace("<!--PLAN-->", plan_section(today_s))
     except Exception as e:
         print(f"digest plan: {e}")
@@ -535,7 +542,8 @@ def build(now, alerts, ctx, paid):
         print(f"digest_fin: {e}")
         perf, probs = "", ""
     out = [f'<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;color:#0f172a;max-width:620px;margin:auto">'
-           f'<h2 style="margin:0">📋 تقرير يوم {today_s}</h2>']
+           f'<h2 style="margin:0">📋 تقرير يوم {today_s}</h2>', "<!--CARDS-->",
+           '<h2 style="margin:22px 0 0;padding-top:10px;border-top:3px solid #0f172a">👔 ليك إنت</h2>']
     if perf:
         out += ['<h3 style="margin:14px 0 6px">📈 أداء النهارده</h3>', perf]
     out.append("<!--PLAN-->")

@@ -343,6 +343,8 @@ def section(today_s):
                           "n": len(now), "val": len(now) * v, "prev": len(yd), "solved": solved, "unit": "مريض"})
     save_state(T, AUD)
     P.sort(key=lambda p: (-p["lvl"], -(p["val"] or 0)))
+    global LAST_P
+    LAST_P = P
     out = []
     for b in B:
         PB = [p for p in P if p["b"] == b]
@@ -371,9 +373,10 @@ AUD_B = {"BODYFIX Center": "haram", "FIX ZONE": "dokki"}
 CALL_T = re.compile(r"متابع|انقطاع|منقطع|استرداد|ملاحظ|تقييم الجلسه|اتصال|مكالم", re.I)
 STATE_F = "data/digest_open.json"
 PLAN = None       # pid → مهام التحصيل في خطة النهارده (digest.py بيملاها)
+LAST_P = []       # المشاكل بالتفصيل (للكروت)
 PLAN_ALL = None   # كل مهام خطة النهارده — عشان نكتب اسم السكرتيرة المسئولة جنب كل مشكلة
 PB = {"haram": "BODYFIX Center", "dokki": "FIX ZONE"}
-OWN_G = [("حضر تاني", ["debt", "debtph", "invrev", "invfix"]), ("خدمة اتعملت ومتدفعتش (من يوم", ["debtph", "invrev", "debt", "invfix"]),
+OWN_G = [("حضر تاني", ["debt", "debtph", "invrev", "invfix"]), ("خدمة اتعملت ومتدفعتش (آخر 30", ["debtph", "debt", "invrev", "invfix"]), ("فلوس قديمة", ["invrev", "invfix", "debtph"]),
          ("خدمة اتعملت النهارده", ["debt"]), ("ومفيش خدمة اتسجلت", ["aud", "stale"]), ("عملوا كشف", ["kashf0", "kashf", "fix"]),
          ("بيلغوا ورا بعض", ["streak", "recur"]), ("مرضى جداد", ["idle", "nonext", "call"])]
 
@@ -490,15 +493,21 @@ def steps_money(b, x, T, AUD, STATE):
         return [i["pid"] for i in L]
     if came:
         out.append({"lvl": 3, "b": b, "t": "🚨 حضر تاني وسايب خدمة اتعملت ومتدفعتش", "own": "الاستقبال + الحسابات", "pids": fillp(came),
-                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i, f" · حضر {i['later']} مرة بعدها"), "raw": 1} for i in came), key=lambda i: -i["age"]),
+                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i, f" · حضر {i['later']} مرة بعدها"), "raw": 1, "pid": i["pid"], "remv": i["rem"], "came": 1} for i in came), key=lambda i: -i["age"]),
                     "n": len(came), "val": sum(i["rem"] for i in came), "prev": None, "solved": 0, "unit": "مريض"})
-    if older:
-        out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت ومتدفعتش (من يوم أو أكتر)", "own": "الاستقبال + الحسابات", "pids": fillp(older),
-                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i), "raw": 1} for i in older), key=lambda i: -i["age"]),
-                    "n": len(older), "val": sum(i["rem"] for i in older), "prev": None, "solved": 0, "unit": "مريض"})
+    lim30 = (date.fromisoformat(T) - timedelta(days=30)).isoformat()
+    fresh = [i for i in older if (date.fromisoformat(T) - timedelta(days=i["age"])).isoformat() >= lim30]
+    oldq = [i for i in older if i not in fresh]
+    if oldq:
+        out.append({"lvl": 1, "b": b, "t": "🗂️ فلوس قديمة (أكتر من 30 يوم) — في مراجعة الفواتير", "own": "الحسابات", "pids": fillp(oldq), "oldq": 1,
+                    "items": [], "n": len(oldq), "val": sum(i["rem"] for i in oldq), "prev": None, "solved": 0, "unit": "مريض"})
+    if fresh:
+        out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت ومتدفعتش (آخر 30 يوم)", "own": "الاستقبال + الحسابات", "pids": fillp(fresh),
+                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i), "raw": 1, "pid": i["pid"], "remv": i["rem"]} for i in fresh), key=lambda i: -i["age"]),
+                    "n": len(fresh), "val": sum(i["rem"] for i in fresh), "prev": None, "solved": 0, "unit": "مريض"})
     if today:
         out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت النهارده ومتدفعتش", "own": "الاستقبال", "pids": fillp(today),
-                    "items": [{"n": i["n"], "age": None, "x": fmt(i) + (" · " + H(i["dr"]) if i["dr"] else ""), "raw": 1} for i in today],
+                    "items": [{"n": i["n"], "age": None, "x": fmt(i) + (" · " + H(i["dr"]) if i["dr"] else ""), "raw": 1, "pid": i["pid"], "remv": i["rem"], "today": 1} for i in today],
                     "n": len(today), "val": sum(i["rem"] for i in today), "prev": None, "solved": 0, "unit": "مريض"})
     if out and solved:
         out[0]["solved"] = solved   # خدمات اتدفعت (اتقفلت) من امبارح
@@ -511,6 +520,6 @@ def steps_money(b, x, T, AUD, STATE):
             if AUD_B.get(a.get("b")) == b and a.get("d") == T and not CALL_T.search(str(a.get("s") or "")) and str(a.get("pid")) not in st_today:
                 nos.setdefault(str(a.get("pid")), {"n": a.get("p") or "", "age": None, "x": f"{a.get('s') or ''} · {a.get('dr') or ''}"})
         if nos:
-            out.append({"lvl": 1, "b": b, "t": "🧾 حضر النهارده ومفيش خدمة اتسجلت اتعملت في العمليات", "own": "الاستقبال",
+            out.append({"lvl": 1, "b": b, "t": "🧾 حضر النهارده ومفيش خدمة اتسجلت اتعملت في العمليات (للمراجعة — مش للسكرتارية لسه)", "own": "الاستقبال", "mgr_only": 1,
                         "items": list(nos.values()), "n": len(nos), "val": 0, "prev": None, "solved": 0, "unit": "مريض"})
     return out

@@ -101,6 +101,7 @@ details summary{cursor:pointer;font-weight:700}
     <button data-t="debt">المديونيات</button>
     <button data-t="cash">الخزنة</button>
     <button data-t="dl">التقارير والتنزيل</button>
+    <button data-t="gr">📈 النمو</button>
     <button data-t="cen">🏥 تحليلات المركز</button>
     <button data-t="cmp">⚖️ الهرم والدقي</button>
     <button data-t="pay">💼 المرتبات</button>
@@ -528,7 +529,7 @@ document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const c=curK(),f
 </script>
 <script>
 // the section files always load fresh (GitHub Pages lets browsers keep old copies for 10 minutes)
-(function(){const v=Date.now(),files=['fin_nut.js','fin_center.js','fin_reco.js','fin_read.js','fin_cancel.js','fin_compare.js','fin_pay.js','fin_why.js','fin_kashf.js','fin_conf.js'];let i=0;
+(function(){const v=Date.now(),files=['fin_nut.js','fin_center.js','fin_reco.js','fin_read.js','fin_cancel.js','fin_compare.js','fin_pay.js','fin_why.js','fin_kashf.js','fin_conf.js','fin_growth.js'];let i=0;
   const next=()=>{if(i>=files.length){if(D)render();return}const sc=document.createElement('script');sc.src=files[i++]+'?v='+v;sc.onload=next;sc.onerror=next;document.body.appendChild(sc)};next()})();
 </script>
 </body>

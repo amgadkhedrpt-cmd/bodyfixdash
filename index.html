@@ -3821,13 +3821,14 @@ function audUnpaidRender(){
 }
 function audAutoLoad(force){
   if(AUD_LOADING||(AUD_DATA&&!force)) return;
+  if(!AUD_DATA&&!audAutoLoad._c){ audAutoLoad._c=1; alCacheGet('audit',function(d){ if(d&&!AUD_DATA){ AUD_DATA=d; try{ if(document.getElementById('planBox')) planRender(); }catch(e){} } }); }
   AUD_LOADING=true;
   if(!audAutoLoad._m){ audAutoLoad._m=1; audMapLoad(function(){ audMapRender(); if(AUD_DATA) audAutoRun(); }); audMapRender(); }
   var bases=(typeof MED_URLS!=='undefined'?MED_URLS:[]).map(function(u){ return u.summary.replace(/summary\.json$/,'data/audit.json'); });
   (function tryAt(i){
     if(i>=bases.length){ AUD_LOADING=false; document.getElementById('audAutoInfo').textContent='⚠️ لسه مفيش بيانات مطابقة — هتظهر بعد أول مزامنة.'; return; }
     fetch(bases[i]+'?t='+Date.now()).then(function(r){ if(!r.ok) throw 0; return r.json(); })
-      .then(function(d){ AUD_LOADING=false; AUD_DATA=d; audAutoInit(); })
+      .then(function(d){ AUD_LOADING=false; AUD_DATA=d; alCachePut('audit',d); audAutoInit(); try{ if(document.getElementById('planBox')) planRender(); }catch(e){} })
       .catch(function(){ tryAt(i+1); });
   })(0);
 }
@@ -10340,13 +10341,19 @@ function alShiftHours(doc, dayKey){
 }
 
 /* ── التحميل ── */
+/* ⚡ نسخة محفوظة على الجهاز من آخر تنبيهات (IndexedDB) — خطة اليوم بتفتح على طول وبتتحدث لما الجديد يوصل (الملف 1.5MB وبياخد وقت على الموبايل) */
+function alCacheIDB(cb){ try{ var rq=indexedDB.open('bfCache',1); rq.onupgradeneeded=function(){ rq.result.createObjectStore('kv'); }; rq.onsuccess=function(){ cb(rq.result); }; rq.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
+function alCacheGet(k,cb){ alCacheIDB(function(db){ if(!db) return cb(null); try{ var g=db.transaction('kv').objectStore('kv').get(k); g.onsuccess=function(){ cb(g.result||null); }; g.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }); }
+function alCachePut(k,v){ alCacheIDB(function(db){ if(!db) return; try{ db.transaction('kv','readwrite').objectStore('kv').put(v,k); }catch(e){} }); }
+var AL_FROM_CACHE=false;
 function alertsLoad(){
+  if(!ALERTS_DATA&&!alertsLoad._c){ alertsLoad._c=1; alCacheGet('alerts',function(d){ if(d&&!ALERTS_DATA){ ALERTS_DATA=d; AL_FROM_CACHE=true; try{ alertsRender(); }catch(e){} try{ planRender(); }catch(e){} } }); }
   var bases=(typeof MED_URLS!=='undefined'?MED_URLS:[]).map(function(u){ return u.summary.replace(/summary\.json$/,'alerts.json'); });
   (function tryAt(i){
     if(i>=bases.length){ alertsRender(); return; }
     fetch(bases[i]+'?t='+Date.now())
       .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-      .then(function(d){ ALERTS_DATA=d; alertsRender(); try{ planRender(); }catch(e){} })
+      .then(function(d){ ALERTS_DATA=d; AL_FROM_CACHE=false; alCachePut('alerts',d); alertsRender(); try{ planRender(); }catch(e){} })
       .catch(function(){ tryAt(i+1); });
   })(0);
 }
@@ -12559,7 +12566,7 @@ function planRender(){
   var opts=ALLN.map(function(n){ return '<option'+(n===PLAN_ME?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('');
   var mine=all.filter(function(t){ var s=PLAN_ST[t.key]; return s&&s.by===PLAN_ME&&(s.s==='done'||s.s==='nr'); }).length;
   var h='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:5">'+
-    '<b style="font-size:.85rem">📋 خطة اليوم</b><span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){return b.label;}).join(' + ')+'</span>'+
+    '<b style="font-size:.85rem">📋 خطة اليوم</b>'+(AL_FROM_CACHE?'<span style="font-size:.6rem;color:var(--am)">⏳ نسخة محفوظة — بيحدّث…</span>':'')+'<span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){return b.label;}).join(' + ')+'</span>'+
     '<span style="flex:1"></span><label style="font-size:.62rem;color:var(--mute)">السكرتيرة المسئولة '+
     '<select id="planMeSel" onchange="planSetMe(this.value)" style="background:var(--bg);border:1px solid '+(PLAN_ME?'var(--brd)':'var(--r)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
       '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'<option value="__add">➕ اسم جديد</option></select></label>'+

@@ -13,21 +13,26 @@ const prMed=a=>{if(!a.length)return null;const b=a.slice().sort((x,y)=>x-y),m=b.
 function prDetect(){const key=S.b;PRC.det=PRC.det||{};if(PRC.det[key])return PRC.det[key];const ev=[];
   const byP=cenBuild().byP,dOf=x=>{const l=byP[x.pid];if(l){const t=Date.parse(x.d);let best=null,bd=1e9;for(const a of l){const dd=(t-Date.parse(a[0]))/864e5;if(dd>=-7&&dd<=30&&Math.abs(dd)<bd){bd=Math.abs(dd);best=a}}if(best)return best[1]}return ALAA.test(x.doc||'')?'nut':'phy'};
   const I=D.inv.filter(x=>inB(x)&&x.total>=100).map(x=>({d:x.d,k:x.k,t:x.total,dp:dOf(x)}));const ks=D.months.filter(k=>k<=curK()),cur=curK();
+  // مستوى الفاتورة العادية لكل قسم ونوع (للرسم بس)
   PRC.series={};
   for(const [dp] of DEPTS)for(const [bk,bn,lo,hi] of PR_BAND){const L=I.filter(x=>x.dp===dp&&x.t>=lo&&x.t<hi);if(L.length<60)continue;
-    const M=ks.map(k=>{const a=L.filter(x=>x.k===k).map(x=>x.t);return {k,n:a.length,m:a.length>=8?prMed(a):null}});PRC.series[dp+'|'+bk]={dp,bk,bn,M};
-    for(let i=3;i<M.length;i++){if(M[i].m==null)continue;const pre=prMed(M.slice(i-3,i).map(x=>x.m).filter(v=>v!=null)),postA=M.slice(i,i+3).filter(x=>x.m!=null),post=prMed(postA.map(x=>x.m));
-      if(pre==null||post==null||!(M[i-1].m!=null))continue;const r=post/pre;
-      if(r<1.04||M[i].m<M[i-1].m*1.03||postA.some(x=>x.m<pre*1.02))continue;
-      // نفس الزيادة متتكررش في الشهر اللي بعده
-      if(ev.some(e=>e.dept===dp&&e.band===bk&&e.k===shiftK(M[i].k,-1)&&e.r>=r))continue;const prev=ev.findIndex(e=>e.dept===dp&&e.band===bk&&e.k===shiftK(M[i].k,-1));if(prev>=0)ev.splice(prev,1);
-      const mid=(pre+post)/2,d0=L.filter(x=>x.k===M[i].k&&x.t>=mid).map(x=>x.d).sort()[0]||M[i].k+'-01';
-      // الأسعار اللي ظهرت (دليل): أكتر قيم متكررة بعد ومش قبل
-      const cnt=(ms)=>{const c={};L.filter(x=>ms.includes(x.k)).forEach(x=>{const v=Math.round(x.t/10)*10;c[v]=(c[v]||0)+1});return c};
-      const cb=cnt(M.slice(Math.max(0,i-3),i).map(x=>x.k)),ca=cnt(postA.map(x=>x.k));const nw=Object.entries(ca).filter(([v,n])=>n>=4&&!(cb[v]>=3)).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([v])=>fm(+v));
-      const gone=Object.entries(cb).filter(([v,n])=>n>=4&&!(ca[v]>=3)).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([v])=>fm(+v));
-      ev.push({d:d0,k:M[i].k,dept:dp,band:bk,r,pct:r-1,auto:'trend',prelim:postA.length<2||postA.some(x=>x.k===cur),
-        label:`${DEPN[dp]} — ${bn}: الفاتورة العادية ${fm(pre)} ← ${fm(post)}`,ev:(gone.length||nw.length)?`أسعار اختفت: ${gone.join('، ')||'—'} · أسعار ظهرت: ${nw.join('، ')||'—'}`:''})}}
+    PRC.series[dp+'|'+bk]={dp,bk,bn,M:ks.map(k=>{const a=L.filter(x=>x.k===k).map(x=>x.t);return {k,n:a.length,m:a.length>=8?prMed(a):null}})}}
+  // الزيادات: كل سعر متكرر (منتج) في القسم — لو اختفى وظهر مكانه سعر أعلى منه بشوية في نفس الوقت = زيادة.
+  // كل الأسعار اللي اتغيرت في نفس الشهر لنفس القسم = زيادة واحدة، والنسبة = متوسطها (بالأوزان).
+  const cnt={},byM={};I.forEach(x=>{const v=Math.round(x.t/10)*10,key=x.dp+'|'+v;cnt[key]=(cnt[key]||0)+1;const z=byM[key]=byM[key]||{};z[x.k]=(z[x.k]||0)+1});
+  const life={};Object.keys(cnt).filter(k=>cnt[k]>=15).forEach(key=>{const ms=ks.filter(k=>(byM[key][k]||0)>=4);if(ms.length>=2)life[key]={first:ms[0],last:ms[ms.length-1],n:cnt[key],dp:key.split('|')[0],v:+key.split('|')[1]}});
+  const first=ks[0],pairs=[];
+  Object.values(life).forEach(Ln=>{if(Ln.first<=shiftK(first,1))return;
+    const old=Object.values(life).filter(O=>O.dp===Ln.dp&&Ln.v>=O.v*1.03&&Ln.v<=O.v*1.6&&O.first<Ln.first&&O.last>=shiftK(Ln.first,-1)&&O.last<=shiftK(Ln.first,2)).sort((a,b)=>b.v-a.v)[0];   // أقرب سعر تحته
+    if(!old)return;const d0=I.filter(o=>o.dp===Ln.dp&&Math.round(o.t/10)*10===Ln.v&&o.k===Ln.first).map(o=>o.d).sort()[0]||Ln.first+'-01';
+    pairs.push({dp:Ln.dp,k:Ln.first,d:d0,ov:old.v,nv:Ln.v,n:Ln.n})});
+  const grp={};pairs.forEach(p=>{const key=p.dp+'|'+p.k;(grp[key]=grp[key]||[]).push(p)});
+  // زيادة في شهر وكمّلت الشهر اللي بعده = نفس الزيادة
+  Object.keys(grp).sort().forEach(key=>{const [dp,k]=key.split('|'),pk=dp+'|'+shiftK(k,-1);if(grp[pk]){grp[pk]=grp[pk].concat(grp[key]);delete grp[key]}});
+  for(const key in grp){const L=grp[key].sort((a,b)=>b.n-a.n),dp=key.split('|')[0],w=L.reduce((s,x)=>s+x.n,0),pct=L.reduce((s,x)=>s+(x.nv/x.ov-1)*x.n,0)/w;
+    const band=v=>v<900?'كشف/جلسة':'باقة';
+    ev.push({d:L.map(x=>x.d).sort()[0],k:key.split('|')[1],dept:dp,pct,auto:'inv',prelim:L.every(x=>x.k===cur),
+      label:`${DEPN[dp]}: زيادة أسعار${L.length>1?' — '+L.length+' أسعار':''} (متوسط +${pc(pct)})`,ev:L.slice(0,6).map(x=>`${band(x.nv)} ${fm(x.ov)}←${fm(x.nv)}`).join(' · ')})}
   // التغذية: سعر القايمة لكل خدمة — نجمّع زيادات نفس الشهر
   try{if(typeof nutBuild==='function'&&(S.b==='haram'||S.b==='both')){const {ops}=nutBuild();const g={};ops.forEach(o=>{if(!(o.tot>0))return;const nmx=o.op||o.n;const z=(g[nmx]=g[nmx]||{});const zz=(z[o.k]=z[o.k]||{});const v=Math.round(o.tot/10)*10;zz[v]=(zz[v]||0)+1});
     const byM={};for(const nmx in g){const ms=Object.keys(g[nmx]).sort();let prev=null;for(let mi=0;mi<ms.length;mi++){const m=ms[mi],c=g[nmx][m],tot=Object.values(c).reduce((a,b)=>a+b,0);if(tot<3)continue;const mode=+Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0];
@@ -76,7 +81,7 @@ function vPrice(){if(!NUT.cfg)NUT.cfg=nutMerge(null);const E=prList(),dept=PRC.d
   if(PRC.sel==null||!E[PRC.sel])PRC.sel=0;const e=E[PRC.sel];
   const evRows=E.map((x,i)=>[`<input type="radio" name="prE" value="${i}"${i===PRC.sel?' checked':''}>`,x.d,esc(x.label)+(x.ev?`<br><span class="sub">${esc(x.ev)}</span>`:'')+(x.prelim?' <span class="sub">(مبدئي — لسه شهر واحد بعدها)</span>':''),x.pct!=null?pc(x.pct):'—',x.dept?`<b>${DEPN[x.dept]}</b>`:'الكل',x.man?'مسجلة':'<span class="sub">اتكشفت لوحدها</span>',x.man?`<button data-prdel="${x.i}">حذف</button>`:`<button data-prok="${i}" title="تتحفظ دايماً حتى لو الاكتشاف اتغير">اعتمدها</button> <button data-prign="${i}" title="مش زيادة سعر (عرض/خصم/غلط) — اخفيها">✕ مش زيادة</button>`]);
   let h=`<div class="card"><h3>💲 الأسعار وأثر الزيادات<small>${BRN[S.b]}</small></h3>
-   <div class="note" style="line-height:1.9">أي زيادة سعر بتتكشف لوحدها من <b>الترند</b>: لكل قسم ولكل نوع فاتورة (كشف/جلسة — باقة) بحسب «الفاتورة العادية» كل شهر، ولو نطّت مرة واحدة وفضلت فوق يبقى ده زيادة، ونسبتها = قد إيه المستوى اتنقل. وفي التغذية كمان بشوف سعر كل خدمة في القايمة. وتقدر تسجل أي زيادة بنفسك (تاريخها ونسبتها). لكل زيادة: الأرقام قبلها وبعدها بنفس عدد الأيام، ومصحّحة بنفس الأيام من السنة اللي فاتت — يعني لو الشهر ده كل سنة بيقل، ده مش هيتحسب على الزيادة.</div>
+   <div class="note" style="line-height:1.9">أي زيادة سعر بتتكشف لوحدها من أول البيانات: كل سعر فاتورة متكرر في القسم (كشف، جلسة، باقة) لو اختفى وظهر مكانه سعر أعلى منه في نفس الوقت يبقى زيادة، وكل الأسعار اللي زادت في نفس الشهر بتتجمع في زيادة واحدة بمتوسط نسبتها. وفي التغذية كمان بشوف سعر كل خدمة في القايمة. وتقدر تسجل أي زيادة بنفسك (تاريخها ونسبتها). لكل زيادة: الأرقام قبلها وبعدها بنفس عدد الأيام، ومصحّحة بنفس الأيام من السنة اللي فاتت — يعني لو الشهر ده كل سنة بيقل، ده مش هيتحسب على الزيادة.</div>
    <div class="bar" style="margin-top:8px"><label class="sub">القسم <select id="prDep"><option value="">كل الأقسام</option>${DEPTS.map(([d,t])=>`<option value="${d}"${dept===d?' selected':''}>${t}</option>`).join('')}</select></label>
    <label class="sub">أيام قبل/بعد <select id="prN">${[30,45,60,90,120].map(n=>`<option${n===PRC.N?' selected':''}>${n}</option>`).join('')}</select></label></div>
    <div class="note" style="margin-top:8px">مش لازم تعتمد حاجة: أي زيادة اتكشفت لوحدها بتتحلل وبتتراقب وبتطلع في ترشيحات الملخص زي ما هي. «اعتمدها» = تتحفظ دايماً وبنسبتها حتى لو الاكتشاف اتغير بعدين. «✕ مش زيادة» = لو دي عرض أو خصم أو غلط، تختفي من هنا ومن الملخص.</div>

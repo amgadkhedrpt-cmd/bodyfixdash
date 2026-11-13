@@ -1,5 +1,5 @@
 {
- "at": "2026-11-13T01:32:31.764Z",
+ "at": "2026-11-13T01:44:02.210Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -431,6 +431,10 @@
      "start",
      "status",
      "type",
+     "createdAt",
+     "updatedAt",
+     "createdBy.name",
+     "room",
      "doctor.name",
      "patient.referenceId"
     ],
@@ -456,6 +460,10 @@
      "start",
      "status",
      "type",
+     "createdAt",
+     "updatedAt",
+     "createdBy.name",
+     "room",
      "doctor.name",
      "patient.referenceId"
     ],
@@ -656,17 +664,20 @@
   }
  },
  "stripped": {
+  "createdAppointments": [
+   "room{}"
+  ],
   "createdOperationSteps": [
    "tags"
   ]
  },
  "hash": {
-  "data/fin.enc": "b9199b4826469a4e",
-  "data/fin_c.enc": "d72de916f16f287e"
+  "data/fin.enc": "ff99beff66c3f4fe",
+  "data/fin_c.enc": "f7d19f13320e99aa"
  },
  "written": [
   "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 213
+ "secs": 183
 }

@@ -1,7 +1,7 @@
 // BODYFIX — «💲 الأسعار»: بيكتشف أي زيادة سعر لوحده (من الفواتير وأسعار خدمات التغذية) + زيادات بتسجلها إنت،
 // وبيقيس أثر كل زيادة: قبل/بعد بنفس عدد الأيام، ومصحّح بنفس الفترة من السنة اللي فاتت (الموسمية).
 'use strict';
-const PRC={};try{PRC.N=+(localStorage.getItem('fin_pr_n')||60)||60;PRC.dept=''}catch(e){PRC.N=60;PRC.dept=''}
+const PRC={};try{PRC.N=+(localStorage.getItem('fin_pr_n')||60)||60;PRC.dept=localStorage.getItem('fin_pr_dept')||''}catch(e){PRC.N=60;PRC.dept=''}
 const prDay=(d,n)=>new Date(Date.parse(d+'T00:00:00Z')+n*864e5).toISOString().slice(0,10);
 const prDays=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5)+1;
 // ---------- اكتشاف تغيّر الأسعار من الترند ----------
@@ -71,19 +71,20 @@ function prVerdict(I,R){const g=k=>{const r=R.find(x=>x.k===k);return r.adj!=nul
 // ---------- العرض ----------
 function prWeeks(e,dept,mk){const sv=GR.dept;GR.dept=dept;try{const out=[],td=prDay(todayC(),-1);for(let w=-12;w<12;w++){const d1=prDay(e.d,w*7);if(d1>td)break;const d2=[prDay(d1,6),td].sort()[0],n=prDays(d1,d2);
   out.push({w,after:w>=0,lbl:(w===0?'أسبوع الزيادة ':'')+d1.slice(8,10)+'/'+d1.slice(5,7)+(n<7?` (${n} أيام)`:''),v:mk(grAgg(d1,d2))/n})}return out}finally{GR.dept=sv}}
-function vPrice(){if(!NUT.cfg)NUT.cfg=nutMerge(null);const E=prEvents(),dept=PRC.dept;
+const prList=()=>{const E=prEvents();return PRC.dept?E.filter(x=>!x.dept||x.dept===PRC.dept):E};
+function vPrice(){if(!NUT.cfg)NUT.cfg=nutMerge(null);const E=prList(),dept=PRC.dept;
   if(PRC.sel==null||!E[PRC.sel])PRC.sel=0;const e=E[PRC.sel];
   const evRows=E.map((x,i)=>[`<input type="radio" name="prE" value="${i}"${i===PRC.sel?' checked':''}>`,x.d,esc(x.label)+(x.ev?`<br><span class="sub">${esc(x.ev)}</span>`:'')+(x.prelim?' <span class="sub">(مبدئي — لسه شهر واحد بعدها)</span>':''),x.pct!=null?pc(x.pct):'—',x.dept?`<b>${DEPN[x.dept]}</b>`:'الكل',x.man?'مسجلة':'<span class="sub">اتكشفت لوحدها</span>',x.man?`<button data-prdel="${x.i}">حذف</button>`:`<button data-prok="${i}" title="تتحفظ دايماً حتى لو الاكتشاف اتغير">اعتمدها</button> <button data-prign="${i}" title="مش زيادة سعر (عرض/خصم/غلط) — اخفيها">✕ مش زيادة</button>`]);
   let h=`<div class="card"><h3>💲 الأسعار وأثر الزيادات<small>${BRN[S.b]}</small></h3>
    <div class="note" style="line-height:1.9">أي زيادة سعر بتتكشف لوحدها من <b>الترند</b>: لكل قسم ولكل نوع فاتورة (كشف/جلسة — باقة) بحسب «الفاتورة العادية» كل شهر، ولو نطّت مرة واحدة وفضلت فوق يبقى ده زيادة، ونسبتها = قد إيه المستوى اتنقل. وفي التغذية كمان بشوف سعر كل خدمة في القايمة. وتقدر تسجل أي زيادة بنفسك (تاريخها ونسبتها). لكل زيادة: الأرقام قبلها وبعدها بنفس عدد الأيام، ومصحّحة بنفس الأيام من السنة اللي فاتت — يعني لو الشهر ده كل سنة بيقل، ده مش هيتحسب على الزيادة.</div>
-   <div class="bar" style="margin-top:8px"><label class="sub">القسم <select id="prDep"><option value="">قسم الزيادة نفسه</option><option value="all"${dept==='all'?' selected':''}>المركز كله</option>${DEPTS.map(([d,t])=>`<option value="${d}"${dept===d?' selected':''}>${t}</option>`).join('')}</select></label>
+   <div class="bar" style="margin-top:8px"><label class="sub">القسم <select id="prDep"><option value="">كل الأقسام</option>${DEPTS.map(([d,t])=>`<option value="${d}"${dept===d?' selected':''}>${t}</option>`).join('')}</select></label>
    <label class="sub">أيام قبل/بعد <select id="prN">${[30,45,60,90,120].map(n=>`<option${n===PRC.N?' selected':''}>${n}</option>`).join('')}</select></label></div>
    <div class="note" style="margin-top:8px">مش لازم تعتمد حاجة: أي زيادة اتكشفت لوحدها بتتحلل وبتتراقب وبتطلع في ترشيحات الملخص زي ما هي. «اعتمدها» = تتحفظ دايماً وبنسبتها حتى لو الاكتشاف اتغير بعدين. «✕ مش زيادة» = لو دي عرض أو خصم أو غلط، تختفي من هنا ومن الملخص.</div>
-   ${E.length?tableHTML(['','التاريخ','الزيادة',{t:'النسبة',n:1},'القسم','',''],evRows,{h:260}):'<div class="note">مفيش زيادات اتكشفت أو اتسجلت لسه.</div>'}
+   ${E.length?'':`<div class="note">${dept?'مفيش زيادات اتكشفت أو اتسجلت لقسم '+DEPN[dept]+' — لو فيه زيادة حصلت سجّلها تحت.':''}</div>`}${E.length?tableHTML(['','التاريخ','الزيادة',{t:'النسبة',n:1},'القسم','',''],evRows,{h:260}):'<div class="note">مفيش زيادات اتكشفت أو اتسجلت لسه.</div>'}
    <div class="bar" style="margin-top:8px"><span class="sub">سجّل زيادة:</span><input type="date" id="prD"><input id="prL" placeholder="إيه اللي زاد (مثلاً: الكشف 400←500)" style="min-width:220px"><input id="prP" type="number" step="1" placeholder="النسبة %" style="width:90px">
     <select id="prDp"><option value="">الكل</option>${DEPTS.map(([d,t])=>`<option value="${d}">${t}</option>`).join('')}</select><button class="pri" id="prAdd">➕ ضيف واحفظ</button></div></div>
   <div class="card" style="margin-top:12px"><h3>مستوى الأسعار كل شهر<small>الفاتورة العادية (الوسيط) لكل قسم ونوع — النطّة اللي بتفضل = زيادة سعر</small></h3><div class="ch"><canvas id="pr0"></canvas></div></div>`;
-  if(!e)return h;const deptX=dept==='all'?'':(dept||e.dept||'');const I=prImpact(e,deptX);if(!I)return h+`<div class="card" style="margin-top:12px">الزيادة دي لسه ما بدأتش.</div>`;
+  if(!e)return h;const deptX=dept||e.dept||'';const I=prImpact(e,deptX);if(!I)return h+`<div class="card" style="margin-top:12px">الزيادة دي لسه ما بدأتش.</div>`;
   const R=prRows(I),V=prVerdict(I,R);
   // مراقبة: آخر زيادة خلال 120 يوم
   const live=E.find(x=>prDays(x.d,todayC())<=120&&x.d<=todayC());
@@ -110,8 +111,8 @@ function prHead(e,I,R,deptX){const g=k=>R.find(x=>x.k===k);const ln=(k,unit,dec)
 function prCross(e){const rows=[['',...DEPTS.map(d=>d)],].length&&DEPTS.concat([['','المركز كله']]).map(([d,t])=>{const I=prImpact(e,d);if(!I)return null;const R=prRows(I);const g=k=>{const r=R.find(x=>x.k===k);return r.adj!=null?r.adj:r.d};
     const small=(I.A.sesPD||0)*I.L<30||(I.B.sesPD||0)*I.L<30;const c=v=>v==null?'—':small?`<span class="sub">${v>=0?'▲':'▼'} ${pc(Math.abs(v))}</span>`:`<span class="${v>=0?'up':'down'}">${v>=0?'▲':'▼'} ${pc(Math.abs(v))}</span>`;return [(d===(e.dept||'')?'<b>':'')+t+(d===(e.dept||'')?' (قسم الزيادة)</b>':'')+(small?' <span class="sub">(عدد قليل — مش موثوق)</span>':''),c(g('revPD')),c(g('sesPD')),c(g('npPD')),c(g('avgS'))]}).filter(Boolean);
   return `<div class="card" style="margin-top:12px"><h3>الأثر على كل قسم<small>التغيير المصحّح بعد الزيادة — علشان تشوف لو زيادة قسم أثّرت على قسم تاني</small></h3>${tableHTML(['القسم',{t:'الإيراد/يوم',n:1},{t:'الجلسات/يوم',n:1},{t:'مرضى جداد/يوم',n:1},{t:'متوسط الجلسة',n:1}],rows,{h:240})}</div>`}
-function cPrice(){const E=prEvents();document.querySelectorAll('input[name="prE"]').forEach(r=>r.onchange=()=>{PRC.sel=+r.value;PRC.dept='';render()});
-  const dp=$('#prDep');if(dp)dp.onchange=()=>{PRC.dept=dp.value;render()};
+function cPrice(){const E=prList();document.querySelectorAll('input[name="prE"]').forEach(r=>r.onchange=()=>{PRC.sel=+r.value;render()});
+  const dp=$('#prDep');if(dp)dp.onchange=()=>{PRC.dept=dp.value;PRC.sel=0;try{localStorage.setItem('fin_pr_dept',PRC.dept)}catch(e){}render()};
   const n=$('#prN');if(n)n.onchange=()=>{PRC.N=+n.value;try{localStorage.setItem('fin_pr_n',PRC.N)}catch(e){}render()};
   const save=async(btn)=>{await nutCfgSave(btn);PRC.det=null};
   const add=$('#prAdd');if(add)add.onclick=async()=>{const d=$('#prD').value,l=$('#prL').value.trim(),p=$('#prP').value;if(!d){alert('اختار التاريخ');return}
@@ -119,10 +120,10 @@ function cPrice(){const E=prEvents();document.querySelectorAll('input[name="prE"
   document.querySelectorAll('[data-prdel]').forEach(b=>b.onclick=async()=>{if(!confirm('أحذف الزيادة دي؟'))return;NUT.cfg.priceEvents=(NUT.cfg.priceEvents||[]).filter((_,i)=>i!==+b.dataset.prdel);PRC.sel=0;await save(b)});
   document.querySelectorAll('[data-prign]').forEach(b=>b.onclick=async()=>{const x=E[+b.dataset.prign];NUT.cfg.priceIgnore=(NUT.cfg.priceIgnore||[]).concat([prKey(x)]);PRC.sel=0;await save(b)});
   document.querySelectorAll('[data-prok]').forEach(b=>b.onclick=async()=>{const x=E[+b.dataset.prok];NUT.cfg.priceEvents=(NUT.cfg.priceEvents||[]).concat([{d:x.d,label:x.label,pct:x.pct,dept:x.dept||''}]);await save(b)});
-  {const SR=Object.values(PRC.series||{}).filter(x=>x.M.some(m=>m.m!=null)).slice(0,6);const ks=D.months.filter(k=>k<=curK()),c0=SER();
+  {const SR=Object.values(PRC.series||{}).filter(x=>x.M.some(m=>m.m!=null)&&(!PRC.dept||x.dp===PRC.dept)).slice(0,6);const ks=D.months.filter(k=>k<=curK()),c0=SER();
     if(SR.length)chart('pr0',{type:'line',data:{labels:ks.map(mls),datasets:SR.map((x,i)=>Object.assign(line(DEPN[x.dp]+' — '+x.bn,ks.map(k=>{const m=x.M.find(z=>z.k===k);return m&&m.m!=null?Math.round(m.m):null}),c0[i%c0.length]),{stepped:'middle',spanGaps:true}))},
       options:{plugins:{tooltip:{callbacks:{label:t=>' '+t.dataset.label+': '+fm(t.parsed.y)}}},scales:{y:{ticks:{callback:v=>fm(v)}}}}})}
-  const e=E[PRC.sel||0];if(!e)return;const dept=PRC.dept==='all'?'':(PRC.dept||e.dept||''),c=SER();
+  const e=E[PRC.sel||0];if(!e)return;const dept=PRC.dept||e.dept||'',c=SER();
   const W1=prWeeks(e,dept,a=>a.net),W2=prWeeks(e,dept,a=>a.sessions);const col=(W,c1)=>W.map(x=>x.after?c1:css('--t3'));
   chart('pr1',{data:{labels:W1.map(x=>x.lbl),datasets:[Object.assign(bar('الإيراد في اليوم',W1.map(x=>Math.round(x.v)),c[0]),{backgroundColor:col(W1,c[0])})]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:t=>' '+fm(t.parsed.y)+' في اليوم'+(W1[t.dataIndex].after?' — بعد الزيادة':' — قبل الزيادة')}}},scales:{x:{ticks:{maxRotation:60,minRotation:45}}}}});
   chart('pr2',{data:{labels:W2.map(x=>x.lbl),datasets:[Object.assign(bar('الجلسات في اليوم',W2.map(x=>+x.v.toFixed(1)),c[2]),{backgroundColor:col(W2,c[2])})]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:t=>' '+t.parsed.y+' جلسة في اليوم'+(W2[t.dataIndex].after?' — بعد الزيادة':' — قبل الزيادة')}}},scales:{x:{ticks:{maxRotation:60,minRotation:45}}}}})}

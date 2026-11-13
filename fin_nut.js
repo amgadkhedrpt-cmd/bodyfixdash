@@ -186,7 +186,7 @@ function nAlerts(M){const C=NUT.cfg,a=[];if(M.rev&&M.injRev/M.rev>C.alertInjShar
   return a}
 function nSum(){const k=S.to,M=nutMonth(k),P=nutMonth(shiftK(k,-1));const al=nAlerts(M);const est=M.sal.est?' <span class="chip w">تقديري</span>':'';
   return `${al.length?`<div class="note" style="margin-bottom:10px;border-inline-start:4px solid var(--warn)">${al.map(x=>'⚠️ '+esc(x)).join('<br>')}</div>`:''}
-  <div class="grid g4">${kpi('إيراد القسم — '+ml(k)+(nCashMode()?' (تحصيل)':' (تنفيذ)'),fm(M.rev),'مقارنة بـ'+ml(P.k)+' '+delta(M.rev,P.rev)+(M.pre?'<br>منه '+fm(M.pre)+' مدفوع مقدم لجلسات لسه':'')+(M.est?'<br><span class="sub">تاريخ الدفع لسه بيتسحب — مؤقتاً بتاريخ الجلسة</span>':''))}${kpi('المصروفات الخاصة',fm(M.specTot),'حقن '+fm(M.injCost)+' · رواتب '+fm(M.sal.tot)+est)}
+  <div class="grid g4">${kpi('إيراد القسم — '+ml(k)+(nCashMode()?' (تحصيل)':' (تنفيذ)'),fm(M.rev),(k===todayC().slice(0,7)?(()=>{const b=nBridge(k);return 'مقارنة بنفس الأيام من '+ml(P.k)+' '+delta(b.R1,b.R0)})():'مقارنة بـ'+ml(P.k)+' '+delta(M.rev,P.rev))+(M.pre?'<br>منه '+fm(M.pre)+' مدفوع مقدم لجلسات لسه':'')+(M.est?'<br><span class="sub">تاريخ الدفع لسه بيتسحب — مؤقتاً بتاريخ الجلسة</span>':''))}${kpi('المصروفات الخاصة',fm(M.specTot),'حقن '+fm(M.injCost)+' · رواتب '+fm(M.sal.tot)+est)}
    ${kpi('نصيب المصروفات العامة',fm(M.general))}${kpi('صافي قبل راتب د. آلاء',fm(M.before),M.noX?'<span class="chip w">غير مكتمل</span>':delta(M.before,P.before),M.before<0?'down':'')}
    ${kpi('راتب د. آلاء',M.alaa==null?'—':fm(M.alaa),M.alaa==null?'قبل '+ml(NUT.cfg.alaaFrom)+': نظام الـ50%':pc(NUT.cfg.alaaRate)+' من الإيراد')}${kpi('صافي بعد راتبها',M.after==null?'—':fm(M.after),'هامش '+pc(M.margin),M.after<0?'down':'')}
    ${kpi('مرضى نشطين',fm(M.pts),M.pts?'إيراد المريض '+fm(M.rev/M.pts):'')}${kpi('نسبة الحقن من الإيراد',pc(M.rev?M.injRev/M.rev:null),'تكلفتها '+pc(M.rev?M.injCost/M.rev:null)+' من الإيراد')}</div>
@@ -366,6 +366,13 @@ const wdays=(a,b)=>{let n=0;for(let t=Date.parse(a);t<=Date.parse(b);t+=864e5)if
 const todayC=()=>new Date().toLocaleString('sv-SE',{timeZone:'Africa/Cairo'}).slice(0,10);
 
 // ---- الاتجاهات والتوقع ----
+// الجسر: نفس قايمة الإيراد (تحصيل/تنفيذ) — والمريض = اللي دفع (أو اتعمله) في الفئة دي. الشهر الحالي بيتقارن بنفس الأيام من الشهر اللي فات
+function nBridge(k){const td=todayC(),pk=shiftK(k,-1),cur=k===td.slice(0,7),RL=nRevList();const dd=td.slice(8,10);
+  const win=(m,full)=>RL.filter(o=>o.k===m&&(full||o.d.slice(8,10)<=dd));const A=win(pk,!cur),B=win(k,!cur);
+  const br=NCAT.map(([c,t])=>{const a=A.filter(o=>o.cat===c),b=B.filter(o=>o.cat===c),n0=new Set(a.map(o=>o.pid)).size,n1=new Set(b.map(o=>o.pid)).size,r0=a.reduce((s,o)=>s+o.paid,0),r1=b.reduce((s,o)=>s+o.paid,0);
+    const a0=n0?r0/n0:0,a1=n1?r1/n1:0,vol=(n1-n0)*a0,price=r1-r0-vol;return {c,t,n0,n1,a0,a1,vol,price,r0,r1}});
+  const R0=A.reduce((s,o)=>s+o.paid,0),R1=B.reduce((s,o)=>s+o.paid,0);
+  return {br,R0,R1,l0:ml(pk)+(cur?' (1–'+(+dd)+')':''),l1:ml(k)+(cur?' (1–'+(+dd)+')':''),cur,dd:+dd}}
 function nTrend(){const k=S.to,C=NUT.cfg,{ops}=nutBuild(),td=todayC();
   // 8) forecast
   let fc='';if(k===td.slice(0,7)){const RL=nRevList(),mtd=RL.filter(o=>o.k===k&&o.d<=td),rev=mtd.reduce((s,o)=>s+o.paid,0);const last=new Date(Date.UTC(+k.slice(0,4),+k.slice(5,7),0)).toISOString().slice(0,10);
@@ -373,22 +380,23 @@ function nTrend(){const k=S.to,C=NUT.cfg,{ops}=nutBuild(),td=todayC();
     fc=`<div class="grid g4">${kpi('الإيراد لحد النهارده',fm(rev),done+' يوم شغل من '+all)}${kpi('المتوقع آخر الشهر',fm(fcv),'بنفس معدل الأيام اللي فاتت (الجمعة إجازة)')}${kpi('الشهر اللي فات لنفس اليوم',fm(pm),delta(rev,pm))}${kpi('الشهر اللي فات كامل',fm(pfull),fcv?'المتوقع '+delta(fcv,pfull):'')}</div>`}
   else fc=`<div class="note">التوقع بيظهر لما «لحد» يبقى الشهر الحالي.</div>`;
   // 2) bridge
-  const M1=nutMonth(k),M0=nutMonth(shiftK(k,-1)),{ops:O}=nutBuild();const pp=(m,c)=>new Set(O.filter(o=>o.k===m&&o.cat===c).map(o=>o.pid)).size;
-  const br=NCAT.map(([c,t])=>{const n0=pp(M0.k,c),n1=pp(k,c),r0=M0.byC[c].paid,r1=M1.byC[c].paid,a0=n0?r0/n0:0,a1=n1?r1/n1:0;const vol=(n1-n0)*a0,price=r1-r0-vol;return {c,t,n0,n1,a0,a1,vol,price,r0,r1}});
+  const BR=nBridge(k),br=BR.br;
+  const top=br.filter(b=>b.r0||b.r1).flatMap(b=>[[b.t,'عدد المرضى',b.vol,b],[b.t,'إيراد المريض',b.price,b]]).sort((x,y)=>Math.abs(y[2])-Math.abs(x[2])).slice(0,3);
+  const why=top.filter(x=>Math.abs(x[2])>=1).map(x=>x[1]==='عدد المرضى'?`<b>${x[0]}</b>: المرضى ${x[3].n0} ← ${x[3].n1} (${x[2]>=0?'+':''}${fm(x[2])})`:`<b>${x[0]}</b>: المريض بيدفع ${fm(x[3].a0)} ← ${fm(x[3].a1)} في المتوسط (${x[2]>=0?'+':''}${fm(x[2])})`).join(' · ');
   return `${fc}
-  <div class="card" style="margin-top:12px"><h3>الإيراد اتغير ليه؟<small>${ml(M0.k)} ← ${ml(k)}: ${fm(M0.rev)} ← ${fm(M1.rev)} (${fm(M1.rev-M0.rev)})</small></h3><div class="ch lg"><canvas id="nT1"></canvas></div>
-   ${tableHTML(['الفئة',{t:'مرضى قبل',n:1},{t:'مرضى بعد',n:1},{t:'إيراد المريض قبل',n:1},{t:'إيراد المريض بعد',n:1},{t:'أثر عدد المرضى',n:1},{t:'أثر إيراد المريض',n:1}],br.filter(b=>b.r0||b.r1).map(b=>[b.t,b.n0,b.n1,b.a0,b.a1,b.vol,b.price]))}
-   <div class="note" style="margin-top:8px">«أثر عدد المرضى» = الفرق في عدد المرضى × إيراد المريض الشهر اللي فات. «أثر إيراد المريض» = الباقي (سعر وخصم وعدد جلسات للمريض).</div></div>
+  <div class="card" style="margin-top:12px"><h3>الإيراد اتغير ليه؟<small>${BR.l0} ← ${BR.l1}: ${fm(BR.R0)} ← ${fm(BR.R1)} (${BR.R1-BR.R0>=0?'+':''}${fm(BR.R1-BR.R0)})</small></h3>
+   <div class="note" style="line-height:1.9">${BR.cur?`الشهر لسه ما خلصش، فبيتقارن بـ<b>نفس الأيام</b> من الشهر اللي فات (من 1 لـ ${BR.dd}). `:''}العمود الرمادي الأول = إيراد ${BR.l0}، والأخير = ${BR.l1}. كل عمود في النص = سبب زوّد (أخضر) أو نقّص (أحمر) الإيراد. لكل فئة سببين: <b>عدد المرضى</b> اللي دفعوا فيها اتغيّر، أو <b>المريض بقى بيدفع أكتر/أقل</b> في المتوسط (سعر، خصم، باقة أكبر أو أصغر).${why?`<br><b>أكبر الأسباب:</b> ${why}.`:''}</div>
+   <div class="ch lg"><canvas id="nT1"></canvas></div>
+   ${tableHTML(['الفئة',{t:'مرضى دفعوا قبل',n:1},{t:'بعد',n:1},{t:'المريض دفع قبل',n:1},{t:'بعد',n:1},{t:'الإيراد قبل',n:1},{t:'بعد',n:1},{t:'أثر عدد المرضى',n:1},{t:'أثر دفع المريض',n:1}],br.filter(b=>b.r0||b.r1).map(b=>[b.t,b.n0,b.n1,b.a0,b.a1,b.r0,b.r1,b.vol,b.price]))}
+   <div class="note" style="margin-top:8px">مثال: لو حقن التخسيس كان فيها 35 مريض كل واحد دفع 3,386 وبقوا 26: «أثر عدد المرضى» = (26 − 35) × 3,386 = −30,474 — يعني الإيراد قلّ ده بسبب إن 9 مرضى أقل. «أثر دفع المريض» = الباقي من الفرق — بسبب إن المريض بقى بيدفع أقل أو أكتر.</div></div>
   <div class="grid g2" style="margin-top:12px"><div class="card"><h3>الحقن مقابل باقي القسم<small>شهري</small></h3><div class="ch"><canvas id="nT2"></canvas></div></div>
    <div class="card"><h3>المواسم<small>إيراد كل شهر — كل سنة خط</small></h3><div class="ch"><canvas id="nT3"></canvas></div></div></div>
   <div class="card" style="margin-top:12px"><h3>نقطة التعادل للقسم<small>مرضى نشطين محتاجهم في الشهر علشان ما يخسرش</small></h3><div class="ch"><canvas id="nT4"></canvas></div>
    <div class="note" style="margin-top:8px">الثابت = نصيب الرواتب + السلف + إهلاك الأجهزة + نصيب العام. المتغير = تكلفة الحقن + المصروفات الخاصة + راتب د. آلاء (${pc(C.alaaRate)}). نقطة التعادل = الثابت ÷ (الإيراد − المتغير) لكل مريض.</div></div>`}
 function cnTrend(){const k=S.to,c=SER(),{ops}=nutBuild();
-  const M1=nutMonth(k),M0=nutMonth(shiftK(k,-1));const pp=(m,cat)=>new Set(ops.filter(o=>o.k===m&&o.cat===cat).map(o=>o.pid)).size;
-  const L=[ml(M0.k)],V=[[0,M0.rev]],COL=[css('--t3')];let run=M0.rev;
-  NCAT.forEach(([cat,t])=>{const n0=pp(M0.k,cat),n1=pp(k,cat),r0=M0.byC[cat].paid,r1=M1.byC[cat].paid;if(!r0&&!r1)return;const a0=n0?r0/n0:0,vol=(n1-n0)*a0,pr=r1-r0-vol;
-    [[t+': عدد المرضى',vol],[t+': إيراد المريض',pr]].forEach(([l,v])=>{if(Math.abs(v)<1)return;L.push(l);V.push([run,run+v]);COL.push(v>=0?css('--good'):css('--bad'));run+=v})});
-  L.push(ml(k));V.push([0,M1.rev]);COL.push(css('--t3'));
+  const BR=nBridge(k);const L=[BR.l0],V=[[0,BR.R0]],COL=[css('--t3')];let run=BR.R0;
+  BR.br.forEach(b=>{if(!b.r0&&!b.r1)return;[[b.t+': عدد المرضى',b.vol],[b.t+': دفع المريض',b.price]].forEach(([l,v])=>{if(Math.abs(v)<1)return;L.push(l);V.push([run,run+v]);COL.push(v>=0?css('--good'):css('--bad'));run+=v})});
+  L.push(BR.l1);V.push([0,BR.R1]);COL.push(css('--t3'));
   chart('nT1',{type:'bar',data:{labels:L,datasets:[{label:'التغيير',data:V,backgroundColor:COL,borderRadius:3,maxBarThickness:34}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>{const r=x.raw;return ' '+fm(r[1]-r[0])}}}},scales:{x:{ticks:{maxRotation:60,minRotation:45}}}}});
   const ks=nMonths(),R=ks.map(nutMonth);chart('nT2',{data:{labels:ks.map(mls),datasets:[line('الحقن (تخسيس + ميزو)',R.map(r=>r.byC.inj.paid+r.byC.mezo.paid),c[1]),line('باقي القسم',R.map(r=>r.rev-r.byC.inj.paid-r.byC.mezo.paid),c[0]),line('نسبة الحقن %',R.map(r=>r.rev?Math.round(100*(r.byC.inj.paid+r.byC.mezo.paid)/r.rev):null),c[3],{hidden:true})]}});
   const yrs=[...new Set(D.months.map(m=>m.slice(0,4)))];chart('nT3',{type:'line',data:{labels:MN.map(x=>x.slice(0,3)),datasets:yrs.map((y,i)=>line(y,MN.map((_,j)=>{const m=y+'-'+pad(j+1);return D.months.includes(m)&&m<=curK()?nutMonth(m).rev:null}),c[i]))}});

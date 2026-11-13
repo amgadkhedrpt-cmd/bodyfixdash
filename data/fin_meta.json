@@ -1,5 +1,5 @@
 {
- "at": "2026-11-13T03:00:13.777Z",
+ "at": "2026-11-13T08:58:51.353Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -70,6 +70,10 @@
    "take"
   ],
   "query": "query GET_EXPENSES($orderBy: String!, $skip: Int!, $take: Int!, $branchId: ID, $assignedToId: ID, $userId: ID, $supplier: ID, $lab: ID, $labItem: ID, $rangeDate: [DateTime!]!, $filters: Filter, $searchTerm: String) { expenses( orderBy: $orderBy skip: $skip take: $take branchId: $branchId assignedToId: $assignedToId userId: $userId supplier: $supplier lab: $lab labItem: $labItem rangeDate: $rangeDate filters: $filters searchTerm: $searchTerm ) { id name type mainType details amount other date paid items automatic isInstallments installment every interval confirmed isDebt salaryAdjustment { id __typename } branch { id name __typename } supplier { id name number __typename } lab { id name number __typename } labOrder { id received delivered patient { id firstName lastName __typename } __typename } user { id name group { id color __typename } __typename } createdBy { id name __typename } updatedBy { id name __typename } createdAt updatedAt _count { payments __typename } __typename } }"
+ },
+ "conf": {
+  "confirmed_now": 45,
+  "new": 45
  },
  "kinds": {
   "pay": {
@@ -436,7 +440,8 @@
      "createdBy.name",
      "room",
      "doctor.name",
-     "patient.referenceId"
+     "patient.referenceId",
+     "patient.phoneNumber"
     ],
     "missing": []
    },
@@ -465,9 +470,65 @@
      "createdBy.name",
      "room",
      "doctor.name",
-     "patient.referenceId"
+     "patient.referenceId",
+     "patient.phoneNumber"
     ],
     "missing": []
+   }
+  },
+  "conf": {
+   "all": {
+    "values": {},
+    "months": 1,
+    "first": "2026-11",
+    "last": "2026-11",
+    "rows": 45,
+    "cols": [
+     "aid",
+     "start",
+     "up",
+     "cr",
+     "type",
+     "pid",
+     "pn",
+     "ph",
+     "doc",
+     "b",
+     "by",
+     "seen",
+     "puid"
+    ],
+    "missing": [
+     "2024-06",
+     "2024-07",
+     "2024-08",
+     "2024-09",
+     "2024-10",
+     "2024-11",
+     "2024-12",
+     "2025-01",
+     "2025-02",
+     "2025-03",
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05",
+     "2026-06",
+     "2026-07",
+     "2026-08",
+     "2026-09",
+     "2026-10"
+    ]
    }
   }
  },
@@ -672,8 +733,12 @@
   ]
  },
  "hash": {
-  "data/fin.enc": "ff99beff66c3f4fe",
-  "data/fin_c.enc": "f7d19f13320e99aa"
+  "data/fin.enc": "e9eb93c6dd51012d",
+  "data/fin_c.enc": "fc83ca4ca9999cc4"
  },
- "secs": 50
+ "written": [
+  "data/fin.enc",
+  "data/fin_c.enc"
+ ],
+ "secs": 176
 }

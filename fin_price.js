@@ -1,7 +1,7 @@
 // BODYFIX — «💲 الأسعار»: بيكتشف أي زيادة سعر لوحده (من الفواتير وأسعار خدمات التغذية) + زيادات بتسجلها إنت،
 // وبيقيس أثر كل زيادة: قبل/بعد بنفس عدد الأيام، ومصحّح بنفس الفترة من السنة اللي فاتت (الموسمية).
 'use strict';
-const PRC={};try{PRC.N=+(localStorage.getItem('fin_pr_n')||60)||60;PRC.dept=localStorage.getItem('fin_pr_dept')||''}catch(e){PRC.N=60;PRC.dept=''}
+const PRC={};try{PRC.N=+(localStorage.getItem('fin_pr_n')||60)||60;PRC.dept=''}catch(e){PRC.N=60;PRC.dept=''}
 const prDay=(d,n)=>new Date(Date.parse(d+'T00:00:00Z')+n*864e5).toISOString().slice(0,10);
 const prDays=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5)+1;
 // ---------- اكتشاف تغيّر الأسعار من الترند ----------
@@ -87,6 +87,7 @@ function vPrice(){if(!NUT.cfg)NUT.cfg=nutMerge(null);const E=prEvents(),dept=PRC
   // مراقبة: آخر زيادة خلال 120 يوم
   const live=E.find(x=>prDays(x.d,todayC())<=120&&x.d<=todayC());
   h+=`<div class="card" style="margin-top:12px;border-inline-start:4px solid ${/^✅/.test(V.v)?'var(--good)':/^⚠️|^⏳/.test(V.v)?'var(--warn)':'var(--bad)'}"><h3>📊 أثر الزيادة${live&&live===e?' <span class="sub">— بتتراقب دلوقتي</span>':''}<small>${I.a1} → ${I.a2} مقابل ${I.b1} → ${I.b2}${deptX?' · '+DEPN[deptX]:' · المركز كله'}</small></h3>
+   ${(e.dept||'')!==deptX?`<div class="note" style="margin-bottom:8px;border-inline-start:4px solid var(--warn)">⚠️ الزيادة دي في <b>${e.dept?DEPN[e.dept]:'المركز كله'}</b>، والأرقام هنا محسوبة على <b>${deptX?DEPN[deptX]:'المركز كله'}</b> (من قايمة «القسم» فوق) — يعني ده أثرها على قسم تاني. علشان أثرها على نفسها اختار «قسم الزيادة نفسه».</div>`:''}
    ${V.v?`<div style="font-weight:700;margin-bottom:6px">${V.v}</div>`:''}<ul class="ins">${V.L.map(x=>`<li>${x}</li>`).join('')}</ul>
    ${tableHTML(['',{t:'قبل',n:1},{t:'بعد',n:1},{t:'التغيير',n:1},{t:'نفس الأيام السنة اللي فاتت',n:1},{t:'التغيير المصحّح',n:1}],R.map(r=>r.row),{h:340})}
    <div class="note">«التغيير المصحّح» = التغيير بعد الزيادة − التغيير اللي حصل في نفس الأيام السنة اللي فاتت (من غير زيادة). ده الأقرب لأثر السعر لوحده. الشراء والرجوع بيتحسبوا للمرضى اللي عدّى عليهم 14 / 30 يوم بس.</div></div>
@@ -97,8 +98,8 @@ function vPrice(){if(!NUT.cfg)NUT.cfg=nutMerge(null);const E=prEvents(),dept=PRC
 function prCross(e){const rows=[['',...DEPTS.map(d=>d)],].length&&DEPTS.concat([['','المركز كله']]).map(([d,t])=>{const I=prImpact(e,d);if(!I)return null;const R=prRows(I);const g=k=>{const r=R.find(x=>x.k===k);return r.adj!=null?r.adj:r.d};
     const c=v=>v==null?'—':`<span class="${v>=0?'up':'down'}">${v>=0?'▲':'▼'} ${pc(Math.abs(v))}</span>`;return [(d===(e.dept||'')?'<b>':'')+t+(d===(e.dept||'')?' (قسم الزيادة)</b>':''),c(g('revPD')),c(g('sesPD')),c(g('npPD')),c(g('avgS'))]}).filter(Boolean);
   return `<div class="card" style="margin-top:12px"><h3>الأثر على كل قسم<small>التغيير المصحّح بعد الزيادة — علشان تشوف لو زيادة قسم أثّرت على قسم تاني</small></h3>${tableHTML(['القسم',{t:'الإيراد/يوم',n:1},{t:'الجلسات/يوم',n:1},{t:'مرضى جداد/يوم',n:1},{t:'متوسط الجلسة',n:1}],rows,{h:240})}</div>`}
-function cPrice(){const E=prEvents();document.querySelectorAll('input[name="prE"]').forEach(r=>r.onchange=()=>{PRC.sel=+r.value;render()});
-  const dp=$('#prDep');if(dp)dp.onchange=()=>{PRC.dept=dp.value;try{localStorage.setItem('fin_pr_dept',PRC.dept)}catch(e){}render()};
+function cPrice(){const E=prEvents();document.querySelectorAll('input[name="prE"]').forEach(r=>r.onchange=()=>{PRC.sel=+r.value;PRC.dept='';render()});
+  const dp=$('#prDep');if(dp)dp.onchange=()=>{PRC.dept=dp.value;render()};
   const n=$('#prN');if(n)n.onchange=()=>{PRC.N=+n.value;try{localStorage.setItem('fin_pr_n',PRC.N)}catch(e){}render()};
   const save=async(btn)=>{await nutCfgSave(btn);PRC.det=null};
   const add=$('#prAdd');if(add)add.onclick=async()=>{const d=$('#prD').value,l=$('#prL').value.trim(),p=$('#prP').value;if(!d){alert('اختار التاريخ');return}

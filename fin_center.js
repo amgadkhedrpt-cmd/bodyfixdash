@@ -12,12 +12,18 @@ function cenBuild(){const key=S.b;CEN.cc=CEN.cache?CEN.cc||{}:{};CEN.cache=true;
     if(l){const t=Date.parse(p.d);let best=null,bd=1e9;for(const x of l){const dd=(t-Date.parse(x[0]))/864e5;if(dd>=-7&&dd<=30&&Math.abs(dd)<bd){bd=Math.abs(dd);best=x}}if(best)dp=best[1]}
     p.dept=dp||(ALAA.test(p.doc)?'nut':'phy')}
   // patients
-  const pts={},first=D.months[0];for(const pid in byP){const l=byP[pid];pts[pid]={pid,first:l[0][0],k0:l[0][0].slice(0,7),entry:l[0][1],doc0:l[0][2],months:new Set(l.map(x=>x[3])),depts:new Set(l.map(x=>x[1])),n:l.length,paid:0}}
+  const pts={},first=D.months[0];for(const pid in byP){const l=byP[pid];const mB={},nB={};l.forEach(x=>{(mB[x[1]]=mB[x[1]]||new Set()).add(x[3]);nB[x[1]]=(nB[x[1]]||0)+1});
+    pts[pid]={pid,first:l[0][0],k0:l[0][0].slice(0,7),entry:l[0][1],doc0:l[0][2],months:new Set(l.map(x=>x[3])),depts:new Set(l.map(x=>x[1])),n:l.length,paid:0,mB,nB}}
   for(const p of P)if(pts[p.pid])pts[p.pid].paid+=p.amt;
   for(const x of Object.values(pts))x.early=x.k0===first;
   const fi={};D.inv.filter(x=>inB(x)&&x.src).forEach(x=>{if(!fi[x.pid]||x.d<fi[x.pid].d)fi[x.pid]=x});for(const x of Object.values(pts))x.src=(fi[x.pid]||{}).src||'مش متسجل';
   return CEN.cc[key]={key,byP,P,pts}}
 const cMonths=()=>monthsList(S.from,S.to);
+// القسم: '' = كل المرضى، أو مرضى أول زيارة ليهم في القسم ده — وزياراتهم في القسم ده بس
+try{CEN.dept=localStorage.getItem('fin_dept')||''}catch(e){CEN.dept=''}
+function ptsF(list,dept){dept=dept==null?CEN.dept:dept;if(!dept)return list;return list.filter(p=>p.entry===dept).map(p=>Object.assign({},p,{months:p.mB[dept]||new Set(),n:p.nB[dept]||0}))}
+function deptSel(){return `<label class="sub">القسم <select id="deptF"><option value="">كل المرضى</option>${DEPTS.map(([d,t])=>`<option value="${d}"${CEN.dept===d?' selected':''}>${t} بس</option>`).join('')}</select></label>`}
+function bindDept(){const s=$('#deptF');if(s)s.onchange=()=>{CEN.dept=s.value;try{localStorage.setItem('fin_dept',CEN.dept)}catch(e){}render()}}
 const CSUB=[['trend','📈 الاتجاهات والتوقع'],['pts','🔁 المرضى والاحتفاظ'],['ops','🩺 الدكاترة والزحمة']];
 function vCen(){const top=`<div class="tabs" id="csub" style="border:0;margin-bottom:8px">${CSUB.map(([k,t])=>`<button data-c="${k}" class="${CEN.sub===k?'on':''}">${t}</button>`).join('')}</div>
   <div class="note" style="margin-bottom:10px">🏥 ${BRN[S.b]}. القسم بيتحدد من نوع موعد المريض في نفس اليوم (أو أقرب موعد خلال أسبوع قبل / شهر بعد)، ولو مفيش موعد: د. آلاء = تغذية وأي دكتور تاني = علاج طبيعي.</div>`;
@@ -51,7 +57,7 @@ function cTrendC(){const k=S.to,c=SER(),M1=deptMonth(k),M0=deptMonth(shiftK(k,-1
   yl('cc3',m=>P.filter(p=>p.k===m).reduce((s,p)=>s+p.amt,0));yl('cc4',m=>D.apt.filter(a=>inB(a)&&a.k===m&&a.st==='Completed').length);yl('cc5',m=>PT.filter(p=>p.k0===m&&!p.early).length)}
 
 // ---------- المرضى ----------
-function cPtsV(){const {pts,P}=cenBuild(),PT=Object.values(pts),td=todayC();
+function cPtsV(){const {pts,P}=cenBuild(),PT=ptsF(Object.values(pts)),td=todayC();
   const coh=cMonths().filter(k=>k!==D.months[0]).slice(-18),OFF=[1,2,3,4,5,6];
   const coht=`<div class="tw"><table><thead><tr><th>شهر البداية</th><th class="n">مرضى</th>${OFF.map(o=>`<th class="n">شهر ${o}</th>`).join('')}</tr></thead><tbody>${coh.map(k=>{const ps=PT.filter(p=>p.k0===k);
     return `<tr><td>${ml(k)}</td><td class="n">${ps.length}</td>${OFF.map(o=>{const m=shiftK(k,o);if(m>curK()||!ps.length)return '<td></td>';const v=ps.filter(p=>p.months.has(m)).length/ps.length;return `<td class="n" style="${hm(v,1)}">${pc(v)}</td>`}).join('')}</tr>`}).join('')}</tbody></table></div>`;
@@ -73,7 +79,7 @@ function cPtsV(){const {pts,P}=cenBuild(),PT=Object.values(pts),td=todayC();
     return `<div class="note" style="margin-bottom:8px;line-height:1.9"><b>إزاي تقراه:</b> كل صف = المرضى اللي أول جلسة ليهم كانت في الشهر ده. مثال: في ${ml(ex.k)} بدأ <b>${n}</b> مريض جديد. منهم <b>${a}</b> (${pc(a/n)}) جم تاني في ${ml(shiftK(ex.k,1))} = «شهر 1»، و<b>${b}</b> (${pc(b/n)}) جم في ${ml(shiftK(ex.k,2))} = «شهر 2»… وهكذا لحد 6 شهور.<br>
      <b>امشي على الصف</b> تشوف الدفعة دي بتقل إزاي. <b>انزل في العمود</b> (خصوصاً «شهر 1») تقارن الدفعات ببعض: لو الأرقام بتقل وإنت نازل، يبقى المرضى الجداد بقوا يقفوا أسرع من زمان. اللون الغامق = استمرار أعلى.<br>
      <i>مش كل اللي وقف خسارة: اللي خلّص علاجه طبيعي ما يجيش. المهم المقارنة بين الصفوف.</i></div>`})():'';
-  return `<div class="card"><h3>خريطة الاحتفاظ لكل دفعة<small>نسبة المرضى اللي ليهم جلسة مكتملة بعد كام شهر من أول شهر</small></h3>${exTxt}${coht}</div>
+  return `<div class="bar">${deptSel()}<span class="sub">${CEN.dept?'المرضى اللي أول زيارة ليهم كانت '+DEPN[CEN.dept]+'، ورجوعهم محسوب بزياراتهم في '+DEPN[CEN.dept]+' بس':''}</span></div><div class="card"><h3>خريطة الاحتفاظ لكل دفعة<small>نسبة المرضى اللي ليهم جلسة مكتملة بعد كام شهر من أول شهر</small></h3>${exTxt}${coht}</div>
   <div class="grid g2" style="margin-top:12px"><div class="card"><h3>قيمة المريض حسب أول قسم دخل منه<small>مرضى بدأوا في الفترة — كل اللي دفعوه لحد النهارده</small></h3>
     ${tableHTML(['أول قسم',{t:'مرضى',n:1},{t:'متوسط اللي دفعه',n:1},{t:'متوسط الجلسات',n:1}],Object.entries(eg).sort((a,b)=>b[1].n-a[1].n).map(([e,g])=>[DEPN[e]||e,g.n,g.paid/g.n,fm(g.s/g.n,1)]))}
     <div class="grid g4" style="margin-top:10px">${kpi('متوسط قيمة المريض',fm(ltv))}${kpi('مصاريف الدعاية',fm(ad),N.length&&ad?'تكلفة المريض الجديد '+fm(ad/N.length):'')}${kpi('القيمة ÷ تكلفة الجلب',ad&&N.length?fm(ltv/(ad/N.length),1)+'×':'—')}</div></div>
@@ -83,7 +89,7 @@ function cPtsV(){const {pts,P}=cenBuild(),PT=Object.values(pts),td=todayC();
     ${(()=>{const [a,b]=mv('phy','nut'),[c2,d2]=mv('nut','phy'),[e,f]=mv('phy','dev');return kpi('علاج طبيعي ← تغذية',pc(a?b/a:null),fm(b)+' من '+fm(a))+kpi('تغذية ← علاج طبيعي',pc(c2?d2/c2:null),fm(d2)+' من '+fm(c2))+kpi('علاج طبيعي ← أجهزة',pc(e?f/e:null),fm(f)+' من '+fm(e))})()}</div></div>
    <div class="card"><h3>تجديد الباقات<small>فاتورة 1,500 جنيه أو أكتر = باقة. اتجددت لو اتعملت فاتورة كبيرة تانية خلال 60 يوم من آخر جلسة</small></h3>
     ${tableHTML(['القسم',{t:'باقات خلصت',n:1},{t:'اتجددت',n:1},{t:'نسبة التجديد',n:1},{t:'وسيط الأيام',n:1}],Object.entries(rs).map(([d,g])=>[d,g.n,g.r,pc(g.n?g.r/g.n:null),med(g.days)??'—']))}<div class="ch sm" style="margin-top:10px"><canvas id="cp1"></canvas></div></div></div>`}
-function cPtsC(){const {byP}=cenBuild(),td=todayC(),ks=cMonths();const IV=D.inv.filter(x=>inB(x)&&x.pid&&x.total-x.disc>=1500).sort((a,b)=>a.d<b.d?-1:1);const ib={};IV.forEach(x=>(ib[x.pid]=ib[x.pid]||[]).push(x));
+function cPtsC(){bindDept();const {byP}=cenBuild(),td=todayC(),ks=cMonths();const IV=D.inv.filter(x=>inB(x)&&x.pid&&x.total-x.disc>=1500).sort((a,b)=>a.d<b.d?-1:1);const ib={};IV.forEach(x=>(ib[x.pid]=ib[x.pid]||[]).push(x));
   const byK={};for(const pid in ib){const l=ib[pid],ap=(byP[pid]||[]).map(x=>x[0]);l.forEach((x,i)=>{const nx=l[i+1];const la=ap.filter(d=>d>=x.d&&(!nx||d<nx.d)).pop()||x.d;const ren=nx&&(Date.parse(nx.d)-Date.parse(la))/864e5<=60;if(!ren&&(Date.parse(td)-Date.parse(la))/864e5<=30)return;const g=byK[la.slice(0,7)]=byK[la.slice(0,7)]||{n:0,r:0};g.n++;if(ren)g.r++})}
   chart('cp1',{type:'line',data:{labels:ks.map(mls),datasets:[line('% تجديد حسب شهر آخر جلسة',ks.map(k=>byK[k]&&byK[k].n?Math.round(100*byK[k].r/byK[k].n):null),SER()[0])]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}},plugins:{tooltip:{callbacks:{label:x=>' '+x.parsed.y+'%'}}}}})}
 

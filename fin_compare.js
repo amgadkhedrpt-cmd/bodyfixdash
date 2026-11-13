@@ -11,10 +11,10 @@ function cmpMetrics(b){return withB(b,()=>{const ks=ksDone(),n=ks.length||1,R=ks
   const cu=A.filter(a=>isCan(a)&&a.up);o.sameDay=cu.length?cu.filter(a=>Date.parse(a.d)<=Date.parse(a.up)).length/cu.length:null;
   const dm={};done.forEach(a=>{if(a.doc===PAST_DOC||a.doc==='—')return;const k=a.doc+'|'+a.k;dm[k]=(dm[k]||0)+1});const dmv=Object.values(dm).filter(x=>x>=20);o.docs=dmv.length/n;o.sessDoc=dmv.length?dmv.reduce((s,x)=>s+x,0)/dmv.length:null;
   const {P,pts}=cenBuild();const PP=P.filter(p=>ks.includes(p.k));o.payers=ks.reduce((s,k)=>s+new Set(PP.filter(p=>p.k===k).map(p=>p.pid)).size,0)/n;o.revPt=o.payers?o.rev/o.payers:null;o.revDoc=o.docs?o.rev/o.docs:null;
-  const PT=Object.values(pts).filter(p=>!p.early);const nw=PT.filter(p=>ks.includes(p.k0));o.newPts=nw.length/n;o.cac=nw.length?ad/nw.length:null;
+  const PT=ptsF(Object.values(pts).filter(p=>!p.early));const nw=PT.filter(p=>ks.includes(p.k0));o.newPts=nw.length/n;o.cac=nw.length?ad/nw.length:null;
   const c1=PT.filter(p=>ks.includes(p.k0)&&p.k0<=shiftK(recoMonth(),-1));o.ret1=c1.length?c1.filter(p=>p.months.has(shiftK(p.k0,1))).length/c1.length:null;
   const c3=PT.filter(p=>ks.includes(p.k0)&&p.k0<=shiftK(recoMonth(),-3));o.six=c3.length?c3.filter(p=>p.n>=6).length/c3.length:null;o.avgSess=c3.length?c3.reduce((s,p)=>s+p.n,0)/c3.length:null;o.ltv=c3.length?c3.reduce((s,p)=>s+p.paid,0)/c3.length:null;
-  const I=D.inv.filter(x=>inB(x)&&ks.includes(x.k)),tt=I.reduce((s,x)=>s+x.total,0),net=I.reduce((s,x)=>s+x.total-x.disc,0);o.disc=tt?I.reduce((s,x)=>s+x.disc,0)/tt:null;o.coll=net?I.reduce((s,x)=>s+x.paid,0)/net:null;
+  const I=D.inv.filter(x=>inB(x)&&ks.includes(x.k)),tt=I.reduce((s,x)=>s+x.total,0),net=I.reduce((s,x)=>s+x.total-x.disc,0);o.disc=tt?I.reduce((s,x)=>s+x.disc,0)/tt:null;o.coll=net?I.reduce((s,x)=>s+Math.min(Math.max(0,x.total-x.disc),x.paid),0)/net:null;
   const td=todayC(),old=D.inv.filter(x=>inB(x)&&(Date.parse(td)-Date.parse(x.d))/864e5>90).reduce((s,x)=>s+Math.max(0,x.total-x.disc-x.paid),0);o.oldDebtM=o.rev?old/o.rev:null;
   const L=R[R.length-1];o.be=L&&L.beS?L.sessions/L.beS:null;
   const lead=A.filter(a=>a.cr).map(a=>(Date.parse(a.d)-Date.parse(a.cr))/864e5).filter(x=>x>=0);o.far=lead.length?lead.filter(x=>x>14).length/lead.length:null;
@@ -53,15 +53,15 @@ function vCmp(){if(!D.apt.some(a=>a.b==='dokki')||!D.pay.some(p=>p.b==='dokki'))
     `<b>يوم الزيارة:</b> ابدأ بأكبر فجوة في الجدول ده${worse[0]?` (دلوقتي: ${worse[0].m[1]})`:''}، واقعد مع السكرتارية على لستة اللي لغوا وما اتحجزلهمش تاني، ولستة الديون 30–90 يوم، وراجع عينة من الكومبليت.`,
     `<b>أهداف شهرية مكتوبة لد. محمود</b> مربوطة بالفجوات: مثلاً ${worse.slice(0,2).map(x=>`${x.m[1]} من ${x.m[2](x.k)} لـ ${x.m[2](x.h)} زي الهرم`).join('، ')||'نسبة الإلغاء ورجوع المريض الجديد'}، ومتابعتها هنا كل أسبوع.`,
     'خطة اليوم (مهام السكرتارية) شغالة للفرعين — راجع نسبة المهام اللي اتقفلت في الدقي كل أسبوع، دي أسرع طريقة تعرف الشغل ماشي ولا لأ وإنت مش موجود.'];
-  return `<div class="card" style="margin-bottom:12px;border-inline-start:4px solid var(--c1)"><h3>📖 القراءة<small>${ml(ks[0])} لـ ${ml(ks[ks.length-1])} — شهور كاملة بس</small></h3><ul class="ins">${rd.map(x=>`<li>${x}</li>`).join('')}</ul>
+  return `<div class="bar">${deptSel()}<span class="sub">بيأثر على مؤشرات «المرضى» ورسمة المرضى الجداد</span></div><div class="card" style="margin-bottom:12px;border-inline-start:4px solid var(--c1)"><h3>📖 القراءة<small>${ml(ks[0])} لـ ${ml(ks[ks.length-1])} — شهور كاملة بس</small></h3><ul class="ins">${rd.map(x=>`<li>${x}</li>`).join('')}</ul>
    ${tp.length?`<h3>🎯 ترشيحات للدقي</h3><ul class="ins">${tp.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}
    <h3>🛰️ إدارة الدقي عن بعد</h3><ul class="ins">${rm.map(x=>`<li>${x}</li>`).join('')}</ul></div>
   <div class="card"><h3>المقارنة<small>✓ = الأحسن · الفرق = الدقي مقارنة بالهرم</small></h3>${tableHTML(['المؤشر','الهرم','الدقي','الفرق'],rows,{h:900})}</div>
   <div class="grid g2" style="margin-top:12px">${[['cm1','هامش الربح %'],['cm2','إيراد الجلسة'],['cm3','نسبة الإلغاء %'],['cm4','جلسات مكتملة'],['cm5','مرضى جداد'],['cm6','المتحصّل من الفواتير %']].map(([id,t])=>`<div class="card"><h3>${t}<small>شهري — الفرعين</small></h3><div class="ch sm"><canvas id="${id}"></canvas></div></div>`).join('')}</div>`}
-function cCmp(){const ks=ksDone(),c=SER();if(ks.length<3)return;const per=(b,f)=>withB(b,()=>ks.map(f));
+function cCmp(){bindDept();const ks=ksDone(),c=SER();if(ks.length<3)return;const per=(b,f)=>withB(b,()=>ks.map(f));
   const two=(id,f,isPct)=>chart(id,{type:'line',data:{labels:ks.map(mls),datasets:[line('الهرم',per('haram',f),c[0]),line('الدقي',per('dokki',f),c[1])]},options:isPct?{scales:{y:{ticks:{callback:v=>v+'%'}}},plugins:{tooltip:{callbacks:{label:x=>' '+x.dataset.label+': '+x.parsed.y+'%'}}}}:{}});
   two('cm1',k=>{const r=calcMonth(k);return r.margin==null?null:+(100*r.margin).toFixed(1)},1);two('cm2',k=>{const r=calcMonth(k);return r.avgS?Math.round(r.avgS):null});
   two('cm3',k=>{const x=D.apt.filter(a=>inB(a)&&a.k===k&&!/^Waiting/i.test(a.room||''));return x.length?+(100*x.filter(isCan).length/x.length).toFixed(1):null},1);
-  two('cm4',k=>D.apt.filter(a=>inB(a)&&a.k===k&&a.st==='Completed').length);two('cm5',k=>Object.values(cenBuild().pts).filter(p=>!p.early&&p.k0===k).length);
-  two('cm6',k=>{const I=D.inv.filter(x=>inB(x)&&x.k===k),n=I.reduce((s,x)=>s+x.total-x.disc,0);return n?+(100*I.reduce((s,x)=>s+x.paid,0)/n).toFixed(1):null},1)}
+  two('cm4',k=>D.apt.filter(a=>inB(a)&&a.k===k&&a.st==='Completed').length);two('cm5',k=>ptsF(Object.values(cenBuild().pts)).filter(p=>!p.early&&p.k0===k).length);
+  two('cm6',k=>{const I=D.inv.filter(x=>inB(x)&&x.k===k),n=I.reduce((s,x)=>s+x.total-x.disc,0);return n?+(100*I.reduce((s,x)=>s+Math.min(Math.max(0,x.total-x.disc),x.paid),0)/n).toFixed(1):null},1)}
 VIEWS.cmp=[vCmp,cCmp];

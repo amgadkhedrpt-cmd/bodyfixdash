@@ -36,7 +36,7 @@ RD.pl=()=>{const ks=ksDone(),R=ks.map(calcMonth),r=[],t=[];if(R.length<3)return 
 RD.rev=()=>{const ks=ksDone(),r=[],t=[];if(ks.length<6)return '';const P=D.pay.filter(p=>inB(p)&&!p.bal),I=D.inv.filter(x=>inB(x));
   const cash=ks.map(k=>{const x=P.filter(p=>p.k===k),a=x.reduce((s,p)=>s+p.amt,0);return a?x.filter(p=>p.meth==='كاش').reduce((s,p)=>s+p.amt,0)/a:null});r.push(trendLine('نسبة الكاش',ks,cash,pcf));
   const disc=ks.map(k=>{const x=I.filter(i=>i.k===k),tt=x.reduce((s,i)=>s+i.total,0);return tt?x.reduce((s,i)=>s+i.disc,0)/tt:null});r.push(trendLine('الخصم من الفواتير',ks,disc,pcf,true));
-  const col=ks.map(k=>{const x=I.filter(i=>i.k===k),n=x.reduce((s,i)=>s+i.total-i.disc,0);return n?x.reduce((s,i)=>s+i.paid,0)/n:null});r.push(trendLine('المتحصّل من صافي الفواتير',ks,col,pcf));
+  const col=ks.map(k=>{const x=I.filter(i=>i.k===k),n=x.reduce((s,i)=>s+i.total-i.disc,0);return n?x.reduce((s,i)=>s+Math.min(Math.max(0,i.total-i.disc),i.paid),0)/n:null});r.push(trendLine('المتحصّل من صافي الفواتير',ks,col,pcf));
   const PR=P.filter(p=>inR(p)),tot=PR.reduce((s,p)=>s+p.amt,0);const wd=[0,1,2,3,4,5,6].map(i=>PR.filter(p=>p.w===i).reduce((s,p)=>s+p.amt,0));const bi=wd.indexOf(Math.max(...wd));if(tot)r.push(`<b>أقوى يوم:</b> ${DAYS[bi]} (${pc(wd[bi]/tot)} من الإيراد).`);
   const bp={};PR.forEach(p=>{if(p.pid)bp[p.pid]=(bp[p.pid]||0)+p.amt});const top=Object.values(bp).sort((a,b)=>b-a);const t25=top.slice(0,25).reduce((s,x)=>s+x,0);if(tot)r.push(`<b>تركيز الإيراد:</b> أعلى 25 مريض = ${pc(t25/tot)} من الإيراد، وأعلى 10% من المرضى = ${pc(top.slice(0,Math.ceil(top.length/10)).reduce((s,x)=>s+x,0)/tot)}.`);
   const cd=cmp3(disc),cc=cmp3(col);if(cd&&cd.ch>0.15)t.push(`الخصومات زادت ${pc(cd.ch)} — حط حد أقصى للخصم بيحتاج موافقتك، وتابع مين بيدّيه («المواعيد» و«مين سجّل الدفع»).`);
@@ -104,7 +104,7 @@ RD.cen=()=>{const ks=ksDone(),r=[],t=[];if(ks.length<6)return '';
   if(CEN.sub==='trend'){const DM=ks.map(deptMonth),tot=DM.map(m=>DEPTS.reduce((s,[d])=>s+m[d].rev,0));DEPTS.forEach(([d,n])=>{const v=DM.map((m,i)=>tot[i]?m[d].rev/tot[i]:null);if(avgOf(v)>0.02)r.push(trendLine('نصيب '+n+' من الإيراد',ks,v,pcf))});
     const nut=DM.map((m,i)=>tot[i]?m.nut.rev/tot[i]:null),cn=cmp3(nut);if(cn&&cn.a>0.35)t.push(`التغذية بقت ${pc(cn.a)} من إيراد المركز — ومعظمها حقن. ده بيخلي المركز كله حساس لسعر وتوفر الحقن.`);
     const phy=DM.map(m=>m.phy.rev),cp=cmp3(phy);if(cp&&cp.ch<-0.05)t.push(`إيراد العلاج الطبيعي نازل ${pc(-cp.ch)} — ده قلب المركز. شوف «المرضى والاحتفاظ» هل المشكلة مرضى جداد أقل ولا استمرار أقل.`)}
-  else if(CEN.sub==='pts'){const {pts}=cenBuild(),PT=Object.values(pts).filter(p=>!p.early);const coh=ks.filter(k=>k<=shiftK(recoMonth(),-3));
+  else if(CEN.sub==='pts'){const {pts}=cenBuild(),PT=ptsF(Object.values(pts).filter(p=>!p.early));const coh=ks.filter(k=>k<=shiftK(recoMonth(),-3));
     const m1=coh.map(k=>{const a=PT.filter(p=>p.k0===k);return a.length?a.filter(p=>p.months.has(shiftK(k,1))).length/a.length:null}),m3=coh.map(k=>{const a=PT.filter(p=>p.k0===k);return a.length?a.filter(p=>p.months.has(shiftK(k,3))).length/a.length:null});
     r.push(trendLine('رجعوا الشهر التاني',coh,m1,pcf),trendLine('لسه بيجوا بعد 3 شهور',coh,m3,pcf));
     const a=avgOf(m1.slice(-3));if(a!=null&&a<0.6)t.push(`حوالي ${pc(1-a)} من المرضى الجداد ما بيرجعوش الشهر التاني. أكبر فرصة في المركز: مكالمة متابعة خلال أسبوع من أول زيارة لكل مريض ما حجزش.`);

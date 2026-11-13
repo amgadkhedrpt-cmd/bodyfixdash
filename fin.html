@@ -352,7 +352,7 @@ function vRev(){const P=D.pay.filter(p=>inB(p)&&inR(p)&&!p.bal);const I=D.inv.fi
   const byM=groupSum(P,'meth'),byDoc=groupSum(P,'doc'),byBy=groupSum(P,'by');
   const byPt={};P.forEach(p=>{const k=p.pid||p.pn;if(!k)return;(byPt[k]=byPt[k]||{n:p.pn,pid:p.pid,amt:0,c:0}).amt+=p.amt;byPt[k].c++});
   const topP=Object.values(byPt).sort((a,b)=>b.amt-a.amt).slice(0,25);
-  const it=I.reduce((o,x)=>(o.t+=x.total,o.p+=x.paid,o.d+=x.disc,o.n++,o),{t:0,p:0,d:0,n:0});
+  const it=I.reduce((o,x)=>(o.t+=x.total,o.p+=Math.min(Math.max(0,x.total-x.disc),x.paid),o.d+=x.disc,o.n++,o),{t:0,p:0,d:0,n:0});
   return `<div class="grid g4">${kpi('المحصّل',fm(tot),fm(P.length)+' عملية دفع')}${kpi('متوسط عملية الدفع',fm(P.length?tot/P.length:null))}
    ${kpi('إجمالي الفواتير',fm(it.t),fm(it.n)+' فاتورة')}${kpi('الخصومات',fm(it.d),it.t?pc(it.d/it.t)+' من الفواتير':'')}${kpi('المدفوع من الفواتير دي',fm(it.p),it.t?pc(it.p/(it.t-it.d||1))+' من الصافي':'')}</div>
   <div class="grid g2" style="margin-top:12px">

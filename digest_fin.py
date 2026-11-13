@@ -359,8 +359,8 @@ def section(today_s):
             names = "".join(f'<li style="margin:1px 0">{H(i["n"] or "—")} {sub("— " + (i["x"] if i.get("raw") else H(i["x"])) + ((" · من " + str(i["age"]) + " يوم") if i["age"] else ""))}</li>' for i in p["items"][:6])
             more = sub(f"+ {len(p['items']) - 6} كمان") if len(p["items"]) > 6 else ""
             out.append(f'<div style="border-inline-start:3px solid {col};padding:4px 10px;margin:8px 0;font-size:13px">'
-                       f'<div style="font-weight:700">{p["t"]}: {p["n"]} {p["unit"]}</div>'
-                       f'<div>{tr}{" · " if tr else ""}{("أقدم واحدة من " + str(old) + " يوم · ") if old else ""}{("القيمة " + money(p["val"]) + " جنيه · ") if p["val"] else ""}{sub("المسئول: " + p["own"])}'
+                       f'<div style="font-weight:700">{p["t"]}: {p["n"]} {p["unit"]} <span style="font-weight:400">— {own_html(p)}</span></div>'
+                       f'<div>{tr}{" · " if tr else ""}{("أقدم واحدة من " + str(old) + " يوم · ") if old else ""}{("القيمة " + money(p["val"]) + " جنيه") if p["val"] else ""}'
                        f'{(" · <span style=color:#16a34a>✓ اتحل " + str(p["solved"]) + " " + p.get("unitS", "") + " من امبارح</span>") if p["solved"] else ""}</div>'
                        f'<ul style="margin:2px 0;padding-inline-start:18px">{names}</ul>{more}</div>')
     return perf, "".join(out)
@@ -370,7 +370,43 @@ def section(today_s):
 AUD_B = {"BODYFIX Center": "haram", "FIX ZONE": "dokki"}
 CALL_T = re.compile(r"متابع|انقطاع|منقطع|استرداد|ملاحظ|تقييم الجلسه|اتصال|مكالم", re.I)
 STATE_F = "data/digest_open.json"
-PLAN = None   # pid → مهام التحصيل في خطة النهارده (digest.py بيملاها)
+PLAN = None       # pid → مهام التحصيل في خطة النهارده (digest.py بيملاها)
+PLAN_ALL = None   # كل مهام خطة النهارده — عشان نكتب اسم السكرتيرة المسئولة جنب كل مشكلة
+PB = {"haram": "BODYFIX Center", "dokki": "FIX ZONE"}
+OWN_G = [("حضر تاني", ["debt", "debtph", "invrev", "invfix"]), ("خدمة اتعملت ومتدفعتش (من يوم", ["debtph", "invrev", "debt", "invfix"]),
+         ("خدمة اتعملت النهارده", ["debt"]), ("ومفيش خدمة اتسجلت", ["aud", "stale"]), ("عملوا كشف", ["kashf0", "kashf", "fix"]),
+         ("بيلغوا ورا بعض", ["streak", "recur"]), ("مرضى جداد", ["idle", "nonext", "call"])]
+
+
+def own_html(p):
+    o = owner_of(p)
+    if o:
+        return f'<b style="color:#1d4ed8">👤 {H(o)}</b>'
+    if p["own"] == "المدير":
+        return sub("المسئول: المدير")
+    return sub("المسئول: " + p["own"]) + (' <span style="color:#b45309;font-size:11px">(مفيش سكرتيرة متحددة ليها في خطة النهارده)</span>' if PLAN_ALL else "")
+
+
+def owner_of(p):
+    """اسم السكرتيرة: من مهام نفس المرضى في الخطة الأول، وإلا مسئولة نفس نوع المهمة في الفرع النهارده"""
+    if p["own"] == "المدير" or not PLAN_ALL:
+        return None
+    gs = next((g for k, g in OWN_G if k in p["t"]), None)
+    if not gs:
+        return None
+    cnt = defaultdict(int)
+    for pid in p.get("pids") or []:
+        for t in (PLAN or {}).get(pid) or []:
+            if t.get("o"):
+                cnt[t["o"]] += 1
+    if not cnt:
+        for t in PLAN_ALL:
+            if t.get("br") == PB.get(p["b"]) and t.get("g") in gs and t.get("o") and t["o"] != "المدير":
+                cnt[t["o"]] += 2 if t["g"] == gs[0] else 1
+    if not cnt:
+        return None
+    L = sorted(cnt, key=lambda o: -cnt[o])
+    return " + ".join(L[:2])
 nrm = lambda t: re.sub(r"\s+", " ", re.sub("[أإآ]", "ا", str(t or "")).replace("ة", "ه").replace("ى", "ي")).strip()
 
 
@@ -450,16 +486,18 @@ def steps_money(b, x, T, AUD, STATE):
             import digest_plan
             t += " · " + digest_plan.task_badge(PLAN.get(i["pid"]))
         return t
+    def fillp(L):
+        return [i["pid"] for i in L]
     if came:
-        out.append({"lvl": 3, "b": b, "t": "🚨 حضر تاني وسايب خدمة اتعملت ومتدفعتش", "own": "الاستقبال + الحسابات",
+        out.append({"lvl": 3, "b": b, "t": "🚨 حضر تاني وسايب خدمة اتعملت ومتدفعتش", "own": "الاستقبال + الحسابات", "pids": fillp(came),
                     "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i, f" · حضر {i['later']} مرة بعدها"), "raw": 1} for i in came), key=lambda i: -i["age"]),
                     "n": len(came), "val": sum(i["rem"] for i in came), "prev": None, "solved": 0, "unit": "مريض"})
     if older:
-        out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت ومتدفعتش (من يوم أو أكتر)", "own": "الاستقبال + الحسابات",
+        out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت ومتدفعتش (من يوم أو أكتر)", "own": "الاستقبال + الحسابات", "pids": fillp(older),
                     "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i), "raw": 1} for i in older), key=lambda i: -i["age"]),
                     "n": len(older), "val": sum(i["rem"] for i in older), "prev": None, "solved": 0, "unit": "مريض"})
     if today:
-        out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت النهارده ومتدفعتش", "own": "الاستقبال",
+        out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت النهارده ومتدفعتش", "own": "الاستقبال", "pids": fillp(today),
                     "items": [{"n": i["n"], "age": None, "x": fmt(i) + (" · " + H(i["dr"]) if i["dr"] else ""), "raw": 1} for i in today],
                     "n": len(today), "val": sum(i["rem"] for i in today), "prev": None, "solved": 0, "unit": "مريض"})
     if out and solved:

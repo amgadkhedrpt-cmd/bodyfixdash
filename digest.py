@@ -96,6 +96,7 @@ def main():
         import digest_fin, digest_plan
         res, _ = plan_data(today_s)
         digest_fin.PLAN = digest_plan.plan_by_pid(res) if res else None
+        digest_fin.PLAN_ALL = (res or {}).get("tasks") or None
     except Exception as e:
         print(f"digest plan data: {e}")
     html = build(now, alerts, ctx, paid)

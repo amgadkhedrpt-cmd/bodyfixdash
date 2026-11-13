@@ -7,7 +7,7 @@ const nAr=t=>String(t??'').replace(/[أإآٱ]/g,'ا').replace(/ة/g,'ه').repla
 
 // ---------------- defaults (no amounts here: amounts live only in the encrypted settings) ----------------
 const NUT_DEF={v:1,shareAide:0.5,shareGen:0.25,sharedPct:0.25,deviceDep:5000,deviceDepFrom:'2024-06',assetLife:60,assetShare:0.25,
-  injMode:'r12',injManual:0.5,alaaFrom:'2026-10',alaaRate:0.10,alaaArchive:{due:'',paid:'',bal:'',extra:'',note:'رصيد نظام الـ50% (يونيو 2024 – سبتمبر 2026)'},
+  revBasis:'cash',injMode:'r12',injManual:0.5,alaaFrom:'2026-10',alaaRate:0.10,alaaArchive:{due:'',paid:'',bal:'',extra:'',note:'رصيد نظام الـ50% (يونيو 2024 – سبتمبر 2026)'},
   priceDate:'',alertInjShare:0.75,alertInjDisc:0.10,alertDevDisc:0.15,
   staff:[
     {ar:'ملك',en:'Malak Ashour',role:'مساعدة التخسيس',share:0.5,from:'2026-08',to:''},
@@ -100,12 +100,16 @@ function classify(x,ctx){
 // ---------------- build ----------------
 function nutBuild(){
   if(NUT.data)return NUT.data;const C=NUT.cfg||nutMerge(null);NUT.cfg=C;
-  const K=RAW.kinds||{},ops=[],dokki=[],oth=[],prods=[];
+  const K=RAW.kinds||{},ops=[],dokki=[],oth=[],prods=[],cash=[];let hasPD=false;
   for(const m in (K.ops&&K.ops.all)||{}){const t=K.ops.all[m];if(!t||!t.cols)continue;
-    const c=pick(t.cols,{name:['name'],end:['end'],cr:['createdAt'],st:['status'],tot:['total'],paid:['paid'],disc:['discount'],op:['operation.name'],doc:['doctor.name'],pid:['patient.referenceId'],fn:['patient.firstName'],ln:['patient.lastName'],br:['branch.name']});
+    const c=pick(t.cols,{name:['name'],end:['end'],cr:['createdAt'],st:['status'],tot:['total'],paid:['paid'],disc:['discount'],op:['operation.name'],doc:['doctor.name'],pid:['patient.referenceId'],fn:['patient.firstName'],ln:['patient.lastName'],br:['branch.name'],pd:['paidAt','paidDate']});if(c.pd>=0)hasPD=true;
     const rows=t.rows.map(r=>({r,paid:num(r,c.paid),tot:num(r,c.tot),disc:num(r,c.disc)}));
     const rat=rows.filter(x=>x.paid>0&&x.tot-x.disc>0).map(x=>(x.tot-x.disc)/x.paid).sort((a,b)=>a-b);const med=rat.length?rat[rat.length>>1]:1;const sc=med>=50&&med<=200?100:1;
-    for(const x of rows){const r=x.r;const ce=cairo(c.end>=0?r[c.end]:null);if(!ce)continue;const name=nm(r,c.name),n=nAr(name);
+    for(const x of rows){const r=x.r;const ce=cairo(c.end>=0?r[c.end]:null);const name=nm(r,c.name),n=nAr(name);
+      // 💰 التحصيل: كل خطوة تغذية اتدفعت (حتى لو لسه Planned) — بشهر الدفع
+      {const cat=ncat(n),st=nm(r,c.st);if(x.paid>0&&!/REJECT|CANCEL/i.test(st)&&!['physio','other','prod'].includes(cat)&&!/FIX ?ZONE/i.test(nm(r,c.br))){
+        const pd=cairo(c.pd>=0?r[c.pd]:null)||ce||cairo(c.cr>=0?r[c.cr]:null);if(pd)cash.push({k:pd[0].slice(0,7),d:pd[0],cat,paid:x.paid,st,pid:nm(r,c.pid),done:!!ce,est:c.pd<0||!r[c.pd]})}}
+      if(!ce)continue;
       const o={k:ce[0].slice(0,7),d:ce[0],cr:(cairo(c.cr>=0?r[c.cr]:null)||[''])[0],name,n,op:nAr(nm(r,c.op)),st:nm(r,c.st),paid:x.paid,tot:x.tot/sc,doc:nm(r,c.doc),pid:nm(r,c.pid),pn:(nm(r,c.fn)+' '+nm(r,c.ln)).trim()};
       o.disc=Math.max(0,o.tot-o.paid);o.cat=ncat(n);
       if(o.cat==='dev')o.dev=(DEVT.find(z=>z[1].test(n))||['أخرى'])[0];
@@ -130,7 +134,7 @@ function nutBuild(){
     if(phyPids.has(p.pid))return {ok:false,why:hit+': مريض علاج طبيعي كمان'};return {ok:true,why:hit+': مريض تغذية بس وله جلسة قريبة'}}};
   for(const x of xs){x.key=(x.d+'|'+Math.round(x.amt)+'|'+nAr(x.desc).slice(0,40));const [cl,sh,why]=classify(x,ctx);x.cls=cl;x.share=sh;x.why=why;
     const ov=C.overrides[x.key];if(ov){x.cls=ov.cls;x.share=+ov.share;x.why='تعديل يدوي'+(ov.note?' — '+ov.note:'');x.ov=1}}
-  NUT.data={ops,dokki,oth,prods,xs,phyPids};return NUT.data;
+  NUT.data={ops,dokki,oth,prods,xs,phyPids,cash,hasPD};return NUT.data;
 }
 const nIn=(k,a,b)=>k>=a&&k<=b;
 function payrollAt(k){const C=NUT.cfg,P=C.payroll||{};const have=Object.keys(P).filter(m=>P[m]&&Object.keys(P[m]).length).sort();
@@ -140,15 +144,18 @@ function salaryShare(k){const pr=payrollAt(k),rows=[];let tot=0;
   for(const s of staffAt(k)){const en=nAr(s.en),ar=nAr(s.ar);const key=Object.keys(pr.map).find(n=>{const x=nAr(n);return (en&&(x===en||x.startsWith(en.split(' ')[0]+' ')&&en.split(' ').length===1||x.includes(en)))||(ar&&x.includes(ar))});
     const g=key?+pr.map[key]||0:0;const v=g*(+s.share||0);tot+=v;rows.push({n:s.ar,en:s.en,role:s.role,share:+s.share||0,gross:g,v,found:!!key})}
   return {tot,rows,est:pr.est,none:pr.none}}
-function injRatio(k){const C=NUT.cfg,{ops,xs}=nutBuild();
-  const buy=f=>xs.filter(x=>x.cls==='inj_buy'&&f(x.k)).reduce((s,x)=>s+x.amt,0),rev=f=>ops.filter(o=>o.cat==='inj'&&f(o.k)).reduce((s,o)=>s+o.paid,0);
+function injRatio(k){const C=NUT.cfg,{xs}=nutBuild(),RL=nRevList();
+  const buy=f=>xs.filter(x=>x.cls==='inj_buy'&&f(x.k)).reduce((s,x)=>s+x.amt,0),rev=f=>RL.filter(o=>o.cat==='inj'&&f(o.k)).reduce((s,o)=>s+o.paid,0);
   if(C.injMode==='manual')return +C.injManual||0;
   if(C.injMode==='all'){const r=rev(()=>true);return r?buy(()=>true)/r:0}
   const a=shiftK(k,-11),r=rev(m=>m>=a&&m<=k);return r?buy(m=>m>=a&&m<=k)/r:0}
-function nutMonth(k){const C=NUT.cfg,{ops,xs}=nutBuild();
-  const O=ops.filter(o=>o.k===k),X=xs.filter(x=>x.k===k);
-  const byC={};NCAT.forEach(c=>byC[c[0]]={n:0,paid:0,tot:0,disc:0});O.forEach(o=>{const b=byC[o.cat];b.n++;b.paid+=o.paid;b.tot+=o.tot;b.disc+=o.disc});
-  const rev=O.reduce((s,o)=>s+o.paid,0),injRev=byC.inj.paid;
+const nCashMode=()=>(NUT.cfg||{}).revBasis!=='exec';
+function nRevList(){const d=nutBuild();return nCashMode()?d.cash:d.ops}
+function nutMonth(k){const C=NUT.cfg,{ops,xs,cash}=nutBuild();
+  const O=ops.filter(o=>o.k===k),X=xs.filter(x=>x.k===k),RV=nRevList().filter(o=>o.k===k);
+  const byC={};NCAT.forEach(c=>byC[c[0]]={n:0,paid:0,tot:0,disc:0});O.forEach(o=>{const b=byC[o.cat];b.n++;b.tot+=o.tot;b.disc+=o.disc});RV.forEach(o=>{if(byC[o.cat])byC[o.cat].paid+=o.paid});
+  const rev=RV.reduce((s,o)=>s+o.paid,0),injRev=byC.inj.paid;
+  const pre=nCashMode()?cash.filter(o=>o.k===k&&!o.done).reduce((s,o)=>s+o.paid,0):0,est=nCashMode()&&RV.some(o=>o.est);
   const injBuy=X.filter(x=>x.cls==='inj_buy').reduce((s,x)=>s+x.amt,0);
   const ratio=C.injMode==='purchase'?null:injRatio(k);const injCost=C.injMode==='purchase'?injBuy:ratio*injRev;
   const special=X.filter(x=>x.cls==='special'||x.cls==='refund_nut').reduce((s,x)=>s+x.amt*(x.share??1),0);
@@ -159,7 +166,7 @@ function nutMonth(k){const C=NUT.cfg,{ops,xs}=nutBuild();
   const specTot=injCost+special+adv+sal.tot+devDep;const general=(+C.sharedPct||0)*sharedBase+(+C.assetShare||0)*genDep;
   const before=rev-specTot-general;const alaa=k>=C.alaaFrom?(+C.alaaRate||0)*rev:null;const after=alaa==null?null:before-alaa;
   const pts=new Set(O.map(o=>o.pid).filter(Boolean)).size;
-  return {k,byC,rev,injRev,injBuy,ratio,injCost,special,adv,sal,devDep,genDep,sharedBase,specTot,general,before,alaa,after,margin:rev&&after!=null?after/rev:(rev?before/rev:null),
+  return {k,pre,est,byC,rev,injRev,injBuy,ratio,injCost,special,adv,sal,devDep,genDep,sharedBase,specTot,general,before,alaa,after,margin:rev&&after!=null?after/rev:(rev?before/rev:null),
     pts,noX:!X.length,disc:O.reduce((s,o)=>s+o.disc,0),tot:O.reduce((s,o)=>s+o.tot,0),X}}
 
 // ---------------- views ----------------
@@ -179,7 +186,7 @@ function nAlerts(M){const C=NUT.cfg,a=[];if(M.rev&&M.injRev/M.rev>C.alertInjShar
   return a}
 function nSum(){const k=S.to,M=nutMonth(k),P=nutMonth(shiftK(k,-1));const al=nAlerts(M);const est=M.sal.est?' <span class="chip w">تقديري</span>':'';
   return `${al.length?`<div class="note" style="margin-bottom:10px;border-inline-start:4px solid var(--warn)">${al.map(x=>'⚠️ '+esc(x)).join('<br>')}</div>`:''}
-  <div class="grid g4">${kpi('إيراد القسم — '+ml(k),fm(M.rev),'مقارنة بـ'+ml(P.k)+' '+delta(M.rev,P.rev))}${kpi('المصروفات الخاصة',fm(M.specTot),'حقن '+fm(M.injCost)+' · رواتب '+fm(M.sal.tot)+est)}
+  <div class="grid g4">${kpi('إيراد القسم — '+ml(k)+(nCashMode()?' (تحصيل)':' (تنفيذ)'),fm(M.rev),'مقارنة بـ'+ml(P.k)+' '+delta(M.rev,P.rev)+(M.pre?'<br>منه '+fm(M.pre)+' مدفوع مقدم لجلسات لسه':'')+(M.est?'<br><span class="sub">تاريخ الدفع لسه بيتسحب — مؤقتاً بتاريخ الجلسة</span>':''))}${kpi('المصروفات الخاصة',fm(M.specTot),'حقن '+fm(M.injCost)+' · رواتب '+fm(M.sal.tot)+est)}
    ${kpi('نصيب المصروفات العامة',fm(M.general))}${kpi('صافي قبل راتب د. آلاء',fm(M.before),M.noX?'<span class="chip w">غير مكتمل</span>':delta(M.before,P.before),M.before<0?'down':'')}
    ${kpi('راتب د. آلاء',M.alaa==null?'—':fm(M.alaa),M.alaa==null?'قبل '+ml(NUT.cfg.alaaFrom)+': نظام الـ50%':pc(NUT.cfg.alaaRate)+' من الإيراد')}${kpi('صافي بعد راتبها',M.after==null?'—':fm(M.after),'هامش '+pc(M.margin),M.after<0?'down':'')}
    ${kpi('مرضى نشطين',fm(M.pts),M.pts?'إيراد المريض '+fm(M.rev/M.pts):'')}${kpi('نسبة الحقن من الإيراد',pc(M.rev?M.injRev/M.rev:null),'تكلفتها '+pc(M.rev?M.injCost/M.rev:null)+' من الإيراد')}</div>
@@ -223,7 +230,7 @@ function cnPL(){const ks=monthsList(shiftK(S.to,-11),S.to),R=ks.map(nutMonth),c=
   $('#nplX').onclick=nutExcel}
 function nInj(){const ks=nMonths(),R=ks.map(nutMonth);const {ops,xs}=nutBuild();const O=ops.filter(o=>(o.cat==='inj'||o.cat==='mezo')&&nIn(o.k,S.from,S.to));
   const ty={};O.forEach(o=>{const t=o.cat==='mezo'?'ميزوثيرابي':o.inj;const g=ty[t]=ty[t]||{n:0,paid:0,disc:0,tot:0};g.n++;g.paid+=o.paid;g.disc+=o.disc;g.tot+=o.tot});
-  const buyAll=xs.filter(x=>x.cls==='inj_buy').reduce((s,x)=>s+x.amt,0),revAll=ops.filter(o=>o.cat==='inj').reduce((s,o)=>s+o.paid,0);
+  const buyAll=xs.filter(x=>x.cls==='inj_buy').reduce((s,x)=>s+x.amt,0),revAll=nRevList().filter(o=>o.cat==='inj').reduce((s,o)=>s+o.paid,0);
   const L=R[R.length-1];
   return `<div class="grid g4">${kpi('إيراد حقن التخسيس',fm(R.reduce((s,r)=>s+r.injRev,0)),fm(O.filter(o=>o.cat==='inj').length)+' حقنة')}${kpi('تكلفة الحقن (محسوبة)',fm(R.reduce((s,r)=>s+r.injCost,0)),'الطريقة: '+{r12:'آخر 12 شهر',all:'الفترة كلها',manual:'رقم يدوي',purchase:'حسب الشراء'}[NUT.cfg.injMode])}
    ${kpi('نسبة التكلفة — '+ml(L.k),pc(L.ratio),'الفترة كلها '+pc(revAll?buyAll/revAll:null))}${kpi('مشتريات الحقن في الفترة',fm(R.reduce((s,r)=>s+r.injBuy,0)))}</div>
@@ -297,6 +304,7 @@ function nCfg(){const C=NUT.cfg,inp=(k,v,t,st)=>`<input data-c="${k}" type="${t|
    <label class="sub">نصيب التغذية من المصروفات المشتركة<br>${inp('sharedPct',C.sharedPct)}</label><label class="sub">نسبة «أي موظف تاني» للسلف<br>${inp('shareGen',C.shareGen)}</label>
    <label class="sub">إهلاك أجهزة التخسيس شهرياً<br>${inp('deviceDep',C.deviceDep)}</label><label class="sub">الإهلاك من شهر<br>${inp('deviceDepFrom',C.deviceDepFrom,'month',150)}</label>
    <label class="sub">عمر الأصول بالشهور<br>${inp('assetLife',C.assetLife)}</label><label class="sub">نصيب التغذية من إهلاك الأصول العامة<br>${inp('assetShare',C.assetShare)}</label>
+   <label class="sub">إيراد القسم<br><select data-c="revBasis">${[['cash','التحصيل — اللي اتدفع في الشهر (حتى لو الجلسة لسه)'],['exec','التنفيذ — الجلسات اللي اتعملت في الشهر']].map(([v,t])=>`<option value="${v}"${(C.revBasis||'cash')===v?' selected':''}>${t}</option>`).join('')}</select></label>
    <label class="sub">طريقة تكلفة الحقن<br><select data-c="injMode">${[['r12','حسب البيع — آخر 12 شهر'],['all','حسب البيع — الفترة كلها'],['manual','نسبة يدوية'],['purchase','حسب الشراء (شهر الفاتورة)']].map(([v,t])=>`<option value="${v}"${C.injMode===v?' selected':''}>${t}</option>`).join('')}</select></label>
    <label class="sub">النسبة اليدوية<br>${inp('injManual',C.injManual)}</label>
    <label class="sub">نظام د. آلاء الجديد من شهر<br>${inp('alaaFrom',C.alaaFrom,'month',150)}</label><label class="sub">نسبتها من المدفوع<br>${inp('alaaRate',C.alaaRate)}</label>
@@ -360,8 +368,8 @@ const todayC=()=>new Date().toLocaleString('sv-SE',{timeZone:'Africa/Cairo'}).sl
 // ---- الاتجاهات والتوقع ----
 function nTrend(){const k=S.to,C=NUT.cfg,{ops}=nutBuild(),td=todayC();
   // 8) forecast
-  let fc='';if(k===td.slice(0,7)){const mtd=ops.filter(o=>o.k===k&&o.d<=td),rev=mtd.reduce((s,o)=>s+o.paid,0);const last=new Date(Date.UTC(+k.slice(0,4),+k.slice(5,7),0)).toISOString().slice(0,10);
-    const done=wdays(k+'-01',td),all=wdays(k+'-01',last),fcv=done?rev/done*all:null;const pk=shiftK(k,-1),pd=pk+td.slice(7);const pm=ops.filter(o=>o.k===pk&&o.d<=pd).reduce((s,o)=>s+o.paid,0),pfull=nutMonth(pk).rev;
+  let fc='';if(k===td.slice(0,7)){const RL=nRevList(),mtd=RL.filter(o=>o.k===k&&o.d<=td),rev=mtd.reduce((s,o)=>s+o.paid,0);const last=new Date(Date.UTC(+k.slice(0,4),+k.slice(5,7),0)).toISOString().slice(0,10);
+    const done=wdays(k+'-01',td),all=wdays(k+'-01',last),fcv=done?rev/done*all:null;const pk=shiftK(k,-1),pd=pk+td.slice(7);const pm=RL.filter(o=>o.k===pk&&o.d<=pd).reduce((s,o)=>s+o.paid,0),pfull=nutMonth(pk).rev;
     fc=`<div class="grid g4">${kpi('الإيراد لحد النهارده',fm(rev),done+' يوم شغل من '+all)}${kpi('المتوقع آخر الشهر',fm(fcv),'بنفس معدل الأيام اللي فاتت (الجمعة إجازة)')}${kpi('الشهر اللي فات لنفس اليوم',fm(pm),delta(rev,pm))}${kpi('الشهر اللي فات كامل',fm(pfull),fcv?'المتوقع '+delta(fcv,pfull):'')}</div>`}
   else fc=`<div class="note">التوقع بيظهر لما «لحد» يبقى الشهر الحالي.</div>`;
   // 2) bridge

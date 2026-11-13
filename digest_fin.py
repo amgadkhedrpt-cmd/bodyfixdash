@@ -1,0 +1,392 @@
+# -*- coding: utf-8 -*-
+"""جزء الإيميل اليومي اللي محتاج التاريخ: أداء اليوم قصاد متوسط نفس اليوم (4 أسابيع) والسنة اللي فاتت، الأسبوع والشهر،
+والمشاكل المفتوحة (بتتقفل لوحدها) — بيفك البيانات المتشفرة بـ FIN_PASS جوه السيرفر بس."""
+import os, re, json
+from datetime import datetime, timedelta, date
+from collections import defaultdict
+try:
+    from zoneinfo import ZoneInfo
+    TZC = ZoneInfo("Africa/Cairo")
+except Exception:
+    TZC = None
+
+BR = {"haram": "الهرم", "dokki": "الدقي"}
+NOT_VISIT = {"Enum23", "Enum33", "Enum34", "Enum18", "Enum24", "Enum35", "Enum22", "Enum21", "Enum25"}
+DONE = {"COMPLETED", "CHECKEDIN", "INPROGRESS"}
+LOST = {"CANCELED", "NOSHOW"}
+H = lambda x: str(x if x is not None else "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+money = lambda v: f"{int(round(v or 0)):,}"
+sub = lambda t: f'<span style="color:#64748b;font-size:11px">{t}</span>'
+
+
+def cday(iso):
+    if not iso:
+        return None
+    try:
+        d = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            return d.date().isoformat()
+        return (d.astimezone(TZC) if TZC else d + timedelta(hours=2)).date().isoformat()
+    except Exception:
+        return None
+
+
+def chour(iso):
+    try:
+        d = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        return (d.astimezone(TZC) if TZC else d + timedelta(hours=2)).hour
+    except Exception:
+        return 0
+
+
+def load():
+    if not os.environ.get("FIN_PASS"):
+        return None
+    import fin_sync
+    parts = []
+    for fn in ("data/fin.enc", "data/fin_c.enc"):
+        if os.path.exists(fn):
+            try:
+                parts.append(fin_sync.decrypt(open(fn).read()))
+            except Exception as e:
+                print("digest_fin: can't open", fn, str(e)[:80])
+    if not parts:
+        return None
+    out = {"kinds": {}, "types": {}, "at": ""}
+    for p in parts:
+        out["types"].update(p.get("types") or {})
+        out["at"] = max(out["at"], p.get("at") or "")
+        for kd, bs in (p.get("kinds") or {}).items():
+            for b, ms in bs.items():
+                out["kinds"].setdefault(kd, {}).setdefault(b, {}).update(ms)
+    # ملف النهارده (كل نص ساعة)
+    if os.path.exists("data/fin_today.enc"):
+        try:
+            T = fin_sync.decrypt(open("data/fin_today.enc").read())
+            if (T.get("at") or "") > out["at"]:
+                m = T["day"][:7]
+                for kd, dc in (("pay", "createdAt"), ("apt", "start")):
+                    for b, tt in ((T.get("kinds") or {}).get(kd) or {}).items():
+                        B = out["kinds"].setdefault(kd, {}).setdefault(b, {})
+                        t = B.get(m)
+                        if not t:
+                            B[m] = tt
+                            continue
+                        ci = t["cols"].index(dc) if dc in t["cols"] else -1
+                        keep = [r for r in t["rows"] if ci < 0 or cday(r[ci]) != T["day"]]
+                        idx = [tt["cols"].index(c) if c in tt["cols"] else -1 for c in t["cols"]]
+                        B[m] = {"cols": t["cols"], "rows": keep + [[r[i] if i >= 0 else None for i in idx] for r in tt["rows"]]}
+                out["at"] = T["at"]
+        except Exception as e:
+            print("digest_fin: today file", str(e)[:80])
+    return out
+
+
+def rows(data, kind, b):
+    for m, t in sorted((data["kinds"].get(kind) or {}).get(b, {}).items()):
+        if not t or not t.get("cols"):
+            continue
+        c = {n: i for i, n in enumerate(t["cols"])}
+        for r in t["rows"]:
+            yield (lambda n, r=r, c=c: r[c[n]] if n in c and c[n] < len(r) else None)
+
+
+class Br:
+    def __init__(self, data, b):
+        self.b = b
+        types = data.get("types") or {}
+        self.exam_t = {k for k, v in types.items() if "كشف" in str(v)} | {"Enum1", "Enum2"}
+        self.apt, self.byp = [], defaultdict(list)
+        for g in rows(data, "apt", b):
+            ty, st = g("type") or "", str(g("status") or "").upper().replace("_", "").replace(" ", "")
+            if ty in NOT_VISIT or st in ("NOTE", "WAITING"):
+                continue
+            d = cday(g("start"))
+            if not d:
+                continue
+            a = {"d": d, "h": chour(g("start")), "st": st, "ty": ty, "pid": g("patient.referenceId"), "cr": cday(g("createdAt"))}
+            self.apt.append(a)
+            if a["pid"]:
+                self.byp[a["pid"]].append(a)
+        self.pay = []
+        for g in rows(data, "pay", b):
+            d = cday(g("createdAt"))
+            if d:
+                self.pay.append({"d": d, "amt": float(g("amount") or 0), "bal": str(g("type") or "").upper() == "BALANCE",
+                                 "ref": str(g("refunded")).lower() == "true", "pid": g("invoice.patient.referenceId"),
+                                 "pn": " ".join(x for x in (g("invoice.patient.firstName"), g("invoice.patient.lastName")) if x)})
+        self.inv = []
+        for g in rows(data, "inv", b):
+            d = cday(g("createdAt"))
+            if d:
+                tot, paid, disc = float(g("total") or 0), float(g("paid") or 0), float(g("discount") or 0)
+                self.inv.append({"d": d, "tot": tot, "paid": paid, "disc": disc, "rem": max(0.0, tot - disc - paid), "pid": g("patient.referenceId"),
+                                 "pn": " ".join(x for x in (g("patient.firstName"), g("patient.lastName")) if x), "ref": g("referenceId")})
+        self.nm = {}
+        for x in self.inv + self.pay:
+            if x["pid"] and x["pn"] and x["pid"] not in self.nm:
+                self.nm[x["pid"]] = x["pn"]
+        self.first = {}
+        for a in self.apt:
+            if a["st"] in DONE and a["pid"] and (a["pid"] not in self.first or a["d"] < self.first[a["pid"]]):
+                self.first[a["pid"]] = a["d"]
+        months = sorted({a["d"][:7] for a in self.apt})
+        self.m0 = months[0] if months else ""
+        self.ok = bool(self.apt)
+
+    def day(self, T):
+        A = [a for a in self.apt if a["d"] == T]
+        done = [a for a in A if a["st"] in DONE]
+        lost = [a for a in A if a["st"] in LOST]
+        np_ = sum(1 for p, f in self.first.items() if f == T and f[:7] != self.m0)
+        ex = [a for a in done if a["ty"] in self.exam_t]
+        exb = [a for a in ex if any(x["d"] > T and x["cr"] and x["cr"] <= T and x["ty"] not in self.exam_t and x["st"] not in LOST for x in self.byp[a["pid"]])]
+        rev = sum(p["amt"] for p in self.pay if p["d"] == T and not p["bal"])
+        return {"rev": rev, "ses": len(done), "booked": len(A), "canc": (len(lost) / len(A)) if A else None, "np": np_,
+                "exR": (len(exb) / len(ex)) if ex else None, "ex": len(ex), "exB": len(exb)}
+
+    def period(self, a, b):
+        A = [x for x in self.apt if a <= x["d"] <= b]
+        return {"rev": sum(p["amt"] for p in self.pay if a <= p["d"] <= b and not p["bal"]), "ses": sum(1 for x in A if x["st"] in DONE),
+                "np": sum(1 for p, f in self.first.items() if a <= f <= b and f[:7] != self.m0)}
+
+    def ptval(self, T):
+        a = (date.fromisoformat(T) - timedelta(days=90)).isoformat()
+        rev = sum(p["amt"] for p in self.pay if a <= p["d"] <= T and not p["bal"])
+        pts = {x["pid"] for x in self.apt if a <= x["d"] <= T and x["st"] in DONE}
+        return rev / len(pts) / 3 if pts else 0
+
+    # ---------- المشاكل (لحد يوم T) ----------
+    def streak(self, T):
+        out = {}
+        lim = (date.fromisoformat(T) - timedelta(days=14)).isoformat()
+        for pid, L in self.byp.items():
+            days = defaultdict(list)
+            for a in L:
+                if a["d"] <= T:
+                    days[a["d"]].append(a)
+            miss = []
+            for d in sorted(days, reverse=True):
+                l = days[d]
+                if any(a["st"] in DONE for a in l):
+                    break
+                if all(a["st"] in LOST for a in l):
+                    miss.append(d)
+                elif d == T:
+                    continue
+                else:
+                    break
+            if len(miss) >= 2 and miss[0] >= lim:
+                out[pid] = {"age": age(miss[-2] if len(miss) >= 2 else miss[0], T), "x": f"{len(miss)} مرات ورا بعض"}
+        return out
+
+    def exams(self, T):
+        out = {}
+        lo = (date.fromisoformat(T) - timedelta(days=14)).isoformat()
+        for pid, L in self.byp.items():
+            for e in L:
+                if e["st"] in DONE and e["ty"] in self.exam_t and lo <= e["d"] < T:
+                    if any(x["d"] > e["d"] and x["cr"] and x["cr"] <= T and x["st"] not in LOST and x["ty"] not in self.exam_t for x in L):
+                        continue
+                    out.setdefault(pid, {"age": age(e["d"], T), "x": "كشف " + e["d"][8:] + "/" + e["d"][5:7]})
+        return out
+
+    def newgone(self, T):
+        out = {}
+        t = date.fromisoformat(T)
+        lo, hi = (t - timedelta(days=30)).isoformat(), (t - timedelta(days=7)).isoformat()
+        for pid, f in self.first.items():
+            if f[:7] == self.m0 or not (lo <= f <= hi):
+                continue
+            L = self.byp[pid]
+            if any(a["st"] in DONE and f < a["d"] <= T for a in L) or any(a["d"] > T and a["cr"] and a["cr"] <= T and a["st"] not in LOST for a in L):
+                continue
+            out[pid] = {"age": age(f, T), "x": "أول زيارة " + f[8:] + "/" + f[5:7]}
+        return out
+
+    # 💸 خدمات اتاخدت ومتدفعتش
+    def unpaid(self, T):
+        """فواتير فيها باقي (آخر 180 يوم، لحد T). المفتاح = رقم الفاتورة"""
+        lo = (date.fromisoformat(T) - timedelta(days=180)).isoformat()
+        return {x["ref"] or (x["pid"], x["d"]): x for x in self.inv if lo <= x["d"] <= T and x["rem"] > 1}
+
+    def unbilled(self, T):
+        """حضر النهارده ومالوش أي فاتورة في آخر 120 يوم ولا دفع"""
+        lo = (date.fromisoformat(T) - timedelta(days=120)).isoformat()
+        invp = {x["pid"] for x in self.inv if lo <= x["d"] <= T}
+        payp = {p["pid"] for p in self.pay if lo <= p["d"] <= T}
+        out = {}
+        for a in self.apt:
+            if a["d"] == T and a["st"] in DONE and a["pid"] and a["pid"] not in invp and a["pid"] not in payp:
+                out[a["pid"]] = {"age": 0, "x": "حضر النهارده"}
+        return out
+
+
+def age(a, b):
+    return (date.fromisoformat(b) - date.fromisoformat(a)).days
+
+
+def ch(a, b, r=False):
+    if a is None or b is None:
+        return None
+    if r:
+        return a - b
+    return (a - b) / abs(b) if b else None
+
+
+def arrow(v, r=False, good=1, lbl=""):
+    if v is None:
+        return ""
+    big = abs(v) >= (0.05 if r else 0.10)
+    g = (v >= 0) == (good > 0)
+    col = ("#16a34a" if g else "#dc2626") if big else "#94a3b8"
+    s = f"{abs(v) * 100:.0f} نقطة" if r else f"{abs(v) * 100:.0f}%"
+    return f'<span style="color:{col};font-size:11px">{lbl} {"▲" if v >= 0 else "▼"}{s}</span>'
+
+
+MET = [("rev", "💰 التحصيل", False, 1), ("ses", "✅ الجلسات اللي اتعملت", False, 1), ("canc", "❌ الإلغاء والغياب", True, -1),
+       ("np", "🆕 مرضى جداد", False, 1), ("exR", "🩺 كشوفات اتحجزلها قبل ما تمشي", True, 1)]
+
+
+def section(today_s):
+    data = load()
+    if not data:
+        return "", ""
+    B = {b: Br(data, b) for b in BR}
+    B = {b: x for b, x in B.items() if x.ok}
+    T = today_s
+    t = date.fromisoformat(T)
+    wd = ["الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت", "الحد"][t.weekday()]
+    C = {}
+    for b, x in B.items():
+        cur = x.day(T)
+        w = [x.day((t - timedelta(days=7 * k)).isoformat()) for k in range(1, 5)]
+        w = [d for d in w if d["booked"]]
+        ly = x.day((t - timedelta(days=364)).isoformat())
+        avg = {}
+        for k, *_ in MET:
+            v = [d[k] for d in w if d[k] is not None]
+            avg[k] = sum(v) / len(v) if v else None
+        C[b] = (cur, avg, ly if ly["booked"] else None, len(w))
+    # جملة لكل فرع
+    head = []
+    for b, (cur, avg, ly, n) in C.items():
+        if not cur["booked"]:
+            head.append(f"<b>{BR[b]}</b>: مفيش مواعيد النهارده.")
+            continue
+        r, s = ch(cur["rev"], avg["rev"]), ch(cur["ses"], avg["ses"])
+        lvl = (r or 0) + (s or 0)
+        word = "يوم أحسن من العادي 👍" if lvl >= 0.15 else "يوم أقل من العادي ⚠️" if lvl <= -0.15 else "يوم عادي"
+        head.append(f"<b>{BR[b]}</b>: {word} — التحصيل {arrow(r)} والجلسات {arrow(s)} عن متوسط {wd} في آخر {n} أسابيع")
+    td = lambda v: f'<td style="padding:6px;border-top:1px solid #e2e8f0;text-align:center;font-size:13px;line-height:1.6">{v}</td>'
+    tbl = ['<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0"><tr><th></th>'
+           + "".join(f'<th style="padding:6px;background:#eff6ff;color:#1d4ed8">{BR[b]}</th>' for b in C) + "</tr>"]
+    for k, lbl, r, good in MET:
+        cells = []
+        for b, (cur, avg, ly, n) in C.items():
+            v = cur[k]
+            f = "—" if v is None else (f"{v * 100:.0f}%" if r else money(v))
+            extra = f' {sub("من " + str(cur["booked"]))}' if k == "ses" else (f' {sub("(" + str(cur["exB"]) + " من " + str(cur["ex"]) + ")")}' if k == "exR" and cur["ex"] else "")
+            a1 = arrow(ch(v, avg[k], r), r, good, "عن العادي")
+            a2 = arrow(ch(v, ly[k], r), r, good, "عن السنة اللي فاتت") if ly else ""
+            cells.append(td(f"<b>{f}</b>{extra}<br>{' · '.join(x for x in (a1, a2) if x)}"))
+        tbl.append(f'<tr><td style="padding:6px;border-top:1px solid #e2e8f0;font-size:13px">{lbl}</td>{"".join(cells)}</tr>')
+    tbl.append("</table>")
+    # الأسبوع والشهر
+    sat = t - timedelta(days=(t.weekday() - 5) % 7)
+    m1 = t.replace(day=1)
+
+    def per(a, bb, lyfn):
+        out = []
+        for b, x in B.items():
+            A, L = x.period(a.isoformat(), bb.isoformat()), x.period(lyfn(a).isoformat(), lyfn(bb).isoformat())
+            out.append(f"<b>{BR[b]}</b>: {money(A['rev'])} جنيه · {A['ses']:,} جلسة · {A['np']} مريض جديد "
+                       + (f"{sub('— قصاد نفس الفترة السنة اللي فاتت:')} {arrow(ch(A['rev'], L['rev']), lbl='التحصيل')} {arrow(ch(A['ses'], L['ses']), lbl='الجلسات')} {arrow(ch(A['np'], L['np']), lbl='الجداد')}" if L["ses"] else ""))
+        return "<br>".join(out)
+    ly_wk = lambda d: d - timedelta(days=364)
+
+    def ly_m(d):
+        try:
+            return d.replace(year=d.year - 1)
+        except ValueError:
+            return d.replace(year=d.year - 1, day=28)
+    perf = (f'<div style="line-height:1.9;font-size:13px;margin:6px 0 10px">{"<br>".join(head)}</div>' + "".join(tbl)
+            + f'<div style="font-size:13px;line-height:1.9;margin-top:8px"><b>📆 الأسبوع لحد النهارده</b> (من السبت):<br>{per(sat, t, ly_wk)}'
+            + f'<br><b>🗓️ الشهر لحد النهارده</b>:<br>{per(m1, t, ly_m)}</div>'
+            + f'<div style="color:#64748b;font-size:11px;margin-top:4px">«عن العادي» = متوسط نفس اليوم في آخر 4 أسابيع · «عن السنة اللي فاتت» = نفس اليوم من الأسبوع السنة اللي فاتت</div>')
+    # ---------- المشاكل المفتوحة ----------
+    Y = (t - timedelta(days=1)).isoformat()
+    P = []
+    for b, x in B.items():
+        v = x.ptval(T)
+        # 💸 الفلوس الأول
+        def split(D_):
+            un = x.unpaid(D_)
+            old = [i for i in un.values() if i["d"] < D_]
+            ca = {}
+            for i in old:
+                later = {a["d"] for a in x.byp.get(i["pid"], []) if a["st"] in DONE and i["d"] < a["d"] <= D_}
+                if later and i["pid"]:
+                    z = ca.setdefault(i["pid"], {"rem": 0, "d": i["d"], "n": 0})
+                    z["rem"] += i["rem"]; z["d"] = min(z["d"], i["d"]); z["n"] = max(z["n"], len(later))
+            rest = [i for i in old if i["pid"] not in ca]
+            return un, ca, rest
+        un_now, ca_p, rest_old = split(T)
+        un_y, ca_y, rest_y = split(Y)
+        today_un = [i for i in un_now.values() if i["d"] == T]
+        if ca_p or ca_y:
+            P.append({"lvl": 3, "b": b, "t": "🚨 حضروا تاني وعليهم فلوس لخدمة اتاخدت قبل كده", "own": "الاستقبال + الحسابات",
+                      "items": sorted(({"n": x.nm.get(p, ""), "age": age(z["d"], T), "x": f"باقي {money(z['rem'])} جنيه · حضر {z['n']} مرة بعدها"} for p, z in ca_p.items()), key=lambda i: -i["age"]),
+                      "n": len(ca_p), "val": sum(z["rem"] for z in ca_p.values()), "prev": len(ca_y), "solved": len([p for p in ca_y if p not in ca_p and p not in {i["pid"] for i in un_now.values()}]), "unit": "مريض"})
+        rk = lambda i: i["ref"] or (i["pid"], i["d"])
+        if rest_old or rest_y:
+            nowk = {rk(i) for i in un_now.values()}
+            P.append({"lvl": 2, "b": b, "t": "💸 خدمة اتاخدت ومتدفعتش (من يوم أو أكتر)", "own": "الاستقبال + الحسابات",
+                      "items": sorted(({"n": i["pn"] or x.nm.get(i["pid"], ""), "age": age(i["d"], T), "x": f"باقي {money(i['rem'])} من {money(i['tot'] - i['disc'])}"} for i in rest_old), key=lambda i: -i["age"]),
+                      "n": len(rest_old), "val": sum(i["rem"] for i in rest_old), "prev": len(rest_y), "solved": len([i for i in rest_y if rk(i) not in nowk]), "unit": "فاتورة"})
+        if today_un:
+            P.append({"lvl": 2, "b": b, "t": "💸 خدمة النهارده ومتدفعتش كاملة", "own": "الاستقبال",
+                      "items": [{"n": i["pn"] or x.nm.get(i["pid"], ""), "age": None, "x": f"باقي {money(i['rem'])} من {money(i['tot'] - i['disc'])}"} for i in today_un],
+                      "n": len(today_un), "val": sum(i["rem"] for i in today_un), "prev": None, "solved": 0, "unit": "فاتورة"})
+        ub = x.unbilled(T)
+        if ub:
+            P.append({"lvl": 2, "b": b, "t": "🧾 حضر النهارده ومفيش أي فاتورة ولا دفع (آخر 4 شهور)", "own": "الاستقبال",
+                      "items": [{"n": x.nm.get(p, "") or str(p), "age": None, "x": z["x"]} for p, z in ub.items()], "n": len(ub), "val": len(ub) * (v / 4 if v else 0), "prev": None, "solved": 0, "unit": "مريض"})
+        # خصم كبير / استرداد النهارده
+        big = [i for i in x.inv if i["d"] == T and i["tot"] > 0 and i["disc"] / i["tot"] >= 0.3]
+        if big:
+            P.append({"lvl": 1, "b": b, "t": "🏷️ خصم 30% أو أكتر النهارده", "own": "المدير", "items": [{"n": i["pn"], "age": None, "x": f"خصم {money(i['disc'])} من {money(i['tot'])} ({i['disc'] / i['tot'] * 100:.0f}%)"} for i in big],
+                      "n": len(big), "val": sum(i["disc"] for i in big), "prev": None, "solved": 0, "unit": "فاتورة"})
+        rf = [p for p in x.pay if p["d"] == T and p["ref"]]
+        if rf:
+            P.append({"lvl": 1, "b": b, "t": "↩️ دفعات اتردت النهارده", "own": "المدير", "items": [{"n": p["pn"], "age": None, "x": f"{money(p['amt'])} جنيه"} for p in rf],
+                      "n": len(rf), "val": sum(p["amt"] for p in rf), "prev": None, "solved": 0, "unit": "دفعة"})
+        # المرضى
+        for title, fn, own in (("🔁 بيلغوا ورا بعض (مرتين أو أكتر ومجوش بعدها)", x.streak, "الاستقبال"),
+                               ("🩺 عملوا كشف وما اتحجزلهمش (آخر 14 يوم)", x.exams, "الاستقبال"),
+                               ("🚶 مرضى جداد ما رجعوش ومالهمش ميعاد (أول زيارة من 7–30 يوم)", x.newgone, "الاستقبال + الدكتور")):
+            now, yd = fn(T), fn(Y)
+            solved = len([p for p in yd if p not in now])
+            if now or solved:
+                P.append({"lvl": 1, "b": b, "t": title, "own": own, "items": sorted(({"n": x.nm.get(p, ""), "age": z["age"], "x": z["x"]} for p, z in now.items()), key=lambda i: -(i["age"] or 0)),
+                          "n": len(now), "val": len(now) * v, "prev": len(yd), "solved": solved, "unit": "مريض"})
+    P.sort(key=lambda p: (-p["lvl"], -(p["val"] or 0)))
+    tot_solved = sum(p["solved"] for p in P)
+    shown = [p for p in P if p["n"]][:8]
+    out = []
+    if tot_solved:
+        out.append(f'<div style="color:#16a34a;font-size:13px;margin:4px 0">✓ اتحل {tot_solved} من امبارح</div>')
+    for p in shown:
+        old = max([i["age"] for i in p["items"] if i["age"] is not None] or [0])
+        tr = "" if p["prev"] is None else (f'<span style="color:#dc2626">▲ زادت (امبارح {p["prev"]})</span>' if p["n"] > p["prev"] else f'<span style="color:#16a34a">▼ قلّت (امبارح {p["prev"]})</span>' if p["n"] < p["prev"] else sub("زي امبارح"))
+        col = "#b91c1c" if p["lvl"] == 3 else "#dc2626" if p["lvl"] == 2 else "#ea580c"
+        names = "".join(f'<li style="margin:1px 0">{H(i["n"] or "—")} {sub("— " + H(i["x"]) + ((" · من " + str(i["age"]) + " يوم") if i["age"] else ""))}</li>' for i in p["items"][:6])
+        more = sub(f"+ {len(p['items']) - 6} كمان") if len(p["items"]) > 6 else ""
+        out.append(f'<div style="border-inline-start:3px solid {col};padding:4px 10px;margin:8px 0;font-size:13px">'
+                   f'<div style="font-weight:700">{BR[p["b"]]} · {p["t"]}: {p["n"]} {p["unit"]}</div>'
+                   f'<div>{tr}{" · " if tr else ""}{("أقدم واحدة من " + str(old) + " يوم · ") if old else ""}{("القيمة " + money(p["val"]) + " جنيه · ") if p["val"] else ""}{sub("المسئول: " + p["own"])}'
+                   f'{(" · <span style=color:#16a34a>✓ اتحل " + str(p["solved"]) + " من امبارح</span>") if p["solved"] else ""}</div>'
+                   f'<ul style="margin:2px 0;padding-inline-start:18px">{names}</ul>{more}</div>')
+    if not shown:
+        out.append('<div style="color:#16a34a;font-size:13px">✅ مفيش مشاكل مفتوحة</div>')
+    return perf, "".join(out)

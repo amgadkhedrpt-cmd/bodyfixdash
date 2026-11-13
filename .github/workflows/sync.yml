@@ -102,6 +102,7 @@ jobs:
         env:
           GMAIL_USER:     ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
+          FIN_PASS:       ${{ secrets.FIN_PASS }}
           SHEET_KEY:      ${{ secrets.SHEET_KEY }}
           SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
         run: python digest.py

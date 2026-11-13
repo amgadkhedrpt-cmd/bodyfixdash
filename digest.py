@@ -440,8 +440,9 @@ def build(now, alerts, ctx, paid):
                        "fu": cnt(lambda a: "متابع" in a["type"] and "تغذ" in a["type"]),
                        "sess": sess, "inj": inj}
         # محتاج أكشن
-        for n in sorted(k_names - set(k_booked)):
-            acts.append(("🩺", "كشف النهارده وما حجزش جلسة", "#7c3aed", br_ar, n, ""))
+        if not os.environ.get("FIN_PASS"):   # من غير البيانات المتشفرة: القايمة القديمة
+            for n in sorted(k_names - set(k_booked)):
+                acts.append(("🩺", "كشف النهارده وما حجزش جلسة", "#7c3aed", br_ar, n, ""))
         for n in sorted(set(k_booked) - set(k_fixed)):
             acts.append(("📌", "كشف وحجز بس لسه متثبتش في الشيت", "#9333ea", br_ar, n, ""))
         for x in fin:
@@ -484,12 +485,24 @@ def build(now, alerts, ctx, paid):
                 + "".join(f'<th style="padding:6px;background:#fdf2f8;color:#be185d">{b}</th>' for b in brs) + "</tr><tr>"
                 + "".join(f'<td style="padding:8px;border-top:1px solid #e2e8f0;font-size:13px;vertical-align:top;line-height:1.8">{slim_cell(b)}</td>' for b in brs)
                 + "</tr></table>")
+    try:
+        import digest_fin
+        perf, probs = digest_fin.section(today_s)
+    except Exception as e:
+        print(f"digest_fin: {e}")
+        perf, probs = "", ""
     out = [f'<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;color:#0f172a;max-width:620px;margin:auto">'
-           f'<h2 style="margin:0">📋 ملخص يوم {today_s}</h2>'
-           f'<div style="color:#64748b;font-size:12px;margin:2px 0 10px">▲▼ مقارنة بنفس اليوم الأسبوع اللي فات · الجلسات = علاج طبيعي + ريكفري + حجامه · '
-           f'الإشغال = الساعات المحجوزة ÷ ساعات شيفت الدكاترة الحاضرين</div>', table,
-           '<h3 style="margin:16px 0 6px">💗 التخسيس والتغذية (اللي حضر النهارده)</h3>', slim_tbl,
-           '<h3 style="margin:16px 0 6px">🔴 محتاج أكشن</h3>']
+           f'<h2 style="margin:0">📋 تقرير يوم {today_s}</h2>']
+    if perf:
+        out += ['<h3 style="margin:14px 0 6px">📈 أداء النهارده</h3>', perf]
+    if probs:
+        out += ['<h3 style="margin:18px 0 6px">🔴 مشاكل لسه مفتوحة</h3>',
+                '<div style="color:#64748b;font-size:11px">بتتقفل لوحدها أول ما تتحل · مترتبة: الفلوس الأول بعدين القيمة</div>', probs]
+    out += ['<h3 style="margin:18px 0 6px">📋 تفاصيل اليوم</h3>',
+            f'<div style="color:#64748b;font-size:12px;margin:2px 0 8px">▲▼ مقارنة بنفس اليوم الأسبوع اللي فات · الجلسات = علاج طبيعي + ريكفري + حجامه · '
+            f'الإشغال = الساعات المحجوزة ÷ ساعات شيفت الدكاترة الحاضرين</div>', table,
+            '<h3 style="margin:16px 0 6px">💗 التخسيس والتغذية (اللي حضر النهارده)</h3>', slim_tbl,
+            '<h3 style="margin:16px 0 6px">📞 متابعات ومهام يوم الشغل الجاي</h3>']
     groups = {}
     for ic, title, col, b, name, det in acts:
         groups.setdefault((ic, title, col), []).append((b, name, det))
@@ -520,7 +533,7 @@ def build(now, alerts, ctx, paid):
     if sheet_err:
         notes.append("ما قدرتش أقرا: " + "، ".join(sheet_err))
     out.append("<!--PLAN-->")
-    out.append(f'<div style="margin-top:14px"><a href="{DASH_URL}" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:13px">افتح الداشبورد للتفاصيل ←</a></div>'
+    out.append(f'<div style="margin-top:14px"><a href="{DASH_URL}fin.html" style="background:#0f766e;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:13px;margin-inline-end:6px">🔒 التحليلات المالية</a> <a href="{DASH_URL}" style="background:#2563eb;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:13px">افتح الداشبورد للتفاصيل ←</a></div>'
                + (f'<div style="color:#94a3b8;font-size:11px;margin-top:10px">{" · ".join(H(n) for n in notes)}</div>' if notes else "") + '</div>')
     return "".join(out)
 

@@ -1,5 +1,5 @@
 {
- "at": "2026-11-13T20:17:15.087Z",
+ "at": "2026-11-13T22:26:36.211Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,7 +91,7 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "conf": {
-  "confirmed_now": 45,
+  "confirmed_now": 0,
   "new": 0
  },
  "docerr": {
@@ -101,7 +101,7 @@
   "steps": 3081,
   "day": "2026-11-13",
   "open_now": 64,
-  "added": 64
+  "added": 0
  },
  "kinds": {
   "pay": {
@@ -853,9 +853,5 @@
   "data/fin.enc": "cc863b82269609e7",
   "data/fin_c.enc": "d83e63cccc1d7dd1"
  },
- "written": [
-  "data/fin.enc",
-  "data/fin_c.enc"
- ],
- "secs": 166
+ "secs": 59
 }

@@ -8,7 +8,8 @@ const arrowBad=ch=>ch==null?'':`<b class="${ch>0?'down':'up'}">${ch>=0?'▲':'�
 function trendLine(name,ks,v,f,bad){f=f||fm;const c=cmp3(v);if(!c)return '';let mx=-1,mn=-1;v.forEach((x,i)=>{if(x==null||!isFinite(x))return;if(mx<0||x>v[mx])mx=i;if(mn<0||x<v[mn])mn=i});if(mx<0)return '';
   return `<b>${name}:</b> آخر 3 شهور متوسطه ${f(c.a)} مقابل ${f(c.b)} في التلاتة اللي قبلهم ${bad?arrowBad(c.ch):arrow(c.ch)}. أعلى شهر ${mls(ks[mx])} (${f(v[mx])}) وأقل شهر ${mls(ks[mn])} (${f(v[mn])}).`}
 const pcf=x=>pc(x);
-function rcard(r,t){r=r.filter(Boolean);t=t.filter(Boolean);if(!r.length&&!t.length)return '';
+let RD_RAW=false;
+function rcard(r,t){r=r.filter(Boolean);t=t.filter(Boolean);if(RD_RAW)return {r,t};if(!r.length&&!t.length)return '';
   return `<div class="card" style="margin-bottom:12px;border-inline-start:4px solid var(--c1)"><h3>📖 القراءة<small>${ml(ksDone()[0]||S.from)} لـ ${ml(ksDone().slice(-1)[0]||S.to)} — الشهر الحالي مش داخل لو لسه ما خلصش</small></h3>
    <ul class="ins" style="margin:0;padding-inline-start:18px">${r.map(x=>`<li>${x}</li>`).join('')}</ul>
    ${t.length?`<h3 style="margin-top:12px">🎯 الترشيحات</h3><ul class="ins" style="margin:0;padding-inline-start:18px">${t.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}</div>`}
@@ -128,8 +129,23 @@ RD.nut=()=>{if(!(RAW.kinds||{}).ops||typeof nutMonth!=='function')return '';cons
     const c=cmp3(s);if(c&&c.ch<0.1)t.push('جلسات الأجهزة مش بتكبر. هدف شهري واضح لملك (عدد جلسات + نسبة مرضى الحقن اللي جرّبوا الأجهزة) مع حافز صغير هيحرّك الرقم.')}
   return rcard(r,t)};
 
+// ---------- قراءة شاملة جوه الملخص ----------
+function sumReading(){const secs=[['💰 الإيراد والمصروفات','sum',()=>RD.sum(),'pl'],['📈 الأرباح','pl',()=>RD.pl(),'pl'],['🧾 الإيرادات والتحصيل','rev',()=>RD.rev(),'rev'],['📉 المصروفات','exp',()=>RD.exp(),'exp'],
+   ['📅 المواعيد والإلغاء','apt',()=>RD.apt(),'apt'],['🧑‍🤝‍🧑 المرضى الجداد والإحالة','pts',()=>RD.pts(),'pts'],['🔁 استمرار المرضى','ret',()=>RD.ret(),'ret'],
+   ['🔁 الاحتفاظ لكل دفعة والتحويل بين الأقسام','cen',()=>{const o=CEN.sub;CEN.sub='pts';try{return RD.cen()}finally{CEN.sub=o}},'cen|pts'],
+   ['🏥 الأقسام','cen',()=>{const o=CEN.sub;CEN.sub='trend';try{return RD.cen()}finally{CEN.sub=o}},'cen|trend'],['🩺 الدكاترة','cen',()=>{const o=CEN.sub;CEN.sub='ops';try{return RD.cen()}finally{CEN.sub=o}},'cen|ops'],
+   ['💳 المديونيات','debt',()=>RD.debt(),'debt'],['🏦 الخزنة وطرق الدفع','cash',()=>RD.cash(),'cash']];
+  if(S.b!=='dokki'&&(RAW.kinds||{}).ops&&typeof nutMonth==='function')['sum','rev','pts','dev'].forEach((sb,i)=>secs.push([['🥗 التغذية — الإيراد والربح','🥗 التغذية — الخصومات','🥗 التغذية — المرضى والكشوفات','🥗 التغذية — الأجهزة'][i],'nut',()=>{const o=NUT.sub;NUT.sub=sb;try{return RD.nut()}finally{NUT.sub=o}},'nut|'+sb]));
+  RD_RAW=true;const out=[];for(const [title,,f,go] of secs){let x=null;try{x=f()}catch(e){console.error(e)}if(x&&typeof x==='object'&&(x.r.length||x.t.length))out.push({title,go,...x})}RD_RAW=false;
+  if(!out.length)return '';const nt=out.reduce((s,x)=>s+x.t.length,0);
+  return `<div class="card" style="margin-bottom:12px"><h3>📖 قراءة المركز والترشيحات<small>${BRN[S.b]} — ${ml(ksDone()[0]||S.from)} لـ ${ml(ksDone().slice(-1)[0]||S.to)} · ${nt} ترشيح · الشهر الحالي مش داخل لو لسه ما خلصش</small></h3>
+   <div class="grid g2">${out.map(x=>`<div class="note" style="border-inline-start:4px solid ${x.t.length?'var(--warn)':'var(--c1)'}"><div style="display:flex;align-items:center;gap:6px"><b style="flex:1;font-size:.92rem;color:var(--t1)">${x.title}</b><button data-rgo="${x.go}" style="padding:2px 8px;font-size:.72rem">افتح ←</button></div>
+     <ul class="ins" style="margin:6px 0 0;padding-inline-start:18px">${x.r.map(y=>`<li>${y}</li>`).join('')}</ul>
+     ${x.t.length?`<div style="margin-top:6px;color:var(--t1)"><b>🎯 الترشيحات</b></div><ul class="ins" style="margin:2px 0 0;padding-inline-start:18px;color:var(--t1)">${x.t.map(y=>`<li>${y}</li>`).join('')}</ul>`:''}</div>`).join('')}</div></div>`}
+
 // ---------- ربط القراءة بالتابات ----------
 ['pl','rev','exp','pts','ret','apt','debt','cash'].forEach(k=>{const v=VIEWS[k];if(!v)return;const f=v[0];VIEWS[k]=[()=>{let h='';try{h=RD[k]()}catch(e){console.error(e)}return h+f()},v[1]]});
-{const v=VIEWS.sum,f=v[0];VIEWS.sum=[()=>{let h='';try{h=RD.sum()}catch(e){console.error(e)}const s=f();const i=s.indexOf('<div class="grid g4">');return i>0?s.slice(0,i)+h+s.slice(i):h+s},v[1]]}
+{const v=VIEWS.sum,f=v[0],c=v[1];VIEWS.sum=[()=>{let h='';try{h=sumReading()}catch(e){console.error(e)}const s=f();const i=s.indexOf('<div class="grid g4">');return i>0?s.slice(0,i)+h+s.slice(i):h+s},
+  ()=>{c();document.querySelectorAll('[data-rgo]').forEach(b=>b.onclick=()=>{const [t,sb]=b.dataset.rgo.split('|');goTab(t,sb)})}]}
 {const v=VIEWS.cen,f=v[0];VIEWS.cen=[()=>{const s=f();let h='';try{h=RD.cen()}catch(e){console.error(e)}const i=s.indexOf('</div>',s.indexOf('class="note"'))+6;return s.slice(0,i)+h+s.slice(i)},v[1]]}
 {const v=VIEWS.nut,f=v[0];VIEWS.nut=[()=>{const s=f();if(NUT.sub==='cfg'||NUT.sub==='exp'||NUT.sub==='alaa'||NUT.sub==='price')return s;let h='';try{h=RD.nut()}catch(e){console.error(e)}const i=s.indexOf('</div>',s.indexOf('class="note"'))+6;return s.slice(0,i)+h+s.slice(i)},v[1]]}

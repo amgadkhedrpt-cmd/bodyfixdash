@@ -9,7 +9,9 @@ PASS = os.environ.get("FIN_PASS", "")
 START = "2024-06"
 ENC, META = "data/fin.enc", "data/fin_meta.json"          # fin.enc = closed months (rarely rewritten)
 ENC_C = "data/fin_c.enc"                                    # the last 2 months (small, rewritten when they change)
-DROP_COLS = {"apt": {"patient.firstName", "patient.lastName"}}
+DROP_COLS = {"apt": {"patient.firstName", "patient.lastName"},
+             "att": {"createdIp", "updatedIp", "startUseragent", "endUseragent", "startImage", "endImage",   # fingerprint: times + who only
+                     "startLatitude", "startLongitude", "endLatitude", "endLongitude", "createdLocation", "updatedLocation"}}
 MAX_BACKFILL = int(os.environ.get("FIN_BACKFILL", "30"))   # months per kind per branch per run (the first runs fill the history)
 TZ = C.TZ
 NOW = dt.datetime.now(dt.timezone.utc)
@@ -490,9 +492,9 @@ def main():
                                                           {"orderBy": "createdAt"}, rng) if isinstance(r, dict) and keep_ops(r)],
         }
         an = (ops.get("att") or {}).get("operationName") or ""
-        if an and data.get("att_op") != an:
+        if an and data.get("att_op") != an + "|v2":
             data["kinds"].pop("att", None)                 # different / first attendance query: fetch the history again
-            data["att_op"] = an
+            data["att_op"] = an + "|v2"
         for kind, fn in kinds.items():
             if not fn:
                 META_D["errors"].append("%s: no query found" % kind)

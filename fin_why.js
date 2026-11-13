@@ -15,10 +15,16 @@ function whyData(){const split=CEN.split,dept=CEN.dept,td=todayC();
     const cont=done.some(a=>sameDept(a)&&dd(a)>30&&dd(a)<=60);const s30=done.filter(a=>sameDept(a)&&dd(a)<=30).length;
     const booked=l.filter(a=>a.d>f.d&&a.cr&&a.cr<=f.d&&sameDept(a));  // اتحجزله قبل ما يمشي (يوم أول زيارة أو قبله)
     const bk=booked.length>0,bkLost=bk&&booked.every(a=>isLost(a));
-    const pk=(inv[pid]||[]).some(x=>x.total-x.disc>=1500&&Math.abs(Date.parse(x.d)-Date.parse(f.d))/864e5<=14);
+    const pkI=(inv[pid]||[]).filter(x=>x.total-x.disc>=1500&&Math.abs(Date.parse(x.d)-Date.parse(f.d))/864e5<=14).sort((a,b)=>a.d<b.d?-1:1)[0];const pk=!!pkI;
+    // أول «كورس»: الجلسات من أول زيارة لحد أول فاصل أكتر من 30 يوم
+    const ds=done.filter(sameDept);let ep=[ds[0]];for(let i=1;i<ds.length;i++){if((Date.parse(ds[i].d)-Date.parse(ds[i-1].d))/864e5>30)break;ep.push(ds[i])}
+    const epDone=(Date.parse(td)-Date.parse(ep[ep.length-1].d))/864e5>30;
+    const pkLeft=pk&&epDone&&ep.filter(a=>a.d>=pkI.d).length<=4;          // اشترى باقة ووقف بعد 4 جلسات أو أقل منها
+    const s25=ep.slice(1,5);const dc={};s25.forEach(a=>{const n=a.doc===PAST_DOC?'دكاترة سابقين':a.doc;dc[n]=(dc[n]||0)+1});
+    const tdoc=Object.keys(dc).sort((a,b)=>dc[b]-dc[a])[0]||null,nDoc=Object.keys(dc).length;
     const paid0=(pay[pid]||[]).filter(p=>p.d===f.d).reduce((s,p)=>s+p.amt,0);
     const p=pts[pid]||{};const gap=next?Math.round((Date.parse(next.d)-Date.parse(f.d))/864e5):null;
-    out.push({pid,k:f.k,per:f.k<split?'A':'B',ret30,cont,s30,doc:f.doc===PAST_DOC?'دكاترة سابقين':f.doc,type:tName(f.type),w:DAYS[f.w],h:f.h,bk,bkLost,pk,paid0,src:p.src||'مش متسجل',gap,
+    out.push({pid,k:f.k,per:f.k<split?'A':'B',ret30,cont,s30,epN:ep.length,epDone,pkLeft,tdoc,nDoc,doc:f.doc===PAST_DOC?'دكاترة سابقين':f.doc,type:tName(f.type),w:DAYS[f.w],h:f.h,bk,bkLost,pk,paid0,src:p.src||'مش متسجل',gap,
       sess90:done.filter(a=>sameDept(a)&&(Date.parse(a.d)-Date.parse(f.d))/864e5<=90).length})}
   const ks=[...new Set(out.map(o=>o.k))].sort();const B=ks.filter(k=>k>=split),Ak=ks.filter(k=>k<split).slice(-6);
   const A6=out.filter(o=>Ak.includes(o.k)),B6=out.filter(o=>B.includes(o.k));return {all:out,A:A6,B:B6,Ak,Bk:B,split}}
@@ -37,9 +43,13 @@ function vWhy(){const X=whyData();if(X.A.length<20||X.B.length<20)return `<div c
   const av=(a,f)=>a.length?a.reduce((s,x)=>s+f(x),0)/a.length:null;const s30=[av(X.A,x=>x.s30),av(X.B,x=>x.s30)],s90=[av(X.A,x=>x.sess90),av(X.B,x=>x.sess90)];
   const SB=[[1,1,'جلسة واحدة'],[2,3,'2–3'],[4,6,'4–6'],[7,10,'7–10'],[11,15,'11–15'],[16,1e9,'16+']];const sbOf=v=>(SB.find(b=>v>=b[0]&&v<=b[1])||SB[0])[2];
   const dist=SB.map(b=>{const f=x=>x.sess90>=b[0]&&x.sess90<=b[1];return [b[2],X.A.filter(f).length,pc(rt(X.A,f)),X.B.filter(f).length,pc(rt(X.B,f))]});
+  const stopped=a=>a.filter(x=>x.epDone);const EB=[[1,1,'جلسة واحدة'],[2,4,'2–4'],[5,7,'5–7'],[8,12,'8–12'],[13,1e9,'13+']];
+  const stA=stopped(X.A),stB=stopped(X.B);const stopRows=EB.map(b=>{const f=x=>x.epN>=b[0]&&x.epN<=b[1];return [b[2],stA.filter(f).length,pc(rt(stA,f)),stB.filter(f).length,pc(rt(stB,f))]});
+  const early=[rt(stA,x=>x.epN<=4),rt(stB,x=>x.epN<=4)];const pkL=[rt(X.A.filter(x=>x.pk),x=>x.pkLeft),rt(X.B.filter(x=>x.pk),x=>x.pkLeft)];
+  const multi=[rt(X.A.filter(x=>x.nDoc),x=>x.nDoc>=3),rt(X.B.filter(x=>x.nDoc),x=>x.nDoc>=3)];
   const dg={};X.all.filter(x=>X.Ak.includes(x.k)||X.Bk.includes(x.k)).forEach(x=>{const g=dg[x.doc]=dg[x.doc]||{A:[],B:[]};g[x.per==='A'?'A':'B'].push(x)});
   const docS=Object.entries(dg).filter(([k,g])=>g.A.length+g.B.length>=20).map(([k,g])=>[esc(k),g.A.length,g.A.length?av(g.A,x=>x.sess90).toFixed(1):'—',g.B.length,g.B.length?av(g.B,x=>x.sess90).toFixed(1):'—',g.A.length&&g.B.length?(av(g.B,x=>x.sess90)-av(g.A,x=>x.sess90)).toFixed(1):'جديد']).sort((a,b)=>(+a[5]||0)-(+b[5]||0));
-  const D_={doc:decomp(X,x=>x.doc,20),type:decomp(X,x=>x.type,20),bk:decomp(X,x=>x.bk?'اتحجزله الجاية قبل ما يمشي':'ما اتحجزلوش حاجة قبل ما يمشي',10),pk:decomp(X,x=>x.pk?'اشترى باقة (فاتورة 1,500+ خلال أسبوعين)':'ما اشتراش باقة',10),
+  const D_={tdoc:decomp(X,x=>x.tdoc,20),ndoc:decomp(X,x=>x.nDoc?(x.nDoc>=3?'3 دكاترة أو أكتر':x.nDoc===2?'2 دكاترة':'نفس الدكتور'):null,15),doc:decomp(X,x=>x.doc,20),type:decomp(X,x=>x.type,20),bk:decomp(X,x=>x.bk?'اتحجزله الجاية قبل ما يمشي':'ما اتحجزلوش حاجة قبل ما يمشي',10),pk:decomp(X,x=>x.pk?'اشترى باقة (فاتورة 1,500+ خلال أسبوعين)':'ما اشتراش باقة',10),
     pr:decomp(X,x=>prB(x.paid0),10),src:decomp(X,x=>x.src,20),w:decomp(X,x=>x.w,15),h:decomp(X,x=>hB(x.h),15)};
   const sh=(arr,f)=>rt(arr,f);
   const facts=[['اتحجزله الزيارة الجاية قبل ما يمشي',x=>x.bk],['الحجز الجاي اتلغى أو ما جاش',x=>x.bkLost],['اشترى باقة خلال أسبوعين',x=>x.pk],['أول زيارة كانت «كشف»',x=>/كشف/.test(x.type)]];
@@ -51,6 +61,11 @@ function vWhy(){const X=whyData();if(X.A.length<20||X.B.length<20)return `<div c
   lines.push(`<b>رجع خلال 30 يوم:</b> ${pc(r30[0])} ← ${pc(r30[1])}. <b>لسه مكمّل بعد أول شهر (يوم 31–60):</b> ${pc(rc[0])} ← ${pc(rc[1])}. عدد المرضى: ${X.A.length} ← ${X.B.length}.`);
   lines.push(`<b>متوسط الجلسات:</b> أول 30 يوم ${s30[0]?.toFixed(1)} ← ${s30[1]?.toFixed(1)} جلسة · أول 90 يوم ${s90[0]?.toFixed(1)} ← ${s90[1]?.toFixed(1)} جلسة.`);
   if(r30[1]>=r30[0]-0.02&&rc[1]<rc[0]-0.04)lines.push(`<b class="down">الخلاصة: المريض الجديد لسه بيرجع زي زمان بعد أول زيارة، بس بيقف أسرع.</b> اللي نزل هو الاستمرار بعد أول شهر (${pc(rc[0])} ← ${pc(rc[1])})${s90[1]<s90[0]-0.5?`، والجلسات لكل مريض قلت من ${s90[0].toFixed(1)} لـ ${s90[1].toFixed(1)} في أول 90 يوم`:''}. يعني المشكلة مش في الاستقبال ولا في جذب المريض، المشكلة في <b>طول خطة العلاج وإقناع المريض يكمّلها</b>. ده اللي خريطة الاحتفاظ بتوريه في «شهر 1» و«شهر 2».`);
+  lines.push(`<b>🩺 علامات الكواليتي:</b> اشترى باقة ووقف بعد 4 جلسات أو أقل منها (يعني ساب جلسات مدفوعة): ${pc(pkL[0])} ← ${pc(pkL[1])} من اللي اشتروا باقة. · وقف عند جلسة 4 أو قبلها: ${pc(early[0])} ← ${pc(early[1])} من اللي وقفوا. · اتعالج عند 3 دكاترة أو أكتر في جلسات 2–5: ${pc(multi[0])} ← ${pc(multi[1])}.`);
+  if(pkL[1]!=null&&pkL[0]!=null&&pkL[1]>pkL[0]+0.04)lines.push(`<b class="down">اللي بيسيبوا باقة مدفوعة بدري زادوا</b> — ده أقرب رقم لـ«مش حاسس بتحسن»: دافع ومش راجع.`);
+  else if(pkL[1]!=null&&pkL[0]!=null)lines.push(`اللي بيسيبوا باقة مدفوعة بدري ما زادوش كتير — يعني المرضى غالباً بيخلّصوا الباقة وبعدين ما بيجددوش، أكتر ما بيبطّلوا في النص.`);
+  {const t=D_.tdoc.rows.filter(r=>r.ra!=null&&r.rb!=null&&r.nb>=15).sort((a,b)=>a.rateFx-b.rateFx);if(t.length&&t[0].rateFx<-0.01)lines.push(`<b>الدكتور اللي عمل الجلسات (2–5):</b> أكبر نزول عند ${t.slice(0,3).filter(r=>r.rateFx<0).map(r=>`${esc(r.k)} (${pc(r.ra)} ← ${pc(r.rb)}، ${r.nb} مريض)`).join('، ')}.`);
+   const nw=D_.tdoc.rows.filter(r=>!r.na&&r.nb>=15);if(nw.length)lines.push(`<b>دكاترة بيعالجوا جداد بعد ${ml(X.split)}:</b> ${nw.map(r=>`${esc(r.k)} (${r.nb} مريض، ${pc(r.rb)})`).join('، ')} — قارنهم بـ ${pc(rA)} قبل.`)}
   lines.push(`<i>الجداول تحت محسوبة على: «${WM[M]}» (${pc(rA)} ← ${pc(rB)}). غيّر المقياس من القايمة فوق.</i>`);
   const R_bk=D_.bk.rows.find(r=>/اتحجزله/.test(r.k)),R_nb=D_.bk.rows.find(r=>/ما اتحجزلوش/.test(r.k));
   if(bkA!=null&&bkB!=null)lines.push(`<b>الحجز قبل ما يمشي:</b> ${pc(bkA)} ← ${pc(bkB)} من المرضى الجداد اتحجزلهم الزيارة الجاية في نفس يوم أول زيارة. اللي اتحجزله بيرجع ${R_bk?pc(R_bk.rb):'—'} واللي ما اتحجزلوش بيرجع ${R_nb?pc(R_nb.rb):'—'}.${bkB<bkA-0.05?' <b class="down">ده تغيّر في طريقة الشغل عند الاستقبال.</b>':''}`);
@@ -71,7 +86,9 @@ function vWhy(){const X=whyData();if(X.A.length<20||X.B.length<20)return `<div c
    <div class="grid g4">${kpi('رجعوا خلال 30 يوم',pc(r30[0])+' ← '+pc(r30[1]))}${kpi('لسه مكمّل بعد أول شهر',pc(rc[0])+' ← '+pc(rc[1]))}${kpi('متوسط الجلسات أول 90 يوم',(s90[0]?.toFixed(1)??'—')+' ← '+(s90[1]?.toFixed(1)??'—'))}${fr.map(([t,a,b])=>kpi(t,pc(a)+' ← '+pc(b))).join('')}</div>
    <h3 style="margin-top:12px">📖 اللي الأرقام بتقوله</h3><ul class="ins">${lines.map(x=>`<li>${x}</li>`).join('')}</ul>
    <div class="note">«أثرهم على النزول» = قد إيه نزول رجوع المجموعة دي نزّل الرقم الكلي. السالب الكبير = المجموعة اللي فيها المشكلة. «نصيبهم» = لو مجموعة بترجع قليل كبرت، الرقم الكلي ينزل حتى لو مفيش حد اتغير.</div></div>
-  <div class="grid g2" style="margin-top:12px"><div class="card"><h3>عدد جلسات المريض في أول 90 يوم<small>لو «جلسة واحدة» و«2–3» كبروا يبقى المرضى بيقفوا بدري</small></h3>${tableHTML(['جلسات',{t:'مرضى قبل',n:1},{t:'نصيبهم قبل',n:1},{t:'مرضى بعد',n:1},{t:'نصيبهم بعد',n:1}],dist,{h:340})}</div>
+  <div class="grid g2" style="margin-top:12px"><div class="card"><h3>المريض وقف عند جلسة كام؟<small>اللي خلّصوا أول كورس (فاصل أكتر من 30 يوم). لو «2–4» كبرت = بيبطّلوا في النص</small></h3>${tableHTML(['وقف بعد',{t:'مرضى قبل',n:1},{t:'نصيبهم قبل',n:1},{t:'مرضى بعد',n:1},{t:'نصيبهم بعد',n:1}],stopRows,{h:300})}</div>
+   ${tbl('الدكتور اللي عمل جلسات 2–5 (أغلبها)',D_.tdoc)}${tbl('اتعالج عند كام دكتور في جلسات 2–5',D_.ndoc)}
+   <div class="card"><h3>عدد جلسات المريض في أول 90 يوم<small>لو «جلسة واحدة» و«2–3» كبروا يبقى المرضى بيقفوا بدري</small></h3>${tableHTML(['جلسات',{t:'مرضى قبل',n:1},{t:'نصيبهم قبل',n:1},{t:'مرضى بعد',n:1},{t:'نصيبهم بعد',n:1}],dist,{h:340})}</div>
    <div class="card"><h3>متوسط جلسات المريض الجديد (أول 90 يوم) حسب الدكتور</h3>${tableHTML(['',{t:'مرضى قبل',n:1},{t:'جلسات قبل',n:1},{t:'مرضى بعد',n:1},{t:'جلسات بعد',n:1},{t:'الفرق',n:1}],docS,{h:340})}</div>
    ${tbl('حسب الدكتور (أول زيارة)',D_.doc)}${tbl('اتحجزله الجاية قبل ما يمشي؟',D_.bk)}${tbl('اشترى باقة؟',D_.pk)}${tbl('نوع أول زيارة',D_.type)}${tbl('المدفوع في أول زيارة',D_.pr)}${tbl('مصدر الإحالة',D_.src)}${tbl('يوم أول زيارة',D_.w)}${tbl('ساعة أول زيارة',D_.h)}</div>`}
 function cWhy(){const m=$('#whyM');if(m)m.onchange=()=>{CEN.wm=m.value;try{localStorage.setItem('fin_wm',CEN.wm)}catch(e){}render()};const s=$('#whyS');if(s)s.onchange=()=>{CEN.split=s.value;try{localStorage.setItem('fin_split',CEN.split)}catch(e){}render()}}

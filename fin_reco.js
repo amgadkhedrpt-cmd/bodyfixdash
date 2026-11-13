@@ -19,13 +19,18 @@ function recoList(){const out=[],k=recoMonth(),add=(lvl,title,detail,tab,sub,dri
   spikes.sort((a,b)=>(b[1]-b[2])-(a[1]-a[2])).slice(0,3).forEach(([t,c,b])=>add('warn',`مصروف «${t}» زاد فجأة`,`${fm(c)} في ${ml(k)} والمتوسط ${fm(b)} آخر 6 شهور (+${fm(c-b)}).`,'exp','',{t:'exp',type:t}));
   // الإلغاء والغياب
   const A=D.apt.filter(a=>inB(a)&&!/^Waiting/i.test(a.room||''));const rate=m=>{const x=A.filter(a=>a.k===m);return x.length?x.filter(a=>/cancel|no ?show/i.test(a.st)).length/x.length:null};
-  const rk=rate(k),rb=avgOf(ks6.map(rate));if(rk!=null&&rb!=null&&rk>rb+0.03)add('warn','الإلغاء والغياب زاد',`${pc(rk)} من المواعيد في ${ml(k)} والمتوسط ${pc(rb)}. راجع تأكيدات المواعيد ومتابعة اللي ما جوش.`,'apt','',{t:'cancel'});
+  const rk=rate(k),rb=avgOf(ks6.map(rate));
+  if(rk!=null&&rk>0.25&&!(rb!=null&&rk>rb+0.03))add('warn','ربع المواعيد بتتلغي أو ما بتحصلش',`${pc(rk)} من مواعيد ${ml(k)} اتلغت أو المريض ما جاش — يعني تقريباً موعد من كل ${Math.round(1/rk)}. التأكيد قبلها بيوم وإعادة الحجز الفوري بيقللوا ده.`,'apt','',{t:'cancel'});if(rk!=null&&rb!=null&&rk>rb+0.03)add('warn','الإلغاء والغياب زاد',`${pc(rk)} من المواعيد في ${ml(k)} والمتوسط ${pc(rb)}. راجع تأكيدات المواعيد ومتابعة اللي ما جوش.`,'apt','',{t:'cancel'});
   // المديونيات القديمة
   const td=todayC(),old=D.inv.filter(x=>inB(x)&&(Date.parse(td)-Date.parse(x.d))/864e5>90).reduce((s,x)=>s+Math.max(0,x.total-x.disc-x.paid),0);
   if(M&&old>0.1*M.net)add('warn','مديونيات قديمة كتير',`${fm(old)} جنيه على فواتير عدّى عليها أكتر من 90 يوم (${pc(old/M.net)} من إيراد شهر). كل ما الدين يقدم بيبقى أصعب يتحصّل.`,'debt','',{t:'debt'});
   // ---- المرضى (المركز) ----
   if(typeof cenBuild==='function'){const {pts}=cenBuild(),PT=Object.values(pts).filter(p=>!p.early);
-    const win=PT.filter(p=>nIn(p.k0,shiftK(k,-12),shiftK(k,-2)));const avgL=avgOf(win.map(p=>p.paid));
+    const win=PT.filter(p=>nIn(p.k0,shiftK(k,-12),shiftK(k,-2)));
+    const nwc=m=>PT.filter(p=>p.k0===m).length,n3=avgOf(monthsList(shiftK(k,-2),k).map(nwc)),n6=avgOf(monthsList(shiftK(k,-5),shiftK(k,-3)).map(nwc));
+    if(n3!=null&&n6&&n3<0.9*n6)add('warn','المرضى الجداد قلّوا',`متوسط ${fm(n3)} مريض جديد في الشهر آخر 3 شهور مقابل ${fm(n6)} قبلهم. ده بيبان في الإيراد بعد شهرين.`,'pts');
+    const m1=monthsList(shiftK(k,-4),shiftK(k,-2)).map(m=>{const a=PT.filter(p=>p.k0===m);return a.length?a.filter(p=>p.months.has(shiftK(m,1))).length/a.length:null}),r1=avgOf(m1);
+    if(r1!=null&&r1<0.6)add('warn','نص المرضى الجداد تقريباً ما بيرجعوش',`${pc(1-r1)} من المرضى الجداد آخر شهور ما كانش ليهم جلسة الشهر التاني. مكالمة خلال أسبوع لكل مريض ما حجزش هي أكبر فرصة.`,'cen','pts');const avgL=avgOf(win.map(p=>p.paid));
     // مصادر الإحالة
     const sg={};win.forEach(p=>{(sg[p.src]=sg[p.src]||[]).push(p)});const ads=D.exp.filter(e=>expIn(e)&&nIn(e.k,shiftK(k,-12),k)&&/دعاي|اعلان|إعلان|ماركت|marketing|ads|سوشيال/i.test(e.type+' '+e.info)).reduce((s,e)=>s+e.amt,0);
     for(const s in sg){if(s==='مش متسجل'||sg[s].length<8||!avgL)continue;const v=avgOf(sg[s].map(p=>p.paid));if(v>=1.3*avgL)add('good',`مصدر «${s}» بيجيب مرضى قيمتهم عالية`,`متوسط اللي بيدفعه المريض ${fm(v)} مقابل ${fm(avgL)} للمركز (${sg[s].length} مريض). يستاهل دعاية أو اهتمام أكتر.`,'cen','pts',{t:'src',src:s});

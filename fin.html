@@ -214,7 +214,7 @@ const SP={
    type:['expenseType','expenseType.name','expense.type',/category/i],info:['expense.name','details','expenseInfo','info','description'],det:['details'],
    method:['type','paymentMethod','method'],by:['createdBy.name','expense.createdBy.name',/createdBy/],branch:['expense.branch.name','branch.name'],treas:['transaction.treasury.publicName',/treasury/],refunded:['refunded']},
  inv:{date:['createdAt'],total:['total'],paid:['paid'],disc:['discount'],pid:['patient.referenceId','patient.id'],fn:['patient.firstName'],ln:['patient.lastName'],pn:['patient.name'],src:['referralSource.name'],doc:['doctor.name'],ref:['referenceId','id']},
- apt:{date:['start'],cr:['createdAt'],up:['updatedAt'],by:['createdBy.name'],st:['status'],type:['type'],doc:['doctor.name'],pid:['patient.referenceId','patient.id'],fn:['patient.firstName'],ln:['patient.lastName'],pn:['patient.name'],room:['room.name'],g:['patient.gender']}
+ apt:{date:['start'],cr:['createdAt'],up:['updatedAt'],by:['createdBy.name'],st:['status'],type:['type'],doc:['doctor.name'],pid:['patient.referenceId','patient.id'],fn:['patient.firstName'],ln:['patient.lastName'],pn:['patient.name'],room:['room.name','room'],g:['patient.gender']}
 };
 const ST={CHECKEDIN:'Checked In',INPROGRESS:'In Progress',COMPLETED:'Completed',CONFIRMED:'Confirmed',DELAYED:'Delayed',OPEN:'Open',WAITING:'Waiting',CANCELED:'Canceled',CANCELLED:'Canceled',NOSHOW:'No Show'};
 const stName=s=>{const u=String(s||'').toUpperCase().replace(/[^A-Z]/g,'');return ST[u]||String(s||'')};

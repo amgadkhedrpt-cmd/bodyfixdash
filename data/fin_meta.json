@@ -1,5 +1,5 @@
 {
- "at": "2026-11-13T18:13:01.660Z",
+ "at": "2026-11-13T20:17:15.087Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -93,6 +93,15 @@
  "conf": {
   "confirmed_now": 45,
   "new": 0
+ },
+ "docerr": {
+  "overrides": 6,
+  "override_error": null,
+  "appts": 3127,
+  "steps": 3081,
+  "day": "2026-11-13",
+  "open_now": 64,
+  "added": 64
  },
  "kinds": {
   "pay": {
@@ -264,19 +273,16 @@
     "last": "2026-11",
     "rows": 17420,
     "cols": [
-     "id",
      "referenceId",
      "createdAt",
      "total",
      "paid",
      "discount",
-     "patient.id",
      "patient.referenceId",
      "patient.firstName",
      "patient.lastName",
      "referralSource.name",
-     "doctor.name",
-     "referralSource"
+     "doctor.name"
     ],
     "missing": []
    },
@@ -590,6 +596,56 @@
     ],
     "missing": []
    }
+  },
+  "docerr": {
+   "all": {
+    "values": {},
+    "months": 2,
+    "first": "2026-10",
+    "last": "2026-11",
+    "rows": 64,
+    "cols": [
+     "التاريخ",
+     "اسم المريض",
+     "اسم الدكتور",
+     "الخدمة",
+     "عدد المواعيد",
+     "عدد العمليات",
+     "الملحوظة",
+     "الفرع",
+     "أول ما ظهر"
+    ],
+    "missing": [
+     "2024-06",
+     "2024-07",
+     "2024-08",
+     "2024-09",
+     "2024-10",
+     "2024-11",
+     "2024-12",
+     "2025-01",
+     "2025-02",
+     "2025-03",
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05",
+     "2026-06",
+     "2026-07",
+     "2026-08",
+     "2026-09"
+    ]
+   }
   }
  },
  "nut_check": {
@@ -794,8 +850,12 @@
   ]
  },
  "hash": {
-  "data/fin.enc": "5bbb20cc78dfd72e",
-  "data/fin_c.enc": "d831c0bbca5105e8"
+  "data/fin.enc": "cc863b82269609e7",
+  "data/fin_c.enc": "d83e63cccc1d7dd1"
  },
- "secs": 55
+ "written": [
+  "data/fin.enc",
+  "data/fin_c.enc"
+ ],
+ "secs": 166
 }

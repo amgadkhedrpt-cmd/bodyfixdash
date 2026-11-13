@@ -254,10 +254,14 @@ def capture_att(pg, paths):
             for b in CAPT[n0:]:
                 q = b.get("query") or ""
                 name = b.get("operationName") or (re.findall(r"(?:query|mutation)\s+(\w+)", q) or [""])[0]
-                if q.lstrip().startswith("query") and re.search(want, name + " " + q[:300], re.I) and not re.search(r"count|total|stat|summary", name, re.I):
+                body = q[q.find("{") + 1:] if "{" in q else ""
+                root = (re.findall(r"^\s*(\w+)", body) or [""])[0]
+                if q.lstrip().startswith("query") and not re.search(r"CURRENT_USER|^me$|count|total|stat|summary|setting", name + " " + root, re.I) \
+                        and (re.search(want, name, re.I) or re.search(want, root, re.I)):
                     tried[path] = {"url": pg.url, "op": name}
                     return b, tried
-        tried[path] = {"url": pg.url, "ops": sorted({(b.get("operationName") or "?") for b in CAPT[n0:]})[:40]}
+        tried[path] = {"url": pg.url, "ops": sorted({(b.get("operationName") or "?") for b in CAPT[n0:]})[:40],
+                       "roots": sorted({(re.findall(r"^\s*(\w+)", (b.get("query") or "{")[(b.get("query") or "{").find("{") + 1:]) or ["?"])[0] for b in CAPT[n0:]})[:40]}
     return None, tried
 
 
@@ -342,6 +346,7 @@ def main():
                 old["xpv"] = max(old.get("xpv", 0), o.get("xpv", 0))
                 old["aptv"] = max(old.get("aptv", 0), o.get("aptv", 0))
                 old["opsv"] = max(old.get("opsv", 0), o.get("opsv", 0))
+                old["att_op"] = o.get("att_op") or old.get("att_op") or ""
                 old.setdefault("exp_types", {}).update(o.get("exp_types", {}))
                 for kind, bs in (o.get("kinds") or {}).items():
                     for b, ms in bs.items():
@@ -360,6 +365,7 @@ def main():
     if old.get("opsv", 0) < 3:                    # nutrition steps: paid date (revenue = collected) + slimming electric-current packages: fetch again
         data["kinds"].pop("ops", None)
     data["opsv"] = 3
+    data["att_op"] = old.get("att_op", "")
     # the history is filled on every run; once complete, scheduled runs refresh only a few times a day (keeps the repo small)
     full = all(len(data["kinds"].get(kd, {}).get(b, {})) >= len(ALL) - 2 for kd in ("pay", "exp", "inv", "apt")
                for b in (data["branches"] or {"x": 0})) and data["branches"] \
@@ -483,6 +489,10 @@ def main():
             "ops": lambda bid, rng: [r for r in run_paged(ctx, [OPS_Q, OPS_Q.replace(" discount", "")], "createdOperationSteps",
                                                           {"orderBy": "createdAt"}, rng) if isinstance(r, dict) and keep_ops(r)],
         }
+        an = (ops.get("att") or {}).get("operationName") or ""
+        if an and data.get("att_op") != an:
+            data["kinds"].pop("att", None)                 # different / first attendance query: fetch the history again
+            data["att_op"] = an
         for kind, fn in kinds.items():
             if not fn:
                 META_D["errors"].append("%s: no query found" % kind)
@@ -628,7 +638,7 @@ def main():
     old_h = json.load(open(META)).get("hash", {}) if os.path.exists(META) else {}
     META_D["hash"] = {}
     for fn, keep in ((ENC, lambda k, kd: k not in (cur_ops if kd == "ops" else cur)), (ENC_C, lambda k, kd: k in (cur_ops if kd == "ops" else cur))):
-        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}), "xpv": data.get("xpv", 0), "aptv": data.get("aptv", 0), "opsv": data.get("opsv", 0),
+        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}), "xpv": data.get("xpv", 0), "aptv": data.get("aptv", 0), "opsv": data.get("opsv", 0), "att_op": data.get("att_op", ""),
                 "kinds": {kd: {b: {k: v for k, v in ms.items() if keep(k, kd)} for b, ms in bs.items()} for kd, bs in data["kinds"].items()}}
         body = dict(part, at="")
         for bs in body["kinds"].values():

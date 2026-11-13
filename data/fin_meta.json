@@ -1,5 +1,5 @@
 {
- "at": "2026-11-13T08:58:51.353Z",
+ "at": "2026-11-13T09:11:41.805Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -73,7 +73,7 @@
  },
  "conf": {
   "confirmed_now": 45,
-  "new": 45
+  "new": 0
  },
  "kinds": {
   "pay": {
@@ -278,43 +278,6 @@
      "patient.lastName",
      "referralSource.name",
      "doctor.name"
-    ],
-    "missing": []
-   }
-  },
-  "ops": {
-   "all": {
-    "values": {
-     "status": [
-      "COMPLETED",
-      "EXISTING",
-      "IN_PROGRESS",
-      "PLANNED",
-      "REJECTED"
-     ],
-     "branch.name": [
-      "BODYFIX Center",
-      "FIX ZONE"
-     ]
-    },
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 15848,
-    "cols": [
-     "name",
-     "end",
-     "createdAt",
-     "status",
-     "total",
-     "paid",
-     "discount",
-     "operation.name",
-     "doctor.name",
-     "patient.referenceId",
-     "patient.firstName",
-     "patient.lastName",
-     "branch.name"
     ],
     "missing": []
    }
@@ -530,6 +493,44 @@
      "2026-10"
     ]
    }
+  },
+  "ops": {
+   "all": {
+    "values": {
+     "status": [
+      "COMPLETED",
+      "EXISTING",
+      "IN_PROGRESS",
+      "PLANNED",
+      "REJECTED"
+     ],
+     "branch.name": [
+      "BODYFIX Center",
+      "FIX ZONE"
+     ]
+    },
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 15848,
+    "cols": [
+     "name",
+     "end",
+     "createdAt",
+     "paidAt",
+     "status",
+     "total",
+     "paid",
+     "discount",
+     "operation.name",
+     "doctor.name",
+     "patient.referenceId",
+     "patient.firstName",
+     "patient.lastName",
+     "branch.name"
+    ],
+    "missing": []
+   }
   }
  },
  "nut_check": {
@@ -729,16 +730,17 @@
    "room{}"
   ],
   "createdOperationSteps": [
+   "paidDate",
    "tags"
   ]
  },
  "hash": {
-  "data/fin.enc": "e9eb93c6dd51012d",
-  "data/fin_c.enc": "fc83ca4ca9999cc4"
+  "data/fin.enc": "f34259eefcfa2bac",
+  "data/fin_c.enc": "d726f44efb81cf80"
  },
  "written": [
   "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 176
+ "secs": 121
 }

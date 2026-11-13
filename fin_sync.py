@@ -181,7 +181,11 @@ def gql(ctx, q, v, key):
         except RuntimeError as e:
             bad = re.findall(r'Cannot query field \\?"(\w+)\\?"', str(e)) + \
                   re.findall(r'Field \\?"(\w+)\\?" of type [^.]*must have a selection', str(e))
-            if not bad:
+            scal = re.findall(r'Field \\?"(\w+)\\?" must not have a selection', str(e))
+            for f in scal:                       # a scalar asked with sub-fields: keep the field, drop its braces
+                q = re.sub(r"(?<![\w$])%s\s*\{[^{}]*\}" % re.escape(f), f, q, count=1)
+                STRIPPED.setdefault(key, []).append(f + "{}")
+            if not bad and not scal:
                 raise
             for f in bad:
                 if f not in STRIPPED.setdefault(key, []):
@@ -284,6 +288,7 @@ def run_paged(ctx, qs, root, var, rng):
             return rows
         except Exception as e:
             last = e
+            META_D.setdefault("fallbacks", []).append("%s: %s" % (root, str(e)[:220]))
     raise last
 
 
@@ -309,9 +314,9 @@ def main():
     data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {}), "types": old.get("types", {}),
             "exp_types": old.get("exp_types", {})}
     ALL = months(START, CUR)
-    if old.get("aptv", 0) < 2:                    # appointments gained booking time / last change / who booked: fetch again
+    if old.get("aptv", 0) < 3:                    # appointments gained booking time / last change / who booked: fetch again
         data["kinds"].pop("apt", None)
-    data["aptv"] = 2
+    data["aptv"] = 3
     if old.get("xpv", 0) < 2:                     # expenses list gained details / employee / supplier: fetch it again
         data["kinds"].pop("xp", None)
     data["xpv"] = 2

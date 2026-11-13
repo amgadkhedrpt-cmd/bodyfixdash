@@ -112,6 +112,8 @@ def main():
         html = html.replace("<!--CARDS-->", rv_html + digest_plan.cards(today_s, res, digest_fin.LAST_P, alerts, prev))
         if not os.environ.get("DIGEST_PREVIEW"):
             card_save(today_s, digest_plan.CARDS_OUT)
+            for name, (dn, tt) in (prev or {}).items():   # نتيجة كارت امبارح — للتقرير الأسبوعي
+                save_kv(f"CARDREV|{today_s}|{name}", f"{dn}/{tt}", "card")
     except Exception as e:
         print(f"digest cards: {e}")
     html = html.replace("<!--CARDS-->", "")
@@ -122,7 +124,12 @@ def main():
     user, pw = os.environ.get("GMAIL_USER", ""), os.environ.get("GMAIL_APP_PASS", "")
     to = os.environ.get("DIGEST_TO", "").strip() or user
     if os.environ.get("DIGEST_PREVIEW"):
-        open(os.environ["DIGEST_PREVIEW"], "w", encoding="utf-8").write(html); print("preview written"); return
+        open(os.environ["DIGEST_PREVIEW"], "w", encoding="utf-8").write(html); print("preview written")
+        try:
+            weekly(now, today_s, user, pw, to)
+        except Exception as e:
+            print(f"weekly: {e}")
+        return
     if not (user and pw):
         print("digest: مفيش GMAIL_USER / GMAIL_APP_PASS"); return
     msg = MIMEMultipart("alternative")
@@ -136,6 +143,10 @@ def main():
     with open("packages.json", "w", encoding="utf-8") as f:
         json.dump(pk, f, ensure_ascii=False, separators=(",", ":"))
     print("📧 الملخص اتبعت")
+    try:
+        weekly(now, today_s, user, pw, to)
+    except Exception as e:
+        print(f"weekly: {e}")
     try:
         plan_cleanup(30)
     except Exception as e:
@@ -260,6 +271,43 @@ def perf_save(today_s, perf):
         except Exception as e:
             print(f"perf {name}: {str(e)[:80]}")
     print(f"📈 اتحفظ تقييم النهارده لـ {n} سكرتيرة")
+
+
+def save_kv(key, val, decision="plan"):
+    try:
+        urllib.request.urlopen(REQ_SCRIPT_URL + "?action=saveAction&reqId=" + urllib.parse.quote(key) + "&decision=" + decision
+                               + "&reason=" + urllib.parse.quote(val) + "&callback=cb", timeout=25).read()
+    except Exception as e:
+        print(f"save {key}: {str(e)[:80]}")
+
+
+def weekly(now, today_s, user, pw, to):
+    """📈 تقرير الأسبوع — الخميس بالليل (أو DIGEST_WEEKLY=1)"""
+    if now.weekday() != 3 and os.environ.get("DIGEST_WEEKLY") != "1":
+        return
+    pk = load("packages.json", {"inv": {}})
+    if (pk.get("_weekly") or {}).get("date") == today_s and os.environ.get("DIGEST_WEEKLY") != "1":
+        return
+    import digest_week
+    _, reasons = plan_data(today_s)
+    html = digest_week.build(today_s, reasons)
+    if not html:
+        print("weekly: مفيش بيانات"); return
+    if os.environ.get("DIGEST_PREVIEW"):
+        open(os.environ["DIGEST_PREVIEW"] + ".week.html", "w", encoding="utf-8").write(html); print("weekly preview written"); return
+    if not (user and pw):
+        return
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"📈 تقرير الأسبوع BODYFIX — {today_s}"
+    msg["From"], msg["To"] = user, to
+    msg.attach(MIMEText(html, "html", "utf-8"))
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as sm:
+        sm.login(user, pw)
+        sm.sendmail(user, [to], msg.as_string())
+    pk["_weekly"] = {"date": today_s}
+    with open("packages.json", "w", encoding="utf-8") as f:
+        json.dump(pk, f, ensure_ascii=False, separators=(",", ":"))
+    print("📧 تقرير الأسبوع اتبعت")
 
 
 def card_save(today_s, cards):

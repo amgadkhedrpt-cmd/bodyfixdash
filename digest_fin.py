@@ -437,7 +437,7 @@ def save_state(T, AUD):
     try:
         S = json.load(open(STATE_F, encoding="utf-8")).get("days") or {} if os.path.exists(STATE_F) else {}
         S[T] = {b: sorted(str(d.get("id")) for d in AUD.get("debts") or [] if AUD_B.get(d.get("b")) == b and d.get("d") and d["d"] <= T) for b in BR}
-        S = {k: S[k] for k in sorted(S)[-5:]}
+        S = {k: S[k] for k in sorted(S)[-10:]}   # التقرير الأسبوعي بيقارن بحالة من أسبوع
         json.dump({"days": S}, open(STATE_F, "w", encoding="utf-8"), separators=(",", ":"))
     except Exception as e:
         print("digest_fin: state", str(e)[:80])

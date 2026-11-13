@@ -63,6 +63,10 @@ function recoList(){const out=[],k=recoMonth(),add=(lvl,title,detail,tab,sub,dri
       const {ops}=nutBuild(),ex=m=>ops.filter(o=>o.k===m&&o.cat==='exam').length,e0=ex(k),eb=avgOf(monthsList(shiftK(k,-3),shiftK(k,-1)).map(ex));
       if(eb&&e0<0.75*eb)add('warn','كشوفات التغذية الجديدة قلّت',`${e0} كشف في ${ml(k)} والمتوسط ${fm(eb,0)}. ده بيبان في الإيراد بعد شهرين.`,'nut','pts',{t:'nexam'});
       if(N.sal.none)add('info','مرتبات التغذية مش مرفوعة','ارفع ملفات المرتبات من «التغذية ← الإعدادات» علشان ربح القسم يبقى حقيقي.','nut','cfg')}}
+  // ---- 💲 مراقبة آخر زيادة سعر (خلال 120 يوم) ----
+  try{if(typeof prEvents==='function'){const E=prEvents().filter(x=>x.d<=todayC()&&prDays(x.d,todayC())<=120&&prDays(x.d,todayC())>=14);const e=E[0];
+    if(e){const I=prImpact(e,e.dept||'');if(I){const R=prRows(I),V=prVerdict(I,R);const g=k=>{const r=R.find(x=>x.k===k);return r.adj!=null?r.adj:r.d};
+      add(/^✅/.test(V.v)?'good':/^⚠️|^🔴/.test(V.v)?'warn':'info','زيادة السعر: '+e.label,`${V.v.replace(/^\S+\s/,'')} الإيراد/يوم ${g('revPD')!=null?(g('revPD')>=0?'▲':'▼')+' '+pc(Math.abs(g('revPD'))):'—'} · الجلسات/يوم ${g('sesPD')!=null?(g('sesPD')>=0?'▲':'▼')+' '+pc(Math.abs(g('sesPD'))):'—'} (${I.L} يوم بعد الزيادة).`,'price')}}}}catch(e){console.error(e)}
   }catch(e){console.error(e);add('info','ما قدرتش أحسب كل الترشيحات','فيه بيانات ناقصة — '+e.message)}
   return {k,list:out.sort((a,b)=>({warn:0,good:1,info:2}[a.lvl]-{warn:0,good:1,info:2}[b.lvl]))}}
 let RECO_LAST=[];

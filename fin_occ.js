@@ -5,6 +5,21 @@ const OC={};try{OC.sph=+(localStorage.getItem('fin_oc_sph')||1)||1}catch(e){OC.s
 const ocN=s=>nAr(String(s||'')).replace(/^(dr|د)\.?\s+/i,'').replace(/\s+/g,' ').trim().toLowerCase();
 const ocWall=iso=>{if(!iso)return null;const d=new Date(iso);if(isNaN(d))return null;const s=d.toLocaleString('sv-SE',{timeZone:'Africa/Cairo',hour12:false});return Date.parse(s.replace(' ','T')+'Z')};
 const ocDay=t=>new Date(t).toISOString().slice(0,10),ocHr=t=>new Date(t).getUTCHours()+new Date(t).getUTCMinutes()/60;
+// 📌 شيت التثبيتات (مواعيد شيفت كل دكتور لكل يوم + المرضى المتثبتين) — نفس شيتات الداشبورد
+const OC_SH={haram:'https://script.google.com/macros/s/AKfycbx2zEjS2Bk3IT9NAQgounmv_YRNGCNvbgqt5sxkyVjkIlGbprO69rA3CmSdoqu_V3j_/exec',dokki:'https://script.google.com/macros/s/AKfycbyAW7vO8RLqdUccJwn_7Pz1rXSwYwqt5D-dTezRuNBEll28CdqXKUuXxQzkrHgAa3De/exec'};
+function ocJsonp(url,timeout){return new Promise((res,rej)=>{const cb='_oc'+Date.now()+Math.floor(Math.random()*1e6),sc=document.createElement('script');let done=false;
+  const end=(ok,v)=>{if(done)return;done=true;clearTimeout(t);try{sc.remove()}catch(e){}delete window[cb];ok?res(v):rej(v)};const t=setTimeout(()=>end(false,new Error('timeout')),timeout||30000);
+  window[cb]=d=>end(true,d);sc.onerror=()=>end(false,new Error('net'));sc.src=url+'?action=getData&callback='+cb+'&t='+Date.now();document.head.appendChild(sc)})}
+async function ocLoadSched(){if(OC.schTry)return;OC.schTry=true;const out={haram:[],dokki:[]},err=[];
+  try{OC.dmap=await (await fetch('data/doc_map.json?v='+Date.now())).json()}catch(e){OC.dmap={}}
+  await Promise.all(Object.entries(OC_SH).map(async([b,u])=>{try{const d=await ocJsonp(u);out[b]=(d&&d.doctors)||[]}catch(e){err.push(BRN[b])}}));
+  OC.sched=out;OC.schErr=err;OC.c=null;if(S.tab==='occ')render()}
+const OC_WD={sun:0,mon:1,tue:2,wed:3,thu:4,sat:6};const ocT=x=>{const p=String(x||'').trim().split(':');let n=parseInt(p[0]);if(!isFinite(n))return null;if(n<12)n+=12;return n+(+(p[1]||0))/60};
+function ocSchedFor(name,b){const S0=OC.sched;if(!S0)return null;const ar=(OC.dmap||{})[name]||Object.entries(OC.dmap||{}).find(([k])=>k.toLowerCase()===String(name).toLowerCase())?.[1];
+  const n1=ocN(name),n2=ar?ocN(ar):'';const L=b==='both'?[...S0.haram,...S0.dokki]:(S0[b]||[]);
+  const d=L.find(x=>{const dn=ocN(x.name);return dn&&(dn===n1||dn===n2||(n1.length>3&&(dn.includes(n1)||n1.includes(dn)))||(n2.length>3&&(dn.includes(n2)||n2.includes(dn))))});if(!d)return null;
+  const w={};for(const k in (d.days||{})){const p=String(d.days[k]||'').replace(/ /g,'').split('-');if(p.length!==2)continue;const a=ocT(p[0]),e=ocT(p[1]);if(a!=null&&e!=null&&e>a&&OC_WD[k]!=null)w[OC_WD[k]]=[a,e]}
+  const sl=Object.values(d.slots||{});const filled=sl.filter(x=>x&&x.patient&&x.patient!=='-'&&x.patient!=='—').length;return {w,slots:sl.length,filled}}
 // البصمات
 function ocShifts(){if(OC.sh)return OC.sh;const T=(RAW.kinds&&RAW.kinds.att)||{},rows=[];
   for(const b in T)for(const m in T[b]){const t=T[b][m];if(!t||!t.cols)continue;const ci=n=>t.cols.indexOf(n);const I={cr:ci('createdAt'),up:ci('updatedAt'),du:ci('duration'),u:ci('user.name'),br:ci('branch.name'),ap:ci('approved')};
@@ -30,10 +45,20 @@ function ocCalc(){const key=S.b+'|'+S.from+'|'+S.to+'|'+OC.sph;if(OC.c&&OC.c.key
     D0.ses.forEach(a=>{const L=byDay[a.d];const h=a.h+(a.mi||0)/60;const k=a.k;
       if(!L){noFp++;noFpDays.add(a.d);return}
       if(L.some(x=>h>=ocHr(x.s)-0.25&&h<ocHr(x.e)+0.25)){inS++;mm(k).ses++;cell(a.w,a.h).ses++}else{outS++;mm(k).out++}});
-    R.push({name:D0.name,fp:!!byN[n],days:Object.keys(byDay).length,hrs:shOk.reduce((s,x)=>s+(x.e-x.s)/3600e3,0),cap,inS,outS,noFp,noFpDays:noFpDays.size,broken,occ:cap?inS/cap:null,idle:Math.max(0,cap-inS)})}
-  R.sort((a,b)=>b.cap-a.cap);const T={cap:0,inS:0,outS:0,noFp:0};R.forEach(r=>{T.cap+=r.cap;T.inS+=r.inS;T.outS+=r.outS;T.noFp+=r.noFp});
+    // 📌 مقارنة بالتثبيت
+    const sc=ocSchedFor(D0.name,S.b);let sH=0,sDays=0,abs=0,extra=0,late=[],early=0,sSes=0;
+    if(sc){const fpD={};shOk.forEach(x=>(fpD[x.d]=fpD[x.d]||[]).push(x));const sesD={};D0.ses.forEach(a=>(sesD[a.d]=sesD[a.d]||[]).push(a));const td=todayC();
+      for(const k of monthsList(S.from,S.to)){const y=+k.slice(0,4),m=+k.slice(5,7);for(let dd=1;dd<=31;dd++){const day=new Date(Date.UTC(y,m-1,dd));if(day.getUTCMonth()!==m-1)break;const iso=day.toISOString().slice(0,10);if(iso>=td)break;
+        const r=sc.w[day.getUTCDay()],f=fpD[iso];
+        if(r){sDays++;sH+=r[1]-r[0];(sesD[iso]||[]).forEach(a=>{if(a.h>=r[0]-0.25&&a.h<r[1])sSes++});
+          if(!f&&!(sesD[iso]||[]).length)abs++;
+          if(f){const st=Math.min(...f.map(x=>ocHr(x.s))),en=Math.max(...f.map(x=>ocHr(x.e)));if(st>r[0]+10/60)late.push((st-r[0])*60);if(en<r[1]-10/60)early++}}
+        else if(f)extra++}}}
+    R.push({sched:!!sc,sH:sH*OC.sph,sDays,abs,extra,lateN:late.length,lateAvg:late.length?late.reduce((a,b)=>a+b,0)/late.length:null,early,sSes,slots:sc?sc.slots:0,filled:sc?sc.filled:0,
+      name:D0.name,fp:!!byN[n],days:Object.keys(byDay).length,hrs:shOk.reduce((s,x)=>s+(x.e-x.s)/3600e3,0),cap,inS,outS,noFp,noFpDays:noFpDays.size,broken,occ:cap?inS/cap:null,idle:Math.max(0,cap-inS)})}
+  R.sort((a,b)=>b.cap-a.cap);const T={cap:0,inS:0,outS:0,noFp:0,sH:0,sSes:0,abs:0};R.forEach(r=>{T.cap+=r.cap;T.inS+=r.inS;T.outS+=r.outS;T.noFp+=r.noFp;T.sH+=r.sH;T.sSes+=r.sSes;T.abs+=r.abs});
   return OC.c={key,R,T,H,M,unit,has:list.length>0}}
-function vOcc(){const c=ocCalc();if(!c.has)return `<div class="card">⏳ بيانات البصمة (Logs ← Attendance) لسه بتتسحب — جرّب بعد السحب الجاي.</div>`;
+function vOcc(){if(!OC.schTry)ocLoadSched();const c=ocCalc();if(!c.has)return `<div class="card">⏳ بيانات البصمة (Logs ← Attendance) لسه بتتسحب — جرّب بعد السحب الجاي.</div>`;
   const {R,T,H,M}=c,occ=T.cap?T.inS/T.cap:null;const fpR=R.filter(r=>r.fp&&r.cap>0);
   const L=[];
   L.push(`في ${ml(S.from)}–${ml(S.to)}: الدكاترة كانوا موجودين بالبصمة <b>${fm(T.cap/OC.sph)} ساعة</b> = طاقة ${fm(T.cap)} جلسة، واتعمل فيها <b>${fm(T.inS)}</b> جلسة مكتملة → <b>الإشغال ${pc(occ)}</b>. يعني حوالي <b class="${occ<0.6?'down':''}">${fm(Math.max(0,T.cap-T.inS))} ساعة دكتور فاضية</b>.`);
@@ -52,7 +77,21 @@ function vOcc(){const c=ocCalc();if(!c.has)return `<div class="card">⏳ بيا�
    <div class="card" style="margin-top:10px"><h3>الإشغال كل شهر</h3><div class="ch"><canvas id="oc1"></canvas></div></div></div>
   <div class="card" style="margin-top:12px"><h3>كل دكتور</h3>${tableHTML(['الدكتور',{t:'أيام بصمة',n:1},{t:'ساعات',n:1},{t:'جلسات',n:1},{t:'الإشغال',n:1},{t:'ساعات فاضية',n:1},{t:'جلسات برة البصمة',n:1},{t:'جلسات في أيام من غير بصمة',n:1},{t:'بصمات ناقصة',n:1}],rows,{h:460})}
    <div class="note">«بصمات ناقصة» = دخول من غير خروج (أو مدة أقل من نص ساعة / أكتر من 16 ساعة) — مش داخلة في الحساب.</div></div>
+  ${ocSchedV(c)}
   <div class="card" style="margin-top:12px"><h3>الإشغال حسب اليوم والساعة<small>جلسات ÷ ساعات الدكاترة الموجودين بالبصمة</small></h3>${tableHTML(['اليوم'].concat(hrs.map(h=>(h%12||12)+(h<12?'ص':'م'))),heat,{h:340})}</div>`}
+function ocSchedV(c){if(!OC.sched)return `<div class="card" style="margin-top:12px">📌 بيحمّل شيت التثبيتات…</div>`;
+  const R=c.R.filter(r=>r.sched&&(r.sH||r.cap));const T=c.T;if(!R.length)return `<div class="card" style="margin-top:12px">📌 ما لقيتش الدكاترة في شيت التثبيتات${OC.schErr.length?' (ما اتحملش: '+OC.schErr.join('، ')+')':''}.</div>`;
+  const oS=T.sH?T.sSes/T.sH:null,oF=T.cap?T.inS/T.cap:null,fpH=R.reduce((s,r)=>s+r.hrs,0),sH=R.reduce((s,r)=>s+r.sH/OC.sph,0);
+  const L=[];L.push(`حسب شيت التثبيتات الدكاترة المفروض يكونوا موجودين <b>${fm(sH)} ساعة</b>، والبصمة بتقول اتواجدوا <b>${fm(fpH)} ساعة</b> (${fpH>=sH?'+':''}${fm(fpH-sH)}).`);
+  L.push(`الإشغال على مواعيد التثبيت <b>${pc(oS)}</b> · على ساعات البصمة <b>${pc(oF)}</b>.`);
+  const ab=R.filter(r=>r.abs>=2).sort((a,b)=>b.abs-a.abs);if(ab.length)L.push(`<b class="down">أيام متثبت فيها ومفيش بصمة ولا جلسات:</b> ${ab.slice(0,5).map(r=>`${esc(r.name)} (${r.abs})`).join('، ')}.`);
+  const lt=R.filter(r=>r.lateN>=3).sort((a,b)=>b.lateN-a.lateN);if(lt.length)L.push(`<b>تأخير عن ميعاد التثبيت (أكتر من 10 دقايق):</b> ${lt.slice(0,5).map(r=>`${esc(r.name)} ${r.lateN} مرة، متوسط ${Math.round(r.lateAvg)} د`).join('، ')}.`);
+  const ea=R.filter(r=>r.early>=3).sort((a,b)=>b.early-a.early);if(ea.length)L.push(`<b>خرج قبل ميعاد التثبيت:</b> ${ea.slice(0,5).map(r=>`${esc(r.name)} ${r.early} مرة`).join('، ')}.`);
+  const rows=R.map(r=>[esc(r.name),fm(r.sH/OC.sph,1),fm(r.hrs,1),`<span class="${r.hrs<r.sH/OC.sph-1?'down':''}">${r.hrs-r.sH/OC.sph>=0?'+':''}${fm(r.hrs-r.sH/OC.sph,1)}</span>`,r.abs||'',r.extra||'',r.lateN?`${r.lateN} (${Math.round(r.lateAvg)} د)`:'',r.early||'',r.sH?pc(r.sSes/r.sH):'—',r.occ==null?'—':pc(r.occ),r.slots?`${r.filled}/${r.slots}`:'']);
+  return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--acc)"><h3>📌 التثبيت مقابل البصمة<small>مواعيد كل دكتور من شيت التثبيتات (الجدول الحالي) قصاد بصمته الفعلية</small></h3>
+   <ul class="ins">${L.map(x=>`<li>${x}</li>`).join('')}</ul>
+   ${tableHTML(['الدكتور',{t:'ساعات التثبيت',n:1},{t:'ساعات البصمة',n:1},{t:'الفرق',n:1},{t:'غياب (متثبت ومفيش بصمة)',n:1},{t:'أيام زيادة',n:1},{t:'تأخير',n:1},{t:'خرج بدري',n:1},{t:'إشغال على التثبيت',n:1},{t:'إشغال على البصمة',n:1},{t:'مرضى متثبتين/خانات',n:1}],rows,{h:420})}
+   <div class="note">شيت التثبيتات فيه الجدول <b>الحالي</b> بس، فالمقارنة أدق للشهور القريبة. «غياب» = يوم الدكتور متثبت فيه ومفيش بصمة ولا جلسات (ممكن يكون إجازة أو إذن متسجل في شيت الغيابات). «إشغال على التثبيت» = جلساته جوه مواعيد التثبيت ÷ ساعات التثبيت.</div></div>`}
 function cOcc(){const i=$('#ocSph');if(i)i.onchange=()=>{OC.sph=+i.value||1;try{localStorage.setItem('fin_oc_sph',OC.sph)}catch(e){}render()};
   const c=ocCalc();if(!c.has)return;const ks=Object.keys(c.M).sort();chart('oc1',{data:{labels:ks.map(mls),datasets:[bar('الإشغال %',ks.map(k=>c.M[k].cap?+(100*c.M[k].ses/c.M[k].cap).toFixed(1):null),SER()[0])]},
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>{const m=c.M[ks[x.dataIndex]];return ' '+x.parsed.y+'% — '+fm(m.ses)+' جلسة من '+fm(m.cap)}}}},scales:{y:{min:0,ticks:{callback:v=>v+'%'}}}}})}

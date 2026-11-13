@@ -4,7 +4,7 @@ const CEN={sub:'trend',doc:'',cache:null};
 const DEPTS=[['phy','علاج طبيعي'],['nut','تغذية'],['dev','أجهزة تخسيس وبشرة']];const DEPN=Object.fromEntries(DEPTS);
 function deptOfType(t){const n=nAr(tName(t)+' '+t);if(/تغذي|ميزو|مونجار/.test(n))return 'nut';if(/cavitation|\brf\b|cryo|excilis|بشره|اجهزه|كافيت|كرايو/.test(n))return 'dev';return 'phy'}
 const ALAA=/الاء|آلاء|alaa|حرفوش/i;
-function cenBuild(){const key=S.b;if(CEN.cache&&CEN.cache.key===key)return CEN.cache;
+function cenBuild(){const key=S.b;CEN.cc=CEN.cache?CEN.cc||{}:{};CEN.cache=true;if(CEN.cc[key])return CEN.cc[key];
   const A=D.apt.filter(a=>inB(a)&&a.st==='Completed'&&a.pid);const byP={};
   A.forEach(a=>{(byP[a.pid]=byP[a.pid]||[]).push([a.d,deptOfType(a.type),a.doc,a.k])});Object.values(byP).forEach(l=>l.sort((x,y)=>x[0]<y[0]?-1:1));
   const P=D.pay.filter(p=>inB(p)&&!p.bal&&p.amt>0);
@@ -16,7 +16,7 @@ function cenBuild(){const key=S.b;if(CEN.cache&&CEN.cache.key===key)return CEN.c
   for(const p of P)if(pts[p.pid])pts[p.pid].paid+=p.amt;
   for(const x of Object.values(pts))x.early=x.k0===first;
   const fi={};D.inv.filter(x=>inB(x)&&x.src).forEach(x=>{if(!fi[x.pid]||x.d<fi[x.pid].d)fi[x.pid]=x});for(const x of Object.values(pts))x.src=(fi[x.pid]||{}).src||'مش متسجل';
-  CEN.cache={key,byP,P,pts};return CEN.cache}
+  return CEN.cc[key]={key,byP,P,pts}}
 const cMonths=()=>monthsList(S.from,S.to);
 const CSUB=[['trend','📈 الاتجاهات والتوقع'],['pts','🔁 المرضى والاحتفاظ'],['ops','🩺 الدكاترة والزحمة']];
 function vCen(){const top=`<div class="tabs" id="csub" style="border:0;margin-bottom:8px">${CSUB.map(([k,t])=>`<button data-c="${k}" class="${CEN.sub===k?'on':''}">${t}</button>`).join('')}</div>

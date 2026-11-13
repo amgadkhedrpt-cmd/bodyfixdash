@@ -23,6 +23,10 @@ APT_Q = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!
 APT_Q2 = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
           "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
           "{id start status type doctor{name} patient{id referenceId firstName lastName}}}")
+CONF_Q = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
+          "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
+          "{id start status type createdAt updatedAt createdBy{name} doctor{name} patient{id referenceId firstName lastName phoneNumber}}}")
+CONF_COLS = ["aid", "start", "up", "cr", "type", "pid", "pn", "ph", "doc", "b", "by", "seen", "puid"]
 PAY_Q = ("query P($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter)"
          "{payments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
          "{id type amount balance refunded refundedAt details createdAt createdBy{name} doctor{name} transaction{treasury{publicName}}"
@@ -468,6 +472,41 @@ def main():
                     except Exception as e:
                         META_D["errors"].append("%s %s %s: %s" % (kind, key, k, str(e)[:160]))
                     time.sleep(0.2)
+        # 📞 confirmations snapshot: every appointment that is Confirmed right now (yesterday .. +4 days), with the exact
+        # time Medicolize last changed it (= when it was confirmed). Kept by appointment id the first time it is seen,
+        # so a later check-in / completion doesn't erase it. The page matches it against the uploaded call logs.
+        try:
+            c3 = NOW.astimezone(TZ)
+            a0 = dt.datetime(c3.year, c3.month, c3.day, tzinfo=TZ) - dt.timedelta(days=1)
+            rng = [C.iso(a0.astimezone(dt.timezone.utc)), C.iso((a0 + dt.timedelta(days=6) - dt.timedelta(milliseconds=1)).astimezone(dt.timezone.utc))]
+            cst = data["kinds"].setdefault("conf", {}).setdefault("all", {})
+            have = {r[0] for t in cst.values() for r in t.get("rows", [])}
+            n_conf = n_new = 0
+            for key, b in data["branches"].items():
+                rows = run_paged(ctx, [CONF_Q], "createdAppointments", {"branchId": b["id"], "orderBy": "start-asc", "filters": {"status": []}}, rng)
+                for r in rows:
+                    if not isinstance(r, dict) or str(r.get("status") or "").upper() != "CONFIRMED":
+                        continue
+                    n_conf += 1
+                    aid = r.get("id")
+                    if not aid or aid in have:
+                        continue
+                    pt = r.get("patient") or {}
+                    try:
+                        mk = dt.datetime.fromisoformat(str(r["start"]).replace("Z", "+00:00")).astimezone(TZ).strftime("%Y-%m")
+                    except Exception:
+                        continue
+                    t = cst.setdefault(mk, {"cols": CONF_COLS, "rows": []})
+                    t["rows"].append([aid, r.get("start"), r.get("updatedAt"), r.get("createdAt"), r.get("type"), pt.get("referenceId"),
+                                      " ".join(x for x in (pt.get("firstName"), pt.get("lastName")) if x), pt.get("phoneNumber"),
+                                      (r.get("doctor") or {}).get("name"), key, (r.get("createdBy") or {}).get("name"), C.NOW, pt.get("id")])
+                    have.add(aid)
+                    n_new += 1
+            for mk in [k for k in cst if k < months(START, CUR)[-4]]:
+                cst.pop(mk, None)                       # keep ~4 months
+            META_D["conf"] = {"confirmed_now": n_conf, "new": n_new}
+        except Exception as e:
+            META_D["errors"].append("conf: %s" % str(e)[:160])
         br.close()
     # complete-errors snapshot (nightly): errors still open at the end of the session day are kept even if fixed later
     cai2 = NOW.astimezone(TZ)

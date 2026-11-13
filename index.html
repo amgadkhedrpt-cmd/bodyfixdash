@@ -12378,8 +12378,10 @@ function planSummarySave(){
     var g=(t.grp&&t.grp[0])||'other', gt=(PLAN_GT[g]||['',g])[1], gg=b.groups[gt]||(b.groups[gt]={tot:0,done:0}); gg.tot++; if(stt==='done') gg.done++;
     var o=planOwner(t,g); if(o){ var x=sum.sec[o]||(sum.sec[o]={tot:0,done:0,hand:0}); x.tot++; if(stt==='done') x.done++; }
     var s=PLAN_ST[t.key]; if(s&&s.s==='done'&&s.by){ var y=sum.sec[s.by]||(sum.sec[s.by]={tot:0,done:0,hand:0}); y.hand++; }
+    // 📞 مين مسئولة عن تأكيد كل مريض النهارده — صفحة التحليلات بتقارنه بسجل المكالمات
+    if((g==='conf'||g==='conftoday'||g==='confsp')&&o){ var pk=String(t.key).split('|')[2]; if(pk){ sum.cf=sum.cf||{}; sum.cf[pk]=o; } }
   }); });
-  var j=JSON.stringify(sum.br)+JSON.stringify(sum.sec);
+  var j=JSON.stringify(sum.br)+JSON.stringify(sum.sec)+JSON.stringify(sum.cf||{});
   if(j===PLAN_SUM_LAST&&Date.now()-PLAN_SUM_AT<15*60000) return;
   PLAN_SUM_LAST=j; PLAN_SUM_AT=Date.now(); planSaveRaw('PLANSUM|'+td, JSON.stringify(sum));
 }

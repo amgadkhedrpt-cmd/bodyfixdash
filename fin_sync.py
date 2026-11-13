@@ -19,7 +19,7 @@ CAPT, SEEN = [], {}
 
 APT_Q = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
          "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
-         "{id start status type room{name} doctor{name} patient{id referenceId firstName lastName gender}}}")
+         "{id start status type createdAt updatedAt createdBy{name} room{name} doctor{name} patient{id referenceId firstName lastName gender}}}")
 APT_Q2 = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
           "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
           "{id start status type doctor{name} patient{id referenceId firstName lastName}}}")
@@ -299,6 +299,7 @@ def main():
                 old.setdefault("branches", {}).update(o.get("branches", {}))
                 old.setdefault("types", {}).update(o.get("types", {}))
                 old["xpv"] = max(old.get("xpv", 0), o.get("xpv", 0))
+                old["aptv"] = max(old.get("aptv", 0), o.get("aptv", 0))
                 old.setdefault("exp_types", {}).update(o.get("exp_types", {}))
                 for kind, bs in (o.get("kinds") or {}).items():
                     for b, ms in bs.items():
@@ -308,6 +309,9 @@ def main():
     data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {}), "types": old.get("types", {}),
             "exp_types": old.get("exp_types", {})}
     ALL = months(START, CUR)
+    if old.get("aptv", 0) < 2:                    # appointments gained booking time / last change / who booked: fetch again
+        data["kinds"].pop("apt", None)
+    data["aptv"] = 2
     if old.get("xpv", 0) < 2:                     # expenses list gained details / employee / supplier: fetch it again
         data["kinds"].pop("xp", None)
     data["xpv"] = 2
@@ -516,7 +520,7 @@ def main():
     old_h = json.load(open(META)).get("hash", {}) if os.path.exists(META) else {}
     META_D["hash"] = {}
     for fn, keep in ((ENC, lambda k, kd: k not in (cur_ops if kd == "ops" else cur)), (ENC_C, lambda k, kd: k in (cur_ops if kd == "ops" else cur))):
-        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}), "xpv": data.get("xpv", 0),
+        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}), "xpv": data.get("xpv", 0), "aptv": data.get("aptv", 0),
                 "kinds": {kd: {b: {k: v for k, v in ms.items() if keep(k, kd)} for b, ms in bs.items()} for kd, bs in data["kinds"].items()}}
         body = dict(part, at="")
         for bs in body["kinds"].values():

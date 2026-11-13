@@ -63,12 +63,12 @@ async function nutCfgSave(btn){
 
 // ---------------- classification ----------------
 const NCAT=[['inj','حقن تخسيس',/مونجار|ويجوفي|ريتا|تيرز|mounjaro|wegovy/],['mezo','حقن ميزوثيرابي',/ميزو/],['exam','كشف تغذية',/^كشف (ال)?تغذيه/],
-  ['fu','متابعة تغذية',/^م تغذيه|^م ت \d|^متابعه (ال)?تغذيه|^متابعه ت|تغذيه اون ?لاين/],['dev','أجهزة تخسيس وبشرة',/راديوفريكونسي|كر ?ايو|كافيتي?ت?شن|اكسيليس|excilis|بشره|اسكن|\bdo\b|كومبريشن|cryo|cavitation|\brf\b/],
+  ['fu','متابعة تغذية',/^م تغذيه|^م ت \d|^متابعه (ال)?تغذيه|^متابعه ت|تغذيه اون ?لاين/],['dev','أجهزة تخسيس وبشرة',/تيارات|راديوفريكونسي|كر ?ايو|كافيتي?ت?شن|اكسيليس|excilis|بشره|اسكن|\bdo\b|كومبريشن|cryo|cavitation|\brf\b/],
   ['inbody','إنبدي',/انبدي|inbody/]];
 const NCATN=Object.fromEntries(NCAT.map(c=>[c[0],c[1]]));NCATN.other='غير مصنف';NCATN.prod='منتجات ومكملات';
 // physio sessions by the same doctor are not nutrition; sold supplements are tracked apart (not in the section revenue, like the spec)
 const N_PHYSIO=/ع ط|علاج طبيعي|ريكفري|حجام/,N_PROD=/شريط|علبه|امبول|كبسول|slim|lipotrix|fatzorb|diet|metabolites/;
-const DEVT=[['كافيتيشن',/كافيتي?ت?شن|cavitation/],['RF',/راديوفريكونسي|\brf\b|ار اف/],['كرايو بليد',/كر ?ايو بليد|cryo.?blade/],['كرايو اير',/كر ?ايو اير|cryo.?air/],['كرايو',/كر ?ايو|cryo/],
+const DEVT=[['تيارات كهربائية',/تيارات/],['كافيتيشن',/كافيتي?ت?شن|cavitation/],['RF',/راديوفريكونسي|\brf\b|ار اف/],['كرايو بليد',/كر ?ايو بليد|cryo.?blade/],['كرايو اير',/كر ?ايو اير|cryo.?air/],['كرايو',/كر ?ايو|cryo/],
   ['إكسيليس',/اكسيليس|excilis/],['DO',/\bdo\b/],['عناية بالبشرة',/بشره|اسكن|skin/],['كومبريشن',/كومبريشن/]];
 const INJT=[['مونجارو',/مونجار|mounjaro|تيرز/],['ويجوفي',/ويجوفي|wegovy/],['ريتا',/ريتا/]];
 const ncat=n=>{if(N_PHYSIO.test(n))return 'physio';for(const c of NCAT)if(c[2].test(n))return c[0];if(N_PROD.test(n))return 'prod';return 'other'};

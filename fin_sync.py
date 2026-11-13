@@ -48,7 +48,7 @@ def _norm_ar(t):
     t = re.sub("[أإآ]", "ا", str(t or "")).replace("ة", "ه").replace("ى", "ي")
     return re.sub(r"\s+", " ", t).strip().lower()
 NUT_RX = re.compile(r"تغذي|مونجار|ويجوفي|ريتا|تيرز|mounjaro|wegovy|ميزو|راديوفريكونسي|كرايو|كافيتيشن|اكسيليس|excilis|بشره|اسكن|كومبريشن"
-                    r"|انبدي|inbody|^م ت \d|^م تغذي|نحت|تخسيس|\bdo\b|\brf\b|cryo|cavitation", re.I)
+                    r"|انبدي|inbody|^م ت \d|^م تغذي|نحت|تخسيس|\bdo\b|\brf\b|cryo|cavitation|تيارات", re.I)
 ALAA_RX = re.compile(r"الاء|آلاء|alaa|حرفوش", re.I)
 
 
@@ -325,9 +325,9 @@ def main():
     if old.get("xpv", 0) < 2:                     # expenses list gained details / employee / supplier: fetch it again
         data["kinds"].pop("xp", None)
     data["xpv"] = 2
-    if old.get("opsv", 0) < 2:                    # nutrition steps gained the paid date (revenue = what was collected): fetch again
+    if old.get("opsv", 0) < 3:                    # nutrition steps: paid date (revenue = collected) + slimming electric-current packages: fetch again
         data["kinds"].pop("ops", None)
-    data["opsv"] = 2
+    data["opsv"] = 3
     # the history is filled on every run; once complete, scheduled runs refresh only a few times a day (keeps the repo small)
     full = all(len(data["kinds"].get(kd, {}).get(b, {})) >= len(ALL) - 2 for kd in ("pay", "exp", "inv", "apt")
                for b in (data["branches"] or {"x": 0})) and data["branches"] \

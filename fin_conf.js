@@ -103,8 +103,24 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
     ${kpi('❌ من غير مكالمة اترد عليها',J.length?pc_(J,c=>c.cat!=='ok'):'—','',J.length&&J.filter(c=>c.cat!=='ok').length/J.length>0.2?'down':'')}</div>`;
   // قراية
   const L=[];if(J.length){const bad=J.filter(c=>c.cat!=='ok');L.push(`من ${J.length} تأكيد في فترة الملفات: <b>${J.filter(c=>c.cat==='ok').length}</b> قبلهم مكالمة اترد عليها، و<b class="down">${bad.length}</b> لأ (${J.filter(c=>c.cat==='none').length} مفيش أي مكالمة للرقم خالص، ${J.filter(c=>c.cat==='tried').length} اتصلوا وما ردش ومع ذلك اتعلّم مؤكد).`);
-    const r=(a,s)=>a.length?a.filter(c=>c.res===s).length/a.length:null,ok=J.filter(c=>c.cat==='ok'&&c.res!=='لسه'&&c.res!=='—'),nb=bad.filter(c=>c.res!=='لسه'&&c.res!=='—');
-    if(ok.length>=10&&nb.length>=10)L.push(`اللي اتأكدوا بمكالمة: ما جاش أو اعتذر ${pc((r(ok,'ما جاش')||0)+(r(ok,'اعتذر')||0))} · اللي من غير مكالمة: ${pc((r(nb,'ما جاش')||0)+(r(nb,'اعتذر')||0))}${(r(nb,'ما جاش')||0)+(r(nb,'اعتذر')||0)>(r(ok,'ما جاش')||0)+(r(ok,'اعتذر')||0)+0.05?' — <b class="down">التأكيد من غير مكالمة مش بيحمي الموعد</b>':''}.`)}
+  }
+  // 🔎 الاعتذار والغياب حسب نوع التأكيد (المواعيد اللي خلصت بس)
+  const fin_=c=>c.res==='حضر'||c.res==='اعتذر'||c.res==='ما جاش';
+  const grp=[['✅ اتأكد بمكالمة اترد عليها',c=>!c.atBook&&c.cat==='ok'],['📵 اتصلوا وما ردش — واتعلّم مؤكد',c=>!c.atBook&&(c.cat==='tried'||c.cat==='missonly')],['❌ اتأكد من غير أي مكالمة',c=>!c.atBook&&c.cat==='none'],
+    ['⚡ اتأكد بالجملة',c=>c.bulk],['اتأكد (مش متقارن بمكالمات)',c=>!c.atBook&&(c.cat==='nocov'||c.cat==='nofile'||c.cat==='noph')],['اتحجز «مؤكد» وقت الحجز',c=>c.atBook]];
+  const oRow=(t,a)=>{const n=a.length,ca=a.filter(c=>c.res==='اعتذر').length,ns=a.filter(c=>c.res==='ما جاش').length;return {t,n,at:n-ca-ns,ca,ns,r:n?(ca+ns)/n:null}};
+  const OG=grp.map(([t,f])=>oRow(t,C.filter(c=>fin_(c)&&f(c)))).filter(o=>o.n);
+  // مواعيد ما اتأكدتش خالص (من أول يوم التسجيل لحد امبارح، ومش في التأكيدات)
+  {const t0=all.length?cfDay(Math.min(...all.map(c=>c.cT))):null,y=cfDay(Date.now()+2*3600e3-864e5),seen=new Set(all.map(c=>c.pid+'|'+cfDay(c.aT)));
+   if(t0){const st={};D.apt.forEach(a=>{if(!inB(a)||!a.pid||a.d<t0||a.d>y||(CF.d1&&a.d<CF.d1)||(CF.d2&&a.d>CF.d2))return;const k=a.pid+'|'+a.d;if(seen.has(k))return;(st[k]=st[k]||[]).push(a.st)});
+     const nc=Object.values(st).map(l=>({res:l.some(s=>/complet|check|progress|delay/i.test(s))?'حضر':l.some(s=>/no ?show/i.test(s))?'ما جاش':l.some(s=>/cancel/i.test(s))?'اعتذر':''})).filter(fin_);
+     const o=oRow('⬜ ما اتأكدش خالص',nc);if(o.n)OG.push(o)}}
+  const ogRows=OG.map(o=>[o.t,o.n,o.at,o.ca,o.ns,`<b${o.r>0.2?' class="down"':''}>${pc(o.r)}</b>`]);
+  const gOk=OG.find(o=>o.t.startsWith('✅')),sus_=C.filter(c=>fin_(c)&&!c.atBook&&['tried','missonly','none'].includes(c.cat)),gS=oRow('',sus_);
+  if(gOk&&gOk.n>=10&&gS.n>=10){const d=gS.r-gOk.r;L.push(`<b>الاعتذار والغياب:</b> اللي اتأكدوا بمكالمة حقيقية ${pc(gOk.r)} · اللي شاكين فيهم (من غير مكالمة اترد عليها) <b${d>0.05?' class="down"':''}>${pc(gS.r)}</b>${d>0.05?` — يعني التأكيد المشكوك فيه بيخلّي الموعد يضيع ${(gS.r/Math.max(gOk.r,0.01)).toFixed(1)} مرة أكتر. ده بيأكد إن التأكيد ده مش حقيقي (أو مش مفيد)`:d<-0.03?' — المشكوك فيهم مش بيغيبوا أكتر، فغالباً اتأكدوا بطريقة تانية (واتساب)':' — تقريباً نفس النسبة'}.`)}
+  else if(J.length)L.push(`<span class="sub">مقارنة الاعتذار بين المؤكدين بمكالمة والمشكوك فيهم بتظهر لما يبقى فيه 10 مواعيد خلصوا على الأقل في كل مجموعة.</span>`);
+  const susLost=C.filter(c=>(c.res==='اعتذر'||c.res==='ما جاش')&&!c.atBook&&(['tried','missonly','none'].includes(c.cat)||c.bulk)).sort((a,b)=>b.aT-a.aT).map(c=>[cfFmt(c.aT),esc(c.pn),esc(c.type),c.res,cfFmt(c.cT),esc(c.who),(c.bulk?'⚡ بالجملة ':'')+(CF_CAT[c.cat]?CF_CAT[c.cat][0]:'')]);
+  if(susLost.length)L.push(`<b class="down">${susLost.length} موعد اعتذر أو ما جاش وكان متعلّم عليه مؤكد من غير مكالمة حقيقية</b> — القايمة تحت.`);
   if(X.bursts.length)L.push(`<b class="down">${X.bursts.length} مرة اتأكد فيها ${X.bursts.reduce((s,b)=>s+b.n,0)} موعد بالجملة</b> (5 أو أكتر في 3 دقايق) — مستحيل يكونوا مكالمات، غالباً اتعلّموا من غير اتصال أو بعد رسالة واتساب جماعية.`);
   if(chk.some(c=>!c.whoOk))L.push(`<span class="sub">* = المسئولة حسب التوزيع الأساسي (خطة اليوم بقت بتسجل مسئولة كل مريض من النهارده — الأيام الجاية هتبقى بالاسم الصح حتى لو حد غايب).</span>`);
   if(L.length)h+=`<div class="card" style="margin-top:12px"><h3>📖 القراية</h3><ul class="ins">${L.map(x=>`<li>${x}</li>`).join('')}</ul></div>`;
@@ -118,9 +134,11 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   const sus=chk.filter(c=>['none','tried','missonly'].includes(c.cat)||c.bulk).sort((a,b)=>b.cT-a.cT).slice(0,300).map(c=>[cfFmt(c.cT),esc(c.pn),cfFmt(c.aT)+' · '+esc(c.type),esc(c.who),
     c.bulk?'⚡ بالجملة':'',CF_CAT[c.cat]?`<span style="color:${CF_CAT[c.cat][1]}">${CF_CAT[c.cat][0]}</span>`:'',(c.calls||[]).length?(c.calls.map(x=>(x.ty==='out'?'📤':x.ty==='in'?'📥':'📵')+cfFmt(x.t).slice(6)+(x.dur?' '+x.dur+'ث':'')).join(' ')):'',c.res]);
   CF.rep.conf={kpi:[['تأكيدات (من غير اللي اتحجزوا مؤكد)',chk.length],['اتأكدوا بالجملة',pc_(chk,c=>c.bulk)],['اتقارنوا بالمكالمات',J.length],['بمكالمة اترد عليها',J.length?pc_(J,c=>c.cat==='ok'):'—'],['من غير مكالمة اترد عليها',J.length?pc_(J,c=>c.cat!=='ok'):'—']],
-    L,wRows,dRows,bRows,sus,g,J,chk,bursts:X.bursts};
+    L,wRows,dRows,bRows,sus,g,J,chk,bursts:X.bursts,ogRows,susLost,gOk,gS};
   h+=`<div class="grid g2" style="margin-top:12px">
    <div class="card"><h3>حسب المسئولة عن التأكيد<small>من خطة اليوم</small></h3>${tableHTML(['',{t:'تأكيدات',n:1},{t:'✅ بمكالمة',n:1},{t:'📵 ما ردش',n:1},{t:'❌ مفيش مكالمة',n:1},{t:'⚡ بالجملة',n:1},{t:'ما جاش/اعتذر',n:1}],wRows,{h:340})}</div>
+   ${ogRows.length?`<div class="card" style="grid-column:1/-1"><h3>🔎 الاعتذار والغياب حسب نوع التأكيد<small>المواعيد اللي خلصت بس · «ما اتأكدش خالص» = مواعيد من أول يوم التسجيل ما ظهرتش مؤكدة</small></h3>${tableHTML(['',{t:'مواعيد',n:1},{t:'حضر',n:1},{t:'اعتذر',n:1},{t:'ما جاش',n:1},{t:'اعتذر + ما جاش',n:1}],ogRows,{h:300})}<div class="note">لو «اتأكد من غير مكالمة» نسبته قريبة من «ما اتأكدش خالص» وبعيدة عن «اتأكد بمكالمة» = التأكيد ده على الورق بس.</div></div>`:''}
+   ${susLost.length?`<div class="card" style="grid-column:1/-1"><h3>اعتذروا أو ما جوش — وكانوا متأكدين من غير مكالمة<small>${susLost.length}</small></h3>${tableHTML(['الموعد','المريض','الخدمة','النتيجة','اتأكد','المسئولة','ليه مشكوك فيه'],susLost,{h:360})}</div>`:''}
    <div class="card"><h3>كل يوم</h3>${tableHTML(['يوم التأكيد',{t:'تأكيدات',n:1},{t:'⚡ بالجملة',n:1},{t:'✅ بمكالمة',n:1}],dRows,{h:340})}</div>
    ${bRows.length?`<div class="card" style="grid-column:1/-1"><h3>⚡ تأكيد بالجملة<small>5 مواعيد أو أكتر اتعلّم عليهم مؤكد في 3 دقايق</small></h3>${tableHTML(['الوقت','الفرع',{t:'مواعيد',n:1},'المسئولة'],bRows,{h:300})}</div>`:''}
    ${sus.length?`<div class="card" style="grid-column:1/-1"><h3>المواعيد المشكوك فيها<small>${sus.length}</small></h3>${tableHTML(['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],sus,{h:420})}</div>`:''}
@@ -219,6 +237,8 @@ function cfActions(){const A=[],R=CF.rep,c=R.calls,f=R.conf;const add=(p,a,why,w
   if(f&&f.J&&f.J.length){const bad=f.J.filter(x=>x.cat!=='ok').length/f.J.length;
     if(bad>0.2)add('🔴 عالية','قاعدة: ممنوع «مؤكد» غير بعد مكالمة اترد عليها أو رد على واتساب — والطريقة تتكتب في ملحوظة الموعد',`${pc(bad)} من التأكيدات مالهاش مكالمة اترد عليها`,'المشرفة + الاستقبال','من النهارده');
     Object.entries(f.g).filter(([k,z])=>k!=='—'&&k!=='…'&&z.j>=10&&(z.j-z.ok)/z.j>0.3).sort((a,b)=>(b[1].j-b[1].ok)/b[1].j-(a[1].j-a[1].ok)/a[1].j).forEach(([k,z])=>add('🔴 عالية',`مراجعة مع ${k.replace(' *','')}: تأكيدات من غير مكالمة`,`${pc((z.j-z.ok)/z.j)} من تأكيداتها (${z.j-z.ok} من ${z.j})`,'المدير','الأسبوع ده'))}
+  if(f&&f.gOk&&f.gS&&f.gOk.n>=10&&f.gS.n>=10&&f.gS.r>f.gOk.r+0.05)add('🔴 عالية','عرض الأرقام دي على السكرتارية: التأكيد من غير مكالمة بيضيّع المواعيد',`اعتذار/غياب ${pc(f.gS.r)} للمشكوك فيهم مقابل ${pc(f.gOk.r)} للي اتأكدوا بمكالمة`,'المدير','الاجتماع الجاي');
+  if(f&&f.susLost&&f.susLost.length)add('🟠 متوسطة',`مراجعة الـ ${f.susLost.length} موعد اللي اعتذروا وتأكيدهم مشكوك فيه مع المسئولة عن كل واحد`,'شيت «اعتذروا وتأكيدهم مشكوك فيه»','المدير','الأسبوع ده');
   if(f&&f.bursts&&f.bursts.length)add('🔴 عالية',`مراجعة ${f.bursts.length} مرة اتأكد فيها مواعيد بالجملة`,`${f.bursts.reduce((s,b)=>s+b.n,0)} موعد اتعلّم مؤكد (5+ في 3 دقايق) — التفاصيل في شيت «تأكيد بالجملة»`,'المدير مع المسئولة','الأسبوع ده');
   if(!A.length)add('🟢','مفيش مشاكل واضحة في الفترة دي — كمّل على نفس الطريقة','','','');
   return A}
@@ -241,6 +261,8 @@ async function cfExcel(){if(!CF.rep.calls&&!CF.rep.conf){alert('ارفع ملف�
   if(R.conf){const f=R.conf;
     sh('التأكيد — حسب المسئولة',['المسئولة','تأكيدات','بمكالمة','ما ردش','مفيش مكالمة','بالجملة','ما جاش/اعتذر'],f.wRows,[22,10,10,10,12,10,14]);
     sh('التأكيد — كل يوم',['اليوم','تأكيدات','بالجملة','بمكالمة'],f.dRows,[18,10,10,10]);
+    if(f.ogRows.length)sh('الاعتذار حسب نوع التأكيد',['نوع التأكيد','مواعيد','حضر','اعتذر','ما جاش','اعتذر + ما جاش'],f.ogRows,[36,10,10,10,10,16]);
+    if(f.susLost.length)sh('اعتذروا وتأكيدهم مشكوك فيه',['الموعد','المريض','الخدمة','النتيجة','اتأكد','المسئولة','ليه مشكوك فيه'],f.susLost,[14,30,24,10,14,18,34]);
     if(f.bRows.length)sh('تأكيد بالجملة',['الوقت','الفرع','مواعيد','المسئولة'],f.bRows,[22,10,10,30]);
     if(f.sus.length)sh('تأكيدات مشكوك فيها',['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],f.sus,[14,30,26,18,12,34,40,10])}
   XLSX.writeFile(wb,`تحليل المكالمات والتأكيدات — ${BRN[S.b]} — ${per.replace(/[\/\\?*\[\]:]/g,'-')}.xlsx`)}

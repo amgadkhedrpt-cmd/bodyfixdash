@@ -46,11 +46,15 @@ function prVerdict(I,R){const g=k=>{const r=R.find(x=>x.k===k);return r.adj!=nul
   const pct=I.e.pct!=null?I.e.pct:R.find(x=>x.k==='avgS').d;
   L.push(`<b>${esc(I.e.label)}</b> — من ${I.b1}: قارنّا ${I.L} يوم بعدها بـ${I.L} يوم قبلها${I.LA?'، ومصحّح بنفس الأيام من السنة اللي فاتت (علشان الموسم)':' (مفيش سنة قبلها للتصحيح)'}.`);
   if(rev!=null)L.push(`الإيراد في اليوم ${rev>=0?'زاد':'قلّ'} <b class="${rev>=0?'up':'down'}">${pc(Math.abs(rev))}</b>، والجلسات ${ses>=0?'زادت':'قلّت'} <b class="${ses>=-0.03?'up':'down'}">${pc(Math.abs(ses||0))}</b>${np!=null?`، والمرضى الجداد ${np>=0?'زادوا':'قلّوا'} ${pc(Math.abs(np))}`:''}.`);
-  if(pct&&ses!=null&&pct>0){const el=ses/pct;L.push(`<b>حساسية المرضى للسعر:</b> كل 1% زيادة → الجلسات ${el>=0?'زادت':'قلّت'} ${Math.abs(el).toFixed(2)}% ${Math.abs(el)<0.5?'(حساسية قليلة — الزيادة مستحملة)':Math.abs(el)<1?'(حساسية متوسطة)':'(حساسية عالية — المرضى بيسيبوا)'}.`)}
+  if(pct&&ses!=null&&pct>0){const el=ses/pct;
+    if(el>=0)L.push(`<b>حساسية المرضى للسعر:</b> الجلسات ما قلّتش بعد الزيادة (${ses>=0.005?'زادت '+pc(ses):'ثابتة'}) — يعني مفيش علامة إن المرضى بيسيبوا بسبب السعر.`);
+    else L.push(`<b>حساسية المرضى للسعر:</b> كل 1% زيادة → الجلسات قلّت ${Math.abs(el).toFixed(2)}% ${-el<0.5?'(حساسية قليلة — الزيادة مستحملة)':-el<1?'(حساسية متوسطة — الإيراد لسه كسبان بس الحجم بيقل)':'(حساسية عالية — المرضى بيسيبوا أكتر من فرق السعر)'}.`)}
   if(conv!=null&&conv<-0.05)L.push(`<b class="down">الشراء من الكشف للباقة قلّ ${(Math.abs(conv)*100).toFixed(1)} نقطة</b> — المرضى الجداد بيترددوا في السعر الجديد.`);
   if(ret!=null&&ret<-0.05)L.push(`<b class="down">رجوع المرضى الجداد قلّ ${(Math.abs(ret)*100).toFixed(1)} نقطة.</b>`);
   let v='';if(rev!=null&&ses!=null){if(rev>0.02&&ses>-0.05&&!(conv<-0.05)&&!(ret<-0.05))v='✅ الزيادة ناجحة لحد دلوقتي: الإيراد زاد من غير ما المرضى يقلّوا بشكل واضح.';else if(rev>0.02)v='⚠️ الإيراد زاد بس فيه علامات تراجع في الحجم أو الرجوع — تابعها كمان كام أسبوع قبل أي زيادة تانية.';else v='🔴 الزيادة ما جابتش إيراد زيادة — المرضى اللي راحوا عوّضوا فرق السعر أو أكتر.'}
-  if(I.L<28)L.push(`<span class="sub">لسه ${I.L} يوم بس بعد الزيادة — الحكم مبدئي.</span>`);return {L,v}}
+  const sesN=Math.round((I.B.sesPD||0)*I.L);
+  if(I.L<28||sesN<150){v='⏳ لسه بدري على الحكم'+(v?' — المؤشرات لحد دلوقتي: '+v.replace(/^\S+\s/,''):'');L.push(`<span class="sub">لسه ${I.L} يوم بس بعد الزيادة (${fm(sesN)} جلسة) — الأرقام الصغيرة بتتحرك كتير بالصدفة. الحكم بيبقى أوضح بعد 4–8 أسابيع.</span>`)}
+  return {L,v}}
 // ---------- العرض ----------
 function prWeeks(e,dept,mk){const sv=GR.dept;GR.dept=dept;try{const out=[];for(let w=-12;w<12;w++){const d1=prDay(e.d,w*7),d2=prDay(d1,6);if(d1>todayC())break;out.push({w,lbl:(w===0?'◀ الزيادة ':'')+d1.slice(8,10)+'/'+d1.slice(5,7),v:mk(grAgg(d1,[d2,prDay(todayC(),-1)].sort()[0]))})}return out}finally{GR.dept=sv}}
 function vPrice(){if(!NUT.cfg)NUT.cfg=nutMerge(null);const E=prEvents(),dept=PRC.dept;
@@ -67,7 +71,7 @@ function vPrice(){if(!NUT.cfg)NUT.cfg=nutMerge(null);const E=prEvents(),dept=PRC
   const R=prRows(I),V=prVerdict(I,R);
   // مراقبة: آخر زيادة خلال 120 يوم
   const live=E.find(x=>prDays(x.d,todayC())<=120&&x.d<=todayC());
-  h+=`<div class="card" style="margin-top:12px;border-inline-start:4px solid ${/^✅/.test(V.v)?'var(--good)':/^⚠️/.test(V.v)?'var(--warn)':'var(--bad)'}"><h3>📊 أثر الزيادة${live&&live===e?' <span class="sub">— بتتراقب دلوقتي</span>':''}<small>${I.a1} → ${I.a2} مقابل ${I.b1} → ${I.b2}${deptX?' · '+DEPN[deptX]:' · المركز كله'}</small></h3>
+  h+=`<div class="card" style="margin-top:12px;border-inline-start:4px solid ${/^✅/.test(V.v)?'var(--good)':/^⚠️|^⏳/.test(V.v)?'var(--warn)':'var(--bad)'}"><h3>📊 أثر الزيادة${live&&live===e?' <span class="sub">— بتتراقب دلوقتي</span>':''}<small>${I.a1} → ${I.a2} مقابل ${I.b1} → ${I.b2}${deptX?' · '+DEPN[deptX]:' · المركز كله'}</small></h3>
    ${V.v?`<div style="font-weight:700;margin-bottom:6px">${V.v}</div>`:''}<ul class="ins">${V.L.map(x=>`<li>${x}</li>`).join('')}</ul>
    ${tableHTML(['',{t:'قبل',n:1},{t:'بعد',n:1},{t:'التغيير',n:1},{t:'نفس الأيام السنة اللي فاتت',n:1},{t:'التغيير المصحّح',n:1}],R.map(r=>r.row),{h:340})}
    <div class="note">«التغيير المصحّح» = التغيير بعد الزيادة − التغيير اللي حصل في نفس الأيام السنة اللي فاتت (من غير زيادة). ده الأقرب لأثر السعر لوحده. الشراء والرجوع بيتحسبوا للمرضى اللي عدّى عليهم 14 / 30 يوم بس.</div></div>

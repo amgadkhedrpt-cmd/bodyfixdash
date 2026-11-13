@@ -521,8 +521,10 @@ $('#fTo').onchange=e=>{if(e.target.value){S.to=e.target.value;if(S.to<S.from)S.f
 document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const c=curK(),f=D.months[0]||c;const q=b.dataset.q;
   if(q==='m')setRange(c,c);else if(q==='3')setRange(shiftK(c,-2)<f?f:shiftK(c,-2),c);else if(q==='y')setRange((c.slice(0,4)+'-01')<f?f:c.slice(0,4)+'-01',c);else setRange(f,c)});
 </script>
-<script src="fin_nut.js"></script>
-<script src="fin_center.js"></script>
-<script src="fin_reco.js"></script>
+<script>
+// the section files always load fresh (GitHub Pages lets browsers keep old copies for 10 minutes)
+(function(){const v=Date.now(),files=['fin_nut.js','fin_center.js','fin_reco.js'];let i=0;
+  const next=()=>{if(i>=files.length){if(D)render();return}const sc=document.createElement('script');sc.src=files[i++]+'?v='+v;sc.onload=next;sc.onerror=next;document.body.appendChild(sc)};next()})();
+</script>
 </body>
 </html>

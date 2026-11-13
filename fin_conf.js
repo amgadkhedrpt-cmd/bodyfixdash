@@ -42,13 +42,13 @@ async function cfRead(file){let rows;
   let dmy=true;const di=mp.date;if(di>=0){let a12=0,b12=0;body.slice(0,400).forEach(r=>{const m=String(cfDig(r[di])).match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-]/);if(m){if(+m[1]>12)a12++;if(+m[2]>12)b12++}});dmy=!(b12>a12)}
   const out=[];let bad=0;
   for(const r of body){const ph=cfPh(r[mp.ph]);const t=cfTime(r[mp.date],mp.time>=0?r[mp.time]:null,dmy);if(!ph||t==null){bad++;continue}
-    const dur=mp.dur>=0?cfDur(r[mp.dur]):0;let ty=mp.type>=0?cfType(r[mp.type]):'';if(ty==='miss'&&dur>0)ty='in';
+    const dur=mp.dur>=0?cfDur(r[mp.dur]):0;let ty=mp.type>=0?cfType(r[mp.type]):'';if(ty==='miss'&&dur>0)ty='in';if(ty==='in'&&dur===0&&mp.dur>=0)ty='miss';
     out.push({ph,t,dur,ty:ty||'?'})}
   return {out,bad,mp,head,dmy,n:body.length}}
 async function cfLoad(files){const msg=$('#cfMsg');for(const f of files){try{const r=await cfRead(f);CF.map=r.mp;
-    const seen=new Set(CF.calls.map(c=>c.ph+'|'+c.t+'|'+c.ty));let add=0;r.out.forEach(c=>{const k=c.ph+'|'+c.t+'|'+c.ty;if(!seen.has(k)){seen.add(k);CF.calls.push(c);add++}});
+    const seen=new Set(CF.calls.map(c=>c.ph+'|'+c.t+'|'+c.ty));let add=0;const ln=f.name.replace(/\.[^.]+$/,'');r.out.forEach(c=>{const k=c.ph+'|'+c.t+'|'+c.ty;if(!seen.has(k)){seen.add(k);c.ln=ln;CF.calls.push(c);add++}});
     CF.files.push({name:f.name,n:r.n,ok:add,bad:r.bad,mp:r.mp,dmy:r.dmy})}catch(e){CF.files.push({name:f.name,err:e.message||String(e)})}}
-  CF.minT=CF.calls.length?Math.min(...CF.calls.map(c=>c.t)):null;CF.maxT=CF.calls.length?Math.max(...CF.calls.map(c=>c.t)):null;CF.idx=null;render()}
+  CF.minT=CF.calls.length?Math.min(...CF.calls.map(c=>c.t)):null;CF.maxT=CF.calls.length?Math.max(...CF.calls.map(c=>c.t)):null;CF.idx=null;CF.st=null;render()}
 // ---------- مين المسئولة (من خطة اليوم) ----------
 async function cfSheet(){if(CF.sheetTry)return;CF.sheetTry=true;try{const d=await jsonp({action:'getAll'},25000);const r=(d&&d.reasons)||{};const o={sum:{},roles:null};
   for(const k in r){if(k.indexOf('PLANSUM|')===0){try{o.sum[k.slice(8)]=JSON.parse(r[k])}catch(e){}}else if(k==='PLANCFG|roles'){try{o.roles=JSON.parse(r[k])}catch(e){}}}
@@ -122,6 +122,72 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   </div>`;
   return h}
 function cConf(){const f=$('#cfF');if(f)f.onchange=e=>{const fs=[...e.target.files];if(fs.length){$('#cfMsg').textContent='بيقرا الملفات…';cfLoad(fs)}};
-  const c=$('#cfClr');if(c)c.onclick=()=>{CF.calls=[];CF.files=[];CF.map=null;CF.idx=null;CF.minT=CF.maxT=null;render()};
+  const c=$('#cfClr');if(c)c.onclick=()=>{CF.calls=[];CF.files=[];CF.map=null;CF.idx=null;CF.st=null;CF.minT=CF.maxT=null;render()};
   document.querySelectorAll('[data-cfc]').forEach(s=>s.onchange=()=>{CF.map[s.dataset.cfc]=+s.value;$('#cfMsg').textContent='ارفع الملفات تاني بعد تعديل الأعمدة';CF.calls=[];CF.files=[];CF.idx=null;render()})}
-VIEWS.conf=[vConf,cConf];
+// ================= 📊 تحليل سجل المكالمات =================
+try{CF.oh=JSON.parse(localStorage.getItem('fin_cfoh')||'null')||[10,22]}catch(e){CF.oh=[10,22]}
+const cfIsOpen=t=>{const h=new Date(t).getUTCHours();return h>=CF.oh[0]&&h<CF.oh[1]};
+const cfDurF=m=>m==null?'—':m<60?Math.round(m)+' د':m<1440?(m/60).toFixed(1)+' س':(m/1440).toFixed(1)+' يوم';
+const cfMed=a=>{if(!a.length)return null;const b=a.slice().sort((x,y)=>x-y);return b[b.length>>1]};
+function cfPts(){if(CF.pts)return CF.pts;const P={};D.apt.forEach(a=>{const ph=cfPh(a.ph);if(!ph)return;const z=P[ph]=P[ph]||{pn:a.pn,last:'',next:''};
+    if(/complet/i.test(a.st)&&a.d>z.last)z.last=a.d;if(/open|confirm/i.test(a.st)&&a.d>=todayC()&&(!z.next||a.d<z.next))z.next=a.d;if(a.pn)z.pn=a.pn});return CF.pts=P}
+function cfStats(){if(CF.st)return CF.st;const by={};CF.calls.forEach(c=>(by[c.ph]=by[c.ph]||[]).push(c));const end=CF.maxT,EP=[];
+  for(const ph in by){const L=by[ph].sort((a,b)=>a.t-b.t);let ep=null;
+    for(const c of L){if(c.ty==='miss'){if(!ep)ep={ph,t0:c.t,last:c.t,n:1,ln:c.ln,open:cfIsOpen(c.t)};else{ep.n++;ep.last=c.t}continue}
+      if(!ep)continue;
+      if(c.ty==='out'){if(ep.tA==null){ep.tA=c.t;ep.lnA=c.ln}ep.tries=(ep.tries||0)+1;if(c.dur>0){ep.tC=c.t;ep.how='رجعناله';EP.push(ep);ep=null}}
+      else if(c.dur>0){ep.tC=c.t;ep.how='هو رجع كلمنا';EP.push(ep);ep=null}}
+    if(ep)EP.push(ep)}
+  EP.forEach(e=>{e.wA=e.tA!=null?(e.tA-e.t0)/60e3:null;e.wC=e.tC!=null?(e.tC-e.t0)/60e3:null;
+    e.st=e.tC!=null?(e.how==='رجعناله'?'ok':'self'):e.tA!=null?'tried':(end-e.last<60*60e3?'pend':'none')});
+  return CF.st={EP,by}}
+function vCalls(){if(!CF.calls.length)return '';const {EP}=cfStats(),C=CF.calls,P=cfPts();
+  const inc=C.filter(c=>c.ty==='in'||c.ty==='miss'),ans=C.filter(c=>c.ty==='in'&&c.dur>0),out=C.filter(c=>c.ty==='out'),outA=out.filter(c=>c.dur>0);
+  const E=EP.filter(e=>e.st!=='pend'),Eo=E.filter(e=>e.open),ret=E.filter(e=>e.wA!=null);
+  const r=(a,f)=>a.length?a.filter(f).length/a.length:null;
+  const bk=[[0,15,'أقل من ربع ساعة'],[15,60,'ربع ساعة – ساعة'],[60,180,'1–3 ساعات'],[180,1440,'3 ساعات – يوم'],[1440,1e9,'أكتر من يوم']];
+  const dist=(arr)=>bk.map(b=>arr.filter(e=>e.wA!=null&&e.wA>=b[0]&&e.wA<b[1]).length).concat([arr.filter(e=>e.wA==null&&e.st!=='self').length,arr.filter(e=>e.st==='self'&&e.wA==null).length]);
+  const dO=dist(Eo),dC=dist(E.filter(e=>!e.open));
+  const distRows=bk.map((b,i)=>[b[2],dO[i],pc(dO[i]/(Eo.length||1)),dC[i]]).concat([['ما رجعناش خالص',dO[5],pc(dO[5]/(Eo.length||1)),dC[5]],['هو اللي رجع كلمنا قبل ما نكلمه',dO[6],pc(dO[6]/(Eo.length||1)),dC[6]]]);
+  // بالساعة
+  const H={};inc.forEach(c=>{const h=new Date(c.t).getUTCHours(),z=H[h]=H[h]||{n:0,m:0,w:[]};z.n++;if(c.ty==='miss')z.m++});E.forEach(e=>{const h=new Date(e.t0).getUTCHours();(H[h]=H[h]||{n:0,m:0,w:[]}).w.push(e.wA==null?1e9:e.wA)});
+  const hRows=Object.keys(H).map(Number).sort((a,b)=>a-b).map(h=>{const z=H[h];return [(h%12||12)+(h<12?' ص':' م'),z.n,z.m,z.n?pc(z.m/z.n):'—',(cfMed(z.w)>=1e9?'أغلبها ما رجعناش':cfDurF(cfMed(z.w)))]});
+  // باليوم
+  const W={};inc.forEach(c=>{const w=new Date(c.t).getUTCDay(),z=W[w]=W[w]||{n:0,m:0,w:[]};z.n++;if(c.ty==='miss')z.m++});E.forEach(e=>{const w=new Date(e.t0).getUTCDay();(W[w]=W[w]||{n:0,m:0,w:[]}).w.push(e.wA==null?1e9:e.wA)});
+  const wRows=[6,0,1,2,3,4,5].filter(w=>W[w]).map(w=>{const z=W[w];const md=cfMed(z.w);return [DAYS[w],z.n,z.m,pc(z.m/z.n),(md>=1e9?'أغلبها ما رجعناش':cfDurF(md))]});
+  // بالخط (كل ملف = خط)
+  const lns=[...new Set(C.map(c=>c.ln))];const lRows=lns.map(l=>{const cc=C.filter(c=>c.ln===l),ii=cc.filter(c=>c.ty==='in'||c.ty==='miss'),ee=E.filter(e=>e.ln===l),oo=cc.filter(c=>c.ty==='out');
+    const md=cfMed(ee.filter(e=>e.wA!=null).map(e=>e.wA));return [esc(l),ii.length,ii.length?pc(ii.filter(c=>c.ty==='miss').length/ii.length):'—',oo.length,oo.length?pc(oo.filter(c=>c.dur>0).length/oo.length):'—',ee.length,cfDurF(md),ee.filter(e=>e.st==='none').length]});
+  // قوايم
+  const who=ph=>{const p=P[ph];return p?esc(p.pn||'مريض')+(p.next?` <span class="sub">· موعد ${p.next.slice(8,10)}/${p.next.slice(5,7)}</span>`:p.last?` <span class="sub">· آخر زيارة ${p.last.slice(8,10)}/${p.last.slice(5,7)}</span>`:''):'<b style="color:var(--warn)">مش متسجل — ممكن مريض جديد</b>'};
+  const ph0=ph=>'0'+ph;const now=CF.maxT;
+  const none=EP.filter(e=>e.st==='none').sort((a,b)=>b.last-a.last),tried=EP.filter(e=>e.st==='tried').sort((a,b)=>b.last-a.last);
+  const nRows=none.map(e=>[`<span dir="ltr">${ph0(e.ph)}</span>`,who(e.ph),e.n,cfFmt(e.t0)+(e.n>1?' … '+cfFmt(e.last).slice(6):''),cfDurF((now-e.last)/60e3),e.open?'':'بعد المواعيد',esc(e.ln||'')]);
+  const tRows=tried.map(e=>[`<span dir="ltr">${ph0(e.ph)}</span>`,who(e.ph),e.n,cfFmt(e.t0),e.tries,cfDurF(e.wA),esc(e.lnA||'')]);
+  const unk=none.filter(e=>!P[e.ph]).length;
+  const md=cfMed(Eo.filter(e=>e.wA!=null).map(e=>e.wA));
+  const L=[];
+  L.push(`من ${inc.length} مكالمة داخلة، <b>${pc(ans.length/(inc.length||1))}</b> اترد عليها و<b class="${inc.length&&(inc.length-ans.length)/inc.length>0.2?'down':''}">${pc((inc.length-ans.length)/(inc.length||1))}</b> فاتت.`);
+  if(Eo.length)L.push(`المكالمات اللي فاتت <b>في وقت الشغل</b> (${CF.oh[0]}–${CF.oh[1]}): ${Eo.length} مرة. رجعنا كلمناهم في خلال ساعة ${pc(r(Eo,e=>e.wA!=null&&e.wA<60))}، ونص الوقت بنرجع في خلال <b>${cfDurF(md)}</b>. ما رجعناش خالص: <b class="${r(Eo,e=>e.st==='none')>0.1?'down':''}">${pc(r(Eo,e=>e.st==='none'))}</b>.`);
+  if(none.length)L.push(`<b class="down">${none.length} رقم فاتهم مكالمة ولسه محدش رجعلهم</b>${unk?` — منهم <b>${unk}</b> رقم مش متسجل عندنا (غالباً حد بيسأل أو مريض جديد ضاع)`:''}.`);
+  if(tried.length)L.push(`${tried.length} رقم رجعنالهم وما ردوش ولسه ما اتكلمناش معاهم.`);
+  if(out.length)L.push(`المكالمات الطالعة: ${out.length} — المريض رد على ${pc(outA.length/out.length)} منها. متوسط المكالمة: داخلة ${Math.round((ans.reduce((s,c)=>s+c.dur,0)/(ans.length||1)))} ث، طالعة ${Math.round(outA.reduce((s,c)=>s+c.dur,0)/(outA.length||1))} ث.`);
+  const hs=Object.entries(H).filter(([h,z])=>z.n>=10&&cfIsOpen(Date.UTC(2026,0,1,+h))).sort((a,b)=>b[1].m/b[1].n-a[1].m/a[1].n)[0];if(hs&&hs[1].m/hs[1].n>0.25)L.push(`أكتر ساعة بتفوت فيها مكالمات: <b>${(hs[0]%12||12)+(hs[0]<12?' ص':' م')}</b> (${pc(hs[1].m/hs[1].n)}) — غالباً مفيش حد فاضي على التليفون الساعة دي.`);
+  return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--acc)"><h3>📊 تحليل سجل المكالمات<small>${cfFmt(CF.minT)} – ${cfFmt(CF.maxT)}</small></h3>
+   <div class="bar"><label class="sub">مواعيد الشغل من <input id="cfO1" type="number" min="0" max="23" value="${CF.oh[0]}" style="width:52px"> لـ <input id="cfO2" type="number" min="1" max="24" value="${CF.oh[1]}" style="width:52px"></label><span class="sub">«فاتت» = واردة ما اترد عليهاش · «رجعنا» = أول مكالمة طالعة للرقم بعد ما فاتت (حتى لو ما ردش) · لو ما اترد عليهاش وفاتت تاني قبل ما نرجع = نفس المرة</span></div>
+   <div class="grid g4">${kpi('مكالمات داخلة',inc.length,`اترد ${pc(ans.length/(inc.length||1))}`)}${kpi('فاتت وقت الشغل',Eo.length,`نرجع في خلال ${cfDurF(md)} (النص)`)}${kpi('رجعنا في خلال ساعة',pc(r(Eo,e=>e.wA!=null&&e.wA<60)),'من اللي فاتت وقت الشغل')}${kpi('لسه محدش رجعلهم',none.length,unk?unk+' مش متسجلين':'',none.length?'down':'')}</div>
+   <h3 style="margin-top:12px">📖 القراية</h3><ul class="ins">${L.map(x=>`<li>${x}</li>`).join('')}</ul>
+   <div class="card" style="margin-top:10px"><h3>نسبة المكالمات اللي بتفوت كل ساعة</h3><div class="ch"><canvas id="cl1"></canvas></div></div></div>
+  <div class="grid g2" style="margin-top:12px">
+   <div class="card"><h3>رجعنا كلمناه بعد قد إيه؟</h3>${tableHTML(['',{t:'وقت الشغل',n:1},{t:'النسبة',n:1},{t:'بعد المواعيد',n:1}],distRows,{h:320})}</div>
+   <div class="card"><h3>كل خط (كل ملف اترفع)</h3>${tableHTML(['الخط',{t:'داخلة',n:1},{t:'فاتت',n:1},{t:'طالعة',n:1},{t:'ردوا علينا',n:1},{t:'مرات فاتت',n:1},{t:'نرجع بعد (النص)',n:1},{t:'ما رجعناش',n:1}],lRows,{h:320})}</div>
+   <div class="card"><h3>بالساعة</h3>${tableHTML(['الساعة',{t:'داخلة',n:1},{t:'فاتت',n:1},{t:'نسبة',n:1},{t:'نرجع بعد',n:1}],hRows,{h:360})}</div>
+   <div class="card"><h3>باليوم</h3>${tableHTML(['اليوم',{t:'داخلة',n:1},{t:'فاتت',n:1},{t:'نسبة',n:1},{t:'نرجع بعد',n:1}],wRows,{h:360})}</div>
+   <div class="card" style="grid-column:1/-1"><h3>📵 فاتت ولسه محدش رجعلهم<small>${none.length} رقم</small></h3>${tableHTML(['الرقم','مين',{t:'مرات',n:1},'فاتت',{t:'من',n:1},'','الخط'],nRows,{h:420})}</div>
+   ${tRows.length?`<div class="card" style="grid-column:1/-1"><h3>📤 رجعنالهم وما ردوش (ولسه ما اتكلمناش)<small>${tRows.length}</small></h3>${tableHTML(['الرقم','مين',{t:'فاتت',n:1},'أول مرة',{t:'حاولنا',n:1},{t:'رجعنا بعد',n:1},'من خط'],tRows,{h:360})}</div>`:''}
+  </div>`}
+function cCalls(){if(!CF.calls.length)return;const o1=$('#cfO1'),o2=$('#cfO2');const sv=()=>{CF.oh=[+o1.value||0,+o2.value||24];try{localStorage.setItem('fin_cfoh',JSON.stringify(CF.oh))}catch(e){}CF.st=null;render()};if(o1)o1.onchange=sv;if(o2)o2.onchange=sv;
+  const H={};CF.calls.filter(c=>c.ty==='in'||c.ty==='miss').forEach(c=>{const h=new Date(c.t).getUTCHours(),z=H[h]=H[h]||{n:0,m:0};z.n++;if(c.ty==='miss')z.m++});const hs=Object.keys(H).map(Number).sort((a,b)=>a-b);
+  chart('cl1',{data:{labels:hs.map(h=>(h%12||12)+(h<12?'ص':'م')),datasets:[bar('فاتت %',hs.map(h=>+(100*H[h].m/H[h].n).toFixed(1)),SER()[0])]},
+    options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>' فاتت '+x.parsed.y+'% من '+H[hs[x.dataIndex]].n+' مكالمة'}}},scales:{y:{ticks:{callback:v=>v+'%'}}}}})}
+VIEWS.conf=[()=>{let s=vConf();try{s+=vCalls()}catch(e){console.error(e);s+='<div class="card">خطأ في تحليل المكالمات: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cCalls()}catch(e){console.error(e)}}];

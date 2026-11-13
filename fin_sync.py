@@ -19,7 +19,7 @@ CAPT, SEEN = [], {}
 
 APT_Q = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
          "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
-         "{id start status type createdAt updatedAt createdBy{name} room{name} doctor{name} patient{id referenceId firstName lastName gender}}}")
+         "{id start status type createdAt updatedAt createdBy{name} room{name} doctor{name} patient{id referenceId firstName lastName gender phoneNumber}}}")
 APT_Q2 = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
           "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
           "{id start status type doctor{name} patient{id referenceId firstName lastName}}}")
@@ -318,9 +318,9 @@ def main():
     data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {}), "types": old.get("types", {}),
             "exp_types": old.get("exp_types", {})}
     ALL = months(START, CUR)
-    if old.get("aptv", 0) < 3:                    # appointments gained booking time / last change / who booked: fetch again
+    if old.get("aptv", 0) < 4:                    # appointments gained booking time / who booked / patient phone (call logs): fetch again
         data["kinds"].pop("apt", None)
-    data["aptv"] = 3
+    data["aptv"] = 4
     if old.get("xpv", 0) < 2:                     # expenses list gained details / employee / supplier: fetch it again
         data["kinds"].pop("xp", None)
     data["xpv"] = 2

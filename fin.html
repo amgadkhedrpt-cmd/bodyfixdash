@@ -217,7 +217,7 @@ const SP={
    type:['expenseType','expenseType.name','expense.type',/category/i],info:['expense.name','details','expenseInfo','info','description'],det:['details'],
    method:['type','paymentMethod','method'],by:['createdBy.name','expense.createdBy.name',/createdBy/],branch:['expense.branch.name','branch.name'],treas:['transaction.treasury.publicName',/treasury/],refunded:['refunded']},
  inv:{date:['createdAt'],total:['total'],paid:['paid'],disc:['discount'],pid:['patient.referenceId','patient.id'],fn:['patient.firstName'],ln:['patient.lastName'],pn:['patient.name'],src:['referralSource.name'],doc:['doctor.name'],ref:['referenceId','id']},
- apt:{date:['start'],cr:['createdAt'],up:['updatedAt'],by:['createdBy.name'],st:['status'],type:['type'],doc:['doctor.name'],pid:['patient.referenceId','patient.id'],fn:['patient.firstName'],ln:['patient.lastName'],pn:['patient.name'],room:['room.name','room'],g:['patient.gender']}
+ apt:{date:['start'],cr:['createdAt'],up:['updatedAt'],by:['createdBy.name'],st:['status'],type:['type'],doc:['doctor.name'],pid:['patient.referenceId','patient.id'],fn:['patient.firstName'],ln:['patient.lastName'],pn:['patient.name'],room:['room.name','room'],g:['patient.gender'],ph:['patient.phoneNumber']}
 };
 const ST={CHECKEDIN:'Checked In',INPROGRESS:'In Progress',COMPLETED:'Completed',CONFIRMED:'Confirmed',DELAYED:'Delayed',OPEN:'Open',WAITING:'Waiting',CANCELED:'Canceled',CANCELLED:'Canceled',NOSHOW:'No Show'};
 const stName=s=>{const u=String(s||'').toUpperCase().replace(/[^A-Z]/g,'');return ST[u]||String(s||'')};
@@ -243,7 +243,7 @@ function build(raw){
       else if(kind==='exp'){if(truthy(r[c.refunded]))continue;const bb=b==='all'?(c.branch>=0?branchOf(nm(r,c.branch),'all'):'all'):b;
         out.exp.push({b:bb,k,d,amt:num(r,c.amt),type:eName(nm(r,c.type))||'غير مصنف',info:[nm(r,c.info),c.det!==c.info?nm(r,c.det):''].filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' — '),meth:mName(nm(r,c.method))||'—',by:nm(r,c.by)||'—',tr:nm(r,c.treas)})}
       else if(kind==='inv'){out.inv.push({b,k,d,total:num(r,c.total),paid:num(r,c.paid),disc:num(r,c.disc),pid:nm(r,c.pid),pn:pname(r,c),src:nm(r,c.src),doc:nm(r,c.doc),ref:nm(r,c.ref)})}
-      else{const ty=nm(r,c.type),st0=stName(nm(r,c.st));if(NOT_VISIT.has(ty)||/^(note|waiting)/i.test(st0))continue;if(/waiting list/i.test(nm(r,c.room)))continue;out.apt.push({b,k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,st:stName(nm(r,c.st)),type:nm(r,c.type),doc:docName(nm(r,c.doc)),pid:nm(r,c.pid),pn:pname(r,c),room:nm(r,c.room),g:nm(r,c.g),cr:c.cr>=0?(cairo(r[c.cr])||[''])[0]:'',up:c.up>=0?(cairo(r[c.up])||[''])[0]:'',by:nm(r,c.by)})}
+      else{const ty=nm(r,c.type),st0=stName(nm(r,c.st));if(NOT_VISIT.has(ty)||/^(note|waiting)/i.test(st0))continue;if(/waiting list/i.test(nm(r,c.room)))continue;out.apt.push({b,k,d,h:cd?cd[1]:0,w:cd?cd[2]:0,st:stName(nm(r,c.st)),type:nm(r,c.type),doc:docName(nm(r,c.doc)),pid:nm(r,c.pid),pn:pname(r,c),room:nm(r,c.room),g:nm(r,c.g),ph:c.ph>=0?nm(r,c.ph):'',cr:c.cr>=0?(cairo(r[c.cr])||[''])[0]:'',up:c.up>=0?(cairo(r[c.up])||[''])[0]:'',by:nm(r,c.by)})}
     }}
   if(out.exp.some(e=>e.b==='all'))out.warn.push('المصروفات في Medicolize مش متقسمة على الفروع — بتظهر كاملة في «الفرعين مع بعض» بس.');
   out.months=[...out.months].sort();

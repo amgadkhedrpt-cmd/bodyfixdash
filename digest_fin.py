@@ -317,41 +317,12 @@ def section(today_s):
     # ---------- المشاكل المفتوحة ----------
     Y = (t - timedelta(days=1)).isoformat()
     P = []
+    AUD = load_audit()
+    STATE = load_state(T)
     for b, x in B.items():
         v = x.ptval(T)
-        # 💸 الفلوس الأول
-        def split(D_):
-            un = x.unpaid(D_)
-            old = [i for i in un.values() if i["d"] < D_]
-            ca = {}
-            for i in old:
-                later = {a["d"] for a in x.byp.get(i["pid"], []) if a["st"] in DONE and i["d"] < a["d"] <= D_}
-                if later and i["pid"]:
-                    z = ca.setdefault(i["pid"], {"rem": 0, "d": i["d"], "n": 0})
-                    z["rem"] += i["rem"]; z["d"] = min(z["d"], i["d"]); z["n"] = max(z["n"], len(later))
-            rest = [i for i in old if i["pid"] not in ca]
-            return un, ca, rest
-        un_now, ca_p, rest_old = split(T)
-        un_y, ca_y, rest_y = split(Y)
-        today_un = [i for i in un_now.values() if i["d"] == T]
-        if ca_p or ca_y:
-            P.append({"lvl": 3, "b": b, "t": "🚨 حضروا تاني وعليهم فلوس لخدمة اتاخدت قبل كده", "own": "الاستقبال + الحسابات",
-                      "items": sorted(({"n": x.nm.get(p, ""), "age": age(z["d"], T), "x": f"باقي {money(z['rem'])} جنيه · حضر {z['n']} مرة بعدها"} for p, z in ca_p.items()), key=lambda i: -i["age"]),
-                      "n": len(ca_p), "val": sum(z["rem"] for z in ca_p.values()), "prev": len(ca_y), "solved": len([p for p in ca_y if p not in ca_p and p not in {i["pid"] for i in un_now.values()}]), "unit": "مريض"})
-        rk = lambda i: i["ref"] or (i["pid"], i["d"])
-        if rest_old or rest_y:
-            nowk = {rk(i) for i in un_now.values()}
-            P.append({"lvl": 2, "b": b, "t": "💸 خدمة اتاخدت ومتدفعتش (من يوم أو أكتر)", "own": "الاستقبال + الحسابات",
-                      "items": sorted(({"n": i["pn"] or x.nm.get(i["pid"], ""), "age": age(i["d"], T), "x": f"باقي {money(i['rem'])} من {money(i['tot'] - i['disc'])}"} for i in rest_old), key=lambda i: -i["age"]),
-                      "n": len(rest_old), "val": sum(i["rem"] for i in rest_old), "prev": len(rest_y), "solved": len([i for i in rest_y if rk(i) not in nowk]), "unit": "فاتورة"})
-        if today_un:
-            P.append({"lvl": 2, "b": b, "t": "💸 خدمة النهارده ومتدفعتش كاملة", "own": "الاستقبال",
-                      "items": [{"n": i["pn"] or x.nm.get(i["pid"], ""), "age": None, "x": f"باقي {money(i['rem'])} من {money(i['tot'] - i['disc'])}"} for i in today_un],
-                      "n": len(today_un), "val": sum(i["rem"] for i in today_un), "prev": None, "solved": 0, "unit": "فاتورة"})
-        ub = x.unbilled(T)
-        if ub:
-            P.append({"lvl": 2, "b": b, "t": "🧾 حضر النهارده ومفيش أي فاتورة ولا دفع (آخر 4 شهور)", "own": "الاستقبال",
-                      "items": [{"n": x.nm.get(p, "") or str(p), "age": None, "x": z["x"]} for p, z in ub.items()], "n": len(ub), "val": len(ub) * (v / 4 if v else 0), "prev": None, "solved": 0, "unit": "مريض"})
+        # 💸 الفلوس: خدمات اتعملت (خطوة Completed في Operation Steps) ومتدفعتش — نفس حساب تاب المراجعة (data/audit.json)
+        P.extend(steps_money(b, x, T, AUD, STATE))
         # خصم كبير / استرداد النهارده
         big = [i for i in x.inv if i["d"] == T and i["tot"] > 0 and i["disc"] / i["tot"] >= 0.3]
         if big:
@@ -370,6 +341,7 @@ def section(today_s):
             if now or solved:
                 P.append({"lvl": 1, "b": b, "t": title, "own": own, "items": sorted(({"n": x.nm.get(p, ""), "age": z["age"], "x": z["x"]} for p, z in now.items()), key=lambda i: -(i["age"] or 0)),
                           "n": len(now), "val": len(now) * v, "prev": len(yd), "solved": solved, "unit": "مريض"})
+    save_state(T, AUD)
     P.sort(key=lambda p: (-p["lvl"], -(p["val"] or 0)))
     tot_solved = sum(p["solved"] for p in P)
     shown = [p for p in P if p["n"]][:8]
@@ -385,8 +357,114 @@ def section(today_s):
         out.append(f'<div style="border-inline-start:3px solid {col};padding:4px 10px;margin:8px 0;font-size:13px">'
                    f'<div style="font-weight:700">{BR[p["b"]]} · {p["t"]}: {p["n"]} {p["unit"]}</div>'
                    f'<div>{tr}{" · " if tr else ""}{("أقدم واحدة من " + str(old) + " يوم · ") if old else ""}{("القيمة " + money(p["val"]) + " جنيه · ") if p["val"] else ""}{sub("المسئول: " + p["own"])}'
-                   f'{(" · <span style=color:#16a34a>✓ اتحل " + str(p["solved"]) + " من امبارح</span>") if p["solved"] else ""}</div>'
+                   f'{(" · <span style=color:#16a34a>✓ اتحل " + str(p["solved"]) + " " + p.get("unitS", "") + " من امبارح</span>") if p["solved"] else ""}</div>'
                    f'<ul style="margin:2px 0;padding-inline-start:18px">{names}</ul>{more}</div>')
     if not shown:
         out.append('<div style="color:#16a34a;font-size:13px">✅ مفيش مشاكل مفتوحة</div>')
     return perf, "".join(out)
+
+
+# ================= خدمات اتعملت ومتدفعتش (Operation Steps) =================
+AUD_B = {"BODYFIX Center": "haram", "FIX ZONE": "dokki"}
+CALL_T = re.compile(r"متابع|انقطاع|منقطع|استرداد|ملاحظ|تقييم الجلسه|اتصال|مكالم", re.I)
+STATE_F = "data/digest_open.json"
+nrm = lambda t: re.sub(r"\s+", " ", re.sub("[أإآ]", "ا", str(t or "")).replace("ة", "ه").replace("ى", "ي")).strip()
+
+
+def load_audit():
+    try:
+        return json.load(open("data/audit.json", encoding="utf-8"))
+    except Exception as e:
+        print("digest_fin: audit.json", str(e)[:80])
+        return None
+
+
+def load_state(T):
+    """آخر حالة قبل النهارده (أرقام الخطوات المفتوحة بس — من غير أسامي ولا مبالغ)"""
+    try:
+        S = json.load(open(STATE_F, encoding="utf-8")).get("days") or {}
+        ks = sorted(k for k in S if k < T)
+        return S[ks[-1]] if ks else None
+    except Exception:
+        return None
+
+
+def save_state(T, AUD):
+    if not AUD or os.environ.get("DIGEST_PREVIEW"):
+        return
+    try:
+        S = json.load(open(STATE_F, encoding="utf-8")).get("days") or {} if os.path.exists(STATE_F) else {}
+        S[T] = {b: sorted(str(d.get("id")) for d in AUD.get("debts") or [] if AUD_B.get(d.get("b")) == b and d.get("d") and d["d"] <= T) for b in BR}
+        S = {k: S[k] for k in sorted(S)[-5:]}
+        json.dump({"days": S}, open(STATE_F, "w", encoding="utf-8"), separators=(",", ":"))
+    except Exception as e:
+        print("digest_fin: state", str(e)[:80])
+
+
+def steps_money(b, x, T, AUD, STATE):
+    out = []
+    if not AUD:
+        return out
+    debts = [d for d in AUD.get("debts") or [] if AUD_B.get(d.get("b")) == b and d.get("d") and d["d"] <= T]
+    prev_ids = set((STATE or {}).get(b) or [])
+    now_ids = {str(d["id"]) for d in AUD.get("debts") or []}
+    # زيارات بعد الخدمة: من المراجعة (نفس رقم المريض) أو من المواعيد المالية (بالاسم)
+    seen = defaultdict(set)
+    for a in (AUD.get("appts") or []) + [s_ for s_ in AUD.get("steps") or [] if s_.get("st") == "COMPLETED"]:
+        if AUD_B.get(a.get("b")) == b and a.get("d") and a["d"] <= T and not CALL_T.search(str(a.get("s") or "")):
+            seen["id:" + str(a.get("pid"))].add(a["d"])
+    ref_by_name = {}
+    for r, n in x.nm.items():
+        ref_by_name.setdefault(nrm(n), r)
+    for d in debts:
+        r = ref_by_name.get(nrm(d.get("p")))
+        if r:
+            for a in x.byp.get(r, []):
+                if a["st"] in DONE and a["d"] <= T:
+                    seen["id:" + str(d["pid"])].add(a["d"])
+    by_p = defaultdict(list)
+    for d in debts:
+        by_p[str(d["pid"])].append(d)
+    came, older, today = [], [], []
+    for pid, L in by_p.items():
+        first = min(d["d"] for d in L)
+        later = {v for v in seen["id:" + pid] if v > first}
+        rem = sum(float(d.get("rem") or 0) for d in L)
+        item = {"n": L[0].get("p") or "", "age": age(first, T), "rem": rem, "k": len(L),
+                "s": "، ".join(sorted({str(d.get("s") or "") for d in L}))[:60], "dr": L[0].get("dr") or "", "later": len(later), "ids": {str(d["id"]) for d in L}}
+        if rem < 20:      # فروق قروش/تقريب
+            continue
+        if later:
+            came.append(item)
+        elif first < T:
+            older.append(item)
+        else:
+            today.append(item)
+    solved = len([i for i in prev_ids if i not in now_ids]) if STATE else 0
+    fmt = lambda i, extra="": f"{i['s']} · {i['k']} خدمة · باقي {money(i['rem'])} جنيه{extra}"
+    if came:
+        out.append({"lvl": 3, "b": b, "t": "🚨 حضر تاني وسايب خدمة اتعملت ومتدفعتش", "own": "الاستقبال + الحسابات",
+                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i, f" · حضر {i['later']} مرة بعدها")} for i in came), key=lambda i: -i["age"]),
+                    "n": len(came), "val": sum(i["rem"] for i in came), "prev": None, "solved": 0, "unit": "مريض"})
+    if older:
+        out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت ومتدفعتش (من يوم أو أكتر)", "own": "الاستقبال + الحسابات",
+                    "items": sorted(({"n": i["n"], "age": i["age"], "x": fmt(i)} for i in older), key=lambda i: -i["age"]),
+                    "n": len(older), "val": sum(i["rem"] for i in older), "prev": None, "solved": 0, "unit": "مريض"})
+    if today:
+        out.append({"lvl": 2, "b": b, "t": "💸 خدمة اتعملت النهارده ومتدفعتش", "own": "الاستقبال",
+                    "items": [{"n": i["n"], "age": None, "x": fmt(i) + (" · " + i["dr"] if i["dr"] else "")} for i in today],
+                    "n": len(today), "val": sum(i["rem"] for i in today), "prev": None, "solved": 0, "unit": "مريض"})
+    if out and solved:
+        out[0]["solved"] = solved   # خدمات اتدفعت (اتقفلت) من امبارح
+        out[0]["unitS"] = "خدمة"
+    # حضر النهارده (زيارة مش مكالمة) ومفيش ولا خدمة متسجلة اتعملت
+    st_today = {str(s_["pid"]) for s_ in AUD.get("steps") or [] if s_.get("d") == T and s_.get("st") == "COMPLETED"}
+    if AUD.get("to", "") >= T:
+        nos = {}
+        for a in AUD.get("appts") or []:
+            if AUD_B.get(a.get("b")) == b and a.get("d") == T and not CALL_T.search(str(a.get("s") or "")) and str(a.get("pid")) not in st_today:
+                nos.setdefault(str(a.get("pid")), {"n": a.get("p") or "", "age": None, "x": f"{a.get('s') or ''} · {a.get('dr') or ''}"})
+        if nos:
+            out.append({"lvl": 1, "b": b, "t": "🧾 حضر النهارده ومفيش خدمة اتسجلت اتعملت في العمليات", "own": "الاستقبال",
+                        "items": list(nos.values()), "n": len(nos), "val": 0, "prev": None, "solved": 0, "unit": "مريض"})
+    return out

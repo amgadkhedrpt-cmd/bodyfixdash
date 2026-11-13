@@ -46,21 +46,24 @@ function dyProblems(T){const out=[],Y=dyDay(T,-1);
     const P=[['streak','بيلغوا ورا بعض (مرتين أو أكتر ومجوش بعدها)',dyStreak,'الاستقبال','apt'],['exam','عملوا كشف وما اتحجزلهمش (آخر 14 يوم)',dyExams,'الاستقبال','apt'],['newg','مرضى جداد ما رجعوش ومالهمش ميعاد (أول زيارة من 7–30 يوم)',dyNewGone,'الاستقبال + الدكتور','cen']];
     for(const [id,t,fn,own,tab] of P){const now=fn(b,T),yd=fn(b,Y),nowK=new Set(now.map(x=>x.pid)),solved=yd.filter(x=>!nowK.has(x.pid)).length;
       if(now.length||solved)out.push({id,b,t,own,tab,items:now.sort((a,c)=>c.age-a.age),n:now.length,prev:yd.length,solved,old:now.length?Math.max(...now.map(x=>x.age)):0,val:now.length*v})}
-    // 💸 خدمات اتاخدت ومتدفعتش (آخر 180 يوم) — اللي حضر تاني وعليه فلوس الأخطر
-    {const NM=dyNames(),by=dyByPid(b),rem=x=>Math.max(0,x.total-x.disc-x.paid),key=x=>x.ref||(x.pid+'|'+x.d);
-     const split=D_=>{const lo=dyDay(D_,-180),un=D.inv.filter(x=>x.b===b&&x.d>=lo&&x.d<=D_&&rem(x)>1),old=un.filter(x=>x.d<D_),ca={};
-       old.forEach(x=>{if(!x.pid)return;const later=new Set((by[x.pid]||[]).filter(a=>a.st==='Completed'&&a.d>x.d&&a.d<=D_).map(a=>a.d));if(later.size){const z=ca[x.pid]=ca[x.pid]||{rem:0,d:x.d,n:0};z.rem+=rem(x);if(x.d<z.d)z.d=x.d;z.n=Math.max(z.n,later.size)}});
-       return {un,ca,rest:old.filter(x=>!ca[x.pid])}};
-     const N=split(T),Yd=split(Y),nowK=new Set(N.un.map(key));
-     if(Object.keys(N.ca).length||Object.keys(Yd.ca).length){const it=Object.entries(N.ca).map(([p,z])=>({n:NM[p]||'',age:dyAge(z.d,T),x:`باقي ${fm(z.rem)} جنيه · حضر ${z.n} مرة بعدها`})).sort((a,c)=>c.age-a.age);
-       out.push({id:'cameowe',b,t:'🚨 حضروا تاني وعليهم فلوس لخدمة اتاخدت قبل كده',own:'الاستقبال + الحسابات',tab:'debt',items:it,n:it.length,prev:Object.keys(Yd.ca).length,solved:Object.keys(Yd.ca).filter(p=>!N.ca[p]&&!N.un.some(x=>x.pid===p)).length,old:it.length?it[0].age:0,val:Object.values(N.ca).reduce((s,z)=>s+z.rem,0),lvl:3})}
-     if(N.rest.length||Yd.rest.length){const it=N.rest.map(x=>({n:x.pn||NM[x.pid]||'',age:dyAge(x.d,T),x:`باقي ${fm(rem(x))} من ${fm(x.total-x.disc)}`})).sort((a,c)=>c.age-a.age);
-       out.push({id:'unpaid',b,t:'💸 خدمة اتاخدت ومتدفعتش (من يوم أو أكتر)',own:'الاستقبال + الحسابات',tab:'debt',items:it,n:it.length,unit:'فاتورة',prev:Yd.rest.length,solved:Yd.rest.filter(x=>!nowK.has(key(x))).length,old:it.length?it[0].age:0,val:N.rest.reduce((s,x)=>s+rem(x),0),lvl:2})}
-     const tu=N.un.filter(x=>x.d===T);if(tu.length)out.push({id:'unpaidT',b,t:'💸 خدمة النهارده ومتدفعتش كاملة',own:'الاستقبال',tab:'debt',items:tu.map(x=>({n:x.pn||NM[x.pid]||'',age:null,x:`باقي ${fm(rem(x))} من ${fm(x.total-x.disc)}`})),n:tu.length,unit:'فاتورة',prev:null,solved:0,old:0,val:tu.reduce((s,x)=>s+rem(x),0),lvl:2});
-     // حضر النهارده ومفيش فاتورة ولا دفع في آخر 4 شهور
-     {const lo=dyDay(T,-120),ip=new Set(D.inv.filter(x=>x.b===b&&x.d>=lo&&x.d<=T).map(x=>x.pid)),pp=new Set(D.pay.filter(x=>x.b===b&&x.d>=lo&&x.d<=T).map(x=>x.pid));
-      const ub=[...new Set(D.apt.filter(a=>a.b===b&&a.d===T&&a.st==='Completed'&&a.pid&&!ip.has(a.pid)&&!pp.has(a.pid)).map(a=>a.pid))];
-      if(ub.length)out.push({id:'unbilled',b,t:'🧾 حضر النهارده ومفيش أي فاتورة ولا دفع (آخر 4 شهور)',own:'الاستقبال',tab:null,items:ub.map(p=>({n:NM[p]||p,age:null,x:'حضر النهارده'})),n:ub.length,prev:null,solved:0,old:0,val:ub.length*v/4,lvl:2})}
+    // 💸 خدمات اتعملت (خطوة Completed في Operation Steps) ومتدفعتش — نفس حساب تاب المراجعة (data/audit.json)
+    {const NM=dyNames(),A=D._aud,AB={'BODYFIX Center':'haram','FIX ZONE':'dokki'},CALL=/متابع|انقطاع|منقطع|استرداد|ملاحظ|تقييم الجلسه|اتصال|مكالم/;
+     const nrm=t=>String(t||'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/\s+/g,' ').trim();
+     if(A){const debts=(A.debts||[]).filter(d=>AB[d.b]===b&&d.d&&d.d<=T),seen={};
+       (A.appts||[]).concat((A.steps||[]).filter(x=>x.st==='COMPLETED')).forEach(a=>{if(AB[a.b]===b&&a.d&&a.d<=T&&!CALL.test(a.s||''))(seen[a.pid]=seen[a.pid]||new Set()).add(a.d)});
+       const refBy={};Object.entries(NM).forEach(([r,n])=>{const k=nrm(n);if(!refBy[k])refBy[k]=r});const by=dyByPid(b);
+       debts.forEach(d=>{const r=refBy[nrm(d.p)];if(r)(by[r]||[]).forEach(a=>{if(a.st==='Completed'&&a.d<=T)(seen[d.pid]=seen[d.pid]||new Set()).add(a.d)})});
+       const bp={};debts.forEach(d=>(bp[d.pid]=bp[d.pid]||[]).push(d));const came=[],older=[],today=[];
+       Object.entries(bp).forEach(([pid,L])=>{const first=L.map(d=>d.d).sort()[0],later=[...(seen[pid]||[])].filter(v=>v>first).length,rem=L.reduce((s,d)=>s+(+d.rem||0),0);if(rem<20)return;
+         const it={n:L[0].p||'',age:dyAge(first,T),rem,x:`${[...new Set(L.map(d=>d.s))].join('، ').slice(0,60)} · ${L.length} خدمة · باقي ${fm(rem)} جنيه`+(later?` · حضر ${later} مرة بعدها`:'')};
+         (later?came:first<T?older:today).push(it)});
+       const add=(id,t,own,L,lvl)=>{if(!L.length)return;L.sort((a,c)=>c.age-a.age);out.push({id,b,t,own,tab:null,items:L.map(i=>({...i,age:id==='unpaidT'?null:i.age})),n:L.length,prev:null,solved:0,old:id==='unpaidT'?0:L[0].age,val:L.reduce((s,i)=>s+i.rem,0),lvl})};
+       add('cameowe','🚨 حضر تاني وسايب خدمة اتعملت ومتدفعتش','الاستقبال + الحسابات',came,3);
+       add('unpaid','💸 خدمة اتعملت ومتدفعتش (من يوم أو أكتر)','الاستقبال + الحسابات',older,2);
+       add('unpaidT','💸 خدمة اتعملت النهارده ومتدفعتش','الاستقبال',today,2);
+       if((A.to||'')>=T){const st=new Set((A.steps||[]).filter(x=>x.d===T&&x.st==='COMPLETED').map(x=>x.pid)),nos={};
+         (A.appts||[]).forEach(a=>{if(AB[a.b]===b&&a.d===T&&!CALL.test(a.s||'')&&!st.has(a.pid)&&!nos[a.pid])nos[a.pid]={n:a.p||'',age:null,x:(a.s||'')+' · '+(a.dr||'')}});
+         const L=Object.values(nos);if(L.length)out.push({id:'nostep',b,t:'🧾 حضر النهارده ومفيش خدمة اتسجلت اتعملت في العمليات',own:'الاستقبال',tab:null,items:L,n:L.length,prev:null,solved:0,old:0,val:0,lvl:1})}}
      // خصم كبير / دفعات اتردت النهارده
      {const big=D.inv.filter(x=>x.b===b&&x.d===T&&x.total>0&&x.disc/x.total>=0.3);if(big.length)out.push({id:'disc',b,t:'🏷️ خصم 30% أو أكتر النهارده',own:'المدير',tab:null,items:big.map(x=>({n:x.pn||NM[x.pid]||'',age:null,x:`خصم ${fm(x.disc)} من ${fm(x.total)} (${Math.round(x.disc/x.total*100)}%)`})),n:big.length,unit:'فاتورة',prev:null,solved:0,old:0,val:big.reduce((s,x)=>s+x.disc,0),lvl:1});
       const rf=D.pay.filter(p=>p.b===b&&p.d===T&&p.ref);if(rf.length)out.push({id:'refund',b,t:'↩️ دفعات اتردت النهارده',own:'المدير',tab:null,items:rf.map(p=>({n:p.pn||NM[p.pid]||'',age:null,x:fm(p.amt)+' جنيه'})),n:rf.length,unit:'دفعة',prev:null,solved:0,old:0,val:rf.reduce((s,p)=>s+p.amt,0),lvl:1})}}
@@ -107,7 +110,7 @@ function vDaily(){if(!DY.day)DY.day=dyDefaultDay();const T=DY.day,brs=dyBrs(),no
    <div class="card" style="margin-top:12px"><h3>🔴 مشاكل لسه مفتوحة<small>بتتقفل لوحدها أول ما تتحل · الفلوس الأول، بعدين القيمة والعمر</small></h3>
     ${solved?`<div class="up" style="margin-bottom:6px">✓ اتحل ${solved} من امبارح</div>`:''}${pb||'<div class="note">✅ مفيش مشاكل مفتوحة.</div>'}</div>
    <div class="note" style="margin-top:12px">التحليلات الكاملة والترشيحات في تاب <a href="#" id="dyFull">📋 الصورة الكاملة</a>.</div>`}
-function cDaily(){const d=$('#dyD');if(d)d.onchange=()=>{DY.day=d.value||'';render()};
+function cDaily(){if(!D._aud&&!D._audTry){D._audTry=1;fetch('data/audit.json?'+Date.now()).then(r=>r.ok?r.json():null).then(j=>{if(j){D._aud=j;if(S.tab==='sum')render()}}).catch(()=>{})}const d=$('#dyD');if(d)d.onchange=()=>{DY.day=d.value||'';render()};
   document.querySelectorAll('[data-dyt]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.dyt;render();window.scrollTo({top:0})});
   const f=$('#dyFull');if(f)f.onclick=e=>{e.preventDefault();S.tab='full';render();window.scrollTo({top:0})};
   if(typeof cfSheet==='function'&&!CF.sheetTry)cfSheet()}

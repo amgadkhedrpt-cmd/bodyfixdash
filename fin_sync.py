@@ -493,7 +493,7 @@ def main():
                 continue
             ni, bi, ei = cols.index("name"), cols.index("branch.name") if "branch.name" in cols else -1, cols.index("end") if "end" in cols else -1
             for r in t["rows"]:
-                if bi >= 0 and "FIX" in str(r[bi] or "").upper():
+                if bi >= 0 and "FIXZONE" in str(r[bi] or "").upper().replace(" ", ""):
                     continue
                 n = _norm_ar(r[ni])
                 c = next((k for k, rx in cats if re.search(rx, n)), None)

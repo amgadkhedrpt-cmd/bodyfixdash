@@ -326,7 +326,7 @@ def main():
         and len(data["kinds"].get("ops", {}).get("all", {})) >= len(ALL) - 2 \
         and all(len(data["kinds"].get("xp", {}).get(b, {})) >= len(ALL) - 2 for b in data["branches"])
     cai = NOW.astimezone(TZ)
-    if PASS and full and os.environ.get("GITHUB_EVENT_NAME") == "schedule" and not (cai.hour in (11, 14, 17, 20, 23) and cai.minute < 30):
+    if PASS and full and os.environ.get("GITHUB_EVENT_NAME") == "schedule" and not ((cai.hour in (11, 14, 17, 20, 23) and cai.minute < 30) or cai.hour == 0):
         if os.path.exists(META):
             prev = json.load(open(META))
             META_D.clear()
@@ -469,6 +469,25 @@ def main():
                         META_D["errors"].append("%s %s %s: %s" % (kind, key, k, str(e)[:160]))
                     time.sleep(0.2)
         br.close()
+    # complete-errors snapshot (nightly): errors still open at the end of the session day are kept even if fixed later
+    cai2 = NOW.astimezone(TZ)
+    if PASS and (cai2.hour in (22, 23, 0) or os.environ.get("FIN_DOCERR")) and os.path.exists("data/audit.json"):
+        try:
+            import audit_err
+            day = (cai2 - dt.timedelta(hours=3)).strftime("%Y-%m-%d")
+            rows, info = audit_err.snapshot(json.load(open("data/audit.json", encoding="utf-8")), open("index.html", encoding="utf-8").read(), day)
+            st = data["kinds"].setdefault("docerr", {}).setdefault("all", {})
+            added = 0
+            for r in rows:
+                mk = r[0][6:10] + "-" + r[0][3:5]
+                t = st.setdefault(mk, {"cols": audit_err.COLS, "rows": []})
+                keys = {tuple(x[:7]) for x in t["rows"]}
+                if tuple(r[:7]) not in keys:
+                    t["rows"].append(r + [day])
+                    added += 1
+            META_D["docerr"] = dict(info, day=day, open_now=len(rows), added=added)
+        except Exception as e:
+            META_D["errors"].append("docerr: %s" % str(e)[:160])
     # meta: structure only
     for kind, st in data["kinds"].items():
         mk = META_D.setdefault("kinds", {}).setdefault(kind, {})

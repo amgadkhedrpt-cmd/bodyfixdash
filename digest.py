@@ -103,7 +103,15 @@ def main():
     try:
         import digest_fin, digest_plan
         res, _ = plan_data(today_s)
-        html = html.replace("<!--CARDS-->", digest_plan.cards(today_s, res, digest_fin.LAST_P, alerts))
+        res, reasons = plan_data(today_s)
+        debts = {}
+        for r in json.load(open("data/audit.json", encoding="utf-8")).get("debts") or []:
+            debts[str(r.get("pid"))] = debts.get(str(r.get("pid")), 0) + float(r.get("rem") or 0)
+        debts = {k: v for k, v in debts.items() if v >= 20}
+        rv_html, prev = digest_plan.card_review(today_s, reasons, res, digest_fin.LAST_P, alerts, debts)
+        html = html.replace("<!--CARDS-->", rv_html + digest_plan.cards(today_s, res, digest_fin.LAST_P, alerts, prev))
+        if not os.environ.get("DIGEST_PREVIEW"):
+            card_save(today_s, digest_plan.CARDS_OUT)
     except Exception as e:
         print(f"digest cards: {e}")
     html = html.replace("<!--CARDS-->", "")
@@ -254,6 +262,23 @@ def perf_save(today_s, perf):
     print(f"📈 اتحفظ تقييم النهارده لـ {n} سكرتيرة")
 
 
+def card_save(today_s, cards):
+    """كارت كل سكرتيرة في شيت الطلبات: بيظهر لها popup لما تفتح خطة اليوم + بكره بيتراجع اتعمل منه كام"""
+    n = 0
+    for name, rec in (cards or {}).items():
+        raw = json.dumps(rec, ensure_ascii=False, separators=(",", ":"))
+        chunks = [raw[i:i + 700] for i in range(0, len(raw), 700)]
+        for i, ch in enumerate(chunks + [""] * 4):   # سطور فاضية تمسح أي بواقي من تشغيل قبله
+            url = (REQ_SCRIPT_URL + "?action=saveAction&reqId=" + urllib.parse.quote(f"CARD|{today_s}|{name}|{i}")
+                   + "&decision=card&reason=" + urllib.parse.quote(ch) + "&callback=cb")
+            try:
+                urllib.request.urlopen(url, timeout=25).read()
+            except Exception as e:
+                print(f"card {name} {i}: {str(e)[:80]}")
+        n += 1
+    print(f"📌 اتحفظ كارت {n} سكرتيرة")
+
+
 def plan_from_page():
     """بيفتح index.html في Chromium (اللي متثبت للمزامنة) ويحسب «خطة اليوم» بنفس كود الصفحة — ببيانات المزامنة الجديدة."""
     try:
@@ -306,7 +331,7 @@ def plan_cleanup(days=30):
     cut = (datetime.now(CAIRO) - timedelta(days=days)).strftime("%Y-%m-%d")
     old = []
     for k, v in reasons.items():
-        if not (k.startswith("PLAN|") or k.startswith("PLANSUM|")) or not str(v or "").strip():
+        if not (k.startswith("PLAN|") or k.startswith("PLANSUM|") or k.startswith("CARD|")) or not str(v or "").strip():
             continue
         d = None
         try:

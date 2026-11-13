@@ -11630,6 +11630,45 @@ function planBR(){
    الحالة: شيت الطلبات — PLAN|<key> = {s:done|nr|later, by, at, note, until} · PLANCFG|names = ["Engy",…] */
 var PLAN_NAMES_DEF=['Engy','Dalia','Mariam','Nada','Georgina','Bassant'];
 var PLAN_NAMES=PLAN_NAMES_DEF.slice(), PLAN_ST={}, PLAN_LOADED=false, PLAN_TIMER=null, PLAN_OPEN_DONE={};
+/* 📌 كارت كل سكرتيرة (من إيميل امبارح بالليل) — بيظهر لها popup أول ما تفتح خطة اليوم */
+var PLAN_CARDS={};
+function planMyCard(){ var c=PLAN_CARDS[PLAN_ME]; if(!c) return null; if(c.o) return c.o;
+  try{ var ks=Object.keys(c.p).map(Number).sort(function(a,b){return a-b;}); c.o=JSON.parse(ks.map(function(i){return c.p[i];}).join('')); }catch(e){ return null; }
+  var age=(new Date((ALERTS_DATA&&ALERTS_DATA.today||'')+'T12:00:00')-new Date(c.d+'T12:00:00'))/864e5; if(!(age<=4)) { c.o=null; return null; } return c.o; }
+function planCardShow(force){
+  var o=planMyCard(); if(!o) return; var seenK='cardSeen|'+PLAN_ME+'|'+o.d;
+  if(!force){ try{ if(localStorage.getItem(seenK)) return; }catch(e){} }
+  var old=document.getElementById('planCardModal'); if(old) old.remove();
+  var secs=(o.secs||[]).map(function(sc){ return '<div style="margin-top:10px"><b>'+alEsc(sc.t)+'</b> <span style="color:var(--mute);font-size:.7rem">('+sc.items.length+')</span>'+
+    '<ul style="margin:4px 0;padding-inline-start:20px;line-height:1.9">'+sc.items.map(function(it){ return '<li>'+alEsc(it.x)+'</li>'; }).join('')+'</ul></div>'; }).join('');
+  var pr=o.prev?'<div style="margin-top:4px;font-size:.75rem;color:'+(o.prev[0]>=0.8*o.prev[1]?'var(--g)':'var(--r)')+'">كارت امبارح: اتعمل '+o.prev[0]+' من '+o.prev[1]+'</div>':'';
+  var m=document.createElement('div'); m.id='planCardModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px';
+  m.innerHTML='<div dir="rtl" style="background:var(--card);color:var(--txt);border:2px solid #0f766e;border-radius:14px;max-width:560px;width:100%;max-height:86vh;overflow:auto;padding:16px 18px;font-family:Cairo,sans-serif;font-size:.85rem">'+
+    '<div style="font-size:1.05rem;font-weight:800">📌 كارتك يا '+alEsc(PLAN_ME)+' — مهام '+alEsc(o.nd||'')+'</div>'+
+    '<div style="color:var(--mute);font-size:.7rem">من تقرير '+alEsc(o.d)+' · كل حاجة هنا موجودة كمان في الخطة تحت</div>'+pr+secs+
+    '<button onclick="try{localStorage.setItem(\''+seenK.replace(/'/g,'')+'\',1)}catch(e){};document.getElementById(\'planCardModal\').remove()" style="margin-top:14px;width:100%;background:#0f766e;color:#fff;border:0;border-radius:9px;padding:9px;font-family:Cairo,sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">تمام، هبدأ 👍</button></div>';
+  document.body.appendChild(m);
+}
+/* 💸 حصّلي قبل ما يمشي: خدمة اتعملت النهارده ومتدفعتش · أو حضر النهارده وعليه فلوس من قبل — بيتحدث مع كل مزامنة (كل نص ساعة) */
+function planCashBanner(){
+  if(typeof AUD_DATA==='undefined'||!AUD_DATA||!AUD_DATA.debts||!ALERTS_DATA) return '';
+  var today=ALERTS_DATA.today||'', act=planBR().map(function(b){return b.key;}), OFF=audOffSvc(), P={};
+  var came={}; (AUD_DATA.appts||[]).forEach(function(a){ if(a.d===today) came[a.pid]=1; });
+  AUD_DATA.debts.forEach(function(r){ if(act.indexOf(r.b)<0||OFF[audN(r.s)]) return; if(r.d!==today&&!came[r.pid]) return;
+    var o=P[r.pid]||(P[r.pid]={n:r.p,b:r.b,rem:0,today:0,old:0,dr:r.dr}); o.rem+=(+r.rem||0); if(r.d===today) o.today=1; else o.old=1; });
+  var L=Object.keys(P).map(function(k){return P[k];}).filter(function(o){ return o.rem>=20; }).sort(function(a,b){ return b.old-a.old||b.rem-a.rem; });
+  if(!L.length) return '';
+  var upd=''; try{ upd=new Date(AUD_DATA.last_updated).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}); }catch(e){}
+  var byB={}; L.forEach(function(o){ (byB[o.b]=byB[o.b]||[]).push(o); });
+  return '<div style="background:rgba(239,68,68,.10);border:2px solid var(--r);border-radius:12px;padding:10px 12px;margin-bottom:10px">'+
+    '<div style="font-weight:800;font-size:.8rem;color:var(--r)">💸 حصّلي قبل ما يمشي ('+L.length+')</div>'+
+    Object.keys(byB).map(function(b){ var co=planCashOwner({br:b}); return '<div style="margin-top:6px;font-size:.68rem"><b>'+(b==='FIX ZONE'?'الدقي':'الهرم')+'</b>'+(co?' · على الخزنة: <b>'+alEsc(co)+'</b>':'')+
+      '<ul style="margin:3px 0;padding-inline-start:18px;line-height:1.8">'+byB[b].map(function(o){ return '<li>'+alEsc(o.n)+' — باقي <b>'+planMoney(o.rem)+' ج</b> <span style="color:var(--mute)">('+(o.old?'عليه من قبل وحضر النهارده':'خدمة النهارده')+(o.dr?' · '+alEsc(o.dr):'')+')</span></li>'; }).join('')+'</ul></div>'; }).join('')+
+    '<div style="font-size:.58rem;color:var(--mute)">بيختفي لوحده أول ما الدفع يتسجل على Medicolize · آخر تحديث '+alEsc(upd)+' (كل نص ساعة)</div></div>';
+}
+setInterval(function(){ try{ if(document.getElementById('planBox')&&document.getElementById('planBox').offsetParent&&typeof audAutoLoad==='function'){ var was=AUD_DATA&&AUD_DATA.last_updated;
+  audAutoLoad(true); setTimeout(function(){ if(AUD_DATA&&AUD_DATA.last_updated!==was) planRender(); },8000); } }catch(e){} }, 5*60000);
 var PLAN_ME=''; try{ PLAN_ME=localStorage.getItem('planMe')||''; PLAN_ST=JSON.parse(localStorage.getItem('planSt')||'{}'); var _pn=JSON.parse(localStorage.getItem('planNames')||'null'); if(_pn&&_pn.length) PLAN_NAMES=_pn; }catch(e){}
 /* أسامي السكرتيرات لكل فرع لوحده — الشيت: PLANCFG|names|<الفرع> (الهرم بياخد القايمة القديمة لو لسه مفيش) */
 var PLAN_NAMES_BR={'BODYFIX Center':PLAN_NAMES.slice(), 'FIX ZONE':[]};
@@ -11668,6 +11707,8 @@ function planLoad(){
       if(k==='PLANCFG|roles'){ try{ var rr=JSON.parse(v); if(rr){ PLAN_ROLES=rr; localStorage.setItem('planRoles',v); } }catch(e){} return; }
       if(k.indexOf('PLANCFG|names|')===0){ try{ var b=JSON.parse(v); if(b) PLAN_NAMES_BR[k.slice(14)]=b; }catch(e){} return; }
       if(k.indexOf('PLAN|')===0){ try{ st[k.slice(5)]=JSON.parse(v); }catch(e){} }
+      if(k.indexOf('CARD|')===0){ var ca=k.split('|'); if(ca.length<4) return; var cd=ca[1], cn=ca[2], ci=+ca[3], cc=PLAN_CARDS[cn];
+        if(!cc||cd>cc.d) cc=PLAN_CARDS[cn]={d:cd,p:{}}; if(cd===cc.d) cc.p[ci]=v; return; }
     });
     PLAN_ST=st; PLAN_LOADED=true; try{ localStorage.setItem('planSt',JSON.stringify(st)); localStorage.setItem('planNamesBr',JSON.stringify(PLAN_NAMES_BR)); }catch(e){}
     fin(); var typing=document.activeElement&&document.getElementById('planBox')&&document.getElementById('planBox').contains(document.activeElement)&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
@@ -12524,7 +12565,8 @@ function planRender(){
       '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'<option value="__add">➕ اسم جديد</option></select></label>'+
     '<label style="font-size:.62rem;color:var(--mute)">عرض مهام '+
     '<select onchange="PLAN_VIEW=this.value;try{localStorage.setItem(\'planView\',PLAN_VIEW)}catch(e){};planRender()" style="background:var(--bg);border:1px solid '+(PLAN_VIEW?'#ec4899':'var(--brd)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
-      '<option value="">كل السكرتيرات</option>'+ALLN.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label></div>'+
+      '<option value="">كل السكرتيرات</option>'+ALLN.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label>'+
+    (planMyCard()?'<button onclick="planCardShow(1)" style="background:#0f766e;color:#fff;border:0;border-radius:7px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:.64rem;font-weight:800;cursor:pointer">📌 كارتي</button>':'')+'</div>'+planCashBanner()+
     '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
       '<div style="display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:6px"><span>اتعمل <b style="color:var(--g)">'+dn+'</b> من <b>'+vis.length+'</b> مهمة'+(PLAN_VIEW?' (مهام '+alEsc(PLAN_VIEW)+')':'')+' · منهم <b>'+vis.filter(function(t){ var x=PLAN_ST[t.key]||{}; return planState(t)==='done'&&x.s!=='done'; }).length+'</b> اتعملوا على Medicolize و<b>'+vis.filter(function(t){ return (PLAN_ST[t.key]||{}).s==='done'; }).length+'</b> اتقفلوا بزرار ✅</span><b>'+pc+'%</b></div>'+
       '<div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:linear-gradient(90deg,#10b981,#00c6ff)"></div></div>'+
@@ -12601,6 +12643,7 @@ function planRender(){
   if(!all.length) h+='<div style="padding:30px;text-align:center;color:var(--mute)">مفيش مهام النهارده 🎉</div>';
   else if(PLAN_VIEW&&!mineT.length) h+='<div style="padding:24px;text-align:center;color:var(--mute)">مفيش مهام متعيّنة على '+alEsc(PLAN_VIEW)+' النهارده — المهام بتتعيّن من «👤 المسئولة» جنب كل مهمة، أو لو هي اختارت اسمها فوق بتبقى مسئولة عن مهام الفرع اللي مش متعيّنة لحد<br><button onclick="planClearView()" style="margin-top:10px;background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px 14px;font-family:Cairo,sans-serif">عرض مهام كل السكرتيرات</button></div>';
   var sc=window.scrollY; box.innerHTML=h; window.scrollTo(0,sc);
+  if(PLAN_ME&&PLAN_LOADED) setTimeout(function(){ try{ planCardShow(0); }catch(e){} },400);
 }
 /* ══ التقييم والتجديد (alerts.eval_renew) ══ */
 var EVR_BR='', EVR_DOC='';

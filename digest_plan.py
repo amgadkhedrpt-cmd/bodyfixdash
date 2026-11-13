@@ -225,7 +225,13 @@ def _next_day(today_s):
     return f"{WD[d.weekday()]} {d.day}/{d.month}"
 
 
-def cards(today_s, res, P, alerts):
+CARD_PROB = (("عملوا كشف", "🩺 كشوفات ما اتحجزلهاش — احجزيلهم", ["kashf", "kashf0", "fix"]),
+             ("بيلغوا ورا بعض", "🔁 بيلغوا ورا بعض — كلميهم", ["streak", "recur"]),
+             ("مرضى جداد", "🚶 مرضى جداد ما رجعوش — كلميهم", ["drop", "idle", "call"]))
+CARDS_OUT = {}   # اللي اتبعت النهارده (بيتحفظ في الشيت: الـ popup في خطة اليوم + مراجعة بكره)
+
+
+def cards(today_s, res, P, alerts, prev_rev=None):
     tasks = [t for t in (res or {}).get("tasks") or [] if t.get("br")]
     ages = _ages(today_s, tasks)
     byp = plan_by_pid(res)
@@ -253,27 +259,27 @@ def cards(today_s, res, P, alerts):
                     continue
                 ow = next((t["o"] for t in byp.get(i["pid"]) or [] if t.get("o") and t["o"] != "المدير"), None) or dflt
                 tag = ' <b style="color:#b91c1c">(حضر تاني)</b>' if i.get("came") else (" (النهارده)" if i.get("today") else (f" (من {i['age']} يوم)" if i.get("age") else ""))
-                put(ow, "💸 حصّلي", (i.get("came", 0), i.get("age") or 0, f'{H(i["n"])} — باقي {int(i["remv"]):,} ج{tag}'))
+                put(ow, "💸 حصّلي", (i.get("came", 0), i.get("age") or 0, f'{H(i["n"])} — باقي {int(i["remv"]):,} ج{tag}', "pay", [i["pid"]], [i["n"]],
+                                       f'{i["n"]} — باقي {int(i["remv"]):,} ج' + (" (حضر تاني)" if i.get("came") else "")))
         # 🩺 كشوفات · 🔁 بيلغوا
-        for key, sec, gs in (("عملوا كشف", "🩺 كشوفات ما اتحجزلهاش — احجزيلهم", ["kashf", "kashf0", "fix"]),
-                             ("بيلغوا ورا بعض", "🔁 بيلغوا ورا بعض — كلميهم", ["streak", "recur"]),
-                             ("مرضى جداد", "🚶 مرضى جداد ما رجعوش — كلميهم", ["drop", "idle", "call"])):
+        for key, sec, gs in CARD_PROB:
             ow = _owner_g(T, br, gs)
             for p in PB:
                 if key in p["t"]:
                     for i in p["items"]:
-                        put(ow, sec, (0, i.get("age") or 0, H(i["n"]) + (f' {sub("(من " + str(i["age"]) + " يوم)")}' if i.get("age") else "")))
+                        put(ow, sec, (0, i.get("age") or 0, H(i["n"]) + (f' {sub("(من " + str(i["age"]) + " يوم)")}' if i.get("age") else ""), "prob:" + key, [i["n"]], [i["n"]], i["n"]))
         # 🔁 خلص الباقة ومالوش ميعاد (آخر 7 أيام)
         ow = _owner_g(T, br, ["renew", "call", "drop"])
         for x in (alerts or {}).get("finished_packages") or []:
             if x.get("branch") == br and (x.get("days_since") or 99) <= 7:
-                put(ow, "🔁 خلص الباقة ومالوش ميعاد — اعرضي التجديد", (0, x.get("days_since") or 0, H(x.get("name")) + " " + sub(f'(آخر جلسة من {x.get("days_since")} يوم)')))
+                put(ow, "🔁 خلص الباقة ومالوش ميعاد — اعرضي التجديد", (0, x.get("days_since") or 0, H(x.get("name")) + " " + sub(f'(آخر جلسة من {x.get("days_since")} يوم)'),
+                                                                           "fin", [x.get("pid")], [x.get("name")], str(x.get("name") or "")))
         # 📞 تأكيد يوم الشغل الجاي · ⏳ مترحّل · ما اتعملش النهارده
         for o in {t["o"] for t in T if t.get("o") and t["o"] != "المدير"}:
             L = [t for t in T if t["o"] == o and t["st"] != "done"]
             cf = [t for t in L if t["g"] in ("conf", "confsp", "waitnext", "waitnut")]
             if cf:
-                put(o, f"📞 مواعيد {nd} لسه ما اتأكدتش", (0, 0, f"{len(cf)} ميعاد — في خطة اليوم"))
+                put(o, f"📞 مواعيد {nd} لسه ما اتأكدتش", (0, 0, f"{len(cf)} ميعاد — في خطة اليوم", "plan", [t["k"] for t in cf], [t["n"] for t in cf], f"{len(cf)} ميعاد"))
             g = defaultdict(list)
             for t in L:
                 if t["g"] in ("conf", "confsp", "waitnext", "waitnut", "conftoday", "late", "waittoday", "risk", "mgr") or money_task(t) or t["g"] in ("kashf", "kashf0", "streak", "recur"):   # مهام يومها خلص مش بتترحّل
@@ -283,32 +289,46 @@ def cards(today_s, res, P, alerts):
                 mx = max(ages.get((t["k"], t["g"]), 1) for t in LL)
                 nm = "، ".join(H(t["n"]) for t in LL[:4] if t["n"]) + (f" +{len(LL) - 4}" if len(LL) > 4 else "")
                 sec = "⏳ مترحّل من أيام — أول حاجة الصبح" if mx >= 2 else "📝 ما اتعملش النهارده — كمّليه"
-                put(o, sec, (mx, len(LL), f'{H(gt)}: <b>{len(LL)}</b>' + (f' <span style="color:#dc2626">(من {mx} يوم)</span>' if mx >= 2 else "") + (f' {sub("— " + nm)}' if nm else "")))
+                put(o, sec, (mx, len(LL), f'{H(gt)}: <b>{len(LL)}</b>' + (f' <span style="color:#dc2626">(من {mx} يوم)</span>' if mx >= 2 else "") + (f' {sub("— " + nm)}' if nm else ""),
+                             "plan", [t["k"] for t in LL], [t["n"] for t in LL], f'{gt}: {len(LL)}' + (f' (من {mx} يوم)' if mx >= 2 else "")))
         if not S:
             continue
         ORDER = ["⏳ مترحّل من أيام — أول حاجة الصبح", "💸 حصّلي", f"📞 مواعيد {nd} لسه ما اتأكدتش", "🩺 كشوفات ما اتحجزلهاش — احجزيلهم",
                  "🔁 بيلغوا ورا بعض — كلميهم", "🔁 خلص الباقة ومالوش ميعاد — اعرضي التجديد", "🚶 مرضى جداد ما رجعوش — كلميهم", "📝 ما اتعملش النهارده — كمّليه"]
-        blocks = []
+        blocks, wa = [], [f"🏥 {BR_AR[br]} — مهام {nd} الصبح"]
         for o in sorted(S, key=lambda o: (o.startswith("⚠️"), -sum(len(v) for v in S[o].values()))):
-            secs = []
+            secs, rec = [], []
+            pr = (prev_rev or {}).get(o)
+            wa.append(f"\n👤 {o}" + (f" — كارت امبارح: اتعمل {pr[0]} من {pr[1]}" if pr else ""))
             for sec in ORDER:
                 L = sorted(S[o].get(sec) or [], key=lambda x: (-x[0], -x[1]))
                 if not L:
                     continue
+                rec.append({"t": sec, "items": [{"x": x[6], "k": x[3], "ids": x[4], "ns": x[5]} for x in L]})
+                wa.append(sec + ":\n" + "\n".join("• " + x[6] for x in L[:8]) + (f"\n+ {len(L) - 8} كمان في خطة اليوم" if len(L) > 8 else ""))
                 cap = 8
                 lis = "".join(f'<li style="margin:1px 0">{x[2]}</li>' for x in L[:cap])
                 more = f'<li style="color:#64748b;list-style:none">+ {len(L) - cap} كمان — في خطة اليوم</li>' if len(L) > cap else ""
                 secs.append(f'<div style="margin:4px 0 0"><b style="font-size:12.5px">{sec}</b> <span style="color:#64748b;font-size:11px">({len(L)})</span>'
                             f'<ul style="margin:1px 0;padding-inline-start:18px">{lis}{more}</ul></div>')
-            blocks.append(f'<div style="border-top:1px dashed #cbd5e1;padding:6px 0"><div style="font-weight:800;color:#0f766e;font-size:14px">👤 {H(o)}</div>{"".join(secs)}</div>')
+            if not o.startswith("⚠️"):
+                CARDS_OUT[o] = {"d": today_s, "nd": nd, "br": br, "prev": pr, "secs": rec}
+            prh = (f' <span style="font-weight:400;font-size:12px;color:{"#16a34a" if pr[0] >= 0.8 * pr[1] else "#dc2626"}">· كارت امبارح: اتعمل {pr[0]} من {pr[1]}</span>' if pr else "")
+            blocks.append(f'<div style="border-top:1px dashed #cbd5e1;padding:6px 0"><div style="font-weight:800;color:#0f766e;font-size:14px">👤 {H(o)}{prh}</div>{"".join(secs)}</div>')
         foot = (f'<div style="color:#64748b;font-size:11px;margin-top:4px">🗂️ {oldq["n"]} حالة فلوس قديمة (أكتر من 30 يوم) في مراجعة الفواتير</div>' if oldq else "")
         out.append(f'<div style="border:2px solid #0f766e;border-radius:10px;padding:10px 12px;margin:10px 0;font-size:13px;background:#fff">'
                    f'<div style="font-size:16px;font-weight:800">🏥 {BR_AR[br]} — مهام {nd} الصبح</div>'
-                   f'<div style="color:#64748b;font-size:11px">من تقرير {today_s} · القايمة الكاملة لكل مهمة في «خطة اليوم» على الداشبورد</div>{"".join(blocks)}{foot}</div>')
+                   f'<div style="color:#64748b;font-size:11px">من تقرير {today_s} · القايمة الكاملة لكل مهمة في «خطة اليوم» على الداشبورد</div>{"".join(blocks)}{foot}</div>'
+                   + f'<div style="margin:-4px 0 12px"><a href="https://wa.me/?text={_q(chr(10).join(wa)[:3500])}" style="background:#25D366;color:#06281a;padding:6px 14px;border-radius:8px;text-decoration:none;font-size:12px;font-weight:700">📤 ابعت كارت {BR_AR[br]} واتساب</a></div>')
     if not out:
         return ""
     return ('<h3 style="margin:14px 0 4px">📌 كروت السكرتارية</h3>'
             '<div style="color:#64748b;font-size:11px">كارت لكل فرع — صوّره وابعته · مفيهوش إيراد ولا خصومات ولا تقييم</div>' + "".join(out))
+
+
+def _q(t):
+    import urllib.parse
+    return urllib.parse.quote(t)
 
 
 _AGES = {}
@@ -320,3 +340,90 @@ def _ages(today_s, tasks):
         a = carry(today_s, tasks)
         _AGES["a"] = {(t["k"], t["g"]): a[id(t)] for t in tasks if id(t) in a}
     return _AGES["a"]
+
+
+# ================= كروت امبارح: اتعمل كام من كام =================
+def load_cards(reasons, before):
+    """آخر كروت اتبعتت قبل النهارده من الشيت (مقسومة على كذا سطر CARD|اليوم|الاسم|رقم)"""
+    parts = defaultdict(dict)
+    for k, v in (reasons or {}).items():
+        if not k.startswith("CARD|"):
+            continue
+        try:
+            _, d, name, i = k.split("|", 3)
+        except ValueError:
+            continue
+        if d < before and str(v or "").strip():
+            parts[(d, name)][int(i)] = str(v)
+    if not parts:
+        return None, {}
+    d0 = max(d for d, _ in parts)
+    out = {}
+    for (d, name), ch in parts.items():
+        if d != d0:
+            continue
+        try:
+            out[name] = json.loads("".join(ch[i] for i in sorted(ch)))
+        except Exception as e:
+            print("card parse", name, e)
+    return d0, out
+
+
+def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
+    d0, C = load_cards(reasons, today_s)
+    if not C:
+        return "", {}
+    cur_tasks = {(t["k"]): t for t in (res or {}).get("tasks") or []}
+    fin_now = {x.get("pid") for x in (alerts or {}).get("finished_packages") or []}
+    probs_now = defaultdict(set)
+    for p in P or []:
+        for key, _, _ in CARD_PROB:
+            if key in p["t"]:
+                probs_now[(PB_.get(p["b"]), key)].update(i["n"] for i in p["items"])
+
+    def ok(kind, idv, br):
+        if kind == "pay":
+            return idv not in debts_by_pid
+        if kind == "fin":
+            return idv not in fin_now
+        if kind.startswith("prob:"):
+            return idv not in probs_now[(br, kind[5:])]
+        if kind == "plan":
+            try:
+                st = json.loads((reasons or {}).get("PLAN|" + idv) or "{}").get("s")
+            except Exception:
+                st = None
+            t = cur_tasks.get(idv)
+            return st in ("done", "auto", "nr") or bool(t and t["st"] in ("done", "nr"))
+        return False
+    rev, rows = {}, defaultdict(list)
+    for name, c in C.items():
+        done = tot = 0
+        miss = []
+        for sec in c.get("secs") or []:
+            for it in sec.get("items") or []:
+                for j, idv in enumerate(it.get("ids") or []):
+                    tot += 1
+                    if ok(it.get("k") or "", idv, c.get("br")):
+                        done += 1
+                    else:
+                        nm = (it.get("ns") or [""])[j] if j < len(it.get("ns") or []) else ""
+                        miss.append(f'{H(nm or "—")} {sub("(" + sec["t"].split("—")[0].strip() + ")")}')
+        if tot:
+            rev[name] = (done, tot)
+            rows[c.get("br")].append((name, done, tot, miss))
+    if not rows:
+        return "", rev
+    out = [f'<h3 style="margin:14px 0 4px">✅ مراجعة كروت {d0}</h3>',
+           sub("اتعمل = ليه أثر على السيستم (اتدفع · اتحجز · خرج من القايمة · اتعلّم في الخطة) · ما ردش بيتحسب اتعمل")]
+    for br in [b for b in BR_AR if b in rows]:
+        lines = []
+        for name, dn, tt, miss in sorted(rows[br], key=lambda r: r[1] / r[2]):
+            col = "#16a34a" if dn >= 0.8 * tt else "#ea580c" if dn >= 0.5 * tt else "#dc2626"
+            lst = ("<br>" + sub("ما اتعملش: ") + "، ".join(miss[:8]) + (sub(f" +{len(miss) - 8}") if len(miss) > 8 else "")) if miss else ""
+            lines.append(f'<div style="margin:4px 0"><b>{H(name)}</b>: <b style="color:{col}">اتعمل {dn} من {tt} ({pc(dn, tt)})</b>{lst}</div>')
+        out.append(f'<div style="border-inline-start:3px solid #0f766e;padding:2px 10px;margin:6px 0;font-size:13px"><b>🏥 {BR_AR[br]}</b>{"".join(lines)}</div>')
+    return "".join(out), rev
+
+
+PB_ = {"haram": "BODYFIX Center", "dokki": "FIX ZONE"}

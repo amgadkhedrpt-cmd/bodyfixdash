@@ -11642,6 +11642,15 @@ var PLAN_CARDS={};
 function planMyCard(){ var c=PLAN_CARDS[PLAN_ME]; if(!c) return null; if(c.o) return c.o;
   try{ var ks=Object.keys(c.p).map(Number).sort(function(a,b){return a-b;}); c.o=JSON.parse(ks.map(function(i){return c.p[i];}).join('')); }catch(e){ return null; }
   var age=(new Date((ALERTS_DATA&&ALERTS_DATA.today||'')+'T12:00:00')-new Date(c.d+'T12:00:00'))/864e5; if(!(age<=4)) { c.o=null; return null; } return c.o; }
+/* 📡 البيانات دي من آخر سحب من Medicolize — مش لحظية: الوقت والمدة باينين دايمًا جنب «خطة اليوم» */
+function planDataAge(){
+  var g=null; try{ g=new Date(ALERTS_DATA.generated_at||ALERTS_DATA.last_updated); if(isNaN(g)) g=null; }catch(e){}
+  var tm=g?g.toLocaleString('ar-EG',{weekday:'short',hour:'numeric',minute:'2-digit'}):'—', mins=g?Math.round((Date.now()-g)/60000):null;
+  var ago=mins==null?'':(mins<60?' — من '+mins+' دقيقة':' — من '+Math.floor(mins/60)+' س '+(mins%60)+' د');
+  if(AL_FROM_CACHE) return '<span style="font-size:.6rem;color:#000;background:var(--am);border-radius:6px;padding:2px 7px;font-weight:700">⚠️ نسخة قديمة محفوظة على الجهاز (سحب Medicolize '+tm+') — استني لحد ما الجديد يحمّل قبل ما تشتغلي</span>';
+  var old=mins!=null&&mins>45;
+  return '<span style="font-size:.6rem;border-radius:6px;padding:2px 7px;font-weight:700;'+(old?'color:#fff;background:var(--r)':'color:var(--mute);border:1px solid var(--brd)')+'">📡 آخر سحب من Medicolize: '+tm+ago+' · اللي اتعمل بعده مش ظاهر هنا</span>';
+}
 function planCardShow(force){
   var o=planMyCard(); if(!o) return; var seenK='cardSeen|'+PLAN_ME+'|'+o.d;
   if(!force){ try{ if(localStorage.getItem(seenK)) return; }catch(e){} }
@@ -12566,7 +12575,7 @@ function planRender(){
   var opts=ALLN.map(function(n){ return '<option'+(n===PLAN_ME?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('');
   var mine=all.filter(function(t){ var s=PLAN_ST[t.key]; return s&&s.by===PLAN_ME&&(s.s==='done'||s.s==='nr'); }).length;
   var h='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:5">'+
-    '<b style="font-size:.85rem">📋 خطة اليوم</b>'+(AL_FROM_CACHE?'<span style="font-size:.6rem;color:#000;background:var(--am);border-radius:6px;padding:2px 7px;font-weight:700">⚠️ دي بيانات قديمة محفوظة على الجهاز'+(function(){ try{ var g=new Date(ALERTS_DATA.generated_at||ALERTS_DATA.last_updated); return ' (من '+g.toLocaleString('ar-EG',{weekday:'short',hour:'numeric',minute:'2-digit'})+')'; }catch(e){ return ''; } })()+' — استني لحد ما الجديد يحمّل قبل ما تشتغلي</span>':'')+'<span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){return b.label;}).join(' + ')+'</span>'+
+    '<b style="font-size:.85rem">📋 خطة اليوم</b>'+planDataAge()+'<span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){return b.label;}).join(' + ')+'</span>'+
     '<span style="flex:1"></span><label style="font-size:.62rem;color:var(--mute)">السكرتيرة المسئولة '+
     '<select id="planMeSel" onchange="planSetMe(this.value)" style="background:var(--bg);border:1px solid '+(PLAN_ME?'var(--brd)':'var(--r)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
       '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'<option value="__add">➕ اسم جديد</option></select></label>'+

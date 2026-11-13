@@ -11645,11 +11645,10 @@ function planMyCard(){ var c=PLAN_CARDS[PLAN_ME]; if(!c) return null; if(c.o) re
 /* 📡 البيانات دي من آخر سحب من Medicolize — مش لحظية: الوقت والمدة باينين دايمًا جنب «خطة اليوم» */
 function planDataAge(){
   var g=null; try{ g=new Date(ALERTS_DATA.generated_at||ALERTS_DATA.last_updated); if(isNaN(g)) g=null; }catch(e){}
-  var tm=g?g.toLocaleString('ar-EG',{weekday:'short',hour:'numeric',minute:'2-digit'}):'—', mins=g?Math.round((Date.now()-g)/60000):null;
-  var ago=mins==null?'':(mins<60?' — من '+mins+' دقيقة':' — من '+Math.floor(mins/60)+' س '+(mins%60)+' د');
-  if(AL_FROM_CACHE) return '<span style="font-size:.6rem;color:#000;background:var(--am);border-radius:6px;padding:2px 7px;font-weight:700">⚠️ نسخة قديمة محفوظة على الجهاز (سحب Medicolize '+tm+') — استني لحد ما الجديد يحمّل قبل ما تشتغلي</span>';
-  var old=mins!=null&&mins>45;
-  return '<span style="font-size:.6rem;border-radius:6px;padding:2px 7px;font-weight:700;'+(old?'color:#fff;background:var(--r)':'color:var(--mute);border:1px solid var(--brd)')+'">📡 آخر سحب من Medicolize: '+tm+ago+' · اللي اتعمل بعده مش ظاهر هنا</span>';
+  if(!g) return '';
+  var today=new Date().toDateString()===g.toDateString(), tm=g.toLocaleString('ar-EG',today?{hour:'numeric',minute:'2-digit'}:{weekday:'long',hour:'numeric',minute:'2-digit'});
+  var old=(Date.now()-g)/60000>45;
+  return '<span style="font-size:.62rem;border-radius:6px;padding:2px 8px;font-weight:700;'+(old?'color:#fff;background:var(--r)':'color:var(--mute);border:1px solid var(--brd)')+'">🕒 البيانات لحد '+tm+(old?' — قديمة، دوسي ⚡ تحديث فوري':'')+'</span>';
 }
 function planCardShow(force){
   var o=planMyCard(); if(!o) return; var seenK='cardSeen|'+PLAN_ME+'|'+o.d;

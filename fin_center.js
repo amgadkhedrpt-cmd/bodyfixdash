@@ -68,7 +68,12 @@ function cPtsV(){const {pts,P}=cenBuild(),PT=Object.values(pts),td=todayC();
     if(!nIn(lastAp.slice(0,7),S.from,S.to))return;const ren=nx&&(Date.parse(nx.d)-Date.parse(lastAp))/864e5<=60;if(!ren&&(Date.parse(td)-Date.parse(lastAp))/864e5<=30)return;
     const g=rs[dep]=rs[dep]||{n:0,r:0,days:[]};g.n++;if(ren){g.r++;g.days.push(Math.max(0,Math.round((Date.parse(nx.d)-Date.parse(lastAp))/864e5)))}})}
   const med=a=>a.length?a.slice().sort((x,y)=>x-y)[a.length>>1]:null;
-  return `<div class="card"><h3>خريطة الاحتفاظ لكل دفعة<small>نسبة المرضى اللي ليهم جلسة مكتملة بعد كام شهر من أول شهر</small></h3>${coht}</div>
+  const ex=coh.map(k=>({k,ps:PT.filter(p=>p.k0===k)})).find(x=>x.ps.length&&shiftK(x.k,2)<=curK());
+  const exTxt=ex?(()=>{const n=ex.ps.length,a=ex.ps.filter(p=>p.months.has(shiftK(ex.k,1))).length,b=ex.ps.filter(p=>p.months.has(shiftK(ex.k,2))).length;
+    return `<div class="note" style="margin-bottom:8px;line-height:1.9"><b>إزاي تقراه:</b> كل صف = المرضى اللي أول جلسة ليهم كانت في الشهر ده. مثال: في ${ml(ex.k)} بدأ <b>${n}</b> مريض جديد. منهم <b>${a}</b> (${pc(a/n)}) جم تاني في ${ml(shiftK(ex.k,1))} = «شهر 1»، و<b>${b}</b> (${pc(b/n)}) جم في ${ml(shiftK(ex.k,2))} = «شهر 2»… وهكذا لحد 6 شهور.<br>
+     <b>امشي على الصف</b> تشوف الدفعة دي بتقل إزاي. <b>انزل في العمود</b> (خصوصاً «شهر 1») تقارن الدفعات ببعض: لو الأرقام بتقل وإنت نازل، يبقى المرضى الجداد بقوا يقفوا أسرع من زمان. اللون الغامق = استمرار أعلى.<br>
+     <i>مش كل اللي وقف خسارة: اللي خلّص علاجه طبيعي ما يجيش. المهم المقارنة بين الصفوف.</i></div>`})():'';
+  return `<div class="card"><h3>خريطة الاحتفاظ لكل دفعة<small>نسبة المرضى اللي ليهم جلسة مكتملة بعد كام شهر من أول شهر</small></h3>${exTxt}${coht}</div>
   <div class="grid g2" style="margin-top:12px"><div class="card"><h3>قيمة المريض حسب أول قسم دخل منه<small>مرضى بدأوا في الفترة — كل اللي دفعوه لحد النهارده</small></h3>
     ${tableHTML(['أول قسم',{t:'مرضى',n:1},{t:'متوسط اللي دفعه',n:1},{t:'متوسط الجلسات',n:1}],Object.entries(eg).sort((a,b)=>b[1].n-a[1].n).map(([e,g])=>[DEPN[e]||e,g.n,g.paid/g.n,fm(g.s/g.n,1)]))}
     <div class="grid g4" style="margin-top:10px">${kpi('متوسط قيمة المريض',fm(ltv))}${kpi('مصاريف الدعاية',fm(ad),N.length&&ad?'تكلفة المريض الجديد '+fm(ad/N.length):'')}${kpi('القيمة ÷ تكلفة الجلب',ad&&N.length?fm(ltv/(ad/N.length),1)+'×':'—')}</div></div>

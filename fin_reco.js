@@ -39,7 +39,7 @@ function recoList(){const out=[],k=recoMonth(),add=(lvl,title,detail,tab,sub,dri
     if(ads&&win.length&&avgL){const cac=ads/win.length;if(avgL/cac<3)add('warn','الدعاية غالية مقارنة بقيمة المريض',`قيمة المريض ${fm(avgL)} وتكلفة جلبه حوالي ${fm(cac)} (${fm(avgL/cac,1)}×). المعقول 3× أو أكتر.`,'cen','pts',{t:'cac'})}
     // الدكاترة
     const dg={};win.forEach(p=>{(dg[p.doc0]=dg[p.doc0]||[]).push(p)});const six=a=>a.filter(p=>p.n>=6).length/a.length,base=win.length?six(win):null;
-    const low=Object.entries(dg).filter(([d,a])=>d&&a.length>=10&&!ALAA.test(d)&&base&&six(a)<0.7*base).map(([d,a])=>`${d} (${pc(six(a))})`);
+    const low=Object.entries(dg).filter(([d,a])=>d&&d!==PAST_DOC&&a.length>=10&&!ALAA.test(d)&&base&&six(a)<0.7*base).map(([d,a])=>`${d} (${pc(six(a))})`);
     if(low.length)add('warn','استمرار مرضى أقل من المتوسط عند بعض الدكاترة',`نسبة اللي كمّلوا 6 جلسات أو أكتر من المرضى اللي بدأوا معاهم: ${low.join('، ')} — والمتوسط ${pc(base)}.`,'cen','ops',{t:'docs'});
     // الأقسام
     const dm=monthsList(shiftK(k,-3),k).map(deptMonth);DEPTS.forEach(([d,t])=>{const v=dm.map(m=>m[d].rev);if(v.length===4&&v[0]>0&&v[1]<v[0]&&v[2]<v[1]&&v[3]<v[2])add('warn',`إيراد ${t} نازل 3 شهور ورا بعض`,`من ${fm(v[0])} لـ ${fm(v[3])}.`,'cen','trend',{t:'dept',d})});
@@ -103,7 +103,7 @@ function openDrill(r){closeDrill();const d=r.drill,k=r.k,ks=monthsList(shiftK(k,
     else{const ad=m=>D.exp.filter(e=>expIn(e)&&e.k===m&&/دعاي|اعلان|إعلان|ماركت|marketing|ads|سوشيال/i.test(e.type+' '+e.info)).reduce((s,e)=>s+e.amt,0),nw=m=>PT.filter(p=>p.k0===m).length;
       cfg={data:{labels:ks.map(mls),datasets:[bar('تكلفة المريض الجديد',ks.map(m=>nw(m)?Math.round(ad(m)/nw(m)):null),c[1])]}};h=tableHTML(['الشهر',{t:'دعاية',n:1},{t:'مرضى جداد',n:1},{t:'تكلفة المريض',n:1}],ks.slice().reverse().map(m=>[ml(m),ad(m),nw(m),nw(m)?ad(m)/nw(m):0]),{h:400})}}
   else if(d.t==='docs'){const {pts}=cenBuild(),NM=NMAP(),td=todayC();const W=Object.values(pts).filter(p=>!p.early&&nIn(p.k0,shiftK(k,-12),shiftK(k,-2)));const dg={};W.forEach(p=>(dg[p.doc0]=dg[p.doc0]||[]).push(p));
-    const rows=Object.entries(dg).filter(([x,a])=>x&&a.length>=5).map(([x,a])=>[esc(x),a.length,fm(a.reduce((s,p)=>s+p.n,0)/a.length,1),a.filter(p=>p.n>=6).length/a.length]).sort((a,b)=>a[3]-b[3]);
+    const rows=Object.entries(dg).filter(([x,a])=>x&&x!==PAST_DOC&&a.length>=5).map(([x,a])=>[esc(x),a.length,fm(a.reduce((s,p)=>s+p.n,0)/a.length,1),a.filter(p=>p.n>=6).length/a.length]).sort((a,b)=>a[3]-b[3]);
     cfg={type:'bar',data:{labels:rows.map(r=>r[0]),datasets:[bar('كمّلوا 6+ %',rows.map(r=>Math.round(100*r[3])),c[0])]},options:{indexAxis:'y',plugins:{legend:{display:false}}}};
     h=tableHTML(['الدكتور',{t:'مرضى بدأوا معاه',n:1},{t:'متوسط جلساتهم',n:1},{t:'كمّلوا 6+',n:1}],rows.map(r=>[r[0],r[1],r[2],pc(r[3])]))+`<h4 style="margin:12px 0 6px">المرضى اللي وقفوا قبل 6 جلسات</h4><select id="drDoc">${rows.map(r=>`<option>${r[0]}</option>`).join('')}</select><div id="drT" style="margin-top:6px"></div>`;
     setTimeout(()=>{const dr=()=>{const x=$('#drDoc').value;$('#drT').innerHTML=tableHTML(['المريض','رقم','أول جلسة',{t:'جلسات',n:1},{t:'دفع',n:1}],(dg[x]||[]).filter(p=>p.n<6).sort((a,b)=>a.first<b.first?1:-1).map(p=>[esc(NM[p.pid]||''),esc(p.pid),p.first,p.n,p.paid]),{h:320})};const s2=$('#drDoc');if(s2){s2.onchange=dr;dr()}},0)}

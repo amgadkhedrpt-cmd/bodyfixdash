@@ -80,7 +80,7 @@ RD.apt=()=>{const ks=ksDone(),r=[],t=[];if(ks.length<6)return '';const A=D.apt.f
   if(c1&&c1.a>0.18)t.push(`حوالي ${pc(c1.a)} من المواعيد بتتلغي — يعني تقريباً موعد من كل ${Math.round(1/c1.a)}. التلات حاجات اللي بتفرق: تأكيد قبلها بيوم (مهمة «تأكيدات بكرة» موجودة في خطة اليوم)، وإعادة حجز فورية لأي حد يلغي، وحجز زيادة في الساعات اللي الإلغاء فيها عالي.`);
   if(c2&&c2.a>0.07)t.push(`الغياب ${pc(c2.a)} — المريض اللي غاب مرتين يتحط عليه تأكيد مخصوص أو عربون للحجز الجاي.`);
   const AR=A.filter(a=>inR(a)),cd=groupSum(AR.filter(a=>/cancel|no ?show/i.test(a.st)),'doc',()=>1),td=groupSum(AR,'doc',()=>1);const tm=Object.fromEntries(td);
-  const worst=cd.filter(([d])=>tm[d]>=200).map(([d,v])=>[d,v/tm[d]]).sort((a,b)=>b[1]-a[1]).slice(0,3);if(worst.length)r.push(`<b>أعلى إلغاء وغياب حسب الدكتور:</b> ${worst.map(([d,v])=>`${esc(d)} ${pc(v)}`).join('، ')}.`);
+  const worst=cd.filter(([d])=>tm[d]>=200&&d!==PAST_DOC).map(([d,v])=>[d,v/tm[d]]).sort((a,b)=>b[1]-a[1]).slice(0,3);if(worst.length)r.push(`<b>أعلى إلغاء وغياب حسب الدكتور:</b> ${worst.map(([d,v])=>`${esc(d)} ${pc(v)}`).join('، ')}.`);
   return rcard(r,t)};
 // ---------- المديونيات ----------
 RD.debt=()=>{const td=todayC(),r=[],t=[];const I=D.inv.filter(x=>inB(x)&&x.k<=S.to).map(x=>Object.assign({},x,{rem:Math.max(0,x.total-x.disc-x.paid),age:(Date.parse(td)-Date.parse(x.d))/864e5})).filter(x=>x.rem>1);
@@ -110,7 +110,7 @@ RD.cen=()=>{const ks=ksDone(),r=[],t=[];if(ks.length<6)return '';
     const c3=cmp3(m3);if(c3&&c3.ch<-0.15)t.push(`الاستمرار لـ3 شهور نازل (${pc(c3.a)} مقابل ${pc(c3.b)}) — المرضى بيخلّصوا بدري أو مش بيجددوا. قارنه بتاب تجديد الباقات.`);
     const act=PT.filter(p=>[...p.months].some(m=>nIn(m,S.from,S.to))),mu=act.filter(p=>p.depts.size>1),si=act.filter(p=>p.depts.size===1);const am=avgOf(mu.map(p=>p.paid)),as=avgOf(si.map(p=>p.paid));
     if(am&&as){r.push(`<b>المريض اللي عمل أكتر من قسم</b> بيدفع ${fm(am)} في المتوسط مقابل ${fm(as)} للي عمل قسم واحد (${fm(am/as,1)}×). ${pc(mu.length/(act.length||1))} بس من المرضى عملوا أكتر من قسم.`);if(am>1.5*as)t.push('تحويل المرضى بين الأقسام بيضاعف قيمتهم — خلي الدكتور يقترح التغذية أو الأجهزة لما تكون مناسبة، وخلي ده جزء من تقييم الشهر.')}}
-  else{const done=D.apt.filter(a=>inB(a)&&inR(a)&&a.st==='Completed'),{P}=cenBuild();const docs=groupSum(done,'doc',()=>1).filter(x=>x[1]>=100);
+  else{const done=D.apt.filter(a=>inB(a)&&inR(a)&&a.st==='Completed'),{P}=cenBuild();const docs=groupSum(done,'doc',()=>1).filter(x=>x[1]>=100&&x[0]!==PAST_DOC);
     const rps=docs.map(([d,n])=>[d,P.filter(p=>inR(p)&&p.doc===d).reduce((s,p)=>s+p.amt,0)/n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
     if(rps.length>1)r.push(`<b>إيراد الجلسة:</b> أعلى ${esc(rps[0][0])} (${fm(rps[0][1])}) وأقل ${esc(rps[rps.length-1][0])} (${fm(rps[rps.length-1][1])}). الفرق غالباً نوع الخدمة أو الخصم أو إن المدفوعات بتتسجل على دكتور غير اللي عمل الجلسة.`);
     const tot=done.length;if(tot&&docs.length)r.push(`<b>توزيع الشغل:</b> أكبر 3 دكاترة عاملين ${pc(docs.slice(0,3).reduce((s,x)=>s+x[1],0)/tot)} من الجلسات.`);

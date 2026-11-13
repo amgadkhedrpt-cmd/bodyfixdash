@@ -1347,35 +1347,37 @@ def build_alerts(appointments, now=None, packages=None):
         })
     streaks.sort(key=lambda x: (x["misses"][0]["date"], x["streak"]), reverse=True)   # آخر إلغاء الأحدث فوق
 
-    # 🔁 بيلغي كتير ومحجوزله مواعيد جاية متكررة: آخر 60 يوم 3 أيام إلغاء/غياب أو أكتر (40%+ من مواعيده)، وقدامه 2+ مواعيد محجوزة
+    # 🔁 لغى أو ما جاش مرتين أو أكتر ورا بعض (باليوم) وما جاش من ساعتها، وقدامه موعدين محجوزين أو أكتر
     recur_cancel = []
     for appts in patients.values():
         real = [a for a in appts if not _fu_kind(a["type"]) and a["status"] not in ("note", "waiting list", "waiting")]
-        past = [a for a in real if today - timedelta(days=60) <= a["start"].date() <= today and a["start"] <= now]
-        lost_d, att_d = {}, set()
-        for a in past:
-            d = a["start"].date()
-            if a["status"] in ATTENDED:
-                att_d.add(d)
-            elif a["status"] in MISS_ONLY:
-                lost_d.setdefault(d, a)
-        lost = {d: a for d, a in lost_d.items() if d not in att_d}
+        by_day = defaultdict(list)
+        for a in real:
+            if a["start"] <= now:
+                by_day[a["start"].date()].append(a)
+        misses, last_att = [], None
+        for day in sorted(by_day, reverse=True):
+            if any(a["status"] in ATTENDED for a in by_day[day]):
+                last_att = day
+                break                      # أول يوم حضور يقفل العداد
+            dm = [a for a in by_day[day] if a["status"] in MISS_ONLY]
+            if dm:
+                misses.append(dm[-1])
         fut = sorted([a for a in real if a["start"] > now and a["status"] in BOOKED], key=lambda a: a["start"])
-        if len(lost) < 3 or len(fut) < 2 or len(lost) / max(1, len(lost) + len(att_d)) < 0.4:
+        if len(misses) < 2 or len(fut) < 2 or (today - misses[0]["start"].date()).days > 60:
             continue
-        L = sorted(lost.values(), key=lambda a: a["start"], reverse=True)
         f0 = fut[0]
         recur_cancel.append({
             "name": f0["name"], "phone": f0["phone"], "pid": f0["pid"], "doctor": f0["doctor"], "branch": f0["branch"],
-            "lost": len(lost), "cancels": sum(1 for a in L if a["status"] in ("canceled", "cancelled")),
-            "noshows": sum(1 for a in L if a["status"] in ("no show", "noshow")), "attended": len(att_d),
-            "rate": round(len(lost) / max(1, len(lost) + len(att_d)), 2),
-            "misses": [{"date": a["start"].date().isoformat(), "status": a["status"].title(), "doctor": a["doctor"]} for a in L[:6]],
+            "lost": len(misses), "cancels": sum(1 for a in misses if a["status"] in ("canceled", "cancelled")),
+            "noshows": sum(1 for a in misses if a["status"] in ("no show", "noshow")),
+            "last_attended": last_att.isoformat() if last_att else "",
+            "misses": [{"date": a["start"].date().isoformat(), "status": a["status"].title(), "doctor": a["doctor"]} for a in misses[:6]],
             "future": [{"time": a["start"].isoformat(), "type": a["type"], "doctor": a["doctor"], "status": a["status"].title(), "aid": a.get("aid") or ""} for a in fut[:8]],
             "future_n": len(fut), "all_confirmed": all(a["status"] == "confirmed" for a in fut[:3]),
             **info(appts),
         })
-    recur_cancel.sort(key=lambda x: (x["future"][0]["time"], -x["lost"]))
+    recur_cancel.sort(key=lambda x: (-x["lost"], x["future"][0]["time"]))
 
     # 💸 ملحوظات الدفع المكتوبة على المريض في Medicolize (ملحوظة الموعد آخر 45 يوم + تفاصيل المريض) → بتظهر في مهام التحصيل وأداة التحصيل
     PAY_RE = re.compile(r"دفع|هيدفع|يدفع|دافع|فلوس|باقي|متبقي|تحصيل|حصل|فاتور|انستا|insta|فودافون|كاش|تحويل|خصم|رصيد|مبلغ|جنيه")

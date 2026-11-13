@@ -25,7 +25,8 @@ function prDetect(){const key=S.b;PRC.det=PRC.det||{};if(PRC.det[key])return PRC
         if(keep){const d0=ops.filter(o=>(o.op||o.n)===nmx&&o.k===m&&Math.round(o.tot/10)*10===mode).map(o=>o.d).sort()[0]||m+'-01';ev.push({d:d0,label:`${nmx}: ${fm(prev)} ← ${fm(mode)}`,pct:(mode-prev)/prev,auto:'nut',dept:'nut',n:tot})}}
       prev=mode;pm=m}}}}catch(e){console.error(e)}
   ev.sort((a,b)=>a.d<b.d?1:-1);return PRC.det[key]=ev}
-function prEvents(){const man=((NUT.cfg||{}).priceEvents||[]).map((e,i)=>Object.assign({i,man:true},e));const auto=prDetect().filter(a=>!man.some(m=>Math.abs(Date.parse(m.d)-Date.parse(a.d))<10*864e5&&(m.dept||'')===(a.dept||'')));
+const prKey=x=>x.d+'|'+x.label;
+function prEvents(){const ign=new Set((NUT.cfg||{}).priceIgnore||[]);const man=((NUT.cfg||{}).priceEvents||[]).map((e,i)=>Object.assign({i,man:true},e));const auto=prDetect().filter(a=>!ign.has(prKey(a))&&!man.some(m=>Math.abs(Date.parse(m.d)-Date.parse(a.d))<10*864e5&&(m.dept||'')===(a.dept||'')));
   return man.concat(auto).sort((a,b)=>a.d<b.d?1:-1)}
 // ---------- الأثر ----------
 function prWin(d1,d2,dept){const sv=GR.dept;GR.dept=dept;let a;try{a=grAgg(d1,d2)}finally{GR.dept=sv}
@@ -59,11 +60,12 @@ function prVerdict(I,R){const g=k=>{const r=R.find(x=>x.k===k);return r.adj!=nul
 function prWeeks(e,dept,mk){const sv=GR.dept;GR.dept=dept;try{const out=[];for(let w=-12;w<12;w++){const d1=prDay(e.d,w*7),d2=prDay(d1,6);if(d1>todayC())break;out.push({w,lbl:(w===0?'◀ الزيادة ':'')+d1.slice(8,10)+'/'+d1.slice(5,7),v:mk(grAgg(d1,[d2,prDay(todayC(),-1)].sort()[0]))})}return out}finally{GR.dept=sv}}
 function vPrice(){if(!NUT.cfg)NUT.cfg=nutMerge(null);const E=prEvents(),dept=PRC.dept;
   if(PRC.sel==null||!E[PRC.sel])PRC.sel=0;const e=E[PRC.sel];
-  const evRows=E.map((x,i)=>[`<input type="radio" name="prE" value="${i}"${i===PRC.sel?' checked':''}>`,x.d,esc(x.label),x.pct!=null?pc(x.pct):'—',x.dept?`<b>${DEPN[x.dept]}</b>`:'الكل',x.man?'مسجلة':'<span class="sub">اتكشفت لوحدها</span>',x.man?`<button data-prdel="${x.i}">حذف</button>`:`<button data-prok="${i}">اعتمدها</button>`]);
+  const evRows=E.map((x,i)=>[`<input type="radio" name="prE" value="${i}"${i===PRC.sel?' checked':''}>`,x.d,esc(x.label),x.pct!=null?pc(x.pct):'—',x.dept?`<b>${DEPN[x.dept]}</b>`:'الكل',x.man?'مسجلة':'<span class="sub">اتكشفت لوحدها</span>',x.man?`<button data-prdel="${x.i}">حذف</button>`:`<button data-prok="${i}" title="تتحفظ دايماً حتى لو الاكتشاف اتغير">اعتمدها</button> <button data-prign="${i}" title="مش زيادة سعر (عرض/خصم/غلط) — اخفيها">✕ مش زيادة</button>`]);
   let h=`<div class="card"><h3>💲 الأسعار وأثر الزيادات<small>${BRN[S.b]}</small></h3>
    <div class="note" style="line-height:1.9">أي زيادة سعر بتتكشف لوحدها: <b>فواتير</b> بسعر جديد متكرر حلّ مكان سعر أقل، أو <b>خدمة تغذية</b> سعرها في القايمة اتغير. وتقدر تسجل أي زيادة بنفسك (تاريخها ونسبتها). لكل زيادة: الأرقام قبلها وبعدها بنفس عدد الأيام، ومصحّحة بنفس الأيام من السنة اللي فاتت — يعني لو الشهر ده كل سنة بيقل، ده مش هيتحسب على الزيادة.</div>
    <div class="bar" style="margin-top:8px"><label class="sub">القسم <select id="prDep"><option value="">قسم الزيادة نفسه</option><option value="all"${dept==='all'?' selected':''}>المركز كله</option>${DEPTS.map(([d,t])=>`<option value="${d}"${dept===d?' selected':''}>${t}</option>`).join('')}</select></label>
    <label class="sub">أيام قبل/بعد <select id="prN">${[30,45,60,90,120].map(n=>`<option${n===PRC.N?' selected':''}>${n}</option>`).join('')}</select></label></div>
+   <div class="note" style="margin-top:8px">مش لازم تعتمد حاجة: أي زيادة اتكشفت لوحدها بتتحلل وبتتراقب وبتطلع في ترشيحات الملخص زي ما هي. «اعتمدها» = تتحفظ دايماً وبنسبتها حتى لو الاكتشاف اتغير بعدين. «✕ مش زيادة» = لو دي عرض أو خصم أو غلط، تختفي من هنا ومن الملخص.</div>
    ${E.length?tableHTML(['','التاريخ','الزيادة',{t:'النسبة',n:1},'القسم','',''],evRows,{h:260}):'<div class="note">مفيش زيادات اتكشفت أو اتسجلت لسه.</div>'}
    <div class="bar" style="margin-top:8px"><span class="sub">سجّل زيادة:</span><input type="date" id="prD"><input id="prL" placeholder="إيه اللي زاد (مثلاً: الكشف 400←500)" style="min-width:220px"><input id="prP" type="number" step="1" placeholder="النسبة %" style="width:90px">
     <select id="prDp"><option value="">الكل</option>${DEPTS.map(([d,t])=>`<option value="${d}">${t}</option>`).join('')}</select><button class="pri" id="prAdd">➕ ضيف واحفظ</button></div></div>`;
@@ -89,6 +91,7 @@ function cPrice(){const E=prEvents();document.querySelectorAll('input[name="prE"
   const add=$('#prAdd');if(add)add.onclick=async()=>{const d=$('#prD').value,l=$('#prL').value.trim(),p=$('#prP').value;if(!d){alert('اختار التاريخ');return}
     NUT.cfg.priceEvents=(NUT.cfg.priceEvents||[]).concat([{d,label:l||'زيادة سعر',pct:p===''?null:(+p)/100,dept:$('#prDp').value}]);await save(add)};
   document.querySelectorAll('[data-prdel]').forEach(b=>b.onclick=async()=>{if(!confirm('أحذف الزيادة دي؟'))return;NUT.cfg.priceEvents=(NUT.cfg.priceEvents||[]).filter((_,i)=>i!==+b.dataset.prdel);PRC.sel=0;await save(b)});
+  document.querySelectorAll('[data-prign]').forEach(b=>b.onclick=async()=>{const x=E[+b.dataset.prign];NUT.cfg.priceIgnore=(NUT.cfg.priceIgnore||[]).concat([prKey(x)]);PRC.sel=0;await save(b)});
   document.querySelectorAll('[data-prok]').forEach(b=>b.onclick=async()=>{const x=E[+b.dataset.prok];NUT.cfg.priceEvents=(NUT.cfg.priceEvents||[]).concat([{d:x.d,label:x.label,pct:x.pct,dept:x.dept||''}]);await save(b)});
   const e=E[PRC.sel||0];if(!e)return;const dept=PRC.dept==='all'?'':(PRC.dept||e.dept||''),c=SER();
   const W1=prWeeks(e,dept,a=>Math.round(a.net)),W2=prWeeks(e,dept,a=>a.sessions);

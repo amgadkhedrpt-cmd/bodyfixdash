@@ -26,14 +26,28 @@ function cfDetect(head,rows){const h=head.map(x=>String(x||'').trim());const pic
 const cfType=v=>{const s=String(v||'').toLowerCase();if(/miss|فائت|فايت|لم يرد|rejected|reject|رفض|blocked|unanswered/.test(s))return 'miss';if(/out|صادر|dial|طالع/.test(s))return 'out';if(/in|وارد|داخل|recei|answered/.test(s))return 'in';return ''};
 const cfDur=v=>{const s=cfDig(v).trim();if(!s)return 0;if(/^\d+(\.\d+)?$/.test(s))return +s;let m=s.match(/^(\d+):(\d{1,2}):(\d{1,2})$/);if(m)return m[1]*3600+m[2]*60+ +m[3];m=s.match(/^(\d+):(\d{1,2})$/);if(m)return m[1]*60+ +m[2];
   let t=0;s.replace(/(\d+)\s*(h|ساع)/i,(_,a)=>t+=a*3600).replace(/(\d+)\s*(m|دق)/i,(_,a)=>t+=a*60).replace(/(\d+)\s*(s|ث)/i,(_,a)=>t+=+a);return t};
-function cfTime(dv,tv,dmy){let s=cfDig(dv).trim()+(tv!=null&&tv!==''?' '+cfDig(tv).trim():'');if(!s.trim())return null;
+// وقت المكالمة: بيقبل «2026-11-14 10:05» · «14/11/2026 10:05 PM» · «14-Nov-2026» · «Nov 14, 2026» · تاريخ Excel (رقم) والساعة كسر يوم أو نص
+const CF_MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12,'يناير':1,'فبراير':2,'مارس':3,'ابريل':4,'أبريل':4,'مايو':5,'يونيو':6,'يوليو':7,'اغسطس':8,'أغسطس':8,'سبتمبر':9,'اكتوبر':10,'أكتوبر':10,'نوفمبر':11,'ديسمبر':12};
+function cfTime(dv,tv,dmy){
+  const xd=v=>typeof v==='number'&&v>20000&&v<80000, frac=v=>typeof v==='number'&&v>=0&&v<1;
+  if(xd(dv)){let ms=Math.round((Math.floor(dv)-25569)*864e5),f=dv%1;                      // تاريخ Excel
+    if(frac(tv))f=tv;else if(tv!=null&&tv!==''){const t=cfHM(cfDig(tv));if(t!=null)return ms+t}
+    return ms+Math.round(f*864e5)}
+  let s=(cfDig(dv).trim()+(tv!=null&&tv!==''?' '+(frac(tv)?cfHMs(tv):cfDig(tv).trim()):'')).trim();if(!s)return null;
   if(/^\d{12,13}$/.test(s))return cfWall(new Date(+s).toISOString());
-  if(typeof dv==='number'&&dv>20000&&dv<80000){const ms=Math.round((dv-25569)*864e5);return ms}            // تاريخ Excel
-  s=s.replace(/ص|AM/i,' AM').replace(/م\b|PM/i,' PM');let m=s.match(/(\d{4})-(\d{1,2})-(\d{1,2})[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i),y,mo,d,H,M,S,ap;
-  if(m){[,y,mo,d,H,M,S,ap]=m}else{m=s.match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})[ ,T]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);if(!m)return null;
-    let a=+m[1],b=+m[2];y=m[3].length===2?'20'+m[3]:m[3];if(dmy){d=a;mo=b}else{mo=a;d=b}H=m[4];M=m[5];S=m[6];ap=m[7]}
-  H=+H;if(ap){ap=ap.toUpperCase();if(ap==='PM'&&H<12)H+=12;if(ap==='AM'&&H===12)H=0}
-  return Date.UTC(+y,+mo-1,+d,H,+M,+(S||0))}
+  if(/^\d{10}$/.test(s))return cfWall(new Date(+s*1000).toISOString());
+  s=s.replace(/ص\b|\bص\b/,' AM').replace(/(\d)\s*م\b/,'$1 PM');
+  let y,mo,d,m;
+  if((m=s.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))){y=+m[1];mo=+m[2];d=+m[3]}
+  else if((m=s.match(/(\d{1,2})[-\/. ]+([A-Za-z؀-ۿ]{3,9})\.?[-\/., ]+(\d{2,4})/))&&CF_MON[m[2].toLowerCase().slice(0,m[2].length>4&&/[a-z]/i.test(m[2])?3:99)]!=null){d=+m[1];mo=CF_MON[m[2].toLowerCase().slice(0,/[a-z]/i.test(m[2])?3:99)];y=+m[3]}
+  else if((m=s.match(/([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})/))&&CF_MON[m[1].toLowerCase().slice(0,3)]){mo=CF_MON[m[1].toLowerCase().slice(0,3)];d=+m[2];y=+m[3]}
+  else if((m=s.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/))){const a=+m[1],b=+m[2];y=+m[3];if(dmy){d=a;mo=b}else{mo=a;d=b}}
+  else return null;
+  if(y<100)y+=2000; if(mo>12&&d<=12){const z=mo;mo=d;d=z}
+  const t=cfHM(s);return Date.UTC(y,mo-1,d)+(t||0)}
+function cfHM(s){const m=String(s).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*(AM|PM)?/i);if(!m)return null;let H=+m[1];const ap=(m[4]||'').toUpperCase();
+  if(ap==='PM'&&H<12)H+=12;if(ap==='AM'&&H===12)H=0;return ((H*60+ +m[2])*60+ +(m[3]||0))*1000}
+function cfHMs(f){const t=Math.round(f*86400);return Math.floor(t/3600)+':'+String(Math.floor(t%3600/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
 async function cfRead(file){let rows;
   if(/\.xlsx?$/i.test(file.name)){if(!window.XLSX&&!(await loadLib('XLSX')))throw new Error('مكتبة Excel ما اتحملتش');
     const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''})}
@@ -43,13 +57,14 @@ async function cfRead(file){let rows;
   // يوم/شهر ولا شهر/يوم؟ من الأرقام نفسها
   let dmy=true;const di=mp.date;if(di>=0){let a12=0,b12=0;body.slice(0,400).forEach(r=>{const m=String(cfDig(r[di])).match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-]/);if(m){if(+m[1]>12)a12++;if(+m[2]>12)b12++}});dmy=!(b12>a12)}
   const out=[];let bad=0;
-  for(const r of body){const ph=cfPh(r[mp.ph]);const t=cfTime(r[mp.date],mp.time>=0?r[mp.time]:null,dmy);if(!ph||t==null){bad++;continue}
+  let ex=null;
+  for(const r of body){const ph=cfPh(r[mp.ph]);const t=cfTime(r[mp.date],mp.time>=0?r[mp.time]:null,dmy);if(!ph||t==null){bad++;if(!ex)ex={d:String(r[mp.date]??''),t:mp.time>=0?String(r[mp.time]??''):'',p:String(r[mp.ph]??'').replace(/\d(?=\d{3})/g,'•'),why:!ph?'الرقم':'التاريخ/الساعة'};continue}
     const dur=mp.dur>=0?cfDur(r[mp.dur]):0;let ty=mp.type>=0?cfType(r[mp.type]):'';if(ty==='miss'&&dur>0)ty='in';if(ty==='in'&&dur===0&&mp.dur>=0)ty='miss';
     out.push({ph,t,dur,ty:ty||'?'})}
-  return {out,bad,mp,head,dmy,n:body.length}}
+  return {out,bad,mp,head,dmy,n:body.length,ex}}
 async function cfLoad(files){const msg=$('#cfMsg');for(const f of files){try{const r=await cfRead(f);CF.map=r.mp;
     const seen=new Set(CF.calls.map(c=>c.ph+'|'+c.t+'|'+c.ty));let add=0;const ln=f.name.replace(/\.[^.]+$/,'');r.out.forEach(c=>{const k=c.ph+'|'+c.t+'|'+c.ty;if(!seen.has(k)){seen.add(k);c.ln=ln;CF.calls.push(c);add++}});
-    CF.files.push({name:f.name,n:r.n,ok:add,bad:r.bad,mp:r.mp,dmy:r.dmy})}catch(e){CF.files.push({name:f.name,err:e.message||String(e)})}}
+    CF.files.push({name:f.name,n:r.n,ok:add,bad:r.bad,mp:r.mp,dmy:r.dmy,ex:r.ex})}catch(e){CF.files.push({name:f.name,err:e.message||String(e)})}}
   CF.minT=CF.calls.length?Math.min(...CF.calls.map(c=>c.t)):null;CF.maxT=CF.calls.length?Math.max(...CF.calls.map(c=>c.t)):null;CF.idx=null;CF.st=null;render()}
 // ---------- مين المسئولة (من خطة اليوم) ----------
 async function cfSheet(){if(CF.sheetTry)return;CF.sheetTry=true;try{const d=await jsonp({action:'getAll'},25000);const r=(d&&d.reasons)||{};const o={sum:{},roles:null};
@@ -86,7 +101,7 @@ const CF_CAT={ok:['✅ مكالمة اترد عليها','var(--good)'],tried:['
   nocov:['خارج فترة ملفات المكالمات','var(--t3)'],noph:['مفيش رقم على السيستم','var(--t3)'],book:['اتحجز «مؤكد» وقت الحجز (مش محتاج مكالمة)','var(--t3)'],nofile:['—','var(--t3)']};
 function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!c.atBook),J=chk.filter(c=>['ok','tried','missonly','none'].includes(c.cat));
   const all=cfConfs();const since=all.length?cfFmt(Math.min(...all.map(c=>c.cT))):'';
-  const fl=CF.files.map(f=>f.err?`<li><b>${esc(f.name)}</b> — <span class="down">${esc(f.err)}</span></li>`:`<li><b>${esc(f.name)}</b> — ${f.ok} مكالمة${f.bad?` (${f.bad} سطر ما اتقراش)`:''}</li>`).join('');
+  const fl=CF.files.map(f=>f.err?`<li><b>${esc(f.name)}</b> — <span class="down">${esc(f.err)}</span></li>`:`<li><b>${esc(f.name)}</b> — ${f.ok} مكالمة${f.bad?` (${f.bad} سطر ما اتقراش)`:''}${f.bad&&f.ex?`<div class="sub" style="color:var(--warn)">مثال لسطر ما اتقراش — ${esc(f.ex.why)} مش مفهوم: التاريخ «${esc(f.ex.d)}» · الساعة «${esc(f.ex.t)}» · الرقم «${esc(f.ex.p)}» — ابعت الصورة دي لو لسه مش بيقرا</div>`:''}</li>`).join('');
   const mp=CF.map;const colSel=(k,lbl)=>mp?`<label class="sub">${lbl} <select data-cfc="${k}"><option value="-1">—</option>${mp.head.map((h,i)=>`<option value="${i}"${mp[k]===i?' selected':''}>${esc(String(h)).slice(0,30)}</option>`).join('')}</select></label>`:'';
   const ty={};CF.calls.forEach(c=>ty[c.ty]=(ty[c.ty]||0)+1);
   let h=`<div class="card"><h3>📞 التأكيدات — اتأكد بمكالمة فعلاً؟<small>${BRN[S.b]} · ${ml(S.from)}–${ml(S.to)}</small></h3>
@@ -168,10 +183,11 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    const resC=r=>r==='حضر'?'<span style="color:var(--good)">حضر</span>':(r==='اعتذر'||r==='ما جاش')?`<b class="down">${r}</b>`:esc(r||'—');
    const lead=c=>{const hrs=((c.atBook&&c.crT!=null?c.aT-c.crT:c.aT-c.cT))/36e5;return hrs>=48?Math.round(hrs/24)+' يوم':hrs>=1?Math.round(hrs)+' ساعة':Math.round(hrs*60)+' د'};
    const lists=LB.map(([t,f])=>{const a=C.filter(f).sort((x,y)=>y.aT-x.aT),dn=a.filter(fin_),ls=dn.filter(lost);
-     return a.length?`<details style="margin-top:6px"><summary style="cursor:pointer;font-weight:700;font-size:.78rem">${t} — ${a.length} موعد${dn.length?` · ضاع ${ls.length} من ${dn.length} (${pc(ls.length/dn.length)})`:''}</summary>${tableHTML(['المريض','الموعد','اتأكد إمتى',{t:'قبلها بـ',n:1},'النتيجة','المسئولة'],a.slice(0,400).map(c=>[esc(c.pn),cfFmt(c.aT)+' · '+esc(c.type),cfFmt(c.atBook&&c.crT!=null?c.crT:c.cT)+(c.atBook?' (وقت الحجز)':'')+(c.bulk?' ⚡':''),lead(c),resC(c.res),esc(c.who||'')]),{h:360})}</details>`:''}).join('');
+     return a.length?`<details open style="margin-top:6px"><summary style="cursor:pointer;font-weight:700;font-size:.78rem">${t} — ${a.length} موعد${dn.length?` · ضاع ${ls.length} من ${dn.length} (${pc(ls.length/dn.length)})`:''}</summary>${tableHTML(['المريض','الموعد','اتأكد إمتى',{t:'قبلها بـ',n:1},'النتيجة','المسئولة'],a.slice(0,400).map(c=>[esc(c.pn),cfFmt(c.aT)+' · '+esc(c.type),cfFmt(c.atBook&&c.crT!=null?c.crT:c.cT)+(c.atBook?' (وقت الحجز)':'')+(c.bulk?' ⚡':''),lead(c),resC(c.res),esc(c.who||'')]),{h:360})}</details>`:''}).join('');
    CF.listsHTML=lists?`<div class="card" style="margin-top:12px"><h3>📋 الأسامي حسب إمتى اتأكد<small>دوس على أي مجموعة تفتح أساميها</small></h3>${lists}</div>`:'';
    const few=done.length<60?`<div class="sub" style="margin-top:6px">⚠️ لسه ${done.length} ميعاد بس خلصوا في الفترة دي — الأرقام هتتظبط كل ما الشهر يكمل.</div>`:'';
-   h=h.replace('<!--CFCH-->',(CH_.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات<small>من Medicolize لوحده — من غير ملفات المكالمات</small></h3>${few}<div class="grid g2" style="margin-top:8px">${CH_.map(c=>`<div><div style="font-weight:700;font-size:.78rem;margin-bottom:4px">${c[1]}</div><div style="position:relative;height:${c[3]||220}px"><canvas id="${c[0]}"></canvas></div></div>`).join('')}</div></div>`:'')+(CF.listsHTML||''))}
+   const noDone=!CH_.length&&C.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات</h3><div class="sub">الرسومات بتتحسب من المواعيد اللي <b>عدّت</b> (جه / اعتذر / ما جاش) — ولا ميعاد من اللي في الفلتر ده عدّى لسه. وسّع «📅 يوم الموعد» لأيام فاتت (مثلاً من أول الشهر لحد امبارح).</div></div>`:'';
+   h=h.replace('<!--CFCH-->',noDone+(CH_.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات<small>من Medicolize لوحده — من غير ملفات المكالمات</small></h3>${few}<div class="grid g2" style="margin-top:8px">${CH_.map(c=>`<div><div style="font-weight:700;font-size:.78rem;margin-bottom:4px">${c[1]}</div><div style="position:relative;height:${c[3]||220}px"><canvas id="${c[0]}"></canvas></div></div>`).join('')}</div></div>`:'')+(CF.listsHTML||''))}
   return h}
 function cConf(){(CF.charts||[]).forEach(c=>chart(c[0],c[2]));const d1=$('#cfD1'),d2=$('#cfD2'),da=$('#cfDAll'),x=$('#cfX');const rr=()=>{CF.st=null;CF.rep={};render()};
   if(d1)d1.onchange=()=>{CF.d1=d1.value;rr()};if(d2)d2.onchange=()=>{CF.d2=d2.value;rr()};

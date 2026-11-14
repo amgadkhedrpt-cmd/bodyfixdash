@@ -154,7 +154,7 @@ def review(today_s, res, reasons, debts_by_pid):
         nr = sum(1 for t in T if t["st"] == "nr")
         op = [t for t in T if t["st"] == "open"]
         out.append(f'<div style="background:#eff6ff;color:#1d4ed8;font-weight:700;padding:5px 10px;border-radius:6px;margin:12px 0 4px">🏥 {BR_AR[br]} — اتعمل {len(d)} من {len(T)} ({pc(len(d), len(T))})</div>'
-                   f'<div style="font-size:12px;margin:2px 0 6px">على السيستم {sy} · بالزرار بس {len(d) - sy - rf} · 🚫 رفض {rf} · ما ردش {nr} · فاضل {len(op)}</div>')
+                   f'<div style="font-size:12px;margin:2px 0 6px">🤖 السيستم {sy} · ✋ يدوي {len(d) - sy - rf} · 🚫 رفض {rf} · 📞 ما ردش {nr} · ⬜ فاضل {len(op)}</div>')
         # جدول السكرتيرات
         own = defaultdict(list)
         for t in T:
@@ -171,7 +171,22 @@ def review(today_s, res, reasons, debts_by_pid):
                         f'<td {TD}>{ss}</td><td {TD}>{len(dd) - ss - rr}</td><td {TD}>{rr}</td><td {TD}>{sum(1 for t in L if t["st"] == "nr")}</td><td {TD}>{len(oo)}</td>'
                         f'<td {TD}>{pc(f.get("fast", 0), f.get("timed", 0))}</td></tr>')
         out.append(f'<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0"><tr><th {TH}>المسئولة</th><th {TH}>مهامها</th><th {TH}>اتعمل</th>'
-                   f'<th {TH}>على السيستم</th><th {TH}>بالزرار</th><th {TH}>رفض</th><th {TH}>ما ردش</th><th {TH}>فاضل</th><th {TH}>في الوقت</th></tr>{"".join(rows)}</table>')
+                   f'<th {TH}>🤖 السيستم</th><th {TH}>✋ يدوي</th><th {TH}>🚫 رفض</th><th {TH}>ما ردش</th><th {TH}>فاضل</th><th {TH}>في الوقت</th></tr>{"".join(rows)}</table>')
+        # ✋ اتعمل يدوي — راجعه (مفيش دليل على السيستم غير كلام السكرتيرة)
+        mb = defaultdict(lambda: defaultdict(list))
+        for t in d:
+            if t["how"] == "btn":
+                mb[t["o"] or "—"][t["gt"].split("(")[0].strip()].append(t)
+        if mb:
+            ml = []
+            for o, G in sorted(mb.items(), key=lambda kv: -sum(len(v) for v in kv[1].values())):
+                parts = []
+                for gt, LL in sorted(G.items(), key=lambda kv: -len(kv[1])):
+                    nm = "، ".join(H(t["n"]) + (f' «{H(t.get("note") or "")}»' if t.get("note") else "") for t in LL[:5]) + (f" +{len(LL) - 5}" if len(LL) > 5 else "")
+                    parts.append(f"{H(gt)} ({len(LL)}) — {nm}")
+                ml.append(f'<li><b>{H(o)}</b>: ' + " · ".join(parts) + "</li>")
+            out.append(f'<div style="border-inline-start:3px solid #7c3aed;padding:4px 10px;margin:8px 0;font-size:12.5px"><b>✋ اتعمل يدوي — راجعه</b>'
+                       f'<ul style="margin:2px 0;padding-inline-start:18px">{"".join(ml)}</ul></div>')
         rs = defaultdict(int)
         for t in d:
             if t["how"] == "ref":
@@ -344,7 +359,7 @@ def cards(today_s, res, P, alerts, prev_rev=None):
         for o in sorted(S, key=lambda o: (o.startswith("⚠️"), -sum(len(v) for v in S[o].values()))):
             secs, rec = [], []
             pr = (prev_rev or {}).get(o)
-            wa.append(f"\n👤 {o}" + (f" — كارت امبارح: اتعمل {pr[0]} من {pr[1]}" if pr else ""))
+            wa.append(f"\n👤 {o}" + (f" — كارت امبارح: اتعمل {pr[0]} من {pr[1]}" + (f" (🤖 {pr[2]['sys']} · ✋ {pr[2]['man']} · 🚫 {pr[2]['ref']})" if len(pr) > 2 else "") if pr else ""))
             extra = [k for k in S[o] if k not in ORDER]
             for sec in ORDER[:4] + extra + ORDER[4:]:
                 L = sorted(S[o].get(sec) or [], key=lambda x: (-x[0], -x[1]))
@@ -359,7 +374,8 @@ def cards(today_s, res, P, alerts, prev_rev=None):
                             f'<ul style="margin:1px 0;padding-inline-start:18px">{lis}{more}</ul></div>')
             if not o.startswith("⚠️"):
                 CARDS_OUT[o] = {"d": today_s, "nd": nd, "br": br, "prev": pr, "secs": rec}
-            prh = (f' <span style="font-weight:400;font-size:12px;color:{"#16a34a" if pr[0] >= 0.8 * pr[1] else "#dc2626"}">· كارت امبارح: اتعمل {pr[0]} من {pr[1]}</span>' if pr else "")
+            prh = (f' <span style="font-weight:400;font-size:12px;color:{"#16a34a" if pr[0] >= 0.8 * pr[1] else "#dc2626"}">· كارت امبارح: اتعمل {pr[0]} من {pr[1]}</span>'
+                   + (f' <span style="font-weight:400;font-size:11px;color:#64748b">(🤖 {pr[2]["sys"]} · ✋ {pr[2]["man"]} · 🚫 {pr[2]["ref"]})</span>' if len(pr) > 2 else "") if pr else "")
             blocks.append(f'<div style="border-top:1px dashed #cbd5e1;padding:6px 0"><div style="font-weight:800;color:#0f766e;font-size:14px">👤 {H(o)}{prh}</div>{"".join(secs)}</div>')
         foot = (f'<div style="color:#64748b;font-size:11px;margin-top:4px">🗂️ {oldq["n"]} حالة فلوس قديمة (أكتر من 30 يوم) في مراجعة الفواتير</div>' if oldq else "")
         out.append(f'<div style="border:2px solid #0f766e;border-radius:10px;padding:10px 12px;margin:10px 0;font-size:13px;background:#fff">'
@@ -431,6 +447,23 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
             if key in p["t"]:
                 probs_now[(PB_.get(p["b"]), key)].update(i["n"] for i in p["items"])
 
+    def how(kind, idv, br):
+        """sys = السيستم · man = يدوي · ref = رفض · None = ما اتعملش"""
+        if kind == "plan":
+            try:
+                st = json.loads((reasons or {}).get("PLAN|" + idv) or "{}").get("s")
+            except Exception:
+                st = None
+            t = cur_tasks.get(idv)
+            if st == "ref" or (t and t.get("how") == "ref"):
+                return "ref"
+            if st == "auto" or (t and t["st"] == "done" and t.get("how") == "sys"):
+                return "sys"
+            if st in ("done", "nr") or (t and t["st"] in ("done", "nr")):
+                return "man"
+            return None
+        return "sys" if ok(kind, idv, br) else None
+
     def ok(kind, idv, br):
         if kind == "pay":
             return idv not in debts_by_pid
@@ -453,29 +486,32 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
     rev, rows = {}, defaultdict(list)
     for name, c in C.items():
         done = tot = 0
-        miss = []
+        miss, cat = [], {"sys": 0, "man": 0, "ref": 0}
         for sec in c.get("secs") or []:
             for it in sec.get("items") or []:
                 for j, idv in enumerate(it.get("ids") or []):
                     tot += 1
-                    if ok(it.get("k") or "", idv, c.get("br")):
+                    hw = how(it.get("k") or "", idv, c.get("br"))
+                    if hw:
                         done += 1
+                        cat[hw] += 1
                     else:
                         nm = (it.get("ns") or [""])[j] if j < len(it.get("ns") or []) else ""
                         miss.append(f'{H(nm or "—")} {sub("(" + sec["t"].split("—")[0].strip() + ")")}')
         if tot:
-            rev[name] = (done, tot)
-            rows[c.get("br")].append((name, done, tot, miss))
+            rev[name] = (done, tot, cat)
+            rows[c.get("br")].append((name, done, tot, miss, cat))
     if not rows:
         return "", rev
     out = [f'<h3 style="margin:14px 0 4px">✅ مراجعة كروت {d0}</h3>',
            sub("اتعمل = ليه أثر على السيستم (اتدفع · اتحجز · خرج من القايمة · اتعلّم في الخطة) · ما ردش بيتحسب اتعمل")]
     for br in [b for b in BR_AR if b in rows]:
         lines = []
-        for name, dn, tt, miss in sorted(rows[br], key=lambda r: r[1] / r[2]):
+        for name, dn, tt, miss, cat in sorted(rows[br], key=lambda r: r[1] / r[2]):
             col = "#16a34a" if dn >= 0.8 * tt else "#ea580c" if dn >= 0.5 * tt else "#dc2626"
             lst = ("<br>" + sub("ما اتعملش: ") + "، ".join(miss[:8]) + (sub(f" +{len(miss) - 8}") if len(miss) > 8 else "")) if miss else ""
-            lines.append(f'<div style="margin:4px 0"><b>{H(name)}</b>: <b style="color:{col}">اتعمل {dn} من {tt} ({pc(dn, tt)})</b>{lst}</div>')
+            spl = sub(f'🤖 السيستم {cat["sys"]} · ✋ يدوي {cat["man"]} · 🚫 رفض {cat["ref"]}')
+            lines.append(f'<div style="margin:4px 0"><b>{H(name)}</b>: <b style="color:{col}">اتعمل {dn} من {tt} ({pc(dn, tt)})</b> {spl}{lst}</div>')
         out.append(f'<div style="border-inline-start:3px solid #0f766e;padding:2px 10px;margin:6px 0;font-size:13px"><b>🏥 {BR_AR[br]}</b>{"".join(lines)}</div>')
     return "".join(out), rev
 

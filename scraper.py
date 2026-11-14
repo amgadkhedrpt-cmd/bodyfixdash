@@ -62,6 +62,9 @@ NOTE_FIELD = None   # اسم خانة ملحوظة الميعاد في Medicoliz
 NOTE_CANDIDATES = ["note", "notes", "description", "comment", "comments", "details", "remarks", "remark",
                    "patientNote", "appointmentNote", "memo", "info"]
 NOTE_PROBE = {}
+ROOM_FIELD = None   # أوضة / بارتشن الموعد (P1…P11 · G1-3 · F1-4) → توزيع الحجز على عيادة 1 / عيادة 2
+ROOM_CANDIDATES = ["room{id name}", "room", "roomName", "partition{id name}", "partition", "resource{id name}", "place{id name}", "clinic{id name}", "chair{id name}", "bed{id name}"]
+ROOM_PROBE = {}
 PAT_FIELDS = []     # خانات تفاصيل المريض (ملحوظة / تاجز) اللي اشتغلت
 PAT_CANDIDATES = ["notes", "note", "details", "description", "comment", "comments", "remarks", "info", "medicalNotes",
                   "tags{name}", "tags{id name}", "status", "patientStatus", "type", "category"]
@@ -92,6 +95,8 @@ def gql_query_with_note():
         q = q.replace("type other ", "type other " + BY_FIELD + " ", 1)
     if REASON_FIELD and REASON_FIELD not in (NOTE_FIELD, CANCEL_FIELD):
         q = q.replace("type other ", "type other " + REASON_FIELD + " ", 1)
+    if ROOM_FIELD:
+        q = q.replace("type other ", "type other " + ROOM_FIELD + " ", 1)
     return q
 
 
@@ -155,6 +160,7 @@ def parse_flat_array(flat):
             cancel_v = resolve_val(flat, appt_obj.get(CANCEL_FIELD)) if CANCEL_FIELD else None
             created  = resolve_val(flat, appt_obj.get('createdAt'))
             reason_v = resolve_val(flat, appt_obj.get(REASON_FIELD)) if REASON_FIELD else None
+            room_v   = _flat_text(flat, appt_obj.get(ROOM_FIELD.split("{")[0])) if ROOM_FIELD else ""
             by_obj   = resolve_obj(flat, appt_obj.get(BY_FIELD.split("{")[0])) if BY_FIELD else None
             by_name  = (by_obj or {}).get("name") if isinstance(by_obj, dict) else None
             doctor_obj  = resolve_obj(flat, appt_obj.get('doctor'))
@@ -184,6 +190,7 @@ def parse_flat_array(flat):
                 "cancel_at": cancel_v if isinstance(cancel_v, str) else None,
                 "by":        by_name if isinstance(by_name, str) else None,
                 "reason":    (reason_v.strip()[:300] if isinstance(reason_v, str) and reason_v.strip() else None),
+                "room":      (room_v[:40] or None),
                 "doctor":  {"name": doctor_obj.get('name'), "color": doctor_obj.get('color')},
                 "branch":  {"name": branch_obj.get('name')},
                 "patient": {
@@ -531,6 +538,24 @@ async def detect_note_field(page, cookie_str, extra_headers):
         except Exception as e:
             print(f"   ℹ️ {f}: {str(e)[:80]}")
     print(f"   👤 خانة مين عمل الميعاد: {BY_FIELD or 'مش موجودة'}")
+    global ROOM_FIELD
+    for f in ROOM_CANDIDATES:
+        q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
+             "{createdAppointments(orderBy:$orderBy skip:$skip take:$take rangeDate:$rangeDate){id " + f + "}}")
+        try:
+            d = await gql_call(page, cookie_str, extra_headers, q, {"orderBy": "createdAt", "skip": 0, "take": 40, "rangeDate": rng})
+            lst = [x for x in (gql_dec(d, "createdAppointments") or []) if isinstance(x, dict)]
+            k_ = f.split("{")[0]
+            vals = [x.get(k_) for x in lst]
+            txt = [v for v in vals if v]
+            ex = next((v.get("name") if isinstance(v, dict) else v for v in txt), "")
+            ROOM_PROBE[f] = f"OK {len(txt)}/{len(vals)} e.g. {str(ex)[:20]}"
+            if txt and not ROOM_FIELD:
+                ROOM_FIELD = f
+        except Exception as e:
+            m = str(e); sug = re.findall(r"[Dd]id you mean ([^?\]]+)", m)
+            ROOM_PROBE[f] = ("did you mean " + sug[0][:120]) if sug else ("ERR " + m[:60])
+    print(f"   🚪 خانة الأوضة/البارتشن: {ROOM_FIELD or 'مش موجودة'} · {ROOM_PROBE}")
     # تفاصيل المريض نفسه (مش الميعاد)
     seen_keys = set()
     for f in PAT_CANDIDATES:
@@ -871,6 +896,8 @@ async def probe_invoice_fields(page, cookie_str, extra_headers, cache):
         out["list"][f] = st
         await asyncio.sleep(0.1)
     out["appt_note"] = dict(NOTE_PROBE)
+    out["room"] = dict(ROOM_PROBE)
+    out["room_used"] = ROOM_FIELD
     out["patient_fields"] = dict(PAT_PROBE)
     out["cancel_time"] = dict(CANCEL_PROBE)
     out["cancel_time_used"] = CANCEL_FIELD

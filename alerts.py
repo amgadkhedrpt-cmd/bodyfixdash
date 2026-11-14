@@ -186,6 +186,7 @@ def _norm(a):
         "cancel_at": _parse_dt(a.get("cancel_at")),
         "by": str(a.get("by") or "").strip(),
         "reason": str(a.get("reason") or "").strip(),
+        "room": str(a.get("room") or "").strip(),
     }
 
 
@@ -416,6 +417,7 @@ def build_alerts(appointments, now=None, packages=None):
             "name": last["name"], "phone": last["phone"], "pid": last["pid"],
             "doctor": last["doctor"], "branch": last["branch"],
             "time": last["start"].isoformat(), "type": last["type"], "status": last["status"].title(),
+            "room": next((a["room"] for a in sorted(today_att, key=lambda a: a["start"]) if a.get("room")), ""),
             **info(appts),
         })
     no_next.sort(key=lambda x: x["time"], reverse=True)
@@ -1198,7 +1200,8 @@ def build_alerts(appointments, now=None, packages=None):
                 a0 = tod[0]
                 plan["today"].append({"pid": a0["pid"], "name": a0["name"], "phone": a0["phone"], "time": a0["start"].isoformat(),
                                       "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "status": a0["status"].title(),
-                                      "types": sorted({a["type"] for a in tod}), "risk": risk, "note": (a0.get("note") or "")[:200]})
+                                      "types": sorted({a["type"] for a in tod}), "risk": risk, "note": (a0.get("note") or "")[:200],
+                                      "room": next((a["room"] for a in sorted(tod, key=lambda a: a["start"]) if a.get("room")), "")})
             tmr = sorted([a for a in appts if a["start"].date() == tomorrow_ and (a["status"] in LIVE_TODAY or a["status"] in ("canceled", "cancelled"))
                           and not _isp(a)],
                          key=lambda a: (a["status"] in ("canceled", "cancelled"), a["start"]))

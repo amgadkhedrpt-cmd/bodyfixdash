@@ -12242,7 +12242,7 @@ function planTasks(useAll){
       var sy='', wh='';
       if(g==='renew'){ var eb=renew[x.pid]&&renew[x.pid].eval_booked;   // اتحجز «تقييم الجلسه الأخيره» النهارده أو بعد كده → اتعملت
         if(eb){ sy='اتحجز تقييم الجلسة الأخيرة'; wh='تقييم الجلسة الأخيرة '+alFmtDay(String(eb).slice(0,10))+' '+planT(eb); } else if(evT){ sy='اتحجز تقييم الجلسة الأخيرة'; wh=evT+' النهارده'; } }
-      add('rec',{grp:[g], sys:sy, what:wh, key:today+'|rec|'+g+'|'+x.pid, icon:arrived?'🟢':'🕐', kind:kindR, name:x.name, phone:x.phone, br:brOf(x), lines:R, note0:x.note, time:x.time});
+      add('rec',{grp:[g], sys:sy, what:wh, key:today+'|rec|'+g+'|'+x.pid, icon:arrived?'🟢':'🕐', kind:kindR+(g==='nonext'&&x.room?' · 🚪 '+alEsc(x.room):''), name:x.name, phone:x.phone, br:brOf(x), lines:R, note0:x.note, time:x.time, room:x.room||'', doctor:x.doctor});
     });
   });
   var recDone={}; T.rec.forEach(function(t){ recDone[t.key]=t; });
@@ -12351,10 +12351,12 @@ function planTasks(useAll){
     });
   }
   // 🌙 آخر اليوم
-  // (اللي اتحجزله ميعاد على السيستم بيظهر ✅ في «عند الاستقبال» — مش هنا تاني)
+  sysAdd('evening','nonext','nonextrev','اتحجزله ميعاد','📅',function(x){return today+'|nonextrev|'+x.pid;},function(x){ return alEsc(x.type||'')+' مع '+alEsc(doc(x.doctor)); });
   sysAdd('evening','kashf0','kashf0','حجز جلسات','🩺',function(x){return today+'|kashf0|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
-  (D.today_no_next||[]).filter(function(x){ return inb(x)&&!todayPids[x.pid]; }).forEach(function(x){   // أي موعد النهارده ومالوش موعد بعده — بس اللي مش ظاهر في «عند الاستقبال» (عشان ما يتكررش)
-    add('evening',{grp:['nonext'], key:today+'|nonext|'+x.pid, icon:'📅', kind:'عنده موعد النهارده ومالوش ميعاد جاي', name:x.name, phone:x.phone, br:brOf(x),
+  // 👔 مراجعة المشرفة: كل اللي عنده موعد النهارده (أي نوع / أي حالة) ومالوش ميعاد بعده — إلا «منقطع» في تفاصيل المريض النهارده
+  //    (الحجز نفسه على سكرتيرة العيادة في «عند الاستقبال» — دي مراجعة إن محدش فلت)
+  (D.today_no_next||[]).filter(inb).forEach(function(x){
+    add('evening',{grp:['nonextrev'], key:today+'|nonextrev|'+x.pid, icon:'📅', kind:'مراجعة: عنده موعد النهارده ومالوش ميعاد جاي'+(x.room?' · 🚪 '+alEsc(x.room):''), name:x.name, phone:x.phone, br:brOf(x), room:x.room||'', doctor:x.doctor,
       lines:[alEsc(x.type)+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' · <b>'+alEsc(x.status||'')+'</b> — احجزله أو اتصل']});
   });
   (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since===0&&!x.next_pt&&!x.sessions_after&&/checked|progress|completed/i.test(x.kashf_status||''); }).forEach(function(x){
@@ -12410,7 +12412,7 @@ var PLAN_GT={
   mgr:['👔','ملحوظات محتاجة المدير (شكوى · فلوس · الدكتور · الألم …)'],
   waittoday:['⏳','مواعيد على الويتنج النهارده'], conftoday:['📞','تأكيد مواعيد النهارده اللي كانت لسه Open'], late:['⏰','اتأخر ربع ساعة من غير Check In — اتكتب متابعة ولا لأ؟'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'], waitnut:['💜','ويتنج قسم التغذية يوم الشغل الجاي'],
   call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], recur:['🔁','بيلغوا كتير ومحجوزلهم مواعيد جاية'], stop:['🛑','قال هيوقف ولسه محجوزله / مثبت — الغي المواعيد وشيله من الشيت'], idle:['😶','مثبّتين ومالهمش ميعاد من 3 أيام أو أكتر'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي (🔴 الضروري فوق)'], confsp:['💜','تأكيد مواعيد قسم التغذية (د. آلاء حرفوش) وجلسات التخسيس'], drop:['🚶','مرضى جداد وقفوا بدري'],
-  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم · أو إعادة تقييم مع د. أمجد بعد كشف مع دكتور تاني)'], evalamg:['📵','محتاج تقييم ومالوش ميعاد — كلّمه واحجزله'], evalamgd:['🩺','احجز إعادة تقييم مع د. أمجد يوم زيارته للدقي'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
+  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم · أو إعادة تقييم مع د. أمجد بعد كشف مع دكتور تاني)'], evalamg:['📵','محتاج تقييم ومالوش ميعاد — كلّمه واحجزله'], evalamgd:['🩺','احجز إعادة تقييم مع د. أمجد يوم زيارته للدقي'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله (سكرتيرة العيادة)'], nonextrev:['👔','مراجعة المشرفة: حد عنده موعد النهارده ومالوش ميعاد جاي'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
   fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — تسجيل + خصم']
 };
 var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView')||''; }catch(e){}
@@ -12471,7 +12473,14 @@ function planCashOwner(t){
   var hit=PLAN_SHIFTS.filter(function(sh){ return sh.branch===bk; }).find(function(sh){ var a=m(sh.from), b=sh.to?m(sh.to):24*60; return mins>=a&&mins<b; });
   return hit?hit.name:'';
 }
+/* 🚪 البارتشن → العيادة (الهرم): عيادة 1 = P1-P6 + G1-G3 · عيادة 2 = P7-P11 + F1-F4 */
+function planRoomClinic(room){ var m=String(room||'').toUpperCase().replace(/\s+/g,'').match(/([PGF])-?(\d+)/); if(!m) return 0; var n=+m[2];
+  if(m[1]==='G') return 1; if(m[1]==='F') return 2; return n<=6?1:2; }
 function planOwner0(t,g){
+  if(g==='nonext'&&t.br!=='FIX ZONE'){ var tdn=(ALERTS_DATA&&ALERTS_DATA.today)||'', an=PLAN_ST['asg|'+tdn+'|'+t.sec+'|nonext|'+t.br]; if(an&&an.by) return an.by;
+    var Rn=PLAN_ROLES[t.br]||{}, cl=planRoomClinic(t.room);
+    if(!cl){ var gdn=(typeof resolveDocGender==='function')?resolveDocGender(t.doctor):''; cl=gdn==='female'?2:gdn?1:0; }   // مفيش أوضة → رجالي عيادة 1 · ستات عيادة 2
+    if(cl===1&&Rn.H) return Rn.H; if(cl===2&&Rn.J) return Rn.J; }
   if(g==='conftoday'||g==='late'){ var tdx=(ALERTS_DATA&&ALERTS_DATA.today)||'', ax=PLAN_ST['asg|'+tdx+'|'+t.sec+'|'+g+'|'+t.br]; if(ax&&ax.by) return ax.by;
     var R=PLAN_ROLES[t.br]||{};
     if(g==='conftoday') return R.F||R.DM||'';                                   // تأكيد النهارده = مسئولة الشيفت الصباحي
@@ -12491,12 +12500,12 @@ var PLAN_ROLES=JSON.parse(JSON.stringify(PLAN_ROLES_DEF));
 try{ var _rl=JSON.parse(localStorage.getItem('planRoles')||'null'); if(_rl) PLAN_ROLES=_rl; }catch(e){}
 /* 📌 الأساس: كل نوع مهمة على أنهي دور (كل يوم بيفتح على كده — التغيير اليومي من الخانة جنب المهمة مؤقت) */
 var PLAN_GROUP_ROLE={
-  'BODYFIX Center':{mgr:'L', nonext:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
+  'BODYFIX Center':{mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
     waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', evalamg:'F', renew:'F', svc:'F', kashf:'F',
     waitnext:'J', streak:'J', recur:'J', stop:'J', idle:'J', conf:'J', stale:'J', fix:'J', kashf0:'J',
     call:'H', drop:'H'},
   'FIX ZONE':{mgr:'DM', streak:'DM', recur:'DM', stop:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamgd:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
-    waitnext:'DE', nonext:'DE', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', svc:'DE', sudden:'DE', late:'DE'}
+    waitnext:'DE', nonext:'DE', nonextrev:'DM', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', svc:'DE', sudden:'DE', late:'DE'}
 };
 function planBaseOwner(t,g){ var rk=(PLAN_GROUP_ROLE[t.br]||{})[g]; return rk?((PLAN_ROLES[t.br]||{})[rk]||''):''; }
 function planSetRole(br, rk, v){
@@ -12518,7 +12527,7 @@ function planRolesBar(){
 var PLAN_COVER={
   'BODYFIX Center':{
     F:{'*':['AM','L','J','H'], confsp:['AM','J','L'], waittoday:['AM','J','L','H'], conftoday:['AM','H','J','L']},
-    L:{sudden:['J','F','H'], mgr:['J','F','H'], nonext:['J','F','H'], aud:['POST'], invfix:['POST'], invrev:['POST'], debtph:['POST'], '*':['J','F','H']},
+    L:{sudden:['J','F','H'], mgr:['J','F','H'], nonext:['J','F','H'], nonextrev:['J','F','H'], aud:['POST'], invfix:['POST'], invrev:['POST'], debtph:['POST'], '*':['J','F','H']},
     J:{conf:['H','L','F'], waitnext:['F','L'], kashf0:['L','H'], streak:['L','POST'], recur:['L','POST'], stale:['L','POST'], fix:['L','POST'], '*':['L','F']},
     H:{call:['J','L','F'], drop:['L','POST'], '*':['L','J']}
   },
@@ -12555,7 +12564,7 @@ var PLAN_CAP={Mariam:0.6}, PLAN_CMAP=null, PLAN_CMAP_BUSY=false;
 var PLAN_SHARE=['conf','conftoday','call','waitnext','waittoday','waitnut'];
 var PLAN_CAN_WAIT=['streak','recur','idle','drop','stale','fix','aud','invrev','debtph','kashf','miss'];
 /* مهام ما ينفعش تتأجل أبدًا (ليها وقت النهارده) — لو مفيش بديل مناسب بتفضل ظاهرة بالأحمر «محتاجة حد يغطي» */
-var PLAN_MUST=['conf','confsp','conftoday','sudden','waittoday','waitnext','waitnut','nonext','eval','renew','svc','debt','late','mgr','call','kashf0'];
+var PLAN_MUST=['nonextrev','conf','confsp','conftoday','sudden','waittoday','waitnext','waitnut','nonext','eval','renew','svc','debt','late','mgr','call','kashf0'];
 function planAnyPresent(t,g,o){ var br=t.br, R=PLAN_ROLES[br]||{}, out=[];
   Object.keys(R).forEach(function(rk){ var n=R[rk]; if(!n||n===o||!planHere(n,br)) return; if(rk==='H'&&PLAN_H_OK.indexOf(g)<0) return; if((t.sec==='evening'||PLAN_EVE_G.indexOf(g)>=0)&&n===planAM(br)) return; out.push(n); });
   Object.keys(planTeam().p).forEach(function(n){ var x=planTeam().p[n]; if(x.st==='cover'&&x.br===br&&out.indexOf(n)<0) out.push(n); });
@@ -12890,12 +12899,12 @@ function planRef(key){
   PLAN_ST[key]=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   planRender(); planSaveRaw('PLAN|'+key, JSON.stringify(o));
 }
-var PLAN_AUTO_G={stop:'مواعيده الجاية تتلغى + يتشال من شيت التثبيت (أو «✋ مش هيوقف جلسات» لو هيكمل)', idle:'يتحجزله ميعاد أو تتكتب ملحوظة (ولو قال هييجي يوم وما جاش ترجع تتفتح)', conftoday:'الموعد يبقى Confirmed أو Cancelled أو يوصل', late:'تتكتب ملحوظة على الموعد في Medicolize (هيوصل امتى / ما ردش)', waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'المريض يحجز، أو الموعد يتقفل Completed بملحوظة باللي حصل، أو يتكتب اتصالين بوقتهم', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', recur:'تتكتب ملحوظة باللي حصل، أو أول مواعيده الجاية تبقى Confirmed', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
+var PLAN_AUTO_G={nonextrev:'يتحجزله ميعاد', stop:'مواعيده الجاية تتلغى + يتشال من شيت التثبيت (أو «✋ مش هيوقف جلسات» لو هيكمل)', idle:'يتحجزله ميعاد أو تتكتب ملحوظة (ولو قال هييجي يوم وما جاش ترجع تتفتح)', conftoday:'الموعد يبقى Confirmed أو Cancelled أو يوصل', late:'تتكتب ملحوظة على الموعد في Medicolize (هيوصل امتى / ما ردش)', waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'المريض يحجز، أو الموعد يتقفل Completed بملحوظة باللي حصل، أو يتكتب اتصالين بوقتهم', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', recur:'تتكتب ملحوظة باللي حصل، أو أول مواعيده الجاية تبقى Confirmed', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
   eval:'يتحجز تقييم', evalamg:'يتحجز تقييم', evalamgd:'يتحجز إعادة تقييم مع د. أمجد', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'اسم الموعد يتغير لـ «الغاء مفاجئ» على Medicolize (أي حالة) + خصم الجلسة من تاني مرة'};
 function planIsAuto(t){ if(t.carry) return false; var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_AUTO_G[x]; }); }
 /* كارت المهمة — سطرين: الاسم/الساعة + المطلوب · أزرار سريعة على الطرف · الباقي يتفتح بدوسة (حالة الفتح محفوظة بين الرسمات) */
 var PLAN_OPEN={};
-var PLAN_CALLG={call:1,debtph:1,idle:1,drop:1,streak:1,recur:1,conf:1,confsp:1,miss:1,nonext:1,evalamg:1,evalamgd:1,waitnext:1,waitnut:1,waittoday:1,conftoday:1,late:1};
+var PLAN_CALLG={nonextrev:1,call:1,debtph:1,idle:1,drop:1,streak:1,recur:1,conf:1,confsp:1,miss:1,nonext:1,evalamg:1,evalamgd:1,waitnext:1,waitnut:1,waittoday:1,conftoday:1,late:1};
 function planTog(h){ PLAN_OPEN[h]=!PLAN_OPEN[h]; var e=document.getElementById('px_'+h); if(e) e.style.display=PLAN_OPEN[h]?'block':'none'; }
 function planRow(t){
   var st=PLAN_ST[t.key]||{}, h=planHash(t.key), state=planState(t), phone=(t.phone||'').replace(/_/g,''), k=t.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -13255,7 +13264,7 @@ var AL_NOWONLY=false, AL_BRF='', AL_REFF='', AL_EVF='', AL_ACT2='';
 function alRowBr(x){ return x._br||(typeof alBranchOf==='function'?alBranchOf(x.doctor,x.branch):x.branch)||''; }
 /* المريض ده اتعمله إيه النهارده: من مهامه في خطة اليوم (السيستم/يدوي/رفض/ما ردش) · أو تعليق النهارده = يدوي */
 var AL_HOWMAP={}, AL_HOWMAP_AT={};
-var AL_KIND_G={stop:['stop'], sudden:['sudden'], nonext:['nonext'], missing:['miss'], kashf:['kashf','kashf0','fix'], svcgap:['svc'], finished:['renew'], evaldue:['eval','evalamg','evalamgd'], streaks:['streak'], milestones:['call'], dropped:['drop','idle']};
+var AL_KIND_G={stop:['stop'], sudden:['sudden'], nonext:['nonext','nonextrev'], missing:['miss'], kashf:['kashf','kashf0','fix'], svcgap:['svc'], finished:['renew'], evaldue:['eval','evalamg','evalamgd'], streaks:['streak'], milestones:['call'], dropped:['drop','idle']};
 function alHowMap(kind){ var ck=kind||'_'; if(AL_HOWMAP[ck]&&Date.now()-(AL_HOWMAP_AT[ck]||0)<3000) return AL_HOWMAP[ck]; var G=AL_KIND_G[kind]||null, m={}, pr={sys:5,man:4,ref:3,nr:2,todo:1,snz:0}, UU=/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
   try{ if(!Object.keys(PLAN_TASKIDX||{}).length&&typeof planTasks==='function'&&ALERTS_DATA){ var TT=planTasks(); ['mgr','morning','rec','office','evening'].forEach(function(sc){ (TT[sc]||[]).forEach(function(t){ PLAN_TASKIDX[t.key]=t; }); }); } }catch(e){}
   try{ Object.keys(PLAN_TASKIDX||{}).forEach(function(k){ var t=PLAN_TASKIDX[k]; if(G&&!(t.grp||[]).some(function(g){ return G.indexOf(g)>=0; })) return; var pid=t.pid||((String(k).match(UU)||[])[0])||(String(k).split('|').pop()||''); if(!pid) return; var h=planHow(t); if(!m[pid]||pr[h]>pr[m[pid]]) m[pid]=h; }); }catch(e){}

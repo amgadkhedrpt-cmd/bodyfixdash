@@ -119,7 +119,7 @@ def main():
         html = html.replace("<!--CARDS-->", rv_html + digest_plan.cards(today_s, res, digest_fin.LAST_P, alerts, prev))
         if not os.environ.get("DIGEST_PREVIEW"):
             card_save(today_s, digest_plan.CARDS_OUT)
-            for name, (dn, tt) in (prev or {}).items():   # نتيجة كارت امبارح — للتقرير الأسبوعي
+            for name, (dn, tt, *_c) in (prev or {}).items():   # نتيجة كارت امبارح — للتقرير الأسبوعي
                 save_kv(f"CARDREV|{today_s}|{name}", f"{dn}/{tt}", "card")
     except Exception as e:
         print(f"digest cards: {e}")

@@ -11761,7 +11761,9 @@ function planCardShow(force){
   var old=document.getElementById('planCardModal'); if(old) old.remove();
   var secs=(o.secs||[]).map(function(sc){ return '<div style="margin-top:10px"><b>'+alEsc(sc.t)+'</b> <span style="color:var(--mute);font-size:.7rem">('+sc.items.length+')</span>'+
     '<ul style="margin:4px 0;padding-inline-start:20px;line-height:1.9">'+sc.items.map(function(it){ return '<li>'+alEsc(it.x)+'</li>'; }).join('')+'</ul></div>'; }).join('');
-  var pr=o.prev?'<div style="margin-top:4px;font-size:.75rem;color:'+(o.prev[0]>=0.8*o.prev[1]?'var(--g)':'var(--r)')+'">كارت امبارح: اتعمل '+o.prev[0]+' من '+o.prev[1]+'</div>':'';
+  var pc3=o.prev&&o.prev[2]||null;
+  var pr=o.prev?'<div style="margin-top:4px;font-size:.75rem;color:'+(o.prev[0]>=0.8*o.prev[1]?'var(--g)':'var(--r)')+'">كارت امبارح: اتعمل '+o.prev[0]+' من '+o.prev[1]+'</div>'+
+    (pc3?'<div style="font-size:.66rem;color:var(--mute)">🤖 السيستم '+(pc3.sys||0)+' · ✋ يدوي '+(pc3.man||0)+' · 🚫 رفض '+(pc3.ref||0)+' · ⬜ ما اتعملش '+(o.prev[1]-o.prev[0])+'</div>':''):'';
   var m=document.createElement('div'); m.id='planCardModal';
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px';
   m.innerHTML='<div dir="rtl" style="background:var(--card);color:var(--txt);border:2px solid #0f766e;border-radius:14px;max-width:560px;width:100%;max-height:86vh;overflow:auto;padding:16px 18px;font-family:Cairo,sans-serif;font-size:.85rem">'+
@@ -12561,7 +12563,7 @@ function planSummaryObj(){
     var stt=planState(t); if(stt==='snz') return; var s=PLAN_ST[t.key]||{}, m=String(t.key||'').match(UU);
     (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ if(g==='risk') return;
       var ci=sec==='mgr'?{owner:'المدير'}:planCoverInfo(t,g), tm={}; try{ tm=planTaskTimes(t,g)||{}; }catch(e){}
-      tasks.push({k:String(t.key||''), g:g, gt:(PLAN_GT[g]||['',g])[1], sec:sec, br:t.br||'', o:ci.owner||'', from:ci.from||'', st:stt, how:stt==='done'?(s.s==='ref'?'ref':s.s==='done'?'btn':'sys'):'', reason:s.reason||'',
+      tasks.push({k:String(t.key||''), g:g, gt:(PLAN_GT[g]||['',g])[1], sec:sec, br:t.br||'', o:ci.owner||'', from:ci.from||'', st:stt, how:stt==='done'?({sys:'sys',man:'btn',ref:'ref'}[planHow(t)]||'btn'):'', reason:s.reason||'', note:String(s.note||'').slice(0,120),
         by:s.by||'', at:s.at||'', n:String(t.name||'').replace(/<[^>]+>/g,''), pid:t.pid||(m?m[0]:''), done:tm.done||''});
     }); }); });
   return {sum:sum, items:items, perf:perf, tasks:tasks};
@@ -12659,6 +12661,16 @@ function planState(t){
 }
 /* المهام اللي بتتقفل لوحدها من Medicolize — مفيش زرار ✅ (الملحوظة / ما ردش / أجّل موجودين) */
 /* النوع الأول: هدفها مكالمة ورد المريض → الملحوظة بتقفلها · الباقي لازم حاجة تتم على السيستم (أو «🚫 رفض» بسبب) */
+/* اتقفلت إزاي: sys = السيستم قفلها (الشغل ظهر على Medicolize) · man = بإيد السكرتيرة (✅ أو ملحوظة) · ref = رفض · nr = ما ردش · todo = فاضل */
+function planHow(t){ var st=PLAN_ST[t.key]||{}, s=planState(t);
+  if(s==='snz') return 'snz'; if(s==='nr') return 'nr'; if(s!=='done') return 'todo';
+  if(st.s==='ref') return 'ref'; if(st.s==='done') return 'man'; if(st.s==='auto'||t.sys) return 'sys'; return 'man'; }
+var PLAN_HOW_L={todo:['⬜','فاضل','var(--r)'], sys:['🤖','السيستم','#10b981'], man:['✋','يدوي','#a78bfa'], ref:['🚫','رفض','#f97316'], nr:['📞','ما ردش','#f59e0b']};
+var PLAN_HOW_F={};
+function planHowBar(gk,A){ var c={}; A.forEach(function(t){ var h=planHow(t); if(h!=='snz') c[h]=(c[h]||0)+1; });
+  var cur=PLAN_HOW_F[gk]||'', ch=function(v,txt,col){ var on=cur===v; return '<span onclick="PLAN_HOW_F[\''+gk+'\']=\''+(on?'':v)+'\';planRender()" style="cursor:pointer;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:12px;color:'+(on?'#fff':col)+';border:1px solid '+col+';background:'+(on?col:'transparent')+'">'+txt+'</span>'; };
+  var keys=['todo','sys','man','ref','nr'].filter(function(k){ return c[k]; }); if(keys.length<2&&!cur) return '';
+  return '<div style="display:flex;gap:5px;flex-wrap:wrap;padding:4px 2px 8px">'+ch('','الكل '+(A.length),'var(--mute)')+keys.map(function(k){ var L=PLAN_HOW_L[k]; return ch(k,L[0]+' '+L[1]+' '+c[k],L[2]); }).join('')+'</div>'; }
 var PLAN_NOTE_OK={call:1, drop:1, idle:1, streak:1, recur:1};
 function planNoteCloses(t){ var g=(t&&t.grp)||[]; return g.length>0&&g.every(function(x){ return PLAN_NOTE_OK[x]; }); }
 var PLAN_REF_R=['مش عايز','مسافر','السعر','هيرجع بعدين'];
@@ -12683,7 +12695,8 @@ function planRow(t){
   var st=PLAN_ST[t.key]||{}, h=planHash(t.key), state=planState(t), phone=(t.phone||'').replace(/_/g,''), k=t.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   var ci0=(t.grp&&t.grp[0])?planCoverInfo(t,t.grp[0]):{};
   if(ci0.from){ t=Object.assign({},t,{lines:[ci0.need?'<span style="color:var(--r);font-size:.62rem;font-weight:800">⚠️ '+alEsc(ci0.from)+' غايبة ومفيش حد مناسب يمسكها — المهمة دي ما ينفعش تتأجل: اختار حد يغطي من «👥 الفريق النهارده»</span>':ci0.share?'<span style="color:#38bdf8;font-size:.6rem">⚖️ اتنقلت من '+alEsc(ci0.from)+' ← '+alEsc(ci0.owner)+' لتخفيف الحمل (فيه غياب النهارده)</span>':ci0.post?'<span style="color:#f59e0b;font-size:.6rem">⏸ متأجل بسبب غياب '+alEsc(ci0.from)+'</span>':'<span style="color:#38bdf8;font-size:.6rem">🔁 منقولة من '+alEsc(ci0.from)+' (غايبة) ← '+alEsc(ci0.owner)+'</span>'].concat(t.lines||[])}); }
-  var badge=(st.s==='ref')?'<span style="color:#f97316;font-weight:800">🚫 رفض: '+alEsc(st.reason||'')+'</span>':(state==='done'&&t.sys&&st.s!=='done')?'<span style="color:var(--g);font-weight:800">✅ '+alEsc(t.sys)+'</span>':state==='done'?'<span style="color:var(--g);font-weight:800">✅ اتعمل</span>':state==='nr'?'<span style="color:var(--am);font-weight:800">📞 ما ردش</span>':state==='snz'?'<span style="color:var(--mute);font-weight:800">⏭ متأجل لـ '+alEsc(st.until)+'</span>':'';
+  var hw=planHow(t), whoAt=(st.by&&st.by!=='السيستم'?' — '+alEsc(st.by):'')+(st.at?' '+alEsc(String(st.at).split('،').pop().trim()):'');
+  var badge=(hw==='ref')?'<span style="color:#f97316;font-weight:800">🚫 رفض: '+alEsc(st.reason||'')+whoAt+'</span>':hw==='sys'?'<span style="color:#10b981;font-weight:800">🤖 السيستم: '+alEsc(t.sys||st.what||'اتقفلت لوحدها')+'</span>':hw==='man'?'<span style="color:#a78bfa;font-weight:800">✋ يدوي'+whoAt+'</span>':state==='nr'?'<span style="color:var(--am);font-weight:800">📞 ما ردش</span>':state==='snz'?'<span style="color:var(--mute);font-weight:800">⏭ متأجل لـ '+alEsc(st.until)+'</span>':'';
   var btn=function(s,txt,col){ return '<button onclick="event.stopPropagation();planAct(\''+k+'\',\''+s+'\')" style="background:'+col+';border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">'+txt+'</button>'; };
   var ico=function(s,txt,col,tip){ return '<button title="'+tip+'" aria-label="'+tip+'" onclick="event.stopPropagation();planAct(\''+k+'\',\''+s+'\')" style="background:'+col+';border:1px solid var(--brd);color:var(--txt);border-radius:8px;min-width:34px;height:30px;padding:0 8px;font-family:Cairo,sans-serif;font-size:.62rem;font-weight:800;cursor:pointer;white-space:nowrap">'+txt+'</button>'; };
   var isCall=(t.grp||[]).some(function(g){ return PLAN_CALLG[g]; }), auto=planIsAuto(t), live=state==='open'||state==='nr';
@@ -12748,6 +12761,8 @@ function planRender(){
     '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
       '<div style="display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:6px"><span>اتعمل <b style="color:var(--g)">'+dn+'</b> من <b>'+vis.length+'</b> مهمة'+(PLAN_VIEW?' (مهام '+alEsc(PLAN_VIEW)+')':'')+' · منهم <b>'+vis.filter(function(t){ var x=PLAN_ST[t.key]||{}; return planState(t)==='done'&&x.s!=='done'; }).length+'</b> اتعملوا على Medicolize و<b>'+vis.filter(function(t){ return (PLAN_ST[t.key]||{}).s==='done'; }).length+'</b> اتقفلوا بزرار ✅</span><b>'+pc+'%</b></div>'+
       '<div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:linear-gradient(90deg,#10b981,#00c6ff)"></div></div>'+
+      (function(){ var c={}; vis.forEach(function(t){ var h=planHow(t); c[h]=(c[h]||0)+1; });
+        return '<div style="font-size:.62rem;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">'+['sys','man','ref','nr','todo'].filter(function(k){ return c[k]; }).map(function(k){ var L=PLAN_HOW_L[k]; return '<span style="color:'+L[2]+'">'+L[0]+' '+L[1]+' <b>'+c[k]+'</b></span>'; }).join('')+'</div>'; })()+
       (PLAN_LOADED?'':'<div style="font-size:.56rem;color:var(--mute);margin-top:5px">⏳ بيجيب حالة المهام من الشيت...</div>')+'</div>';
   try{ h+=planTeamPanel(); }catch(e){}
   h+=planSecPanel();
@@ -12801,9 +12816,10 @@ function planRender(){
         var fk=function(t){ return !PLAN_CONF_F||(PLAN_CONF_F==='risk'?t.risk:!t.risk); };
         open=open.filter(fk); done=done.filter(fk); snz=snz.filter(fk);
       }
-      var od=PLAN_OPEN_DONE[gk];
-      return head+'<div style="padding:0 6px 8px 0;border-right:2px solid var(--brd);margin:0 8px 10px 0">'+cfBar+
-        (open.length?open.map(planRow).join(''):'<div style="font-size:.64rem;color:var(--g);padding:6px 2px">✅ خلصت كل الأسامي هنا</div>')+
+      var od=PLAN_OPEN_DONE[gk], hb=planHowBar(gk,A), hf=PLAN_HOW_F[gk]||'';
+      if(hf){ var fh=function(t){ return planHow(t)===hf; }; open=open.filter(fh); done=done.filter(fh); snz=snz.filter(fh); if(done.length) od=true; }
+      return head+'<div style="padding:0 6px 8px 0;border-right:2px solid var(--brd);margin:0 8px 10px 0">'+hb+cfBar+
+        (open.length?open.map(planRow).join(''):(hf?'':'<div style="font-size:.64rem;color:var(--g);padding:6px 2px">✅ خلصت كل الأسامي هنا</div>'))+
         (done.length?'<div onclick="PLAN_OPEN_DONE[\''+gk+'\']=!PLAN_OPEN_DONE[\''+gk+'\'];planRender()" style="font-size:.62rem;color:var(--mute);cursor:pointer;padding:4px 2px">'+(od?'▾':'▸')+' اتعمل ('+done.length+')</div>'+(od?done.map(planRow).join(''):''):'')+
         (snz.length?'<div style="font-size:.58rem;color:var(--mute);padding:2px">⏭ '+snz.length+' متأجلين</div>':'')+'</div>';
     }).join('');
@@ -13026,8 +13042,16 @@ function alPickOptions(kind){
 var AL_NOWONLY=false, AL_BRF='', AL_REFF='', AL_EVF='', AL_ACT2='';
 /* الفلاتر الموحدة فوق كل قايمة: الفرع · لسه محدش عمل حاجة / اتعمل النهارده (ملحوظة النهارده أو اتعلّم في الخطة) */
 function alRowBr(x){ return x._br||(typeof alBranchOf==='function'?alBranchOf(x.doctor,x.branch):x.branch)||''; }
+/* المريض ده اتعمله إيه النهارده: من مهامه في خطة اليوم (السيستم/يدوي/رفض/ما ردش) · أو تعليق النهارده = يدوي */
+var AL_HOWMAP={}, AL_HOWMAP_AT={};
+var AL_KIND_G={sudden:['sudden'], nonext:['nonext'], missing:['miss'], kashf:['kashf','kashf0','fix'], svcgap:['svc'], finished:['renew'], evaldue:['eval','evalamg','evalamgd'], streaks:['streak'], milestones:['call'], dropped:['drop','idle']};
+function alHowMap(kind){ var ck=kind||'_'; if(AL_HOWMAP[ck]&&Date.now()-(AL_HOWMAP_AT[ck]||0)<3000) return AL_HOWMAP[ck]; var G=AL_KIND_G[kind]||null, m={}, pr={sys:5,man:4,ref:3,nr:2,todo:1,snz:0}, UU=/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  try{ if(!Object.keys(PLAN_TASKIDX||{}).length&&typeof planTasks==='function'&&ALERTS_DATA){ var TT=planTasks(); ['mgr','morning','rec','office','evening'].forEach(function(sc){ (TT[sc]||[]).forEach(function(t){ PLAN_TASKIDX[t.key]=t; }); }); } }catch(e){}
+  try{ Object.keys(PLAN_TASKIDX||{}).forEach(function(k){ var t=PLAN_TASKIDX[k]; if(G&&!(t.grp||[]).some(function(g){ return G.indexOf(g)>=0; })) return; var pid=t.pid||((String(k).match(UU)||[])[0])||(String(k).split('|').pop()||''); if(!pid) return; var h=planHow(t); if(!m[pid]||pr[h]>pr[m[pid]]) m[pid]=h; }); }catch(e){}
+  AL_HOWMAP[ck]=m; AL_HOWMAP_AT[ck]=Date.now(); return m; }
+function alRowHow(x,kind){ var h=alHowMap(kind||AL_INOPEN)[x.pid]; if((!h||h==='todo'||h==='snz')&&alActedToday(x)) return 'man'; return (h&&h!=='snz')?h:'todo'; }
 function alUniOk(kind,x){ if(AL_BRF&&kind!=='milestones'&&alRowBr(x)!==AL_BRF) return false;
-  if(AL_ACT2&&kind!=='streaks'){ var a=alActedToday(x); if(AL_ACT2==='todo'?a:!a) return false; } return true; }
+  if(AL_ACT2&&kind!=='streaks'&&alRowHow(x,kind)!==AL_ACT2) return false; return true; }
 var AL_REF_KINDS={milestones:1, finished:1, nonext:1, streaks:1, missing:1, svcgap:1, kashf:1};
 /* في الجلسة دلوقتي: الحالة Checked In / In Progress، أو ميعاده بدأ من أقل من ساعة ولسه ما خلصش */
 function alInSession(x){
@@ -13098,9 +13122,10 @@ function alPickChips(kind){
       row+=u(!AL_BRF,'var(--acc)','كل الفروع',"AL_BRF='';alOpenPick('"+kind+"',"+pvU+")")+AL_BRANCHES.map(function(b){ var n=L.filter(function(x){ return alRowBr(x)===b.key; }).length;
         return u(AL_BRF===b.key,'var(--acc)',b.label+' ('+n+')',"AL_BRF='"+b.key+"';alOpenPick('"+kind+"',"+pvU+")"); }).join('');
     }
-    if(kind!=='streaks'){ var nA=L.filter(alActedToday).length;
-      row+=u(AL_ACT2==='todo','#ef4444','⬜ لسه محدش عمل حاجة ('+(L.length-nA)+')',"AL_ACT2=AL_ACT2==='todo'?'':'todo';alOpenPick('"+kind+"',"+pvU+")")+
-           u(AL_ACT2==='done','#10b981','✅ اتعمل النهارده ('+nA+')',"AL_ACT2=AL_ACT2==='done'?'':'done';alOpenPick('"+kind+"',"+pvU+")");
+    if(kind!=='streaks'){ var cH={}; L.forEach(function(x){ var h=alRowHow(x,kind); cH[h]=(cH[h]||0)+1; });
+      var HL={todo:['⬜ لسه محدش عمل حاجة','#ef4444'], sys:['🤖 اتعمل على السيستم','#10b981'], man:['✋ اتعمل يدوي','#a78bfa'], ref:['🚫 رفض','#f97316'], nr:['📞 ما ردش','#f59e0b']};
+      var ks=['todo','sys','man','ref','nr'].filter(function(k){ return cH[k]; });
+      if(ks.length>1||AL_ACT2) row+=ks.map(function(k){ return u(AL_ACT2===k,HL[k][1],HL[k][0]+' ('+cH[k]+')',"AL_ACT2=AL_ACT2==='"+k+"'?'':'"+k+"';alOpenPick('"+kind+"',"+pvU+")"); }).join('');
     }
     if(row) d.innerHTML+='<span style="width:100%;height:0"></span>'+row;
   })();

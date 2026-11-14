@@ -1,5 +1,5 @@
 {
- "at": "2026-11-14T14:06:38.471Z",
+ "at": "2026-11-14T14:37:26.583Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,8 +91,8 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "conf": {
-  "confirmed_now": 30,
-  "new": 22
+  "confirmed_now": 31,
+  "new": 2
  },
  "kinds": {
   "pay": {
@@ -115,7 +115,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20593,
+    "rows": 20596,
     "cols": [
      "id",
      "type",
@@ -367,7 +367,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131176,
+    "rows": 131183,
     "cols": [
      "start",
      "status",
@@ -386,10 +386,8 @@
     "values": {
      "status": [
       "CANCELED",
-      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
-      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -422,7 +420,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 78,
+    "rows": 80,
     "cols": [
      "aid",
      "start",
@@ -605,7 +603,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17428,
+    "rows": 17431,
     "cols": [
      "id",
      "referenceId",
@@ -847,10 +845,10 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "03f8824c4fa6f4f6"
+  "data/fin_c.enc": "2021d80c0a49e3f0"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 63
+ "secs": 59
 }

@@ -1544,6 +1544,38 @@ def build_alerts(appointments, now=None, packages=None):
         })
     recur_cancel.sort(key=lambda x: (-x["lost"], x["future"][0]["time"]))
 
+    # 🛑 مكتوب في ملحوظة أي ميعاد النهارده إنه هيوقف / مسافر / مش هيكمل → لو لسه محجوزله مواعيد جاية (أو مثبت — الصفحة بتشوف الشيت)
+    #    المهمة: الغي مواعيده الجاية + شيله من شيت التثبيت. had_future = كان ليه مواعيد جاية النهارده (عشان لما تتلغى تتحسب 🤖)
+    STOP_RE = re.compile(r"وقف(?!ل)|موقف|مش (?:هي|هت|ه)?كمل|مش هيكمل|مش هتكمل|سافر|مسافر|هيسافر|هتسافر|هايسافر")
+    stop_notes = []
+    try:
+        import os as _os, json as _json
+        fn_ = _os.path.join(".session", "stop_seen.json")
+        try:
+            sseen = _json.load(open(fn_, encoding="utf-8"))
+        except Exception:
+            sseen = {}
+        if sseen.get("date") != today.isoformat():
+            sseen = {"date": today.isoformat(), "had": {}}
+        for v in patients_all.values():
+            tod = [a for a in v if a["start"].date() == today and STOP_RE.search((a.get("note") or ""))]
+            if not tod:
+                continue
+            a0 = sorted(tod, key=lambda a: a["start"])[-1]
+            fut = sorted([a for a in v if a["start"] > now and a["status"] in BOOKED and not _fu_kind(a["type"])], key=lambda a: a["start"])
+            pid_ = a0.get("pid") or ""
+            if fut:
+                sseen["had"][pid_] = 1
+            ref = fut[0] if fut else next((a for a in sorted(v, key=lambda a: a["start"], reverse=True) if not _fu_kind(a["type"])), a0)
+            stop_notes.append({"pid": pid_, "name": a0["name"], "phone": a0["phone"], "doctor": ref["doctor"], "branch": ref["branch"],
+                               "note": (a0.get("note") or "").strip()[:200], "by": a0.get("by") or "", "ntype": a0["type"],
+                               "future": [{"time": a["start"].isoformat(), "type": a["type"], "doctor": a["doctor"], "status": a["status"].title()} for a in fut[:6]],
+                               "future_n": len(fut), "had_future": bool(sseen["had"].get(pid_))})
+        _os.makedirs(".session", exist_ok=True)
+        _json.dump(sseen, open(fn_, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️ stop notes: {e}")
+
     # 💸 ملحوظات الدفع المكتوبة على المريض في Medicolize (ملحوظة الموعد آخر 45 يوم + تفاصيل المريض) → بتظهر في مهام التحصيل وأداة التحصيل
     PAY_RE = re.compile(r"دفع|هيدفع|يدفع|دافع|فلوس|باقي|متبقي|تحصيل|حصل|فاتور|انستا|insta|فودافون|كاش|تحويل|خصم|رصيد|مبلغ|جنيه")
     pay_notes, soon, fu_notes, appt_notes = {}, [], {}, {}
@@ -1591,6 +1623,7 @@ def build_alerts(appointments, now=None, packages=None):
         "dropped": dropped,
         "streaks": streaks,
         "recur_cancel": recur_cancel,
+        "stop_notes": stop_notes,
         "today_no_next": no_next,
         "missing_today": missing_today,
         "svc_gap": svc_gap,

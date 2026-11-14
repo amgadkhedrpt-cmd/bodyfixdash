@@ -12477,6 +12477,9 @@ function planCashOwner(t){
 function planRoomClinic(room){ var m=String(room||'').toUpperCase().replace(/\s+/g,'').match(/([PGF])-?(\d+)/); if(!m) return 0; var n=+m[2];
   if(m[1]==='G') return 1; if(m[1]==='F') return 2; return n<=6?1:2; }
 function planOwner0(t,g){
+  if(g==='nonext'&&t.br==='FIX ZONE'){ var tdz=(ALERTS_DATA&&ALERTS_DATA.today)||'', az=PLAN_ST['asg|'+tdz+'|'+t.sec+'|nonext|'+t.br]; if(az&&az.by) return az.by;
+    var Rz=PLAN_ROLES[t.br]||{}, hz=t.time?new Date(t.time).getHours():12;   // الدقي: موعده قبل 5 → الصباحي · من 5 وبعد → المسائي
+    return hz<17?(Rz.DM||Rz.DE||''):(Rz.DE||Rz.DM||''); }
   if(g==='nonext'&&t.br!=='FIX ZONE'){ var tdn=(ALERTS_DATA&&ALERTS_DATA.today)||'', an=PLAN_ST['asg|'+tdn+'|'+t.sec+'|nonext|'+t.br]; if(an&&an.by) return an.by;
     var Rn=PLAN_ROLES[t.br]||{}, cl=planRoomClinic(t.room);
     if(!cl){ var gdn=(typeof resolveDocGender==='function')?resolveDocGender(t.doctor):''; cl=gdn==='female'?2:gdn?1:0; }   // مفيش أوضة → رجالي عيادة 1 · ستات عيادة 2

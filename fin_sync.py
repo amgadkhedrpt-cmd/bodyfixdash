@@ -144,7 +144,8 @@ def table(rows, kind=""):
     cols = []
     seen = set()
     drop = DROP_COLS.get(kind, set())
-    fl = [{k: v for k, v in flat(r).items() if v is not None and k not in drop and k != "id" and not k.endswith(".id")}
+    keep_id = kind == "inv"   # رقم الفاتورة: بيربطها بعدد الجلسات اللي جواها (packages.json) — تحليل الكشوفات
+    fl = [{k: v for k, v in flat(r).items() if v is not None and k not in drop and (k != "id" or keep_id) and not k.endswith(".id")}
           for r in rows if isinstance(r, dict)]
     for f in fl:
         for k in f:
@@ -401,6 +402,7 @@ def main():
                 old["xpv"] = max(old.get("xpv", 0), o.get("xpv", 0))
                 old["aptv"] = max(old.get("aptv", 0), o.get("aptv", 0))
                 old["opsv"] = max(old.get("opsv", 0), o.get("opsv", 0))
+                old["invv"] = max(old.get("invv", 0), o.get("invv", 0))
                 old["att_op"] = o.get("att_op") or old.get("att_op") or ""
                 old.setdefault("exp_types", {}).update(o.get("exp_types", {}))
                 for kind, bs in (o.get("kinds") or {}).items():
@@ -420,6 +422,9 @@ def main():
     if old.get("opsv", 0) < 3:                    # nutrition steps: paid date (revenue = collected) + slimming electric-current packages: fetch again
         data["kinds"].pop("ops", None)
     data["opsv"] = 3
+    if old.get("invv", 0) < 2:                    # invoices keep their id (package size from packages.json): fetch again
+        data["kinds"].pop("inv", None)
+    data["invv"] = 2
     data["att_op"] = old.get("att_op", "")
     # the history is filled on every run; once complete, scheduled runs refresh only a few times a day (keeps the repo small)
     full = all(len(data["kinds"].get(kd, {}).get(b, {})) >= len(ALL) - 2 for kd in ("pay", "exp", "inv", "apt")
@@ -697,7 +702,7 @@ def main():
     old_h = json.load(open(META)).get("hash", {}) if os.path.exists(META) else {}
     META_D["hash"] = {}
     for fn, keep in ((ENC, lambda k, kd: k not in (cur_ops if kd == "ops" else cur)), (ENC_C, lambda k, kd: k in (cur_ops if kd == "ops" else cur))):
-        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}), "xpv": data.get("xpv", 0), "aptv": data.get("aptv", 0), "opsv": data.get("opsv", 0), "att_op": data.get("att_op", ""),
+        part = {"v": 1, "start": START, "branches": data["branches"], "at": data["at"], "types": data.get("types", {}), "exp_types": data.get("exp_types", {}), "xpv": data.get("xpv", 0), "aptv": data.get("aptv", 0), "opsv": data.get("opsv", 0), "invv": data.get("invv", 0), "att_op": data.get("att_op", ""),
                 "kinds": {kd: {b: {k: v for k, v in ms.items() if keep(k, kd)} for b, ms in bs.items()} for kd, bs in data["kinds"].items()}}
         body = dict(part, at="")
         for bs in body["kinds"].values():

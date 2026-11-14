@@ -619,6 +619,11 @@ def build(now, alerts, ctx, paid):
            '<h2 style="margin:22px 0 0;padding-top:10px;border-top:3px solid #0f172a">👔 ليك إنت</h2>']
     if perf:
         out += ['<h3 style="margin:14px 0 6px">📈 أداء النهارده</h3>', perf]
+    try:
+        import digest_fin as _df
+        out.append(_df.exams_today(today_s, alerts, DASH_URL))
+    except Exception as e:
+        print(f"exams today: {e}")
     out.append("<!--PLAN-->")
     if probs:
         out += ['<h3 style="margin:18px 0 6px">🔴 مشاكل لسه مفتوحة</h3>',

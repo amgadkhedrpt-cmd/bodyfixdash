@@ -12837,7 +12837,7 @@ function alertsOpenEvalDue(fromNotes){
       '<span style="font-weight:900;font-size:.8rem;flex:1">🩺 محتاجين تقييم ('+ed.rows.length+')</span>'+
       '<button onclick="document.getElementById(\'al-modal\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;cursor:pointer;font-family:Cairo,sans-serif">✕</button></div>'+
     (pend?'':'<div style="font-size:.56rem;color:var(--mute);margin-bottom:8px">كشف مع دكتور غير د. أمجد → إعادة تقييم مع د. أمجد (الهرم: أول مرة ييجي · الدقي: يوم زيارة د. أمجد) · أو 6 جلسات من غير تقييم (من آخر تقييم أو أول الكورس) · المريض بيفضل هنا لحد ما التقييم يتحجز أو يتعمل</div>')+
-    (pend?chips():'')+(alActiveBranches().some(function(b){return b.key==='FIX ZONE';})?'<div style="margin:0 0 8px">'+planAmgSel()+'</div>':'')+
+    (pend?chips():'')+'<div style="margin:0 0 8px">'+planAmgSel()+'</div>'+
     alActiveBranches().map(function(b){
       var arr=ed.rows.filter(function(x){return x._br===b.key&&(!pend||fx(x));});
       if(pend) arr.sort(function(a,c){ return (!a.next)-(!c.next)||String(a.next?a.next.time:'').localeCompare(String(c.next?c.next.time:'')); });

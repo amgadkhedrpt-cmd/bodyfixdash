@@ -217,8 +217,11 @@ def _owner_g(tasks, br, groups):
     return max(cnt, key=lambda o: cnt[o]) if cnt else None
 
 
+from datetime import date
+
+
 def _next_day(today_s):
-    from datetime import date, timedelta
+    from datetime import timedelta
     d = date.fromisoformat(today_s) + timedelta(days=1)
     while d.weekday() == 4:   # الجمعة إجازة
         d += timedelta(days=1)
@@ -283,6 +286,19 @@ def cards(today_s, res, P, alerts, prev_rev=None):
             why = (f'إعادة تقييم مع د. أمجد — كشف مع {str(k.get("doctor") or "").replace("Dr. ", "د. ").replace("Dr ", "د. ")} يوم {k.get("date", "")[8:]}/{k.get("date", "")[5:7]}' + (f' (فاتت {k["after"]} مرة)' if k.get("after") else "")) if k \
                 else f'جلسة {x.get("n")} من غير تقييم'
             put(ow, "🩺 احجزي تقييم قبل جلسته", (1 if k else 0, x.get("n") or 0, f'{H(x.get("name"))} — {H(why)}', "eval", [x.get("pid")], [x.get("name")], f'{x.get("name")} — {why}'))
+        # 🩺 الدقي: احجزي إعادة تقييم مع د. أمجد يوم زيارته (كل اللي كشفوا مع دكتور تاني ولسه ما اتحجزلهمش)
+        if br == "FIX ZONE":
+            ad = (alerts or {}).get("amgad_dokki_next")
+            adl = f"{WD[date.fromisoformat(ad).weekday()]} {int(ad[8:])}/{int(ad[5:7])}" if ad else "(لسه مفيش يوم لد. أمجد على السيستم)"
+            ow2 = _owner_g(T, br, ["evalamg", "eval"]) or ow
+            tom = {x.get("pid") for x in (alerts or {}).get("eval_due") or [] if x.get("branch") == br and x.get("day") == "tomorrow"}
+            for x in (alerts or {}).get("amgad_eval") or []:
+                if x.get("pid") in tom:
+                    continue
+                k = x.get("kashf") or {}
+                dr = str(k.get("doctor") or "").replace("Dr. ", "د. ").replace("Dr ", "د. ")
+                why = f'كشف مع {dr} يوم {k.get("date", "")[8:]}/{k.get("date", "")[5:7]}' + ("" if x.get("next") else " · مالوش ميعاد جاي")
+                put(ow2, f"🩺 احجزي إعادة تقييم مع د. أمجد يوم {adl}", (0, 0, f'{H(x.get("name"))} — {H(why)}', "eval2", [x.get("pid")], [x.get("name")], f'{x.get("name")} — {why}'))
         # 📞 تأكيد يوم الشغل الجاي · ⏳ مترحّل · ما اتعملش النهارده
         for o in {t["o"] for t in T if t.get("o") and t["o"] != "المدير"}:
             L = [t for t in T if t["o"] == o and t["st"] != "done"]
@@ -291,7 +307,7 @@ def cards(today_s, res, P, alerts, prev_rev=None):
                 put(o, f"📞 مواعيد {nd} لسه ما اتأكدتش", (0, 0, f"{len(cf)} ميعاد — في خطة اليوم", "plan", [t["k"] for t in cf], [t["n"] for t in cf], f"{len(cf)} ميعاد"))
             g = defaultdict(list)
             for t in L:
-                if t["g"] in ("conf", "confsp", "waitnext", "waitnut", "conftoday", "late", "waittoday", "risk", "mgr") or money_task(t) or t["g"] in ("kashf", "kashf0", "streak", "recur", "eval"):   # مهام يومها خلص مش بتترحّل
+                if t["g"] in ("conf", "confsp", "waitnext", "waitnut", "conftoday", "late", "waittoday", "risk", "mgr") or money_task(t) or t["g"] in ("kashf", "kashf0", "streak", "recur", "eval", "evalamg"):   # مهام يومها خلص مش بتترحّل
                     continue
                 g[t["gt"].split("(")[0].strip()].append(t)
             for gt, LL in sorted(g.items(), key=lambda kv: -len(kv[1])):
@@ -309,7 +325,8 @@ def cards(today_s, res, P, alerts, prev_rev=None):
             secs, rec = [], []
             pr = (prev_rev or {}).get(o)
             wa.append(f"\n👤 {o}" + (f" — كارت امبارح: اتعمل {pr[0]} من {pr[1]}" if pr else ""))
-            for sec in ORDER:
+            extra = [k for k in S[o] if k not in ORDER]
+            for sec in ORDER[:4] + extra + ORDER[4:]:
                 L = sorted(S[o].get(sec) or [], key=lambda x: (-x[0], -x[1]))
                 if not L:
                     continue
@@ -385,6 +402,7 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
     cur_tasks = {(t["k"]): t for t in (res or {}).get("tasks") or []}
     fin_now = {x.get("pid") for x in (alerts or {}).get("finished_packages") or []}
     eval_now = {x.get("pid") for x in (alerts or {}).get("eval_due") or []}
+    amg_now = {x.get("pid") for x in (alerts or {}).get("amgad_eval") or []}
     probs_now = defaultdict(set)
     for p in P or []:
         for key, _, _ in CARD_PROB:
@@ -398,6 +416,8 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
             return idv not in fin_now
         if kind == "eval":
             return idv not in eval_now
+        if kind == "eval2":
+            return idv not in amg_now
         if kind.startswith("prob:"):
             return idv not in probs_now[(br, kind[5:])]
         if kind == "plan":

@@ -1028,7 +1028,7 @@ def build_alerts(appointments, now=None, packages=None):
             })
     except Exception as e:
         print(f"⚠️ eval_due: {e}")
-    # ── كشف مع دكتور غير د. أمجد (الهرم) → أول مرة ييجي بعدها لازم إعادة تقييم مع د. أمجد ──
+    # ── كشف مع دكتور غير د. أمجد → إعادة تقييم مع د. أمجد: الهرم أول مرة ييجي بعدها · الدقي يتحجز يوم زيارة د. أمجد ──
     #    بيفضل ظاهر على جلسة النهارده/يوم الشغل الجاي لحد ما يحضر تقييم مع د. أمجد أو يتحجزله واحد
     try:
         is_amg = lambda a: "amgad" in (a["doctor"] or "").lower() or "أمجد" in (a["doctor"] or "")
@@ -1036,11 +1036,11 @@ def build_alerts(appointments, now=None, packages=None):
         by_pid = {x["pid"]: x for x in eval_due}
         for appts in patients.values():
             nxt = sorted([a for a in appts if a["start"].date() in (today, next_work) and a["status"] in LIVE_TODAY
-                          and a["branch"] == "BODYFIX Center" and not is_ex(a) and a["type"] not in EVAL_TYPES], key=lambda a: a["start"])
+                          and not is_ex(a) and a["type"] not in EVAL_TYPES], key=lambda a: a["start"])
             if not nxt:
                 continue
             ses = nxt[0]; sday = ses["start"].date()
-            ex = max((a for a in appts if is_ex(a) and a["status"] in ATTENDED and a["branch"] == "BODYFIX Center"
+            ex = max((a for a in appts if is_ex(a) and a["status"] in ATTENDED and a["branch"] == ses["branch"]
                       and (today - timedelta(days=60)) <= a["start"].date() < sday), key=lambda a: a["start"], default=None)
             if not ex or is_amg(ex):
                 continue
@@ -1060,6 +1060,29 @@ def build_alerts(appointments, now=None, packages=None):
     except Exception as e:
         print(f"⚠️ eval kashf_other: {e}")
     eval_due.sort(key=lambda x: (x["day"] != "today", not x.get("kashf_other"), -x["n"], x["session"]))
+    # ── الدقي: كل اللي كشفوا مع دكتور غير د. أمجد (آخر 60 يوم) ومستنيين إعادة تقييم معاه — يتحجزوا يوم زيارته ──
+    amgad_eval, amgad_dokki_next = [], None
+    try:
+        nd = sorted({a["start"].date() for v in patients.values() for a in v
+                     if a["branch"] == "FIX ZONE" and is_amg(a) and a["start"].date() >= today and a["status"] in LIVE_TODAY})
+        amgad_dokki_next = nd[0].isoformat() if nd else None
+        for appts in patients.values():
+            ex = max((a for a in appts if is_ex(a) and a["status"] in ATTENDED and a["branch"] == "FIX ZONE"
+                      and (today - timedelta(days=60)) <= a["start"].date() <= today), key=lambda a: a["start"], default=None)
+            if not ex or is_amg(ex):
+                continue
+            ed = ex["start"].date()
+            if any(a["type"] in EVAL_TYPES and is_amg(a) and a["start"].date() > ed and
+                   (a["status"] in ATTENDED or (a["start"].date() >= today and a["status"] in LIVE_TODAY)) for a in appts):
+                continue
+            nx = min((a for a in appts if a["start"].date() >= today and a["status"] in LIVE_TODAY), key=lambda a: a["start"], default=None)
+            amgad_eval.append({"name": ex["name"], "phone": ex["phone"], "pid": ex["pid"], "branch": "FIX ZONE",
+                               "kashf": {"date": ed.isoformat(), "doctor": ex["doctor"]},
+                               "after": len({a["start"].date() for a in appts if a["status"] in ATTENDED and ed < a["start"].date() <= today}),
+                               "next": ({"time": nx["start"].isoformat(), "type": nx["type"], "doctor": nx["doctor"]} if nx else None)})
+        amgad_eval.sort(key=lambda x: x["kashf"]["date"])
+    except Exception as e:
+        print(f"⚠️ amgad_eval: {e}")
 
     # ── خطة اليوم: مواعيد النهارده (للاستقبال) · تأكيد بكره · مواعيد Open قديمة · وقفوا بدري ──
     plan = {"today": [], "tomorrow_confirm": [], "confirm_special": [], "stale_open": [], "early_drop": []}
@@ -1469,6 +1492,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
+        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next,
         "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),

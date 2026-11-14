@@ -11,6 +11,7 @@ const cfPh=s=>{const d=cfDig(s).replace(/\D/g,'');return d.length>=10?d.slice(-1
 const cfWall=iso=>{if(!iso)return null;const d=new Date(iso);if(isNaN(d))return null;const s=d.toLocaleString('sv-SE',{timeZone:'Africa/Cairo',hour12:false});return Date.parse(s.replace(' ','T')+'Z')};
 const cfFmt=t=>{if(t==null)return '—';const d=new Date(t);return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+' '+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0')};
 const cfDay=t=>new Date(t).toISOString().slice(0,10);
+const cfDD=c=>Math.round((Date.parse(cfDay(c.aT))-Date.parse(cfDay(c.cT)))/864e5);   // فرق الأيام بالتاريخ (مش بالساعات): 0 = نفس يوم الموعد · 1 = اليوم اللي قبله
 // ---------- قراية ملف المكالمات ----------
 function cfCSV(txt){txt=txt.replace(/^﻿/,'');const first=txt.split(/\r?\n/)[0]||'';const dl=[',',';','\t'].sort((a,b)=>first.split(b).length-first.split(a).length)[0];
   const rows=[];let row=[],f='',q=false;for(let i=0;i<txt.length;i++){const c=txt[i];
@@ -170,16 +171,16 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    if(tot)CH_.push(['cfc2','بنأكد على كام من المواعيد أصلاً؟',{type:'doughnut',data:{labels:['اتأكد ('+nConf+')','مؤكد من الحجز ('+nBook+')','ما اتأكدش ('+nNone+')'],datasets:[{data:[nConf,nBook,nNone],backgroundColor:['#2a78d6','#1baf7a','#888780'],borderWidth:2}]},options:{cutout:'60%'}}]);
    const W=Object.entries(g).filter(([k,z])=>z.done>0).sort((a,b)=>b[1].done-a[1].done);
    if(W.length)CH_.push(['cfc3','لكل سكرتيرة — اللي أكدت عليهم: جم ولا ضاعوا؟',{type:'bar',data:{labels:W.map(([k,z])=>k+' ('+pc(z.lost/z.done)+')'),datasets:[bar('جه',W.map(([k,z])=>z.done-z.lost),'#1baf7a',{stack:'s'}),bar('ضاع',W.map(([k,z])=>z.lost),'#e34948',{stack:'s'})]},options:{indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true}}}},Math.max(160,W.length*42+60)]);
-   const BK=[['قبلها بيومين+',48,1e9],['قبلها بيوم',20,48],['نفس اليوم بدري',6,20],['قبلها بساعات',0,6]];
-   const L4=BK.map(b=>{const a=done.filter(c=>!c.atBook&&(c.aT-c.cT)/36e5>=b[1]&&(c.aT-c.cT)/36e5<b[2]);return {t:b[0],n:a.length,r:a.length?a.filter(lost).length/a.length:null}}).filter(x=>x.n);
+   const BK=[['قبلها بيومين+',c=>cfDD(c)>=2],['قبلها بيوم',c=>cfDD(c)===1],['نفس اليوم — قبلها بـ3 ساعات+',c=>cfDD(c)===0&&(c.aT-c.cT)/36e5>=3],['نفس اليوم — أقل من 3 ساعات',c=>cfDD(c)===0&&(c.aT-c.cT)>=0&&(c.aT-c.cT)/36e5<3]];
+   const L4=BK.map(b=>{const a=done.filter(c=>!c.atBook&&b[1](c));return {t:b[0],n:a.length,r:a.length?a.filter(lost).length/a.length:null}}).filter(x=>x.n);
    if(L4.length)CH_.push(['cfc4','التأكيد بدري ولا متأخر أحسن؟ — كام ضاع حسب إمتى اتأكد',{type:'bar',data:{labels:L4.map(x=>x.t+' ('+x.n+')'),datasets:[bar('ضاع %',L4.map(x=>Math.round(x.r*1000)/10),'#2a78d6')]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}}]);
    const bu=done.filter(c=>c.bulk),nb=done.filter(c=>!c.bulk&&!c.atBook);
    if(bu.length&&nb.length)CH_.push(['cfc5','⚡ التأكيد بالجملة (5+ في 3 دقايق) — بيضيع أكتر؟',{type:'bar',data:{labels:['بالجملة ('+bu.length+')','واحد واحد ('+nb.length+')'],datasets:[bar('ضاع %',[Math.round(bu.filter(lost).length/bu.length*1000)/10,Math.round(nb.filter(lost).length/nb.length*1000)/10],['#e34948','#2a78d6'])]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}}]);
    CF.charts=CH_;
    // 📋 الأسامي حسب إمتى اتأكد (كل المواعيد في الفترة — اللي لسه ما جاش يومها مكتوب «لسه»)
    const LB=[['🟢 اتحجز «مؤكد» وقت الحجز — والموعد بعدها بأكتر من يوم',c=>c.atBook&&c.crT!=null&&(c.aT-c.crT)/36e5>24],
-     ['اتأكد قبلها بيومين أو أكتر',c=>!c.atBook&&(c.aT-c.cT)/36e5>=48],['اتأكد قبلها بيوم',c=>!c.atBook&&(c.aT-c.cT)/36e5>=20&&(c.aT-c.cT)/36e5<48],
-     ['اتأكد نفس اليوم (بدري)',c=>!c.atBook&&(c.aT-c.cT)/36e5>=6&&(c.aT-c.cT)/36e5<20],['اتأكد قبلها بساعات (أقل من 6 ساعات)',c=>!c.atBook&&(c.aT-c.cT)/36e5>=0&&(c.aT-c.cT)/36e5<6]];
+     ['اتأكد قبلها بيومين أو أكتر (بالتاريخ)',c=>!c.atBook&&cfDD(c)>=2],['اتأكد اليوم اللي قبله',c=>!c.atBook&&cfDD(c)===1],
+     ['اتأكد نفس يوم الموعد — قبله بـ3 ساعات أو أكتر',c=>!c.atBook&&cfDD(c)===0&&(c.aT-c.cT)/36e5>=3],['اتأكد نفس يوم الموعد — قبله بأقل من 3 ساعات',c=>!c.atBook&&cfDD(c)===0&&(c.aT-c.cT)>=0&&(c.aT-c.cT)/36e5<3]];
    const resC=r=>r==='حضر'?'<span style="color:var(--good)">حضر</span>':(r==='اعتذر'||r==='ما جاش')?`<b class="down">${r}</b>`:esc(r||'—');
    const lead=c=>{const hrs=((c.atBook&&c.crT!=null?c.aT-c.crT:c.aT-c.cT))/36e5;return hrs>=48?Math.round(hrs/24)+' يوم':hrs>=1?Math.round(hrs)+' ساعة':Math.round(hrs*60)+' د'};
    const lists=LB.map(([t,f])=>{const a=C.filter(f).sort((x,y)=>y.aT-x.aT),dn=a.filter(fin_),ls=dn.filter(lost);

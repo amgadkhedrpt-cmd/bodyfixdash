@@ -10482,12 +10482,12 @@ function alTiles(cap){
   if(other.L.length) secs.push(other);
   var tile=function(o){ var on=o.c.on;
     return '<div '+(on?'onclick="'+on+'" ':'')+'style="background:var(--card);border:1px solid var(--brd);border-inline-start:3px solid '+o.c.a+';border-radius:0 10px 10px 0;padding:8px 10px;cursor:'+(on?'pointer':'default')+';min-width:0">'+
-      '<div style="font-size:.62rem;color:var(--mute);line-height:1.4">'+alEsc(o.title)+'</div>'+
-      '<div style="font-size:1.25rem;font-weight:900;line-height:1.3">'+alEsc(o.tot||'—')+'</div>'+
-      (o.brs.length?'<div style="font-size:.56rem;color:var(--mute);display:flex;gap:6px;flex-wrap:wrap">'+o.brs.slice(0,3).map(function(b){ return '<span '+(b.on?'onclick="'+b.on+'" ':'')+'style="cursor:pointer;text-decoration:'+(b.on?'underline dotted':'none')+'">'+alEsc(b.l)+' '+alEsc(b.n)+'</span>'; }).join('')+'</div>':'')+
-      (o.sub?'<div style="font-size:.52rem;color:var(--mute);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+alEsc(o.sub)+'">'+alEsc(o.sub)+'</div>':'')+'</div>'; };
+      '<div style="font-size:.72rem;font-weight:800;color:var(--txt);line-height:1.45">'+alEsc(o.title)+'</div>'+
+      '<div style="font-size:1.15rem;font-weight:900;line-height:1.35;color:'+o.c.a+'">'+alEsc(o.tot||'—')+'</div>'+
+      (o.brs.length?'<div style="font-size:.6rem;color:var(--mute);display:flex;gap:6px;flex-wrap:wrap">'+o.brs.slice(0,3).map(function(b){ return '<span '+(b.on?'onclick="'+b.on+'" ':'')+'style="cursor:pointer;text-decoration:'+(b.on?'underline dotted':'none')+'">'+alEsc(b.l)+' '+alEsc(b.n)+'</span>'; }).join('')+'</div>':'')+
+      (o.sub?'<div style="font-size:.56rem;color:var(--mute);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+alEsc(o.sub)+'">'+alEsc(o.sub)+'</div>':'')+'</div>'; };
   return secs.filter(function(x){ return x.L.length; }).map(function(x){
-    return '<div style="font-weight:800;font-size:.72rem;margin:12px 0 6px">'+alEsc(x.t)+' <span style="color:var(--mute);font-weight:400">('+x.L.length+')</span></div>'+
+    return '<div style="font-weight:900;font-size:.8rem;margin:14px 0 6px">'+alEsc(x.t)+' <span style="color:var(--mute);font-weight:400">('+x.L.length+')</span></div>'+
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'+x.L.map(tile).join('')+'</div>'; }).join('')+
     (zero.length?'<div style="font-size:.58rem;color:var(--g);margin-top:10px">✅ مفيش النهارده: '+alEsc(zero.join(' · '))+'</div>':'');
 }

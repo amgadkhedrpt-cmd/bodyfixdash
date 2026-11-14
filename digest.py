@@ -81,7 +81,11 @@ def load(path, default):
 def main():
     now = datetime.now(CAIRO)
     force = os.environ.get("DIGEST_FORCE") == "1"
-    if now.hour < DIGEST_HOUR and not force:
+    if now.hour < 5 and not force:
+        # جدولة GitHub بتتأخر ساعة وأكتر أحيانًا: لو التشغيل جه بعد نص الليل → ملخص امبارح (لو لسه ما اتبعتش)
+        now = (now - timedelta(days=1)).replace(hour=23, minute=59)
+        print("digest: تشغيل متأخر — ملخص يوم", now.strftime("%Y-%m-%d"))
+    elif now.hour < DIGEST_HOUR and not force:
         print("digest: لسه بدري"); return
     today_s = now.strftime("%Y-%m-%d")
     pk = load("packages.json", {"inv": {}})

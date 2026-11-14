@@ -10842,14 +10842,37 @@ function alNotesLoad(onDone){
   sc.src=REQ_SCRIPT_URL+'?action=getAll&callback='+cb;
   document.head.appendChild(sc);
 }
+/* القوايم المختصرة: صفوف أصغر · التليفون أيقونة في سطر الاسم · سطر الشرح سطر واحد (دوسة تفتحه) · الفلاتر أصغر */
+(function(){
+  var st=document.createElement('style');
+  st.textContent='.alchip .d{display:none}.alchip.open .d{display:inline}#al-pick-chips button,#al-pick-chips select{font-size:.56rem!important;padding:2px 8px!important}#al-pick-chips{gap:4px!important}.al-clamp{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}';
+  document.head.appendChild(st);
+  function compact(m){ if(!m||m._cpt) return; m._cpt=1; var box=m.firstChild; if(!box) return;
+    [].slice.call(box.querySelectorAll('div[style*="padding:9px 11px"]')).forEach(function(r){ r.style.padding='6px 9px'; r.style.marginBottom='4px';
+      var a=r.querySelector('a[href^="tel:"]'), line=r.querySelector('div[style*="display:flex"]');
+      if(a&&line&&!line.contains(a)){ var par=a.parentNode; a.textContent='📞'; a.title=a.getAttribute('href').slice(4); a.style.padding='2px 8px'; a.style.fontSize='.7rem'; line.appendChild(a);
+        if(par&&par!==r&&!par.textContent.trim()&&!par.querySelector('a,button,input,textarea')) par.remove(); }
+      // زرار «💬 تعليق» (لو مفيش تعليق مكتوب) يطلع جنب التليفون بدل سطر لوحده
+      var nb=[].slice.call(r.querySelectorAll('button')).find(function(b){ return /💬 تعليق/.test(b.textContent); });
+      if(nb&&line&&!line.contains(nb)){ var np=nb.parentNode; nb.textContent='💬'; nb.title='اكتب تعليق'; nb.style.fontSize='.7rem'; line.appendChild(nb); if(np&&!np.textContent.trim()&&!np.querySelector('button')) np.remove(); } });
+    var hd=box.firstChild, ds=hd&&hd.nextSibling; while(ds&&ds.id==='al-pick-chips') ds=ds.nextSibling;
+    if(ds&&ds.tagName==='DIV'&&/\.5[0-9]rem/.test(ds.getAttribute('style')||'')&&ds.textContent.length>60&&!ds.querySelector('button,select,input')){ ds.classList.add('al-clamp'); ds.title='دوس للشرح كامل'; ds.onclick=function(){ ds.classList.toggle('al-clamp'); }; }
+  }
+  new MutationObserver(function(ms){ ms.forEach(function(mu){ [].forEach.call(mu.addedNodes,function(n){ if(n.id==='al-modal') setTimeout(function(){ compact(n); },0); }); }); }).observe(document.body||document.documentElement,{childList:true});
+})();
 function alNoteBox(x){
   var id=alNoteId(x), n=AL_NOTES[id]||{text:'',at:''}, dom='k'+alHash(id);
-  return '<div style="margin-top:7px;display:flex;gap:6px;align-items:flex-start">'+
+  // مختصر: التعليق المكتوب ظاهر في سطر صغير · خانة الكتابة بتظهر لما تدوس 💬
+  return '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;font-size:.58rem">'+
+      (n.text?'<span style="flex:1;color:var(--mute);min-width:0">💬 '+alEsc(n.text)+(n.at?' <span style="opacity:.7">('+alEsc(n.at)+')</span>':'')+'</span>':'<span style="flex:1"></span>')+
+      '<button onclick="var w=document.getElementById(\'alnw_'+dom+'\');w.style.display=w.style.display===\'none\'?\'block\':\'none\';if(w.style.display===\'block\'){var t=document.getElementById(\'aln_'+dom+'\');t.focus();}" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:7px;padding:2px 8px;font-family:Cairo,sans-serif;font-size:.56rem;cursor:pointer">💬 '+(n.text?'عدّل':'تعليق')+'</button></div>'+
+    '<div id="alnw_'+dom+'" style="display:none">'+
+    '<div style="margin-top:5px;display:flex;gap:6px;align-items:flex-start">'+
     '<textarea id="aln_'+dom+'" rows="1" placeholder="💬 اكتب تعليق… (اتصلت، مسافر، خلص الجلسات…)" '+
       'oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'" '+
       'style="flex:1;min-height:30px;resize:none;background:var(--bg);border:1px solid var(--brd);border-radius:7px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.62rem;padding:6px 8px;line-height:1.5">'+alEsc(n.text)+'</textarea>'+
     '<button data-id="'+alEsc(id)+'" data-dom="'+dom+'" onclick="alNoteSave(this.dataset.id,this.dataset.dom)" style="background:rgba(0,198,255,.12);border:1px solid rgba(0,198,255,.3);color:var(--acc);border-radius:7px;padding:5px 9px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">💾 حفظ</button></div>'+
-    '<div id="alns_'+dom+'" style="font-size:.52rem;color:var(--mute);margin-top:3px">'+(n.at?('آخر تعديل: '+alEsc(n.at)):'')+'</div>';
+    '<div id="alns_'+dom+'" style="font-size:.52rem;color:var(--mute);margin-top:3px">'+(n.at?('آخر تعديل: '+alEsc(n.at)):'')+'</div></div>';
 }
 function alNoteSave(id, dom){
   var ta=document.getElementById('aln_'+dom), st=document.getElementById('alns_'+dom);
@@ -11550,9 +11573,9 @@ function alertsOpenSvcGap(fromNotes){
     var freq = m.why==='with_pt' ? 'المفروض مع كل جلسة علاج طبيعي'
              : m.why==='rule' ? (RULE_TXT[m.svc]||('كل '+m.every+' أيام'))
              : m.every ? (m.every===1?'بيعملها كل يوم':'بيعملها كل '+m.every+' أيام') : 'عملها مرة واحدة';
-    return '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:rgba(20,184,166,.07);border:1px solid rgba(20,184,166,.25);border-radius:7px;padding:4px 8px;margin-top:4px">'+
-      '<b style="color:#14b8a6;font-size:.64rem">➕ '+alEsc(m.svc)+'</b>'+
-      '<span style="font-size:.58rem;color:var(--mute)">'+freq+(m.times>1?' · '+m.times+(m.times>=11?' مرة':' مرات')+' في آخر أسبوعين':'')+' · آخر مرة '+alEsc(alFmtDay(m.last))+' ('+(m.days_since===1?'امبارح':m.days_since===2?'من يومين':'من '+m.days_since+(m.days_since>=11?' يوم':' أيام'))+')</span></div>';
+    return '<span class="alchip" onclick="event.stopPropagation();this.classList.toggle(\'open\')" style="display:inline-block;background:rgba(20,184,166,.10);border:1px solid rgba(20,184,166,.3);border-radius:12px;padding:1px 9px;margin:3px 0 0 4px;cursor:pointer">'+
+      '<b style="color:#14b8a6;font-size:.6rem">+ '+alEsc(m.svc)+'</b>'+
+      '<span class="d" style="font-size:.56rem;color:var(--mute)"> — '+freq+(m.times>1?' · '+m.times+(m.times>=11?' مرة':' مرات')+' في آخر أسبوعين':'')+' · آخر مرة '+alEsc(alFmtDay(m.last))+' ('+(m.days_since===1?'امبارح':m.days_since===2?'من يومين':'من '+m.days_since+(m.days_since>=11?' يوم':' أيام'))+')</span></span>';
   }
   function row(x){
     var phone=(x.phone||'').replace(/_/g,'').replace(/^\+?2(?=0)/,'');

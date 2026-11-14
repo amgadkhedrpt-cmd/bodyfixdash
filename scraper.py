@@ -1381,8 +1381,59 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
                       "p": _pname(x.get("patient")), "dr": ((x.get("doctor") or {}).get("name") or "").strip(),
                       "s": (x.get("name") or "").strip(), "b": ((x.get("branch") or {}).get("name") or ""),
                       "pd": pd_, "net": net_, "rem": rem_, "ph": ((x.get("patient") or {}).get("phoneNumber") or "")})
+    # 💸 جاي النهارده (أي حالة غير Waiting/Cancelled/No Show) ولسه مفيش خطوة مكتملة النهارده:
+    #   عنده باقة → نحسب أول خطوة Planned كأنها اتعملت ونشوف هيبقى عليه كام (v=1)
+    #   مالوش باقة → تنبيه «اتأكدي إنه دفع الجلسة» من غير مبلغ (np=1)
+    expect = []   # منفصلة عن debts عشان ما تلخبطش التقارير — بيقراها تنبيه «حصّلي قبل ما يمشي» بس
+    try:
+        SKIP_ST = {"WAITING", "CANCELLED", "CANCELED", "NOSHOW", "NOTE", "DELAYED"}
+        today_ap = {}
+        for a in appointments or []:
+            if _cairo_date(a.get("start")) != d_to: continue
+            if str(a.get("status_en") or "").upper() in SKIP_ST: continue
+            if str((a.get("doctor") or {}).get("name") or "").strip().lower() in ("follow up",): continue
+            pid_ = str((a.get("patient") or {}).get("id") or "")
+            if pid_ and pid_ not in today_ap: today_ap[pid_] = a
+        done_today, first_plan = set(), {}
+        for x in rows:
+            pid_ = str((x.get("patient") or {}).get("id") or "")
+            if pid_ not in today_ap: continue
+            k = _step_kind(x.get("status"), has_done)
+            if k == "done" and _cairo_date(x.get("end") or x.get("createdAt")) == d_to:
+                done_today.add(pid_)
+            elif k == "plan":
+                o = first_plan.get(pid_)
+                if o is None or str(x.get("createdAt") or "") < str(o.get("createdAt") or ""):
+                    first_plan[pid_] = x
+        virt = {first_plan[p_]["id"]: p_ for p_ in today_ap if p_ not in done_today and p_ in first_plan
+                and not (inv_rem is not None and float(inv_rem.get(p_) or 0) <= 1)}
+        if virt:
+            saved = dict(REM_)
+            rows2 = [dict(x, status="COMPLETED", end=now.isoformat()) if x.get("id") in virt else x for x in rows]
+            pay2, _ = _cover_unpaid(rows2, has_done)
+            vrem = {i: REM_.get(i) for i in virt if pay2.get(i) == "unpaid"}
+            REM_.clear(); REM_.update(saved)
+            for i, r_ in vrem.items():
+                x = next(y for y in rows if y.get("id") == i)
+                pd_, net_, rem_ = r_
+                if inv_rem is not None:
+                    rem_ = min(rem_, float(inv_rem.get(virt[i]) or 0))
+                if rem_ < 20: continue
+                expect.append({"id": "v:" + str(i), "d": d_to, "pid": virt[i], "p": _pname(x.get("patient")),
+                              "dr": ((today_ap[virt[i]].get("doctor") or {}).get("name") or "").strip(), "s": (x.get("name") or "").strip(),
+                              "b": ((x.get("branch") or {}).get("name") or ((today_ap[virt[i]].get("branch") or {}).get("name") or "")),
+                              "pd": pd_, "net": net_, "rem": round(rem_, 2), "v": 1, "ph": ((x.get("patient") or {}).get("phoneNumber") or "")})
+        for p_, a in today_ap.items():
+            if p_ in done_today or p_ in first_plan: continue
+            expect.append({"id": "np:" + str(a.get("id")), "d": d_to, "pid": p_, "p": _pname(a.get("patient")),
+                          "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
+                          "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1,
+                          "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
+        print(f"[{ts()}] 💸 جايين النهارده: {len(virt)} محسوب لهم جلسة النهارده · {sum(1 for r in expect if r.get('np'))} مالهمش باقة")
+    except Exception as e:
+        print(f"[{ts()}] ⚠️ جلسة النهارده المتوقعة: {str(e)[:150]}")
     out = {"last_updated": now.isoformat(), "from": d_from, "to": d_to, "lookback_days": STEPS_LOOKBACK,
-           "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts,
+           "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts, "expect": expect,
            "catalog": {"appt_types": dict(appt_types), "step_names": dict(step_names)}}
     os.makedirs("data", exist_ok=True)
     with open("data/audit.json", "w", encoding="utf-8") as fh:

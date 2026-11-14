@@ -81,6 +81,13 @@ def load(path, default):
 def main():
     now = datetime.now(CAIRO)
     force = os.environ.get("DIGEST_FORCE") == "1"
+    day_env = (os.environ.get("DIGEST_DAY") or "").strip()      # إعادة إرسال ملخص يوم معين (من زرار Run workflow)
+    if day_env:
+        try:
+            now = datetime.fromisoformat(day_env).replace(hour=23, minute=59, tzinfo=CAIRO); force = True
+            print("digest: إعادة إرسال ملخص يوم", day_env)
+        except Exception as e:
+            print(f"digest: DIGEST_DAY غلط ({day_env}): {e}")
     if now.hour < 5 and not force:
         # جدولة GitHub بتتأخر ساعة وأكتر أحيانًا: لو التشغيل جه بعد نص الليل → ملخص امبارح (لو لسه ما اتبعتش)
         now = (now - timedelta(days=1)).replace(hour=23, minute=59)

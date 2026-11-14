@@ -8,6 +8,11 @@ on:
     - cron: '37 21 * * *'       # احتياطي: لو اللي قبله اتأخر/ما اشتغلش (الملخص مش بيتبعت مرتين)
     - cron: '13 22 * * *'       # احتياطي تاني بعد نص الليل — بيبعت ملخص امبارح لو لسه ما اتبعتش
   workflow_dispatch:
+    inputs:
+      digest_day:
+        description: 'ابعت ملخص يوم معين تاني (YYYY-MM-DD) — سيبه فاضي للسحب العادي'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -106,6 +111,7 @@ jobs:
           GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
           FIN_PASS:       ${{ secrets.FIN_PASS }}
           SHEET_KEY:      ${{ secrets.SHEET_KEY }}
+          DIGEST_DAY:     ${{ github.event.inputs.digest_day }}
           SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
         run: python digest.py
 

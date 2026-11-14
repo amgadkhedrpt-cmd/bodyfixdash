@@ -1061,11 +1061,23 @@ def build_alerts(appointments, now=None, packages=None):
         print(f"⚠️ eval kashf_other: {e}")
     eval_due.sort(key=lambda x: (x["day"] != "today", not x.get("kashf_other"), -x["n"], x["session"]))
     # ── الدقي: كل اللي كشفوا مع دكتور غير د. أمجد (آخر 60 يوم) ومستنيين إعادة تقييم معاه — يتحجزوا يوم زيارته ──
-    amgad_eval, amgad_dokki_next = [], None
+    amgad_eval, amgad_dokki_next, amgad_dokki_usual = [], None, None
     try:
         nd = sorted({a["start"].date() for v in patients.values() for a in v
                      if a["branch"] == "FIX ZONE" and is_amg(a) and a["start"].date() >= today and a["status"] in LIVE_TODAY})
-        amgad_dokki_next = nd[0].isoformat() if nd else None
+        # مواعيد د. أمجد في الدقي بتتحط قبلها بيوم → اليوم المعتاد من آخر 4 شهور (أكتر يوم في الأسبوع كان فيه مواعيد معاه هناك)
+        past = Counter(d for d in {a["start"].date() for v in patients.values() for a in v
+                                   if a["branch"] == "FIX ZONE" and is_amg(a) and today - timedelta(days=120) <= a["start"].date() < today
+                                   and a["status"] not in ("canceled", "cancelled", "note", "waiting list", "waiting")})
+        wdc = Counter(d.weekday() for d in past)
+        amgad_dokki_usual = wdc.most_common(1)[0][0] if wdc and wdc.most_common(1)[0][1] >= 3 else None
+        cand = list(nd)
+        if amgad_dokki_usual is not None:
+            d = today + timedelta(days=1)
+            while d.weekday() != amgad_dokki_usual:
+                d += timedelta(days=1)
+            cand.append(d)
+        amgad_dokki_next = min(cand).isoformat() if cand else None
         for appts in patients.values():
             ex = max((a for a in appts if is_ex(a) and a["status"] in ATTENDED and a["branch"] == "FIX ZONE"
                       and (today - timedelta(days=60)) <= a["start"].date() <= today), key=lambda a: a["start"], default=None)
@@ -1534,7 +1546,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
-        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "eval_pending": eval_pending,
+        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "amgad_dokki_usual": amgad_dokki_usual, "eval_pending": eval_pending,
         "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),

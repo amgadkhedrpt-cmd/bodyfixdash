@@ -11680,7 +11680,17 @@ function amgDokkiList(){
       '<b style="font-size:.68rem">'+alEsc(x.name)+'</b> — كشف مع '+alEsc(alDocAr(x.kashf.doctor)||x.kashf.doctor)+' يوم '+alEsc(alFmtDay(x.kashf.date))+(x.after?' · حضر '+x.after+' مرة بعده':'')+
       '<div style="color:var(--mute)">'+(x.next?'ميعاده الجاي '+alEsc(alFmtDay(String(x.next.time).slice(0,10)))+' مع '+alEsc(alDocAr(x.next.doctor)||x.next.doctor):'<span style="color:var(--r)">مالوش ميعاد جاي</span>')+'</div></div>'; }).join('');
 }
-function planAmgDay(){ var d=ALERTS_DATA&&ALERTS_DATA.amgad_dokki_next; return d?'يوم '+alFmtDay(d):'(لسه مفيش يوم لد. أمجد في الدقي على السيستم)'; }
+/* يوم زيارة د. أمجد للدقي: اللي متثبت يدوي (PLANCFG|amgday — يوم في الأسبوع، الاتنين=0) · وإلا المعتاد من المواعيد اللي فاتت */
+var PLAN_AMGDAY='';
+var WD_AR=['الاتنين','التلات','الأربع','الخميس','الجمعة','السبت','الحد'];
+function planAmgNext(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||new Date().toISOString().slice(0,10);
+  if(PLAN_AMGDAY!==''){ var w=+PLAN_AMGDAY, d=new Date(td+'T12:00:00'); do{ d.setDate(d.getDate()+1); }while(((d.getDay()+6)%7)!==w); return d.toISOString().slice(0,10); }
+  return ALERTS_DATA&&ALERTS_DATA.amgad_dokki_next||''; }
+function planAmgDay(){ var d=planAmgNext(); return d?'يوم '+alFmtDay(d):'(حدد يوم زيارتك للدقي من قايمة «محتاجين تقييم»)'; }
+function planAmgSet(v){ PLAN_AMGDAY=v; planSaveRaw('PLANCFG|amgday', v); var m=document.getElementById('al-modal'); if(m){ alertsOpenEvalDue(true); } try{ planRender(); }catch(e){} }
+function planAmgSel(){ var u=ALERTS_DATA&&ALERTS_DATA.amgad_dokki_usual;
+  return '<label style="font-size:.6rem;color:var(--mute)">📅 يوم زيارتي للدقي <select onchange="planAmgSet(this.value)" style="background:var(--sur);color:var(--txt);border:1px solid var(--brd);border-radius:6px;font-family:Cairo,sans-serif;font-size:.6rem">'+
+    '<option value=""'+(PLAN_AMGDAY===''?' selected':'')+'>تلقائي'+(u!=null?' ('+WD_AR[u]+')':'')+'</option>'+WD_AR.map(function(n,i){ return i===4?'':'<option value="'+i+'"'+(PLAN_AMGDAY===String(i)?' selected':'')+'>'+n+'</option>'; }).join('')+'</select></label>'; }
 function planCardShow(force){
   var o=planMyCard(); if(!o) return; var seenK='cardSeen|'+PLAN_ME+'|'+o.d;
   if(!force){ try{ if(localStorage.getItem(seenK)) return; }catch(e){} }
@@ -11750,6 +11760,7 @@ function planLoad(){
       var v=String(r[k]||'').trim(); if(!v) return;
       if(k==='PLANCFG|names'){ try{ var a=JSON.parse(v); if(a&&a.length){ PLAN_NAMES=a; localStorage.setItem('planNames',JSON.stringify(a)); if(!r['PLANCFG|names|BODYFIX Center']) PLAN_NAMES_BR['BODYFIX Center']=a.slice(); } }catch(e){} return; }
       if(k.indexOf('PLANCFG|phcol|')===0){ PLAN_PHCOL[k.slice(14)]=v; return; }
+      if(k==='PLANCFG|amgday'){ PLAN_AMGDAY=String(v||''); return; }
       if(k==='PLANCFG|roles'){ try{ var rr=JSON.parse(v); if(rr){ PLAN_ROLES=rr; localStorage.setItem('planRoles',v); } }catch(e){} return; }
       if(k.indexOf('PLANCFG|names|')===0){ try{ var b=JSON.parse(v); if(b) PLAN_NAMES_BR[k.slice(14)]=b; }catch(e){} return; }
       if(k.indexOf('PLAN|')===0){ try{ st[k.slice(5)]=JSON.parse(v); }catch(e){} }
@@ -12823,7 +12834,7 @@ function alertsOpenEvalDue(fromNotes){
       '<span style="font-weight:900;font-size:.8rem;flex:1">🩺 محتاجين تقييم ('+ed.rows.length+')</span>'+
       '<button onclick="document.getElementById(\'al-modal\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;cursor:pointer;font-family:Cairo,sans-serif">✕</button></div>'+
     (pend?'':'<div style="font-size:.56rem;color:var(--mute);margin-bottom:8px">كشف مع دكتور غير د. أمجد → إعادة تقييم مع د. أمجد (الهرم: أول مرة ييجي · الدقي: يوم زيارة د. أمجد) · أو 6 جلسات من غير تقييم (من آخر تقييم أو أول الكورس) · المريض بيفضل هنا لحد ما التقييم يتحجز أو يتعمل</div>')+
-    (pend?chips():'')+
+    (pend?chips():'')+(alActiveBranches().some(function(b){return b.key==='FIX ZONE';})?'<div style="margin:0 0 8px">'+planAmgSel()+'</div>':'')+
     alActiveBranches().map(function(b){
       var arr=ed.rows.filter(function(x){return x._br===b.key&&(!pend||fx(x));});
       if(pend) arr.sort(function(a,c){ return (!a.next)-(!c.next)||String(a.next?a.next.time:'').localeCompare(String(c.next?c.next.time:'')); });

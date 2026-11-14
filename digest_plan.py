@@ -298,7 +298,7 @@ def cards(today_s, res, P, alerts, prev_rev=None):
                 put(ow3, "📵 محتاج تقييم ومالوش ميعاد — كلميه واحجزيله", (0, x.get("n6") or 0, f'{H(x.get("name"))} — {H(why)}', "eval", [x.get("pid")], [x.get("name")], f'{x.get("name")} — {why}'))
         # 🩺 الدقي: احجزي إعادة تقييم مع د. أمجد يوم زيارته (كل اللي كشفوا مع دكتور تاني ولسه ما اتحجزلهمش)
         if br == "FIX ZONE":
-            ad = (alerts or {}).get("amgad_dokki_next")
+            ad = amg_next(today_s, alerts)
             adl = f"{WD[date.fromisoformat(ad).weekday()]} {int(ad[8:])}/{int(ad[5:7])}" if ad else "(لسه مفيش يوم لد. أمجد على السيستم)"
             ow2 = _owner_g(T, br, ["evalamg", "eval"]) or ow
             tom = {x.get("pid") for x in (alerts or {}).get("eval_due") or [] if x.get("branch") == br and x.get("day") == "tomorrow"}
@@ -474,11 +474,27 @@ PB_ = {"haram": "BODYFIX Center", "dokki": "FIX ZONE"}
 
 
 # ================= 📋 زيارة د. أمجد للدقي: مين محتاجك (قبل الزيارة بيومين) =================
+AMG_OVR = None   # يوم الزيارة المتثبت يدوي من الداشبورد (PLANCFG|amgday: الاتنين=0)
+
+
+def amg_next(today_s, alerts):
+    from datetime import date as _d, timedelta as _t
+    if AMG_OVR not in (None, ""):
+        try:
+            w, d = int(AMG_OVR), _d.fromisoformat(today_s) + _t(days=1)
+            while d.weekday() != w:
+                d += _t(days=1)
+            return d.isoformat()
+        except Exception:
+            pass
+    return (alerts or {}).get("amgad_dokki_next")
+
+
 def dokki_visit(today_s, alerts):
     """قايمة بالأولويات للمرضى اللي يتحجزوا في ساعاتك: إعادة تقييم · 6 جلسات من غير تقييم · خلص الباقة وما جددش · بيلغوا ورا بعض"""
     from datetime import date as _d
     A = alerts or {}
-    nd = A.get("amgad_dokki_next")
+    nd = amg_next(today_s, A)
     if not nd:
         return ""
     gap = (_d.fromisoformat(nd) - _d.fromisoformat(today_s)).days

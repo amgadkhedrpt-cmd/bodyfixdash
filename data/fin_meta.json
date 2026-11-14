@@ -1,5 +1,5 @@
 {
- "at": "2026-11-14T18:52:55.448Z",
+ "at": "2026-11-14T19:09:56.189Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,8 +91,8 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "conf": {
-  "confirmed_now": 30,
-  "new": 1
+  "confirmed_now": 37,
+  "new": 7
  },
  "kinds": {
   "pay": {
@@ -115,7 +115,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20609,
+    "rows": 20610,
     "cols": [
      "id",
      "type",
@@ -367,7 +367,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131237,
+    "rows": 131251,
     "cols": [
      "start",
      "status",
@@ -420,7 +420,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 98,
+    "rows": 105,
     "cols": [
      "aid",
      "start",
@@ -603,7 +603,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17444,
+    "rows": 17446,
     "cols": [
      "id",
      "referenceId",
@@ -845,10 +845,10 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "f4302a8851a28923"
+  "data/fin_c.enc": "5e8831c2ee201e5f"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 63
+ "secs": 56
 }

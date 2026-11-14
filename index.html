@@ -11935,6 +11935,13 @@ function planCardShow(force){
   document.body.appendChild(m);
 }
 /* 💸 حصّلي قبل ما يمشي: خدمة اتعملت النهارده ومتدفعتش · أو حضر النهارده وعليه فلوس من قبل — بيتحدث مع كل مزامنة (كل نص ساعة) */
+var PLAN_LATE=[];
+function planLateInfo(){
+  if(!PLAN_LATE||!PLAN_LATE.length) return '';
+  var L=PLAN_LATE.slice().sort(function(a,b){ return String(a.time).localeCompare(String(b.time)); });
+  return '<details style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:8px 12px;margin-bottom:10px"><summary style="cursor:pointer;font-weight:800;font-size:.72rem">⏰ اتأخروا ربع ساعة من غير Check In ('+L.length+') <span style="font-weight:400;font-size:.58rem;color:var(--mute)">— للمعلومية بس، مش بتتحسب مهمة</span></summary>'+
+    '<div style="margin-top:6px;font-size:.62rem;line-height:1.9">'+L.map(function(x){ return '<div>• <b>'+alEsc(x.name)+'</b> <span style="color:var(--mute)">ميعاده '+alEsc(planT(x.time))+' مع '+alEsc(x.doctor||'')+' · دلوقتي: '+alEsc(x.status||'')+'</span>'+(x.note?' · 📝 '+alEsc(x.note):'')+'</div>'; }).join('')+'</div></details>';
+}
 function planCashBanner(){
   if(typeof AUD_DATA==='undefined'||!AUD_DATA||!AUD_DATA.debts||!ALERTS_DATA) return '';
   var today=ALERTS_DATA.today||'', act=planBR().map(function(b){return b.key;}), OFF=audOffSvc(), P={};
@@ -12247,8 +12254,9 @@ function planTasks(useAll){
       add('rec',{grp:[z[0]], sys:z[2], what:x.what||'', key:k, icon:'🟢', kind:alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)), name:x.name, phone:x.phone, br:brOf(x), lines:['<span style="color:var(--g)">'+z[1]+(x.what?' — '+alEsc(x.what):'')+'</span>'], time:x.time});
     });
   });
-  // ⏰ اتأخر ربع ساعة من غير Check In — التقييم: اتكتبت ملحوظة بالمتابعة (هيوصل امتى / ما ردش) ولا لأ
-  (P.late||[]).filter(inb).forEach(function(x){
+  // ⏰ اتأخر ربع ساعة من غير Check In — للمعلومية بس (مش مهمة ومش بتتعد) → بتتعرض في مربع لوحدها فوق
+  PLAN_LATE=(P.late||[]).filter(inb);
+  if(false) (P.late||[]).filter(inb).forEach(function(x){
     var gd=(typeof resolveDocGender==='function')?resolveDocGender(x.doctor):'';
     add('rec',{grp:['late'], sys:x.done?'اتكتبت ملحوظة بالمتابعة':'', what:x.done?('📝 '+(x.note||x.reason||'')):'', key:today+'|late|'+x.pid+'|'+x.time, icon:'⏰', kind:'ميعاده '+alEsc(planT(x.time))+' · '+alEsc(x.type||'')+' مع '+alEsc(doc(x.doctor))+' · '+(gd==='female'?'ستات':'رجالي'), name:x.name, phone:x.phone, br:brOf(x), time:x.time, doctor:x.doctor,
       lines:['اتشاف متأخر الساعة '+alEsc(x.seen||'')+' · حالته دلوقتي: <b>'+alEsc(x.status||'')+'</b>', x.note?'📝 '+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة — اكتبي قدام الموعد على Medicolize هيوصل امتى أو ما ردش</span>']});
@@ -12958,7 +12966,7 @@ function planRender(){
     '<label style="font-size:.62rem;color:var(--mute)">عرض مهام '+
     '<select onchange="PLAN_VIEW=this.value;try{localStorage.setItem(\'planView\',PLAN_VIEW)}catch(e){};planRender()" style="background:var(--bg);border:1px solid '+(PLAN_VIEW?'#ec4899':'var(--brd)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
       '<option value="">كل السكرتيرات</option>'+ALLN.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label>'+
-    (planMyCard()?'<button onclick="planCardShow(1)" style="background:#0f766e;color:#fff;border:0;border-radius:7px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:.64rem;font-weight:800;cursor:pointer">📌 كارتي</button>':'')+'</div>'+planCashBanner()+
+    (planMyCard()?'<button onclick="planCardShow(1)" style="background:#0f766e;color:#fff;border:0;border-radius:7px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:.64rem;font-weight:800;cursor:pointer">📌 كارتي</button>':'')+'</div>'+planCashBanner()+planLateInfo()+
     '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
       '<div style="display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:6px"><span>اتعمل <b style="color:var(--g)">'+dn+'</b> من <b>'+vis.length+'</b> مهمة'+(PLAN_VIEW?' (مهام '+alEsc(PLAN_VIEW)+')':'')+' · منهم <b>'+vis.filter(function(t){ var x=PLAN_ST[t.key]||{}; return planState(t)==='done'&&x.s!=='done'; }).length+'</b> اتعملوا على Medicolize و<b>'+vis.filter(function(t){ return (PLAN_ST[t.key]||{}).s==='done'; }).length+'</b> اتقفلوا بزرار ✅</span><b>'+pc+'%</b></div>'+
       '<div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:linear-gradient(90deg,#10b981,#00c6ff)"></div></div>'+

@@ -11927,7 +11927,7 @@ function planTasks(useAll){
     if(debts[x.pid]&&debts[x.pid].sum>=1&&INVF[x.pid]) R.push('💸 عليه '+planMoney(debts[x.pid].sum)+' ج — <span style="color:var(--am)">🧾 '+alEsc(INVF[x.pid].by||'الخزنة')+' كتبت إن الفاتورة محتاجة تتعدل → على '+alEsc(PLAN_INV_OWNER_DEF)+'</span>');
     if(debts[x.pid]&&debts[x.pid].sum>=1&&!INVF[x.pid]) G.push('debt'); if(renew[x.pid]) G.push('renew'); if(evd[x.pid]) G.push('eval'); if(nonext[x.pid]) G.push('nonext'); if(svc[x.pid]) G.push('svc');
     if(renew[x.pid]){ var rn=renew[x.pid], sz=rn.size||12; R.push('🔁 '+(rn.session_no<=sz?'جلسة '+rn.session_no+' من '+sz:'الباقة ('+sz+') خلصت — دي جلسة '+rn.session_no)+' — <b>اعرض التجديد</b>'); }
-    if(evd[x.pid]) R.push('🩺 جلسة '+evd[x.pid].n+' من غير تقييم — <b>احجز تقييم</b>');
+    if(evd[x.pid]) R.push(evd[x.pid].kashf_other?'🩺 كشف مع '+alEsc(alDocAr(evd[x.pid].kashf_other.doctor)||evd[x.pid].kashf_other.doctor)+' — <b>احجز إعادة تقييم مع د. أمجد</b>'+(evd[x.pid].kashf_other.after?' (فاتت '+evd[x.pid].kashf_other.after+' مرة)':''):'🩺 جلسة '+evd[x.pid].n+' من غير تقييم — <b>احجز تقييم</b>');
     if(debts[x.pid]&&debts[x.pid].sum>=1) R.push(planPayNotes(x.pid));
     if(debts[x.pid]&&debts[x.pid].sum>=1&&!INVF[x.pid]) R.push('💸 عليه <b style="color:var(--r)">'+planMoney(debts[x.pid].sum)+' ج</b> ('+debts[x.pid].n+' خدمة، أقدمها '+alEsc(alFmtDay(debts[x.pid].old))+') — <b>حصّل</b>');
     if(nonext[x.pid]) R.push('📅 مالوش ميعاد جاي — <b>احجزله قبل ما يمشي</b>');
@@ -12093,7 +12093,7 @@ var PLAN_GT={
   mgr:['👔','ملحوظات محتاجة المدير (شكوى · فلوس · الدكتور · الألم …)'],
   waittoday:['⏳','مواعيد على الويتنج النهارده'], conftoday:['📞','تأكيد مواعيد النهارده اللي كانت لسه Open'], late:['⏰','اتأخر ربع ساعة من غير Check In — اتكتب متابعة ولا لأ؟'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'], waitnut:['💜','ويتنج قسم التغذية يوم الشغل الجاي'],
   call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], recur:['🔁','بيلغوا كتير ومحجوزلهم مواعيد جاية'], idle:['😶','مثبّتين ومالهمش ميعاد من 3 أيام أو أكتر'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي (🔴 الضروري فوق)'], confsp:['💜','تأكيد مواعيد قسم التغذية (د. آلاء حرفوش) وجلسات التخسيس'], drop:['🚶','مرضى جداد وقفوا بدري'],
-  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم)'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
+  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم · أو إعادة تقييم مع د. أمجد بعد كشف مع دكتور تاني)'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
   fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — تسجيل + خصم']
 };
 var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView')||''; }catch(e){}
@@ -12734,7 +12734,9 @@ function alertsOpenEvalDue(fromNotes){
     var hh=t.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
       '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
-      '<span style="background:#ec4899;color:#fff;border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">جلسة '+x.n+' من غير تقييم</span></div>'+
+      (x.kashf_other?'<span style="background:#7c3aed;color:#fff;border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">إعادة تقييم مع د. أمجد</span>':'')+
+      (x.n>=6?'<span style="background:#ec4899;color:#fff;border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">جلسة '+x.n+' من غير تقييم</span>':'')+'</div>'+
+      (x.kashf_other?'<div style="font-size:.62rem;color:#7c3aed;font-weight:700;margin-top:3px">🩺 كشف مع '+alEsc(alDocAr(x.kashf_other.doctor)||x.kashf_other.doctor)+' يوم '+alEsc(alFmtDay(x.kashf_other.date))+' — لازم إعادة تقييم مع د. أمجد'+(x.kashf_other.after?' <span style="color:var(--r)">(حضر '+x.kashf_other.after+' مرة بعد الكشف من غيرها)</span>':' أول ما ييجي')+'</div>':'')+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0 5px">جلسته '+(x.day==='today'?'<b style="color:var(--txt)">النهارده</b>':'<b style="color:var(--txt)">'+alEsc(alFmtDay(String(x.session).slice(0,10)))+'</b>')+' '+alEsc(hh)+' مع '+alEsc(alDocAr(x.doctor)||x.doctor)+
         '<div style="margin-top:3px">'+(x.last_eval?'آخر تقييم: '+alEsc(x.last_eval.type)+' '+alEsc(alFmtDay(x.last_eval.date))+' مع '+alEsc(alDocAr(x.last_eval.doctor)||x.last_eval.doctor):'<span style="color:var(--r);font-weight:700">ما دخلش أي تقييم في الكورس ده</span>')+'</div>'+
         (x.note?'<div style="margin-top:3px;color:var(--txt)">📝 '+alEsc(x.note)+'</div>':'')+'</div>'+
@@ -12747,9 +12749,9 @@ function alertsOpenEvalDue(fromNotes){
   m.onclick=function(e){ if(e.target===m) m.remove(); };
   m.innerHTML='<div dir="rtl" style="background:var(--card);border:1px solid var(--brd);border-radius:14px 14px 0 0;width:100%;max-width:640px;max-height:85vh;overflow:auto;padding:14px 14px 22px;font-family:Cairo,sans-serif;color:var(--txt)">'+
     '<div style="display:flex;align-items:center;gap:8px;position:sticky;top:-14px;background:var(--card);padding:6px 0 8px;z-index:1">'+
-      '<span style="font-weight:900;font-size:.8rem;flex:1">🩺 محتاجين تقييم — 6 جلسات من غير تقييم ('+ed.rows.length+')</span>'+
+      '<span style="font-weight:900;font-size:.8rem;flex:1">🩺 محتاجين تقييم ('+ed.rows.length+')</span>'+
       '<button onclick="document.getElementById(\'al-modal\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;cursor:pointer;font-family:Cairo,sans-serif">✕</button></div>'+
-    '<div style="font-size:.56rem;color:var(--mute);margin-bottom:8px">جلسة النهارده أو بكره هي السادسة أو أكتر من آخر تقييم (تقييم الجلسه الأخيره أو اعادة تقييم) أو من أول الكورس · اللي حاجز تقييم مش ظاهر</div>'+
+    '<div style="font-size:.56rem;color:var(--mute);margin-bottom:8px">كشف في الهرم مع دكتور غير د. أمجد → إعادة تقييم مع د. أمجد أول مرة ييجي بعده · أو جلسة النهارده أو بكره هي السادسة أو أكتر من آخر تقييم (تقييم الجلسه الأخيره أو اعادة تقييم) أو من أول الكورس · اللي حاجز تقييم مش ظاهر</div>'+
     alActiveBranches().map(function(b){
       var arr=ed.rows.filter(function(x){return x._br===b.key;});
       if(!arr.length) return '';

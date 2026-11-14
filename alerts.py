@@ -1026,9 +1026,40 @@ def build_alerts(appointments, now=None, packages=None):
                               if last_ev else None),
                 **info(appts),
             })
-        eval_due.sort(key=lambda x: (x["day"] != "today", -x["n"], x["session"]))
     except Exception as e:
         print(f"⚠️ eval_due: {e}")
+    # ── كشف مع دكتور غير د. أمجد (الهرم) → أول مرة ييجي بعدها لازم إعادة تقييم مع د. أمجد ──
+    #    بيفضل ظاهر على جلسة النهارده/يوم الشغل الجاي لحد ما يحضر تقييم مع د. أمجد أو يتحجزله واحد
+    try:
+        is_amg = lambda a: "amgad" in (a["doctor"] or "").lower() or "أمجد" in (a["doctor"] or "")
+        is_ex = lambda a: "كشف علاج" in (a["type"] or "")
+        by_pid = {x["pid"]: x for x in eval_due}
+        for appts in patients.values():
+            nxt = sorted([a for a in appts if a["start"].date() in (today, next_work) and a["status"] in LIVE_TODAY
+                          and a["branch"] == "BODYFIX Center" and not is_ex(a) and a["type"] not in EVAL_TYPES], key=lambda a: a["start"])
+            if not nxt:
+                continue
+            ses = nxt[0]; sday = ses["start"].date()
+            ex = max((a for a in appts if is_ex(a) and a["status"] in ATTENDED and a["branch"] == "BODYFIX Center"
+                      and (today - timedelta(days=60)) <= a["start"].date() < sday), key=lambda a: a["start"], default=None)
+            if not ex or is_amg(ex):
+                continue
+            ed = ex["start"].date()
+            if any(a["type"] in EVAL_TYPES and is_amg(a) and a["start"].date() > ed and
+                   (a["status"] in ATTENDED or (a["start"].date() >= today and a["status"] in LIVE_TODAY)) for a in appts):
+                continue                                         # اتعمله أو محجوزله تقييم مع د. أمجد
+            after = len({a["start"].date() for a in appts if a["status"] in ATTENDED and ed < a["start"].date() < sday})
+            kx = {"date": ed.isoformat(), "doctor": ex["doctor"], "after": after}
+            if ses["pid"] in by_pid:
+                by_pid[ses["pid"]]["kashf_other"] = kx
+                continue
+            x = {"name": ses["name"], "phone": ses["phone"], "pid": ses["pid"], "branch": ses["branch"],
+                 "doctor": ses["doctor"], "session": ses["start"].isoformat(), "day": "today" if sday == today else "tomorrow",
+                 "n": after + 1, "note": (ses.get("note") or "")[:200], "last_eval": None, "kashf_other": kx, **info(appts)}
+            eval_due.append(x); by_pid[x["pid"]] = x
+    except Exception as e:
+        print(f"⚠️ eval kashf_other: {e}")
+    eval_due.sort(key=lambda x: (x["day"] != "today", not x.get("kashf_other"), -x["n"], x["session"]))
 
     # ── خطة اليوم: مواعيد النهارده (للاستقبال) · تأكيد بكره · مواعيد Open قديمة · وقفوا بدري ──
     plan = {"today": [], "tomorrow_confirm": [], "confirm_special": [], "stale_open": [], "early_drop": []}

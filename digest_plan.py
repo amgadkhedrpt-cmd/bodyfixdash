@@ -274,6 +274,15 @@ def cards(today_s, res, P, alerts, prev_rev=None):
             if x.get("branch") == br and (x.get("days_since") or 99) <= 7:
                 put(ow, "🔁 خلص الباقة ومالوش ميعاد — اعرضي التجديد", (0, x.get("days_since") or 0, H(x.get("name")) + " " + sub(f'(آخر جلسة من {x.get("days_since")} يوم)'),
                                                                            "fin", [x.get("pid")], [x.get("name")], str(x.get("name") or "")))
+        # 🩺 تقييم لازم يتحجز قبل جلسة يوم الشغل الجاي: إعادة تقييم مع د. أمجد (كشف مع دكتور تاني) · أو 6 جلسات من غير تقييم
+        ow = _owner_g(T, br, ["eval", "renew", "debt"])
+        for x in (alerts or {}).get("eval_due") or []:
+            if x.get("branch") != br or x.get("day") != "tomorrow":
+                continue
+            k = x.get("kashf_other")
+            why = (f'إعادة تقييم مع د. أمجد — كشف مع {str(k.get("doctor") or "").replace("Dr. ", "د. ").replace("Dr ", "د. ")} يوم {k.get("date", "")[8:]}/{k.get("date", "")[5:7]}' + (f' (فاتت {k["after"]} مرة)' if k.get("after") else "")) if k \
+                else f'جلسة {x.get("n")} من غير تقييم'
+            put(ow, "🩺 احجزي تقييم قبل جلسته", (1 if k else 0, x.get("n") or 0, f'{H(x.get("name"))} — {H(why)}', "eval", [x.get("pid")], [x.get("name")], f'{x.get("name")} — {why}'))
         # 📞 تأكيد يوم الشغل الجاي · ⏳ مترحّل · ما اتعملش النهارده
         for o in {t["o"] for t in T if t.get("o") and t["o"] != "المدير"}:
             L = [t for t in T if t["o"] == o and t["st"] != "done"]
@@ -282,7 +291,7 @@ def cards(today_s, res, P, alerts, prev_rev=None):
                 put(o, f"📞 مواعيد {nd} لسه ما اتأكدتش", (0, 0, f"{len(cf)} ميعاد — في خطة اليوم", "plan", [t["k"] for t in cf], [t["n"] for t in cf], f"{len(cf)} ميعاد"))
             g = defaultdict(list)
             for t in L:
-                if t["g"] in ("conf", "confsp", "waitnext", "waitnut", "conftoday", "late", "waittoday", "risk", "mgr") or money_task(t) or t["g"] in ("kashf", "kashf0", "streak", "recur"):   # مهام يومها خلص مش بتترحّل
+                if t["g"] in ("conf", "confsp", "waitnext", "waitnut", "conftoday", "late", "waittoday", "risk", "mgr") or money_task(t) or t["g"] in ("kashf", "kashf0", "streak", "recur", "eval"):   # مهام يومها خلص مش بتترحّل
                     continue
                 g[t["gt"].split("(")[0].strip()].append(t)
             for gt, LL in sorted(g.items(), key=lambda kv: -len(kv[1])):
@@ -293,7 +302,7 @@ def cards(today_s, res, P, alerts, prev_rev=None):
                              "plan", [t["k"] for t in LL], [t["n"] for t in LL], f'{gt}: {len(LL)}' + (f' (من {mx} يوم)' if mx >= 2 else "")))
         if not S:
             continue
-        ORDER = ["⏳ مترحّل من أيام — أول حاجة الصبح", "💸 حصّلي", f"📞 مواعيد {nd} لسه ما اتأكدتش", "🩺 كشوفات ما اتحجزلهاش — احجزيلهم",
+        ORDER = ["⏳ مترحّل من أيام — أول حاجة الصبح", "💸 حصّلي", f"📞 مواعيد {nd} لسه ما اتأكدتش", "🩺 احجزي تقييم قبل جلسته", "🩺 كشوفات ما اتحجزلهاش — احجزيلهم",
                  "🔁 بيلغوا ورا بعض — كلميهم", "🔁 خلص الباقة ومالوش ميعاد — اعرضي التجديد", "🚶 مرضى جداد ما رجعوش — كلميهم", "📝 ما اتعملش النهارده — كمّليه"]
         blocks, wa = [], [f"🏥 {BR_AR[br]} — مهام {nd} الصبح"]
         for o in sorted(S, key=lambda o: (o.startswith("⚠️"), -sum(len(v) for v in S[o].values()))):
@@ -323,7 +332,7 @@ def cards(today_s, res, P, alerts, prev_rev=None):
     if not out:
         return ""
     return ('<h3 style="margin:14px 0 4px">📌 كروت السكرتارية</h3>'
-            '<div style="color:#64748b;font-size:11px">كارت لكل فرع — صوّره وابعته · مفيهوش إيراد ولا خصومات ولا تقييم</div>' + "".join(out))
+            '<div style="color:#64748b;font-size:11px">كارت لكل فرع — صوّره وابعته · مفيهوش إيراد ولا خصومات ولا تقييم السكرتارية</div>' + "".join(out))
 
 
 def _q(t):
@@ -375,6 +384,7 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
         return "", {}
     cur_tasks = {(t["k"]): t for t in (res or {}).get("tasks") or []}
     fin_now = {x.get("pid") for x in (alerts or {}).get("finished_packages") or []}
+    eval_now = {x.get("pid") for x in (alerts or {}).get("eval_due") or []}
     probs_now = defaultdict(set)
     for p in P or []:
         for key, _, _ in CARD_PROB:
@@ -386,6 +396,8 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
             return idv not in debts_by_pid
         if kind == "fin":
             return idv not in fin_now
+        if kind == "eval":
+            return idv not in eval_now
         if kind.startswith("prob:"):
             return idv not in probs_now[(br, kind[5:])]
         if kind == "plan":

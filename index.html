@@ -10639,14 +10639,14 @@ function alertsRender(){
     var edT=ed.rows.filter(function(x){return x.day==='today';}).length;
     html+=alCard('#ec4899',
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
-        '<span style="font-size:.95rem">🩺</span><span style="font-weight:700;font-size:.76rem;flex:1">محتاجين تقييم (6 جلسات من غير تقييم)</span>'+
+        '<span style="font-size:.95rem">🩺</span><span style="font-weight:700;font-size:.76rem;flex:1">محتاجين تقييم (6 جلسات · أو إعادة تقييم مع د. أمجد)</span>'+
         '<span style="background:#ec4899;color:#fff;border-radius:10px;padding:1px 10px;font-size:.72rem;font-weight:900">'+ed.rows.length+'</span>'+
         '<span style="font-size:.6rem;color:var(--mute)">اضغط للقايمة ←</span></div>'+
       '<div style="display:flex;gap:8px;margin-bottom:6px">'+alActiveBranches().map(function(b){
         return '<div onclick="event.stopPropagation();alOpenPick(\'evaldue\',\''+b.key+'\')" title="اضغط لأسامي الرقم ده بس" style="flex:1;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:8px;text-align:center;cursor:pointer">'+
           '<div style="font-size:1.35rem;font-weight:900;color:'+b.color+'">'+(ed.by[b.key]||0)+'</div><div style="font-size:.58rem;color:var(--mute)">'+b.label+'</div></div>';
       }).join('')+'</div>'+
-      '<div style="font-size:.56rem;color:var(--mute)">'+edT+' جلستهم النهارده · '+(ed.rows.length-edT)+' في يوم الشغل الجاي — احجزلهم تقييم</div>',
+      '<div style="font-size:.56rem;color:var(--mute)">'+(ALERTS_DATA.eval_pending?ed.withA+' ليهم ميعاد (منهم '+edT+' النهارده) · <b style="color:var(--r)">'+ed.noA+' مالهمش ميعاد</b> — بيفضلوا هنا لحد ما التقييم يتحجز أو يتعمل':edT+' جلستهم النهارده · '+(ed.rows.length-edT)+' في يوم الشغل الجاي — احجزلهم تقييم')+'</div>',
       'alertsOpenEvalDue()');
   }
 
@@ -12038,6 +12038,12 @@ function planTasks(useAll){
       lines:['كشف مع '+alEsc(alDocAr(x.kashf.doctor)||x.kashf.doctor)+' يوم '+alEsc(alFmtDay(x.kashf.date))+(x.after?' · حضر '+x.after+' مرة بعده':'')+
         (x.next?' · ميعاده الجاي '+alEsc(alFmtDay(String(x.next.time).slice(0,10)))+' مع '+alEsc(alDocAr(x.next.doctor)||x.next.doctor):' · <span style="color:var(--r)">مالوش ميعاد جاي</span>')]});
   });
+  // 🩺 الهرم: محتاج تقييم (6 جلسات / إعادة تقييم مع د. أمجد) ومالوش ميعاد خالص → كلمه واحجزله
+  if(act.indexOf('BODYFIX Center')>=0) (D.eval_pending||[]).forEach(function(x){ if(x.branch!=='BODYFIX Center'||x.next||evd[x.pid]) return;
+    var k=x.kashf_other;
+    add('office',{grp:['evalamg'], key:'evalamg|'+x.pid, icon:'🩺', kind:'محتاج تقييم ومالوش ميعاد — كلمه واحجزله'+(k?' إعادة تقييم مع د. أمجد':''), name:x.name, phone:x.phone||'', br:'BODYFIX Center',
+      lines:[(k?'كشف مع '+alEsc(alDocAr(k.doctor)||k.doctor)+' يوم '+alEsc(alFmtDay(k.date))+(k.after?' · حضر '+k.after+' مرة بعده':''):'')+(k&&x.n6!=null?' · ':'')+(x.n6!=null?x.n6+' جلسات من غير تقييم':'')]});
+  });
   // 🧾 فاتورة محتاجة تتعدل (الخزنة كتبت كده في شيت التحصيلات) — على مسئولة الفواتير · بتتقفل لما المتبقي على المريض يقل في Medicolize
   if(PLAN_COLROWS){ var curRem={}; if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.debts) AUD_DATA.debts.forEach(function(r){ curRem[r.pid]=(curRem[r.pid]||0)+(+r.rem||0); });
     Object.keys(INVF).forEach(function(pid){ var iv=INVF[pid]; if(act.indexOf(iv.br)<0) return;
@@ -12108,7 +12114,7 @@ var PLAN_GT={
   mgr:['👔','ملحوظات محتاجة المدير (شكوى · فلوس · الدكتور · الألم …)'],
   waittoday:['⏳','مواعيد على الويتنج النهارده'], conftoday:['📞','تأكيد مواعيد النهارده اللي كانت لسه Open'], late:['⏰','اتأخر ربع ساعة من غير Check In — اتكتب متابعة ولا لأ؟'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'], waitnut:['💜','ويتنج قسم التغذية يوم الشغل الجاي'],
   call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], recur:['🔁','بيلغوا كتير ومحجوزلهم مواعيد جاية'], idle:['😶','مثبّتين ومالهمش ميعاد من 3 أيام أو أكتر'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي (🔴 الضروري فوق)'], confsp:['💜','تأكيد مواعيد قسم التغذية (د. آلاء حرفوش) وجلسات التخسيس'], drop:['🚶','مرضى جداد وقفوا بدري'],
-  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم · أو إعادة تقييم مع د. أمجد بعد كشف مع دكتور تاني)'], evalamg:['🩺','الدقي: احجز إعادة تقييم مع د. أمجد يوم زيارته (كشفوا مع دكتور تاني)'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
+  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم · أو إعادة تقييم مع د. أمجد بعد كشف مع دكتور تاني)'], evalamg:['🩺','احجز تقييم: الدقي يوم زيارة د. أمجد · الهرم اللي مالوش ميعاد'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
   fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — تسجيل + خصم']
 };
 var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView')||''; }catch(e){}
@@ -12190,7 +12196,7 @@ try{ var _rl=JSON.parse(localStorage.getItem('planRoles')||'null'); if(_rl) PLAN
 /* 📌 الأساس: كل نوع مهمة على أنهي دور (كل يوم بيفتح على كده — التغيير اليومي من الخانة جنب المهمة مؤقت) */
 var PLAN_GROUP_ROLE={
   'BODYFIX Center':{mgr:'L', nonext:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
-    waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', renew:'F', svc:'F', kashf:'F',
+    waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', evalamg:'F', renew:'F', svc:'F', kashf:'F',
     waitnext:'J', streak:'J', recur:'J', idle:'J', conf:'J', stale:'J', fix:'J', kashf0:'J',
     call:'H', drop:'H'},
   'FIX ZONE':{mgr:'DM', streak:'DM', recur:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamg:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
@@ -12726,10 +12732,18 @@ function evrInner(){
 }
 
 /* ══ تنبيه: 6 جلسات من غير تقييم (alerts.eval_due) ══ */
+var EVP_F={appt:'all', why:'all'};
+function evpSet(k,v){ EVP_F[k]=v; var m=document.getElementById('al-modal'); var sc=m?m.firstChild.scrollTop:0; alertsOpenEvalDue(true); var m2=document.getElementById('al-modal'); if(m2) m2.firstChild.scrollTop=sc; }
 function alEvalDue(){
-  if(!ALERTS_DATA||!ALERTS_DATA.eval_due) return null;
-  var act=alActiveBranches(), out={rows:[], by:{}};
+  if(!ALERTS_DATA||!(ALERTS_DATA.eval_pending||ALERTS_DATA.eval_due)) return null;
+  var act=alActiveBranches(), out={rows:[], by:{}, withA:0, noA:0};
   act.forEach(function(b){ out.by[b.key]=0; });
+  if(ALERTS_DATA.eval_pending){ var td=ALERTS_DATA.today||'';
+    ALERTS_DATA.eval_pending.forEach(function(x){ var b=x.branch; if(!out.by.hasOwnProperty(b)) return;
+      var nd=x.next?String(x.next.time).slice(0,10):''; var r=Object.assign({_br:b, day:!nd?'none':nd===td?'today':'later'},x);
+      out.by[b]++; out.rows.push(r); if(nd) out.withA++; else out.noA++; });
+    return out;
+  }
   ALERTS_DATA.eval_due.forEach(function(x){
     var b=alBranchOf(x.doctor,x.branch);
     if(out.by.hasOwnProperty(b)){ out.by[b]++; out.rows.push(Object.assign({_br:b},x)); }
@@ -12744,7 +12758,27 @@ function alertsOpenEvalDue(fromNotes){
     var typing=document.activeElement&&document.activeElement.tagName==='TEXTAREA'&&m.contains(document.activeElement);
     if(!typing){ var sc=m.firstChild.scrollTop; alertsOpenEvalDue(true); var m2=document.getElementById('al-modal'); if(m2) m2.firstChild.scrollTop=sc; }
   }); }
+  function row2(x){   // من القايمة الكاملة (eval_pending)
+    var phone=(x.phone||'').replace(/_/g,''), k=x.kashf_other;
+    return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      (k?'<span style="background:#7c3aed;color:#fff;border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">إعادة تقييم مع د. أمجد</span>':'')+
+      (x.n6!=null?'<span style="background:#ec4899;color:#fff;border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">'+x.n6+' جلسات من غير تقييم</span>':'')+'</div>'+
+      (k?'<div style="font-size:.62rem;color:#7c3aed;font-weight:700;margin-top:3px">🩺 كشف مع '+alEsc(alDocAr(k.doctor)||k.doctor)+' يوم '+alEsc(alFmtDay(k.date))+(k.after?' <span style="color:var(--r)">— حضر '+k.after+' مرة بعده من غيرها</span>':'')+(x._br==='FIX ZONE'?' · يتحجز '+alEsc(planAmgDay()):'')+'</div>':'')+
+      '<div style="font-size:.6rem;margin:3px 0 5px">'+(x.next?'📅 ميعاده الجاي: <b>'+(x.day==='today'?'النهارده':alEsc(alFmtDay(String(x.next.time).slice(0,10))))+'</b> '+alEsc(new Date(x.next.time).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}))+' مع '+alEsc(alDocAr(x.next.doctor)||x.next.doctor)+(k?' — احجزله إعادة التقييم مع د. أمجد'+(x._br==='FIX ZONE'?' يوم زيارته':' على نفس الزيارة'):' — احجزله التقييم'):'<b style="color:var(--r)">📵 مالوش ميعاد — كلمه واحجزله</b>')+'</div>'+
+      (phone?'<a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a>':'')+
+      alNoteBox(x)+'</div>';
+  }
+  function chips(){
+    var c=function(k,v,l,n){ var on=EVP_F[k]===v; return '<button onclick="evpSet(\''+k+'\',\''+v+'\')" style="border:1px solid '+(on?'#ec4899':'var(--brd)')+';background:'+(on?'#ec4899':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border-radius:14px;padding:2px 10px;font-size:.6rem;font-family:Cairo,sans-serif;cursor:pointer">'+l+(n!=null?' ('+n+')':'')+'</button>'; };
+    var R=ed.rows, nA=R.filter(function(x){return x.next;}).length, nAm=R.filter(function(x){return x.kashf_other;}).length, n6=R.filter(function(x){return x.n6!=null;}).length;
+    return '<div style="display:flex;gap:5px;flex-wrap:wrap;margin:4px 0">'+c('appt','all','الكل',R.length)+c('appt','yes','📅 ليه ميعاد',nA)+c('appt','no','📵 مالوش ميعاد',R.length-nA)+'</div>'+
+      '<div style="display:flex;gap:5px;flex-wrap:wrap;margin:4px 0 8px">'+c('why','all','كل الأسباب')+c('why','amg','إعادة تقييم مع د. أمجد',nAm)+c('why','n6','6 جلسات من غير تقييم',n6)+'</div>';
+  }
+  var pend=!!ALERTS_DATA.eval_pending;
+  var fx=function(x){ return (EVP_F.appt==='all'||(EVP_F.appt==='yes')===!!x.next)&&(EVP_F.why==='all'||(EVP_F.why==='amg'?!!x.kashf_other:x.n6!=null)); };
   function row(x){
+    if(pend) return row2(x);
     var phone=(x.phone||'').replace(/_/g,''), t=new Date(x.session);
     var hh=t.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
@@ -12766,12 +12800,14 @@ function alertsOpenEvalDue(fromNotes){
     '<div style="display:flex;align-items:center;gap:8px;position:sticky;top:-14px;background:var(--card);padding:6px 0 8px;z-index:1">'+
       '<span style="font-weight:900;font-size:.8rem;flex:1">🩺 محتاجين تقييم ('+ed.rows.length+')</span>'+
       '<button onclick="document.getElementById(\'al-modal\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;cursor:pointer;font-family:Cairo,sans-serif">✕</button></div>'+
-    '<div style="font-size:.56rem;color:var(--mute);margin-bottom:8px">كشف مع دكتور غير د. أمجد → إعادة تقييم مع د. أمجد (الهرم: أول مرة ييجي · الدقي: يوم زيارة د. أمجد) · أو جلسة النهارده أو بكره هي السادسة أو أكتر من آخر تقييم (تقييم الجلسه الأخيره أو اعادة تقييم) أو من أول الكورس · اللي حاجز تقييم مش ظاهر</div>'+
+    '<div style="font-size:.56rem;color:var(--mute);margin-bottom:8px">كشف مع دكتور غير د. أمجد → إعادة تقييم مع د. أمجد (الهرم: أول مرة ييجي · الدقي: يوم زيارة د. أمجد) · أو 6 جلسات من غير تقييم (من آخر تقييم أو أول الكورس) · المريض بيفضل هنا لحد ما التقييم يتحجز أو يتعمل</div>'+
+    (pend?chips():'')+
     alActiveBranches().map(function(b){
-      var arr=ed.rows.filter(function(x){return x._br===b.key;});
+      var arr=ed.rows.filter(function(x){return x._br===b.key&&(!pend||fx(x));});
+      if(pend) arr.sort(function(a,c){ return (!a.next)-(!c.next)||String(a.next?a.next.time:'').localeCompare(String(c.next?c.next.time:'')); });
       if(!arr.length) return '';
       return '<div style="font-weight:700;font-size:.7rem;color:'+b.color+';margin:12px 0 6px">🏥 '+b.label+' ('+arr.length+')</div>'+arr.map(row).join('');
-    }).join('')+amgDokkiList()+'</div>';
+    }).join('')+(pend?'':amgDokkiList())+'</div>';
   document.body.appendChild(m);
 }
 

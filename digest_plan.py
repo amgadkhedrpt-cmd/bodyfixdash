@@ -286,6 +286,16 @@ def cards(today_s, res, P, alerts, prev_rev=None):
             why = (f'إعادة تقييم مع د. أمجد — كشف مع {str(k.get("doctor") or "").replace("Dr. ", "د. ").replace("Dr ", "د. ")} يوم {k.get("date", "")[8:]}/{k.get("date", "")[5:7]}' + (f' (فاتت {k["after"]} مرة)' if k.get("after") else "")) if k \
                 else f'جلسة {x.get("n")} من غير تقييم'
             put(ow, "🩺 احجزي تقييم قبل جلسته", (1 if k else 0, x.get("n") or 0, f'{H(x.get("name"))} — {H(why)}', "eval", [x.get("pid")], [x.get("name")], f'{x.get("name")} — {why}'))
+        # 🩺 الهرم: محتاج تقييم ومالوش ميعاد خالص → كلميه واحجزيله
+        if br == "BODYFIX Center":
+            ow3 = _owner_g(T, br, ["evalamg", "eval"]) or ow
+            for x in (alerts or {}).get("eval_pending") or []:
+                if x.get("branch") != br or x.get("next"):
+                    continue
+                k = x.get("kashf_other")
+                dr = str((k or {}).get("doctor") or "").replace("Dr. ", "د. ").replace("Dr ", "د. ")
+                why = " · ".join(w for w in ((f"إعادة تقييم مع د. أمجد (كشف مع {dr})" if k else ""), (f"{x['n6']} جلسات من غير تقييم" if x.get("n6") is not None else "")) if w)
+                put(ow3, "📵 محتاج تقييم ومالوش ميعاد — كلميه واحجزيله", (0, x.get("n6") or 0, f'{H(x.get("name"))} — {H(why)}', "eval", [x.get("pid")], [x.get("name")], f'{x.get("name")} — {why}'))
         # 🩺 الدقي: احجزي إعادة تقييم مع د. أمجد يوم زيارته (كل اللي كشفوا مع دكتور تاني ولسه ما اتحجزلهمش)
         if br == "FIX ZONE":
             ad = (alerts or {}).get("amgad_dokki_next")
@@ -401,8 +411,10 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
         return "", {}
     cur_tasks = {(t["k"]): t for t in (res or {}).get("tasks") or []}
     fin_now = {x.get("pid") for x in (alerts or {}).get("finished_packages") or []}
-    eval_now = {x.get("pid") for x in (alerts or {}).get("eval_due") or []}
-    amg_now = {x.get("pid") for x in (alerts or {}).get("amgad_eval") or []}
+    # بيخرج من القايمة الكاملة بس لما التقييم يتحجز أو يتعمل (مش لأن ميعاده بعيد)
+    _pend = (alerts or {}).get("eval_pending")
+    eval_now = {x.get("pid") for x in (_pend if _pend is not None else (alerts or {}).get("eval_due") or [])}
+    amg_now = {x.get("pid") for x in (_pend if _pend is not None else (alerts or {}).get("amgad_eval") or [])}
     probs_now = defaultdict(set)
     for p in P or []:
         for key, _, _ in CARD_PROB:

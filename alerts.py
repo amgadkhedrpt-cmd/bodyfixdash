@@ -1083,6 +1083,48 @@ def build_alerts(appointments, now=None, packages=None):
         amgad_eval.sort(key=lambda x: x["kashf"]["date"])
     except Exception as e:
         print(f"⚠️ amgad_eval: {e}")
+    # ── القايمة الكاملة: كل اللي محتاج تقييم ولسه ما اتحجزلوش/ما حضرهوش — ليه ميعاد ولا لأ ──
+    #    (المريض بيخرج منها بس لما التقييم يتحجز أو يتعمل — مش لأن ميعاده بعيد)
+    eval_pending = []
+    try:
+        lim60, lim_act = today - timedelta(days=60), today - timedelta(days=COURSE_GAP)
+        for appts in patients.values():
+            live_next = sorted([a for a in appts if a["start"].date() >= today and a["status"] in LIVE_TODAY and a["type"] not in EVAL_TYPES and not is_ex(a)],
+                               key=lambda a: a["start"])
+            nx = live_next[0] if live_next else None
+            item = {}
+            # 1) كشف مع دكتور غير د. أمجد → إعادة تقييم مع د. أمجد
+            ex = max((a for a in appts if is_ex(a) and a["status"] in ATTENDED and lim60 <= a["start"].date() <= today), key=lambda a: a["start"], default=None)
+            if ex and not is_amg(ex):
+                ed = ex["start"].date()
+                if not any(a["type"] in EVAL_TYPES and is_amg(a) and a["start"].date() > ed and
+                           (a["status"] in ATTENDED or (a["start"].date() >= today and a["status"] in LIVE_TODAY)) for a in appts):
+                    item["kashf_other"] = {"date": ed.isoformat(), "doctor": ex["doctor"],
+                                           "after": len({a["start"].date() for a in appts if a["status"] in ATTENDED and ed < a["start"].date() <= today})}
+                    item["branch"] = ex["branch"]
+            # 2) 6 جلسات من غير تقييم (الكورس الحالي)
+            pdays = sorted({a["start"].date() for a in appts if _is_pt(a["type"]) and a["status"] in ATTENDED and a["start"].date() <= today})
+            if pdays and pdays[-1] >= lim_act and not any(a["type"] in EVAL_TYPES and a["start"].date() >= today and a["status"] in LIVE_TODAY for a in appts):
+                cstart = None
+                for i, d in enumerate(pdays):
+                    if i == 0 or (d - pdays[i - 1]).days > COURSE_GAP:
+                        cstart = d
+                last_ev = max((a for a in appts if a["type"] in EVAL_TYPES and a["status"] in ATTENDED and a["start"].date() <= today),
+                              key=lambda a: a["start"], default=None)
+                frm = max([d for d in (cstart, last_ev["start"].date() if last_ev else None) if d])
+                n = sum(1 for d in pdays if d >= frm and not (last_ev and d == last_ev["start"].date()))
+                if n + (1 if nx and _is_pt(nx["type"]) else 0) >= EVAL_DUE_N:
+                    item["n6"] = n
+                    item.setdefault("branch", max((a for a in appts if a["start"].date() <= today), key=lambda a: a["start"])["branch"])
+            if not item:
+                continue
+            ref = ex if item.get("kashf_other") else max((a for a in appts if a["start"].date() <= today), key=lambda a: a["start"])
+            item.update({"name": ref["name"], "phone": ref["phone"], "pid": ref["pid"],
+                         "next": ({"time": nx["start"].isoformat(), "type": nx["type"], "doctor": nx["doctor"]} if nx else None)})
+            eval_pending.append(item)
+        eval_pending.sort(key=lambda x: (x["next"] is None, x["next"]["time"] if x["next"] else "", not x.get("kashf_other")))
+    except Exception as e:
+        print(f"⚠️ eval_pending: {e}")
 
     # ── خطة اليوم: مواعيد النهارده (للاستقبال) · تأكيد بكره · مواعيد Open قديمة · وقفوا بدري ──
     plan = {"today": [], "tomorrow_confirm": [], "confirm_special": [], "stale_open": [], "early_drop": []}
@@ -1492,7 +1534,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
-        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next,
+        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "eval_pending": eval_pending,
         "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),

@@ -10693,7 +10693,7 @@ function alertsRender(){
     html+=alCard('#ec4899',
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
         '<span style="font-size:.95rem">🩺</span><span style="font-weight:700;font-size:.76rem;flex:1">محتاجين تقييم (6 جلسات · أو إعادة تقييم مع د. أمجد)</span>'+
-        '<span style="background:#ec4899;color:#fff;border-radius:10px;padding:1px 10px;font-size:.72rem;font-weight:900">'+ed.rows.length+'</span>'+
+        '<span style="background:#ec4899;color:#fff;border-radius:10px;padding:1px 10px;font-size:.72rem;font-weight:900">'+(ALERTS_DATA.eval_pending?edT+' النهارده · '+ed.rows.length+' كلهم':ed.rows.length)+'</span>'+
         '<span style="font-size:.6rem;color:var(--mute)">اضغط للقايمة ←</span></div>'+
       '<div style="display:flex;gap:8px;margin-bottom:6px">'+alActiveBranches().map(function(b){
         return '<div onclick="event.stopPropagation();alOpenPick(\'evaldue\',\''+b.key+'\')" title="اضغط لأسامي الرقم ده بس" style="flex:1;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:8px;text-align:center;cursor:pointer">'+

@@ -302,7 +302,7 @@ def cards(today_s, res, P, alerts, prev_rev=None):
         if br == "FIX ZONE" and 0 < _gap <= 3:   # كارت الدقي: قبل زيارة د. أمجد بس
             ad = _ad
             adl = f"{WD[date.fromisoformat(ad).weekday()]} {int(ad[8:])}/{int(ad[5:7])}" if ad else "(لسه مفيش يوم لد. أمجد على السيستم)"
-            ow2 = _owner_g(T, br, ["evalamg", "eval"]) or ow
+            ow2 = _owner_g(T, br, ["evalamgd", "eval"]) or ow
             tom = {x.get("pid") for x in (alerts or {}).get("eval_due") or [] if x.get("branch") == br and x.get("day") == "tomorrow"}
             for x in (alerts or {}).get("amgad_eval") or []:
                 if x.get("pid") in tom:
@@ -319,7 +319,7 @@ def cards(today_s, res, P, alerts, prev_rev=None):
                 put(o, f"📞 مواعيد {nd} لسه ما اتأكدتش", (0, 0, f"{len(cf)} ميعاد — في خطة اليوم", "plan", [t["k"] for t in cf], [t["n"] for t in cf], f"{len(cf)} ميعاد"))
             g = defaultdict(list)
             for t in L:
-                if t["g"] in ("conf", "confsp", "waitnext", "waitnut", "conftoday", "late", "waittoday", "risk", "mgr") or money_task(t) or t["g"] in ("kashf", "kashf0", "streak", "recur", "eval", "evalamg"):   # مهام يومها خلص مش بتترحّل
+                if t["g"] in ("conf", "confsp", "waitnext", "waitnut", "conftoday", "late", "waittoday", "risk", "mgr") or money_task(t) or t["g"] in ("kashf", "kashf0", "streak", "recur", "eval", "evalamg", "evalamgd"):   # مهام يومها خلص مش بتترحّل
                     continue
                 g[t["gt"].split("(")[0].strip()].append(t)
             for gt, LL in sorted(g.items(), key=lambda kv: -len(kv[1])):

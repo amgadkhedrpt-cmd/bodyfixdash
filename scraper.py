@@ -1473,8 +1473,47 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
         print(f"[{ts()}] 💸 جايين النهارده: {len(virt)} محسوب لهم جلسة النهارده · {sum(1 for r in expect if r.get('np'))} مالهمش باقة للخدمة")
     except Exception as e:
         print(f"[{ts()}] ⚠️ جلسة النهارده المتوقعة: {str(e)[:150]}")
+    # 🧾 خدمة اتعملت من غير فاتورة (آخر 30 يوم): مواعيد حضرها (Completed/Checked In/In Progress) لخدمة معينة
+    #   أكتر من خطوات نفس الخدمة (المكتملة في نفس الفترة + الـ Planned اللي لسه ما اتقفلتش) → الزيادة = من غير فاتورة
+    noinv = []
+    try:
+        AMAP, IGN = _svc_map()
+        w_from = _cairo_date((now - timedelta(days=30)).isoformat())
+        CAME = {"COMPLETED", "CHECKED", "CHECKEDIN", "IN_PROGRESS", "INPROGRESS"}
+        LIVE = {"OPEN", "CONFIRMED", "CHECKED", "CHECKEDIN", "IN_PROGRESS", "INPROGRESS", "DELAYED"}
+        came = defaultdict(list); nxt = {}
+        for a in appointments or []:
+            dd = _cairo_date(a.get("start")); st_ = str(a.get("status_en") or "").upper()
+            pid_ = str((a.get("patient") or {}).get("id") or "")
+            if not pid_ or str((a.get("doctor") or {}).get("name") or "").strip().lower() == "follow up": continue
+            if dd and dd > d_to and st_ in LIVE and (pid_ not in nxt or str(a.get("start")) < str(nxt[pid_].get("start"))):
+                nxt[pid_] = a
+            t_ = _audN(a.get("type"))
+            if not dd or dd < w_from or dd > d_to or st_ not in CAME or t_ in IGN or t_ not in AMAP: continue
+            came[(pid_, frozenset(AMAP[t_]))].append(a)
+        st_by = defaultdict(list)
+        pids = {k[0] for k in came}
+        for x in rows:
+            p_ = str((x.get("patient") or {}).get("id") or "")
+            if p_ in pids: st_by[p_].append(x)
+        for (p_, names), aps in came.items():
+            mine = [x for x in st_by[p_] if _audN(x.get("name")) in names]
+            kinds = [(_step_kind(x.get("status"), has_done), _cairo_date(x.get("end") or x.get("createdAt"))) for x in mine]
+            have = sum(1 for k, d in kinds if k == "plan" or (k == "done" and d and d >= w_from))
+            miss = len(aps) - have
+            if miss <= 0: continue
+            for a in sorted(aps, key=lambda a: str(a.get("start")))[-miss:]:
+                n_ = nxt.get(p_)
+                noinv.append({"id": str(a.get("id")), "d": _cairo_date(a.get("start")), "time": str(a.get("start") or ""), "pid": p_,
+                              "p": _pname(a.get("patient")), "dr": ((a.get("doctor") or {}).get("name") or "").strip(),
+                              "s": (a.get("type") or "").strip(), "b": ((a.get("branch") or {}).get("name") or ""),
+                              "st": str(a.get("status_en") or ""), "ph": ((a.get("patient") or {}).get("phoneNumber") or ""),
+                              "next": (str(n_.get("start")) if n_ else ""), "next_t": ((n_.get("type") or "") if n_ else "")})
+        print(f"[{ts()}] 🧾 خدمات من غير فاتورة (30 يوم): {len(noinv)}")
+    except Exception as e:
+        print(f"[{ts()}] ⚠️ خدمات من غير فاتورة: {str(e)[:150]}")
     out = {"last_updated": now.isoformat(), "from": d_from, "to": d_to, "lookback_days": STEPS_LOOKBACK,
-           "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts, "expect": expect,
+           "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts, "expect": expect, "noinv": noinv,
            "catalog": {"appt_types": dict(appt_types), "step_names": dict(step_names)}}
     os.makedirs("data", exist_ok=True)
     with open("data/audit.json", "w", encoding="utf-8") as fh:

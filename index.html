@@ -10463,7 +10463,7 @@ function alCard(accent, inner, onclick){
          '<div style="position:absolute;top:0;right:0;bottom:0;width:4px;background:'+accent+'"></div>'+inner+'</div>';
 }
 /* ▦ التنبيهات كمربعات صغيرة متقسمة حسب الاستعجال — الدوسة بتفتح نفس القايمة (بكل فلاترها) · الكروت بالتفصيل من الزرار تحت */
-var AL_TILE_SEC=[['النهارده — اتصرف دلوقتي',/اعتذار مفاجئ|تقييم|ميعاد النهارده|ناقصه خدمة|جلسة رقم|بانتظام/],['متابعة — الأسبوع ده',/المتابعات|كشف|بيلغوا/],['مرضى بنخسرهم',/باقة|انقطعوا|اتشالوا/]];
+var AL_TILE_SEC=[['النهارده — اتصرف دلوقتي',/اعتذار مفاجئ|تقييم|ميعاد النهارده|ناقصه خدمة|من غير فاتورة|جلسة رقم|بانتظام/],['متابعة — الأسبوع ده',/المتابعات|كشف|بيلغوا/],['مرضى بنخسرهم',/باقة|انقطعوا|اتشالوا/]];
 function alTiles(cap){
   var tmp=document.createElement('div'), secs=AL_TILE_SEC.map(function(x){ return {t:x[0],rx:x[1],L:[]}; }), other={t:'تانية',L:[]}, zero=[];
   cap.forEach(function(c){
@@ -10653,6 +10653,23 @@ function alertsRender(){
       }).join('')+'</div>'+
       '<div style="font-size:.56rem;color:var(--mute)">الناقص: '+Object.keys(topSvc).sort(function(a,b){return topSvc[b]-topSvc[a];}).map(function(k){ return alEsc(k)+' ('+topSvc[k]+')'; }).join(' · ')+'</div>',
       'alertsOpenSvcGap()');
+  }
+
+  /* 0.47) 🧾 خدمة اتعملت من غير فاتورة */
+  var ni=alNoInv();
+  if(ni&&ni.rows.length){
+    var nSys=ni.rows.length-ni.open;
+    html+=alCard('#f97316',
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+        '<span style="font-size:.95rem">🧾</span><span style="font-weight:700;font-size:.76rem;flex:1">خدمة اتعملت من غير فاتورة</span>'+
+        '<span style="background:#f97316;color:#06121f;border-radius:10px;padding:1px 10px;font-size:.72rem;font-weight:900">'+ni.open+'</span>'+
+        '<span style="font-size:.6rem;color:var(--mute)">اضغط للقايمة ←</span></div>'+
+      '<div style="display:flex;gap:8px;margin-bottom:6px">'+alActiveBranches().map(function(b){
+        return '<div onclick="event.stopPropagation();alOpenPick(\'noinv\',\''+b.key+'\')" title="اضغط لأسامي الفرع ده بس" style="flex:1;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:8px;text-align:center;cursor:pointer">'+
+          '<div style="font-size:1.35rem;font-weight:900;color:'+b.color+'">'+(ni.by[b.key]||0)+'</div><div style="font-size:.58rem;color:var(--mute)">'+b.label+'</div></div>';
+      }).join('')+'</div>'+
+      '<div style="font-size:.56rem;color:var(--mute)">حضر في آخر 30 يوم ومفيش فاتورة للخدمة'+(nSys?' · 🤖 اتعملت فاتورة لـ '+nSys:'')+'</div>',
+      'alertsOpenNoInv()');
   }
 
   /* 0.5) حضروا النهارده ومالهمش ميعاد جاي */
@@ -11548,6 +11565,54 @@ function alertsOpenMissing(fromNotes){
   document.body.appendChild(m);
 }
 
+
+/* ── 🧾 خدمة اتعملت من غير فاتورة (آخر 30 يوم) — من scraper (audit) عبر alerts.json · sys=1 = الفاتورة اتعملت على Medicolize ── */
+function alNoInv(){
+  if(!ALERTS_DATA||!ALERTS_DATA.noinv) return null;
+  var act=alActiveBranches(), out={rows:[], by:{}, open:0};
+  act.forEach(function(b){ out.by[b.key]=0; });
+  ALERTS_DATA.noinv.forEach(function(x){
+    var r={_br:x.b, pid:x.pid, name:x.p, phone:x.ph, doctor:x.dr, branch:x.b, time:x.time, svc:x.s, day:x.d, status:x.st, next:x.next, next_t:x.next_t, _sys:!!x.sys, fixed:x.fixed||''};
+    if(!out.by.hasOwnProperty(r._br)) return;
+    out.rows.push(r); if(!r._sys){ out.by[r._br]++; out.open++; }
+  });
+  out.rows.sort(function(a,b){ return (a._sys-b._sys)||String(b.time).localeCompare(String(a.time)); });
+  return out;
+}
+function alertsOpenNoInv(fromNotes){
+  var R=alNoInv(); if(!R) return;
+  var old=document.getElementById('al-modal'); if(old) old.remove();
+  if(!fromNotes){ AL_NOTES=alNotesLocal(); alNotesLoad(function(){
+    var m=document.getElementById('al-modal'); if(!m) return;
+    var typing=document.activeElement&&document.activeElement.tagName==='TEXTAREA'&&m.contains(document.activeElement);
+    if(!typing){ var sc=m.firstChild.scrollTop; alertsOpenNoInv(true); var m2=document.getElementById('al-modal'); if(m2) m2.firstChild.scrollTop=sc; }
+  }); }
+  function row(x){
+    var phone=(x.phone||'').replace(/_/g,'').replace(/^\+?2(?=0)/,'');
+    return '<div style="background:var(--sur);border:1px solid var(--brd);border-inline-start:3px solid '+(x._sys?'var(--g)':'#f97316')+';border-radius:9px;padding:9px 11px;margin-bottom:6px'+(x._sys?';opacity:.75':'')+'">'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+'</b>'+
+      (x._sys?'<span style="font-size:.58rem;color:var(--g);font-weight:800">🤖 الفاتورة اتعملت'+(x.fixed?' '+alEsc(alFmtDay(x.fixed)):'')+'</span>':'')+'</div>'+
+      '<div style="font-size:.6rem;color:var(--mute);margin:3px 0"><b style="color:var(--txt)">'+alEsc(x.svc)+'</b> · '+alEsc(alFmtDay(x.day))+' · '+alEsc(alDocAr(x.doctor)||x.doctor)+
+        (x._sys?'':' · ميعاده الجاي: '+(x.next?'<b style="color:var(--txt)">'+alEsc(alFmtDay(x.next.slice(0,10)))+'</b>'+(x.next_t?' ('+alEsc(x.next_t)+')':''):'<b style="color:var(--r)">مالوش — كلّميه</b>'))+'</div>'+
+      (phone?'<div style="margin-top:4px"><a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a></div>':'')+
+      alNoteBox(x)+'</div>';
+  }
+  var m=document.createElement('div');
+  m.id='al-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+  m.onclick=function(e){ if(e.target===m) m.remove(); };
+  m.innerHTML='<div dir="rtl" style="background:var(--card);border:1px solid var(--brd);border-radius:14px 14px 0 0;width:100%;max-width:640px;max-height:85vh;overflow:auto;padding:14px 14px 22px;font-family:Cairo,sans-serif;color:var(--txt)">'+
+    '<div style="display:flex;align-items:center;gap:8px;position:sticky;top:-14px;background:var(--card);padding:6px 0 8px;z-index:1">'+
+      '<span style="font-weight:900;font-size:.8rem;flex:1">🧾 خدمة اتعملت من غير فاتورة ('+R.rows.filter(function(x){return !x._sys;}).length+')</span>'+
+      '<button onclick="document.getElementById(\'al-modal\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;cursor:pointer;font-family:Cairo,sans-serif">✕</button></div>'+
+    '<div style="font-size:.56rem;color:var(--mute);margin-bottom:8px">حضر الخدمة (Completed / Checked In) في آخر 30 يوم ومفيش لها خطوة ولا فاتورة على Medicolize — مش «الدكتور نسي يقفل الخطوة»، دي مفيش فاتورة خالص · بيتقفل 🤖 لوحده أول ما الفاتورة تتعمل</div>'+
+    (R.rows.length ? alActiveBranches().map(function(b){
+      var arr=R.rows.filter(function(x){return x._br===b.key;});
+      if(!arr.length) return '';
+      return '<div style="font-weight:700;font-size:.7rem;color:'+b.color+';margin:12px 0 6px">🏥 '+b.label+' ('+arr.length+')</div>'+arr.map(row).join('');
+    }).join('') : '<div style="color:var(--mute);font-size:.66rem">مفيش</div>')+'</div>';
+  document.body.appendChild(m);
+}
 
 /* ── محجوز النهارده خدمة وناقصه خدمة تانية بيعملها ── */
 function alSvcGap(){
@@ -13040,6 +13105,7 @@ var AL_PICK_DEF={
   nonext:    {open:'alertsOpenNoNext',     get:'alNoNext'},
   missing:   {open:'alertsOpenMissing',    get:'alMissing'},
   kashf:     {open:'alertsOpenKashf',      get:'alKashf'},
+  noinv:     {open:'alertsOpenNoInv',      get:'alNoInv'},
   svcgap:    {open:'alertsOpenSvcGap',     get:'alSvcGap'},
   finished:  {open:'alertsOpenFinished',   get:'alFinished'},
   evaldue:   {open:'alertsOpenEvalDue',    get:'alEvalDue'},
@@ -13063,7 +13129,7 @@ function alHowMap(kind){ var ck=kind||'_'; if(AL_HOWMAP[ck]&&Date.now()-(AL_HOWM
   try{ if(!Object.keys(PLAN_TASKIDX||{}).length&&typeof planTasks==='function'&&ALERTS_DATA){ var TT=planTasks(); ['mgr','morning','rec','office','evening'].forEach(function(sc){ (TT[sc]||[]).forEach(function(t){ PLAN_TASKIDX[t.key]=t; }); }); } }catch(e){}
   try{ Object.keys(PLAN_TASKIDX||{}).forEach(function(k){ var t=PLAN_TASKIDX[k]; if(G&&!(t.grp||[]).some(function(g){ return G.indexOf(g)>=0; })) return; var pid=t.pid||((String(k).match(UU)||[])[0])||(String(k).split('|').pop()||''); if(!pid) return; var h=planHow(t); if(!m[pid]||pr[h]>pr[m[pid]]) m[pid]=h; }); }catch(e){}
   AL_HOWMAP[ck]=m; AL_HOWMAP_AT[ck]=Date.now(); return m; }
-function alRowHow(x,kind){ var h=alHowMap(kind||AL_INOPEN)[x.pid]; if((!h||h==='todo'||h==='snz')&&alActedToday(x)) return 'man'; return (h&&h!=='snz')?h:'todo'; }
+function alRowHow(x,kind){ if(x&&x._sys) return 'sys'; if((kind||AL_INOPEN)==='noinv') return alActedToday(x)?'man':'todo'; var h=alHowMap(kind||AL_INOPEN)[x.pid]; if((!h||h==='todo'||h==='snz')&&alActedToday(x)) return 'man'; return (h&&h!=='snz')?h:'todo'; }
 function alUniOk(kind,x){ if(AL_BRF&&kind!=='milestones'&&alRowBr(x)!==AL_BRF) return false;
   if(AL_ACT2&&kind!=='streaks'&&alRowHow(x,kind)!==AL_ACT2) return false; return true; }
 var AL_REF_KINDS={milestones:1, finished:1, nonext:1, streaks:1, missing:1, svcgap:1, kashf:1};
@@ -13177,7 +13243,7 @@ function alPickChips(kind){
   }
   head.parentNode.insertBefore(d, head.nextSibling);
   /* القوايم القصيرة: الفلتر يفضل ظاهر فوق وانت بتنزل */
-  if({kashf:1, missing:1, svcgap:1, nonext:1}[kind]){
+  if({kashf:1, missing:1, svcgap:1, nonext:1, noinv:1}[kind]){
     var hb=head.style.background||'var(--card)';
     d.style.cssText+=';position:sticky;top:'+(head.offsetHeight-14)+'px;z-index:1;background:'+hb+';padding:4px 0 8px;margin:0';
   }

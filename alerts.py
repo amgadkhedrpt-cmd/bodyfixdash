@@ -261,6 +261,42 @@ def build_analysis(patients, today, window_days=28, weeks=8, daily_days=90):
     }
 
 
+def _noinv(today):
+    """🧾 خدمة اتعملت من غير فاتورة — من data/audit.json (بيحسبها scraper.sync_steps).
+    اللي كان ظاهر واختفى = الفاتورة اتعملت على Medicolize → يفضل 3 أيام بعلامة 🤖 (sys) عشان يتحسب.
+    الحالة بتتحفظ في .session (كاش الـ Actions — مش بيترفع على الريبو)."""
+    import os as _os, json as _json
+    try:
+        cur = _json.load(open("data/audit.json", encoding="utf-8")).get("noinv")
+    except Exception:
+        return []
+    if cur is None:
+        return []
+    fn = _os.path.join(".session", "noinv_seen.json")
+    try:
+        seen = _json.load(open(fn, encoding="utf-8"))
+    except Exception:
+        seen = {}
+    t = today.isoformat()
+    now_ids = {x["id"] for x in cur}
+    out = [dict(x) for x in cur]
+    keep = {}
+    for k, v in seen.items():
+        if k in now_ids:
+            continue
+        v.setdefault("fixed", t)
+        if (today - date.fromisoformat(v["fixed"])).days <= 3:
+            keep[k] = v
+            out.append(dict(v["x"], sys=1, fixed=v["fixed"]))
+    for x in cur:
+        keep[x["id"]] = {"x": x}
+    try:
+        _os.makedirs(".session", exist_ok=True)
+        _json.dump(keep, open(fn, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return out
+
 def build_alerts(appointments, now=None, packages=None):
     now = (now or datetime.now(timezone.utc)).astimezone(CAIRO)
     today = now.date()
@@ -1558,6 +1594,7 @@ def build_alerts(appointments, now=None, packages=None):
         "today_no_next": no_next,
         "missing_today": missing_today,
         "svc_gap": svc_gap,
+        "noinv": _noinv(today),
         "kashf_pending": kashf_pending,
         "followups": followups,
         "sudden": sudden,

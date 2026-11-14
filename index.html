@@ -12061,7 +12061,8 @@ function planTasks(useAll){
     });
   });
   var recDone={}; T.rec.forEach(function(t){ recDone[t.key]=t; });
-  [['eval','🩺 ✅ اتحجزله تقييم على السيستم','اتحجز تقييم'],['nonext','📅 ✅ اتحجزله ميعاد جاي على السيستم','اتحجزله ميعاد']].forEach(function(z){
+  [['eval','🩺 ✅ اتحجزله تقييم على السيستم','اتحجز تقييم'],['nonext','📅 ✅ اتحجزله ميعاد جاي على السيستم','اتحجزله ميعاد'],
+   ['svc','🧩 ✅ الخدمة الناقصة اتحجزت على السيستم','اتحجزت الخدمة'],['debt','💸 ✅ اتدفع الباقي على Medicolize','اتحصّل']].forEach(function(z){
     (RES[z[0]]||[]).forEach(function(x){
       var k=today+'|rec|'+z[0]+'|'+x.pid, ex=recDone[k];
       if(ex){ ex.sys=z[2]; ex.what=x.what||''; return; }

@@ -1250,6 +1250,21 @@ def build_alerts(appointments, now=None, packages=None):
         plan["manager"] = mgr
         plan["today"].sort(key=lambda x: x["time"])
         # المهام اللي ظهرت النهارده واختفت = اتعملت على السيستم (حجز / تقييم / قفل الموعد …) → تتحسب في الإنجاز
+        def _debts_today():
+            """مرضى جايين النهارده وعليهم خدمات اتعملت ومتدفعتش (من data/audit.json) — لما يدفعوا بيختفوا = اتحصّلت"""
+            try:
+                import json as _j
+                A = _j.load(open("data/audit.json", encoding="utf-8"))
+                comes = {x["pid"]: x for x in plan["today"]}
+                out = {}
+                for r in A.get("debts") or []:
+                    p_ = str(r.get("pid"))
+                    if p_ in comes:
+                        o = out.setdefault(p_, dict(comes[p_], rem=0))
+                        o["rem"] += float(r.get("rem") or 0)
+                return {k: v for k, v in out.items() if v["rem"] >= 1}
+            except Exception:
+                return {}
         try:
             import os as _os, json as _json
             act = {
@@ -1260,6 +1275,8 @@ def build_alerts(appointments, now=None, packages=None):
                 "drop":   {x["pid"]: x for x in plan["early_drop"]},
                 "nonext": {x["pid"]: x for x in no_next},
                 "eval":   {x["pid"]: x for x in eval_due if x.get("day") == "today"},
+                "svc":    {x["pid"]: x for x in svc_gap},       # ناقصه خدمة → اتحجزت = اتعملت على السيستم
+                "debt":   _debts_today(),                      # جاي النهارده وعليه فلوس → اتدفعت = اتعملت على السيستم
                 "stale":  {x["pid"] + "|" + x["time"]: x for x in plan["stale_open"]},
                 "waittoday": {x["pid"] + "|" + x["time"]: x for x in plan.get("waiting", []) if x["day"] == "today" and not x["note_today"]},
                 "waitnext":  {x["pid"] + "|" + x["time"]: x for x in plan.get("waiting", []) if x["day"] == "next" and not x["note_today"]},
@@ -1410,6 +1427,10 @@ def build_alerts(appointments, now=None, packages=None):
                     fut = [a for a in fut if a["type"] in EVAL_TYPES] or fut
                 if k in ("kashf", "kashf0"):
                     fut = [a for a in fut if _is_pt(a["type"])] or fut
+                if k == "debt":
+                    r["what"] = "اتدفع الباقي على Medicolize"; continue
+                if k == "svc":
+                    r["what"] = "الخدمة الناقصة اتحجزت"; continue
                 r["what"] = ("اتحجز " + fmt(fut[0])) if fut else "اتحلّت على السيستم"
             plan["resolved"] = resolved
             _os.makedirs(".session", exist_ok=True)

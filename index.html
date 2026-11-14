@@ -11880,7 +11880,12 @@ function planAct(key, s){
 function planNote(key){
   var noteEl=document.getElementById('pn_'+planHash(key)); if(!noteEl) return;
   var cur=PLAN_ST[key]||{}, v=noteEl.value.trim(); if((cur.note||'')===v) return;
-  var o=Object.assign({},cur,{note:v, nby:PLAN_ME||cur.by||''}); PLAN_ST[key]=o;
+  var o=Object.assign({},cur,{note:v, nby:PLAN_ME||cur.by||''});
+  // الملحوظة = المهمة اتعاملت معاها (اتعرضت/اتكلم/اترفضت) → تتحسب «اتعمل» لو كانت لسه مفتوحة
+  var tk0=PLAN_TASKIDX[key]||{}, td0=(ALERTS_DATA&&ALERTS_DATA.today)||'';
+  if(v&&PLAN_ME&&!(cur.s==='done'||cur.s==='auto'||(cur.s==='nr'&&String(cur.ts||'').slice(0,10)===td0))){
+    o=Object.assign(planMeta(tk0),o,{s:'done', by:PLAN_ME, at:new Date().toLocaleString('ar-EG',{hour:'numeric',minute:'2-digit',day:'numeric',month:'numeric'}), ts:new Date().toISOString(), what:'📝 '+v}); setTimeout(planRender,300); }
+  PLAN_ST[key]=o;
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   var e=document.getElementById('pst_'+planHash(key)); if(e) e.textContent='⏳';
   planSaveRaw('PLAN|'+key, JSON.stringify(o), function(ok){ if(e) e.innerHTML=ok?'<span style="color:var(--g)">✅ اتحفظت الملحوظة</span>':'<span style="color:var(--r)">⚠️ على الجهاز ده بس</span>'; });
@@ -12646,6 +12651,7 @@ function planState(t){
   if(st.s==='later'&&st.until&&st.until>today) return 'snz';
   if(st.s==='done'||(t.sys&&st.s!=='undo_sys')) return 'done';
   if(st.s==='nr') return 'nr';
+  if(!st.s&&String(st.note||'').trim()&&String(t.key||'').indexOf(today+'|')===0) return 'done';   // اتكتبت ملحوظة النهارده = اتعاملت معاها
   return 'open';
 }
 /* المهام اللي بتتقفل لوحدها من Medicolize — مفيش زرار ✅ (الملحوظة / ما ردش / أجّل موجودين) */
@@ -12669,7 +12675,8 @@ function planRow(t){
   var dot=state==='done'?'var(--g)':state==='nr'?'var(--am)':state==='snz'?'var(--mute)':'var(--brd)';
   var open=!!PLAN_OPEN[h];
   // ملحوظات مهمة بتفضل ظاهرة (ملحوظة الموعد · الملحوظة المكتوبة)
-  var notes=(t.note0?'<div style="font-size:.6rem;color:#f59e0b;margin-top:2px">📝 '+alEsc(t.note0)+'</div>':'')+(st.note&&state!=='done'?'<div style="font-size:.6rem;color:var(--mute);margin-top:2px">💬 '+alEsc(st.note)+(st.by?' — '+alEsc(st.by):'')+'</div>':'');
+  var notes=(t.note0?'<div style="font-size:.6rem;color:#f59e0b;margin-top:2px">📝 '+alEsc(t.note0)+'</div>':'')+(function(){ var nt=st.note||''; if(!nt&&t._src&&typeof AL_NOTES!=='undefined'){ var a=AL_NOTES[alNoteId(t._src)]||{}; if(String(a.at||'').slice(0,10)===((ALERTS_DATA&&ALERTS_DATA.today)||'')) nt=a.text||''; }
+    return nt?'<div style="font-size:.62rem;color:var(--txt);margin-top:2px">💬 '+alEsc(nt)+((st.nby||st.by)?' <span style="color:var(--mute)">— '+alEsc(st.nby||st.by)+'</span>':'')+'</div>':''; })();
   return '<div style="border-bottom:1px solid var(--brd);padding:7px 4px;'+(state==='done'?'opacity:.55':'')+'">'+
     '<div style="display:flex;gap:8px;align-items:center">'+
       '<span style="width:9px;height:9px;border-radius:50%;background:'+dot+';flex:none"></span>'+

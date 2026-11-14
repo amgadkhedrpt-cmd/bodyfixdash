@@ -287,7 +287,7 @@ def cards(today_s, res, P, alerts, prev_rev=None):
                 else f'جلسة {x.get("n")} من غير تقييم'
             put(ow, "🩺 احجزي تقييم قبل جلسته", (1 if k else 0, x.get("n") or 0, f'{H(x.get("name"))} — {H(why)}', "eval", [x.get("pid")], [x.get("name")], f'{x.get("name")} — {why}'))
         # 🩺 الهرم: محتاج تقييم ومالوش ميعاد خالص → كلميه واحجزيله
-        if br == "BODYFIX Center":
+        if False:   # اتلغت: التقييم بيتحجز للي جاي بس (مفيش مكالمات للي مالوش ميعاد)
             ow3 = _owner_g(T, br, ["evalamg", "eval"]) or ow
             for x in (alerts or {}).get("eval_pending") or []:
                 if x.get("branch") != br or x.get("next"):

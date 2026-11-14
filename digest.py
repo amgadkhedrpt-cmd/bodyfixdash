@@ -134,6 +134,10 @@ def main():
             weekly(now, today_s, user, pw, to)
         except Exception as e:
             print(f"weekly: {e}")
+        try:
+            monthly_kpi(now, today_s, user, pw, to)
+        except Exception as e:
+            print(f"kpi monthly: {e}")
         return
     if not (user and pw):
         print("digest: مفيش GMAIL_USER / GMAIL_APP_PASS"); return
@@ -152,6 +156,10 @@ def main():
         weekly(now, today_s, user, pw, to)
     except Exception as e:
         print(f"weekly: {e}")
+    try:
+        monthly_kpi(now, today_s, user, pw, to)
+    except Exception as e:
+        print(f"kpi monthly: {e}")
     try:
         plan_cleanup(30)
     except Exception as e:
@@ -313,6 +321,39 @@ def weekly(now, today_s, user, pw, to):
     with open("packages.json", "w", encoding="utf-8") as f:
         json.dump(pk, f, ensure_ascii=False, separators=(",", ":"))
     print("📧 تقرير الأسبوع اتبعت")
+
+
+def monthly_kpi(now, today_s, user, pw, to):
+    """🎯 المتابعة الشهرية — يوم 1 في الشهر (أو DIGEST_KPI=1): مؤشرات الشهر اللي خلص للفرعين، ليك إنت بس"""
+    force = os.environ.get("DIGEST_KPI") == "1"
+    if today_s[8:10] != "01" and not force:
+        return
+    pk = load("packages.json", {"inv": {}})
+    if (pk.get("_kpi_month") or {}).get("month") == today_s[:7] and not force:
+        return
+    import digest_kpi
+    _, reasons = plan_data(today_s)
+    res = digest_kpi.build(today_s, reasons)
+    if not res:
+        print("kpi monthly: مفيش بيانات"); return
+    subj, html = res
+    if os.environ.get("DIGEST_PREVIEW"):
+        open(os.environ["DIGEST_PREVIEW"] + ".kpi.html", "w", encoding="utf-8").write(html); print("kpi preview written"); return
+    if not (user and pw):
+        return
+    dest = os.environ.get("KPI_TO", "").strip() or to
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subj
+    msg["From"], msg["To"] = user, dest
+    msg.attach(MIMEText(html, "html", "utf-8"))
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as sm:
+        sm.login(user, pw)
+        sm.sendmail(user, [dest], msg.as_string())
+    pk = load("packages.json", {"inv": {}})
+    pk["_kpi_month"] = {"month": today_s[:7], "at": now.isoformat()}
+    with open("packages.json", "w", encoding="utf-8") as f:
+        json.dump(pk, f, ensure_ascii=False, separators=(",", ":"))
+    print("📧 المتابعة الشهرية اتبعتت")
 
 
 def card_save(today_s, cards):

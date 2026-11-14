@@ -101,6 +101,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
     ${kpi('⚡ اتأكدوا بالجملة',pc_(chk,c=>c.bulk),'5 أو أكتر في 3 دقايق',chk.some(c=>c.bulk)?'down':'')}
     ${kpi('✅ مكالمة اترد عليها',J.length?pc_(J,c=>c.cat==='ok'):'ارفع الملفات',J.length?J.length+' اتقارنوا بالمكالمات':'')}
     ${kpi('❌ من غير مكالمة اترد عليها',J.length?pc_(J,c=>c.cat!=='ok'):'—','',J.length&&J.filter(c=>c.cat!=='ok').length/J.length>0.2?'down':'')}</div>`;
+  h+='<!--CFCH-->';
   // قراية
   const L=[];if(J.length){const bad=J.filter(c=>c.cat!=='ok');L.push(`من ${J.length} تأكيد في فترة الملفات: <b>${J.filter(c=>c.cat==='ok').length}</b> قبلهم مكالمة اترد عليها، و<b class="down">${bad.length}</b> لأ (${J.filter(c=>c.cat==='none').length} مفيش أي مكالمة للرقم خالص، ${J.filter(c=>c.cat==='tried').length} اتصلوا وما ردش ومع ذلك اتعلّم مؤكد).`);
   }
@@ -143,8 +144,24 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    ${bRows.length?`<div class="card" style="grid-column:1/-1"><h3>⚡ تأكيد بالجملة<small>5 مواعيد أو أكتر اتعلّم عليهم مؤكد في 3 دقايق</small></h3>${tableHTML(['الوقت','الفرع',{t:'مواعيد',n:1},'المسئولة'],bRows,{h:300})}</div>`:''}
    ${sus.length?`<div class="card" style="grid-column:1/-1"><h3>المواعيد المشكوك فيها<small>${sus.length}</small></h3>${tableHTML(['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],sus,{h:420})}</div>`:''}
   </div>`;
+  // 📊 الصورة في رسومات — من Medicolize لوحده (من غير ملفات المكالمات)
+  {const done=C.filter(fin_),lost=c=>c.res==='اعتذر'||c.res==='ما جاش',CH_=[];
+   const tot=OG.reduce((s,o)=>s+o.n,0),okG=OG.filter(o=>!/ما اتأكدش|وقت الحجز|بالجملة/.test(o.t)),nConf=okG.reduce((s,o)=>s+o.n,0),nBook=(OG.find(o=>/وقت الحجز/.test(o.t))||{n:0}).n,nNone=(OG.find(o=>/ما اتأكدش/.test(o.t))||{n:0}).n;
+   const G1=OG.filter(o=>!/بالجملة/.test(o.t));
+   if(G1.length)CH_.push(['cfc1','التأكيد بيفرق؟ — من كل 100 ميعاد، كام ضاع (اعتذر أو ما جاش)',{type:'bar',data:{labels:G1.map(o=>o.t.replace(/[✅📵❌⬜⚡]/g,'').trim()+' ('+o.n+')'),datasets:[bar('ضاع %',G1.map(o=>Math.round(o.r*1000)/10),G1.map(o=>/ما اتأكدش/.test(o.t)?'#888780':/وقت الحجز/.test(o.t)?'#1baf7a':o.r>0.25?'#e34948':'#2a78d6'))]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}}]);
+   if(tot)CH_.push(['cfc2','بنأكد على كام من المواعيد أصلاً؟',{type:'doughnut',data:{labels:['اتأكد ('+nConf+')','مؤكد من الحجز ('+nBook+')','ما اتأكدش ('+nNone+')'],datasets:[{data:[nConf,nBook,nNone],backgroundColor:['#2a78d6','#1baf7a','#888780'],borderWidth:2}]},options:{cutout:'60%'}}]);
+   const W=Object.entries(g).filter(([k,z])=>z.done>0).sort((a,b)=>b[1].done-a[1].done);
+   if(W.length)CH_.push(['cfc3','لكل سكرتيرة — اللي أكدت عليهم: جم ولا ضاعوا؟',{type:'bar',data:{labels:W.map(([k,z])=>k+' ('+pc(z.lost/z.done)+')'),datasets:[bar('جه',W.map(([k,z])=>z.done-z.lost),'#1baf7a',{stack:'s'}),bar('ضاع',W.map(([k,z])=>z.lost),'#e34948',{stack:'s'})]},options:{indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true}}}},Math.max(160,W.length*42+60)]);
+   const BK=[['قبلها بيومين+',48,1e9],['قبلها بيوم',20,48],['نفس اليوم بدري',6,20],['قبلها بساعات',0,6]];
+   const L4=BK.map(b=>{const a=done.filter(c=>!c.atBook&&(c.aT-c.cT)/36e5>=b[1]&&(c.aT-c.cT)/36e5<b[2]);return {t:b[0],n:a.length,r:a.length?a.filter(lost).length/a.length:null}}).filter(x=>x.n);
+   if(L4.length)CH_.push(['cfc4','التأكيد بدري ولا متأخر أحسن؟ — كام ضاع حسب إمتى اتأكد',{type:'bar',data:{labels:L4.map(x=>x.t+' ('+x.n+')'),datasets:[bar('ضاع %',L4.map(x=>Math.round(x.r*1000)/10),'#2a78d6')]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}}]);
+   const bu=done.filter(c=>c.bulk),nb=done.filter(c=>!c.bulk&&!c.atBook);
+   if(bu.length&&nb.length)CH_.push(['cfc5','⚡ التأكيد بالجملة (5+ في 3 دقايق) — بيضيع أكتر؟',{type:'bar',data:{labels:['بالجملة ('+bu.length+')','واحد واحد ('+nb.length+')'],datasets:[bar('ضاع %',[Math.round(bu.filter(lost).length/bu.length*1000)/10,Math.round(nb.filter(lost).length/nb.length*1000)/10],['#e34948','#2a78d6'])]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}}]);
+   CF.charts=CH_;
+   const few=done.length<60?`<div class="sub" style="margin-top:6px">⚠️ لسه ${done.length} ميعاد بس خلصوا في الفترة دي — الأرقام هتتظبط كل ما الشهر يكمل.</div>`:'';
+   h=h.replace('<!--CFCH-->',CH_.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات<small>من Medicolize لوحده — من غير ملفات المكالمات</small></h3>${few}<div class="grid g2" style="margin-top:8px">${CH_.map(c=>`<div><div style="font-weight:700;font-size:.78rem;margin-bottom:4px">${c[1]}</div><div style="position:relative;height:${c[3]||220}px"><canvas id="${c[0]}"></canvas></div></div>`).join('')}</div></div>`:'')}
   return h}
-function cConf(){const d1=$('#cfD1'),d2=$('#cfD2'),da=$('#cfDAll'),x=$('#cfX');const rr=()=>{CF.st=null;CF.rep={};render()};
+function cConf(){(CF.charts||[]).forEach(c=>chart(c[0],c[2]));const d1=$('#cfD1'),d2=$('#cfD2'),da=$('#cfDAll'),x=$('#cfX');const rr=()=>{CF.st=null;CF.rep={};render()};
   if(d1)d1.onchange=()=>{CF.d1=d1.value;rr()};if(d2)d2.onchange=()=>{CF.d2=d2.value;rr()};
   if(da)da.onclick=()=>{if(CF.minT!=null){CF.d1=cfDay(CF.minT);CF.d2=cfDay(CF.maxT)}else{CF.d1=CF.d2=''}rr()};if(x)x.onclick=()=>cfExcel();
   const f=$('#cfF');if(f)f.onchange=e=>{const fs=[...e.target.files];if(fs.length){$('#cfMsg').textContent='بيقرا الملفات…';cfLoad(fs)}};

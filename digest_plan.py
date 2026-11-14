@@ -150,10 +150,11 @@ def review(today_s, res, reasons, debts_by_pid):
         T = [t for t in tasks if t["br"] == br]
         d = [t for t in T if t["st"] == "done"]
         sy = sum(1 for t in d if t["how"] == "sys")
+        rf = sum(1 for t in d if t["how"] == "ref")
         nr = sum(1 for t in T if t["st"] == "nr")
         op = [t for t in T if t["st"] == "open"]
         out.append(f'<div style="background:#eff6ff;color:#1d4ed8;font-weight:700;padding:5px 10px;border-radius:6px;margin:12px 0 4px">🏥 {BR_AR[br]} — اتعمل {len(d)} من {len(T)} ({pc(len(d), len(T))})</div>'
-                   f'<div style="font-size:12px;margin:2px 0 6px">على السيستم {sy} · بالزرار بس {len(d) - sy} · ما ردش {nr} · فاضل {len(op)}</div>')
+                   f'<div style="font-size:12px;margin:2px 0 6px">على السيستم {sy} · بالزرار بس {len(d) - sy - rf} · 🚫 رفض {rf} · ما ردش {nr} · فاضل {len(op)}</div>')
         # جدول السكرتيرات
         own = defaultdict(list)
         for t in T:
@@ -162,14 +163,21 @@ def review(today_s, res, reasons, debts_by_pid):
         for o, L in sorted(own.items(), key=lambda kv: (kv[0] == "المدير", -len(kv[1]))):
             dd = [t for t in L if t["st"] == "done"]
             ss = sum(1 for t in dd if t["how"] == "sys")
+            rr = sum(1 for t in dd if t["how"] == "ref")
             oo = [t for t in L if t["st"] == "open"]
             f = fast.get(o) or {}
             col = "#16a34a" if len(dd) >= 0.85 * len(L) else "#ea580c" if len(dd) >= 0.65 * len(L) else "#dc2626"
             rows.append(f'<tr><td {TD.replace("center", "right")}><b>{H(o)}</b></td><td {TD}>{len(L)}</td><td {TD}><b style="color:{col}">{len(dd)} ({pc(len(dd), len(L))})</b></td>'
-                        f'<td {TD}>{ss}</td><td {TD}>{len(dd) - ss}</td><td {TD}>{sum(1 for t in L if t["st"] == "nr")}</td><td {TD}>{len(oo)}</td>'
+                        f'<td {TD}>{ss}</td><td {TD}>{len(dd) - ss - rr}</td><td {TD}>{rr}</td><td {TD}>{sum(1 for t in L if t["st"] == "nr")}</td><td {TD}>{len(oo)}</td>'
                         f'<td {TD}>{pc(f.get("fast", 0), f.get("timed", 0))}</td></tr>')
         out.append(f'<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0"><tr><th {TH}>المسئولة</th><th {TH}>مهامها</th><th {TH}>اتعمل</th>'
-                   f'<th {TH}>على السيستم</th><th {TH}>بالزرار</th><th {TH}>ما ردش</th><th {TH}>فاضل</th><th {TH}>في الوقت</th></tr>{"".join(rows)}</table>')
+                   f'<th {TH}>على السيستم</th><th {TH}>بالزرار</th><th {TH}>رفض</th><th {TH}>ما ردش</th><th {TH}>فاضل</th><th {TH}>في الوقت</th></tr>{"".join(rows)}</table>')
+        rs = defaultdict(int)
+        for t in d:
+            if t["how"] == "ref":
+                rs[(t.get("reason") or "—")] += 1
+        if rs:
+            out.append(f'<div style="font-size:12px;margin:4px 0">🚫 <b>أسباب الرفض</b>: ' + " · ".join(f"{H(r)} ({n})" for r, n in sorted(rs.items(), key=lambda kv: -kv[1])) + "</div>")
         # اتعلّم عليها والفلوس لسه متدفعتش
         bad, seenp = [], set()
         for t in d:

@@ -10475,7 +10475,7 @@ function alTiles(cap){
       return {n:n.textContent.trim(), l:l?l.textContent.trim():'', on:d.getAttribute('onclick')||''}; });
     var tot=bEl?bEl.textContent.trim():(brs.length?String(brs.reduce(function(s,b){ return s+(parseInt(b.n,10)||0); },0)):'');
     var subs=[].slice.call(tmp.querySelectorAll('div[style*=".56rem"],div[style*=".54rem"]')), sub=subs.length?subs[subs.length-1].textContent.trim():'';
-    var o={c:c,title:title,tot:tot,brs:brs,sub:sub};
+    var pg=tmp.querySelector('[data-prog]'), o={c:c,title:title,tot:tot,brs:brs,sub:sub,prog:pg?pg.innerHTML:''};
     if(tot==='0'||(tot===''&&!brs.length&&!sub)){ zero.push(title); return; }
     var sc=secs.find(function(x){ return x.rx.test(title); }); (sc||other).L.push(o);
   });
@@ -10484,6 +10484,7 @@ function alTiles(cap){
     return '<div '+(on?'onclick="'+on+'" ':'')+'style="background:var(--card);border:1px solid var(--brd);border-inline-start:3px solid '+o.c.a+';border-radius:0 10px 10px 0;padding:8px 10px;cursor:'+(on?'pointer':'default')+';min-width:0">'+
       '<div style="font-size:.72rem;font-weight:800;color:var(--txt);line-height:1.45">'+alEsc(o.title)+'</div>'+
       '<div style="font-size:1.15rem;font-weight:900;line-height:1.35;color:'+o.c.a+'">'+alEsc(o.tot||'—')+'</div>'+
+      (o.prog?'<div style="font-size:.6rem;font-weight:700;margin:1px 0 2px">'+o.prog+'</div>':'')+
       (o.brs.length?'<div style="font-size:.6rem;color:var(--mute);display:flex;gap:6px;flex-wrap:wrap">'+o.brs.slice(0,3).map(function(b){ return '<span '+(b.on?'onclick="'+b.on+'" ':'')+'style="cursor:pointer;text-decoration:'+(b.on?'underline dotted':'none')+'">'+alEsc(b.l)+' '+alEsc(b.n)+'</span>'; }).join('')+'</div>':'')+
       (o.sub?'<div style="font-size:.56rem;color:var(--mute);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+alEsc(o.sub)+'">'+alEsc(o.sub)+'</div>':'')+'</div>'; };
   return secs.filter(function(x){ return x.L.length; }).map(function(x){
@@ -10577,6 +10578,8 @@ function alertsRender(){
     html+=alCard('#ef4444',
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:.95rem">⚡</span><span style="font-weight:700;font-size:.76rem;flex:1">اعتذار مفاجئ / No Show</span>'+
       '<span style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 10px;font-size:.72rem;font-weight:900">'+sdT.length+' النهارده</span></div>'+
+      (function(){ if(!sdT.length) return ''; var c={sys:0,man:0,ref:0,nr:0,todo:0}; sdT.forEach(function(x){ var h=alRowHow(x,'sudden'); c[h in c?h:'todo']++; });
+        var dn=c.sys+c.man+c.ref; return '<div data-prog="1" style="font-size:.64rem;font-weight:700;margin:-2px 0 8px">النهارده: <span style="color:var(--g)">✅ '+dn+' اتعملوا</span>'+(dn?' <span style="color:var(--mute);font-weight:400">(🤖 '+c.sys+' · ✋ '+c.man+' · 🚫 '+c.ref+')</span>':'')+' · '+(c.nr?'<span style="color:var(--am)">📞 '+c.nr+' ما ردش</span> · ':'')+'<span style="color:'+(c.todo?'var(--r)':'var(--mute)')+'">⬜ '+c.todo+' لسه</span></div>'; })()+
       '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
         [['late','⚡ اعتذار مفاجئ'],['noshow','🚫 No Show']].map(function(k){ var n=sdA.filter(function(x){return x.kind===k[0];}).length;
           return '<div onclick="event.stopPropagation();SD_F.kind=\''+k[0]+'\';alertsOpenSD()" style="flex:1;min-width:110px;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:7px;text-align:center;cursor:pointer"><div style="font-size:1.2rem;font-weight:900;color:#ef4444">'+n+'</div><div style="font-size:.56rem;color:var(--mute)">'+k[1]+' (أسبوعين)</div></div>'; }).join('')+

@@ -87,6 +87,8 @@ def main():
         print("digest: تشغيل متأخر — ملخص يوم", now.strftime("%Y-%m-%d"))
     elif now.hour < DIGEST_HOUR and not force:
         print("digest: لسه بدري"); return
+    if now.weekday() == 4 and not force:   # الجمعة إجازة — مفيش شغل يتلخص (كارت الخميس بيغطي السبت)
+        print("digest: الجمعة إجازة"); return
     today_s = now.strftime("%Y-%m-%d")
     pk = load("packages.json", {"inv": {}})
     if (pk.get("_digest") or {}).get("date") == today_s and not force:

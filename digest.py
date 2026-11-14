@@ -326,7 +326,7 @@ def weekly(now, today_s, user, pw, to):
 def monthly_kpi(now, today_s, user, pw, to):
     """🎯 المتابعة الشهرية — يوم 1 في الشهر (أو DIGEST_KPI=1): مؤشرات الشهر اللي خلص للفرعين، ليك إنت بس"""
     force = os.environ.get("DIGEST_KPI") == "1"
-    if today_s[8:10] != "01" and not force:
+    if int(today_s[8:10]) > 3 and not force:      # أول الشهر، ولو اتأخر تشغيل يوم 1 بيتبعت في يوم 2 أو 3
         return
     pk = load("packages.json", {"inv": {}})
     if (pk.get("_kpi_month") or {}).get("month") == today_s[:7] and not force:

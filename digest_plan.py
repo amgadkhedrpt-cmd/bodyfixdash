@@ -459,8 +459,10 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
                 return "ref"
             if st == "auto" or (t and t["st"] == "done" and t.get("how") == "sys"):
                 return "sys"
-            if st in ("done", "nr") or (t and t["st"] in ("done", "nr")):
+            if st == "done" or (t and t["st"] == "done"):
                 return "man"
+            if st == "nr" or (t and t["st"] == "nr"):
+                return "nr"          # ما ردش = لسه محتاج مكالمة تانية (بتتعد لوحدها، مش «اتعمل»)
             return None
         return "sys" if ok(kind, idv, br) else None
 
@@ -486,13 +488,15 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
     rev, rows = {}, defaultdict(list)
     for name, c in C.items():
         done = tot = 0
-        miss, cat = [], {"sys": 0, "man": 0, "ref": 0}
+        miss, cat = [], {"sys": 0, "man": 0, "ref": 0, "nr": 0}
         for sec in c.get("secs") or []:
             for it in sec.get("items") or []:
                 for j, idv in enumerate(it.get("ids") or []):
                     tot += 1
                     hw = how(it.get("k") or "", idv, c.get("br"))
-                    if hw:
+                    if hw == "nr":
+                        cat["nr"] += 1
+                    if hw and hw != "nr":
                         done += 1
                         cat[hw] += 1
                     else:
@@ -504,13 +508,13 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
     if not rows:
         return "", rev
     out = [f'<h3 style="margin:14px 0 4px">✅ مراجعة كروت {d0}</h3>',
-           sub("اتعمل = ليه أثر على السيستم (اتدفع · اتحجز · خرج من القايمة · اتعلّم في الخطة) · ما ردش بيتحسب اتعمل")]
+           sub("🤖 السيستم = ليه أثر على Medicolize (اتدفع · اتحجز · خرج من القايمة) · ✋ يدوي = اتعلّم في الخطة · 📞 ما ردش = لسه محتاج مكالمة (مش محسوب اتعمل)")]
     for br in [b for b in BR_AR if b in rows]:
         lines = []
         for name, dn, tt, miss, cat in sorted(rows[br], key=lambda r: r[1] / r[2]):
             col = "#16a34a" if dn >= 0.8 * tt else "#ea580c" if dn >= 0.5 * tt else "#dc2626"
             lst = ("<br>" + sub("ما اتعملش: ") + "، ".join(miss[:8]) + (sub(f" +{len(miss) - 8}") if len(miss) > 8 else "")) if miss else ""
-            spl = sub(f'🤖 السيستم {cat["sys"]} · ✋ يدوي {cat["man"]} · 🚫 رفض {cat["ref"]}')
+            spl = sub(f'🤖 السيستم {cat["sys"]} · ✋ يدوي {cat["man"]} · 🚫 رفض {cat["ref"]}' + (f' · 📞 ما ردش {cat["nr"]}' if cat["nr"] else ""))
             lines.append(f'<div style="margin:4px 0"><b>{H(name)}</b>: <b style="color:{col}">اتعمل {dn} من {tt} ({pc(dn, tt)})</b> {spl}{lst}</div>')
         out.append(f'<div style="border-inline-start:3px solid #0f766e;padding:2px 10px;margin:6px 0;font-size:13px"><b>🏥 {BR_AR[br]}</b>{"".join(lines)}</div>')
     return "".join(out), rev

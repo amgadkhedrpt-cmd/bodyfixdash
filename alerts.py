@@ -325,6 +325,33 @@ def build_alerts(appointments, now=None, packages=None):
             continue
         patients[k].append(a)
 
+    # ⏱ وقت الإلغاء الحقيقي: Medicolize بيدينا «آخر تعديل» بس — لو حد كتب ملحوظة بعد الإلغاء الوقت بيتأخر ويبان «مفاجئ» غلط.
+    #    فبنسجل أول مزامنة شفنا فيها الميعاد Canceled (المزامنة كل نص ساعة) وناخد الأبدر من الاتنين.
+    try:
+        import os as _os, json as _json
+        fn_c = _os.path.join(".session", "cancel_seen.json")
+        try:
+            cseen = _json.load(open(fn_c, encoding="utf-8"))
+        except Exception:
+            cseen = {}
+        keep_c, nowi = {}, now.isoformat()
+        for v in patients_all.values():
+            for a in v:
+                if a["status"] not in ("canceled", "cancelled") or not a.get("aid"):
+                    continue
+                if a["start"].date() < today - timedelta(days=20):
+                    continue
+                first = cseen.get(a["aid"]) or nowi
+                keep_c[a["aid"]] = first
+                if a["aid"] in cseen:                          # اتشاف ملغي في مزامنة قبل كده → اتلغى قبلها
+                    f_ = _parse_dt(first)
+                    if f_ and (not a.get("cancel_at") or f_ < a["cancel_at"]):
+                        a["cancel_at"] = f_
+        _os.makedirs(".session", exist_ok=True)
+        _json.dump(keep_c, open(fn_c, "w", encoding="utf-8"))
+    except Exception as e:
+        print(f"⚠️ cancel seen: {e}")
+
     # ── الباقات (من الفواتير) + جهة التحويل + السن ──
     LIVE_TODAY = {"open", "confirmed", "checked in", "checkedin", "in progress", "inprogress", "completed", "delayed"}
     hist_start = min((a["start"].date() for v in patients.values() for a in v), default=today)

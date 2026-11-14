@@ -10458,12 +10458,43 @@ function alOccupancy(){
 
 /* ── الرسم ── */
 function alCard(accent, inner, onclick){
+  if(window._AL_CAP) window._AL_CAP.push({a:accent, inner:inner, on:onclick||''});
   return '<div class="ov-card-link" '+(onclick?'onclick="'+onclick+'" ':'')+'style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:12px 14px;margin-bottom:10px;position:relative;overflow:hidden;cursor:'+(onclick?'pointer':'default')+'">'+
          '<div style="position:absolute;top:0;right:0;bottom:0;width:4px;background:'+accent+'"></div>'+inner+'</div>';
+}
+/* ▦ التنبيهات كمربعات صغيرة متقسمة حسب الاستعجال — الدوسة بتفتح نفس القايمة (بكل فلاترها) · الكروت بالتفصيل من الزرار تحت */
+var AL_TILE_SEC=[['النهارده — اتصرف دلوقتي',/اعتذار مفاجئ|تقييم|ميعاد النهارده|ناقصه خدمة|جلسة رقم|بانتظام/],['متابعة — الأسبوع ده',/المتابعات|كشف|بيلغوا/],['مرضى بنخسرهم',/باقة|انقطعوا|اتشالوا/]];
+function alTiles(cap){
+  var tmp=document.createElement('div'), secs=AL_TILE_SEC.map(function(x){ return {t:x[0],rx:x[1],L:[]}; }), other={t:'تانية',L:[]}, zero=[];
+  cap.forEach(function(c){
+    tmp.innerHTML=c.inner;
+    var tEl=tmp.querySelector('span[style*="font-weight:700"][style*="flex:1"]')||tmp.querySelector('span[style*="font-weight:900"][style*="flex:1"]')||tmp.querySelector('span[style*="font-weight:700"]'), title=tEl?tEl.textContent.trim():'';
+    if(!title) return;
+    var bEl=[].slice.call(tmp.querySelectorAll('span')).find(function(e){ return /font-weight:\s*900/.test(e.getAttribute('style')||'')&&/^\s*\d[\d,]*(\s|$)/.test(e.textContent); });
+    var brs=[].slice.call(tmp.querySelectorAll('div[style*="1.35rem"],div[style*="1.2rem"]')).map(function(n){ var d=n.parentNode, l=[].slice.call(d.children).find(function(c){ return c!==n; });
+      return {n:n.textContent.trim(), l:l?l.textContent.trim():'', on:d.getAttribute('onclick')||''}; });
+    var tot=bEl?bEl.textContent.trim():(brs.length?String(brs.reduce(function(s,b){ return s+(parseInt(b.n,10)||0); },0)):'');
+    var subs=[].slice.call(tmp.querySelectorAll('div[style*=".56rem"],div[style*=".54rem"]')), sub=subs.length?subs[subs.length-1].textContent.trim():'';
+    var o={c:c,title:title,tot:tot,brs:brs,sub:sub};
+    if(tot==='0'||(tot===''&&!brs.length&&!sub)){ zero.push(title); return; }
+    var sc=secs.find(function(x){ return x.rx.test(title); }); (sc||other).L.push(o);
+  });
+  if(other.L.length) secs.push(other);
+  var tile=function(o){ var on=o.c.on;
+    return '<div '+(on?'onclick="'+on+'" ':'')+'style="background:var(--card);border:1px solid var(--brd);border-inline-start:3px solid '+o.c.a+';border-radius:0 10px 10px 0;padding:8px 10px;cursor:'+(on?'pointer':'default')+';min-width:0">'+
+      '<div style="font-size:.62rem;color:var(--mute);line-height:1.4">'+alEsc(o.title)+'</div>'+
+      '<div style="font-size:1.25rem;font-weight:900;line-height:1.3">'+alEsc(o.tot||'—')+'</div>'+
+      (o.brs.length?'<div style="font-size:.56rem;color:var(--mute);display:flex;gap:6px;flex-wrap:wrap">'+o.brs.slice(0,3).map(function(b){ return '<span '+(b.on?'onclick="'+b.on+'" ':'')+'style="cursor:pointer;text-decoration:'+(b.on?'underline dotted':'none')+'">'+alEsc(b.l)+' '+alEsc(b.n)+'</span>'; }).join('')+'</div>':'')+
+      (o.sub?'<div style="font-size:.52rem;color:var(--mute);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+alEsc(o.sub)+'">'+alEsc(o.sub)+'</div>':'')+'</div>'; };
+  return secs.filter(function(x){ return x.L.length; }).map(function(x){
+    return '<div style="font-weight:800;font-size:.72rem;margin:12px 0 6px">'+alEsc(x.t)+' <span style="color:var(--mute);font-weight:400">('+x.L.length+')</span></div>'+
+      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'+x.L.map(tile).join('')+'</div>'; }).join('')+
+    (zero.length?'<div style="font-size:.58rem;color:var(--g);margin-top:10px">✅ مفيش النهارده: '+alEsc(zero.join(' · '))+'</div>':'');
 }
 function alertsRender(){
   setTimeout(function(){ try{ alFixTrack(); }catch(e){} },0);
   var el=document.getElementById('alerts-panel'); if(!el) return;
+  window._AL_CAP=[];
   var today=alCairoToday(), html='';
 
   /* هيدر + تحذير لو الداتا قديمة */
@@ -10755,6 +10786,16 @@ function alertsRender(){
   if(dc&&ALERTS_DATA.today!==today){
     html+='<div style="font-size:.56rem;color:var(--am);margin-bottom:4px">⚠️ أرقام المواعيد بتاريخ '+alEsc(alFmtDay(ALERTS_DATA.today))+'</div>';
   }
+  var cap=window._AL_CAP||[]; window._AL_CAP=null;
+  var view='tiles'; try{ view=localStorage.getItem('alView')||'tiles'; }catch(e){}
+  var tg=function(v,t){ return '<button onclick="try{localStorage.setItem(\'alView\',\''+v+'\')}catch(e){};alertsRender()" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:8px;padding:4px 12px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">'+t+'</button>'; };
+  if(view==='tiles'&&cap.length){
+    var k0=html.indexOf('<div class="ov-card-link"'); var head=k0>0?html.slice(0,k0):'';
+    // «ملخص اليوم» (المواعيد والإشغال) بيفضل زي ما هو تحت — المربعات للتنبيهات بس
+    var si=html.indexOf('ملخص اليوم</span>'), ts=si>0?html.lastIndexOf('<div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px">',si):-1;
+    var tail=ts>0?html.slice(ts):'', nCap=(ts>0?html.slice(0,ts):html).split('class="ov-card-link"').length-1;
+    html=head+alTiles(cap.slice(0,nCap))+'<div style="text-align:center;margin:10px 0">'+tg('full','📋 عرض الكروت بالتفصيل')+'</div>'+tail;
+  } else if(cap.length) html+='<div style="text-align:center;margin:10px 0">'+tg('tiles','▦ عرض مختصر (مربعات)')+'</div>';
   el.innerHTML=html;
 }
 
@@ -12935,7 +12976,11 @@ function alPickOptions(kind){
   if(kind==='dropped') return [{v:'none',t:'🔴 من غير ميعاد'},{v:'booked',t:'🟡 حاجزين ميعاد جاي'}];
   return alActiveBranches().map(function(b){ return {v:b.key, t:b.label}; });
 }
-var AL_NOWONLY=false, AL_BRF='', AL_REFF='', AL_EVF='';
+var AL_NOWONLY=false, AL_BRF='', AL_REFF='', AL_EVF='', AL_ACT2='';
+/* الفلاتر الموحدة فوق كل قايمة: الفرع · لسه محدش عمل حاجة / اتعمل النهارده (ملحوظة النهارده أو اتعلّم في الخطة) */
+function alRowBr(x){ return x._br||(typeof alBranchOf==='function'?alBranchOf(x.doctor,x.branch):x.branch)||''; }
+function alUniOk(kind,x){ if(AL_BRF&&kind!=='milestones'&&alRowBr(x)!==AL_BRF) return false;
+  if(AL_ACT2&&kind!=='streaks'){ var a=alActedToday(x); if(AL_ACT2==='todo'?a:!a) return false; } return true; }
 var AL_REF_KINDS={milestones:1, finished:1, nonext:1, streaks:1, missing:1, svcgap:1, kashf:1};
 /* في الجلسة دلوقتي: الحالة Checked In / In Progress، أو ميعاده بدأ من أقل من ساعة ولسه ما خلصش */
 function alInSession(x){
@@ -12953,6 +12998,10 @@ function alPickFilter(kind, res){
     res=Object.assign({}, res);
     if(res.rows) res.rows=res.rows.filter(function(x){ return refOk(x)&&evOk(x); });
     if(res.gone) res.gone=res.gone.filter(refOk);
+  }
+  if(res&&AL_INOPEN===kind&&((AL_BRF&&kind!=='milestones')||(AL_ACT2&&kind!=='streaks'))){
+    res=Object.assign({}, res); var uf=function(L){ return (L||[]).filter(function(x){ return alUniOk(kind,x); }); };
+    ['rows','gone','none','booked','older'].forEach(function(k){ if(res[k]) res[k]=uf(res[k]); });
   }
   if(res&&kind==='milestones'&&AL_INOPEN===kind&&(AL_NOWONLY||AL_BRF)){ res=Object.assign({}, res); res.rows=(res.rows||[]).filter(function(x){ return (!AL_NOWONLY||alInSession(x)) && (!AL_BRF||x._br===AL_BRF); }); }
   if(!res||!AL_PICK||AL_PICK.kind!==kind||AL_INOPEN!==kind) return res;
@@ -12972,7 +13021,7 @@ function alPickFilter(kind, res){
 }
 var AL_LASTKIND='';
 function alOpenPick(kind, val){
-  if(AL_LASTKIND!==kind){ AL_NOWONLY=false; AL_BRF=''; AL_REFF=''; AL_EVF=''; AL_LASTKIND=kind; }
+  if(AL_LASTKIND!==kind){ AL_NOWONLY=false; AL_BRF=''; AL_REFF=''; AL_EVF=''; AL_ACT2=''; AL_LASTKIND=kind; }
   AL_PICK=(val===null||val===undefined||val==='')?null:{kind:kind, val:String(val)};
   AL_PICKING=true;
   try{ window[AL_PICK_DEF[kind].open](); } finally { AL_PICKING=false; }
@@ -12993,6 +13042,21 @@ function alPickChips(kind){
     return r.filter(function(x){ if(kind==='streaks'){ var g=AL_STREAK_GROUPS[+v]; return alGrpHas(g,x); } if(kind==='milestones') return String(x.session_no)===v; return x._br===v; }).length;
   };
   d.innerHTML=chip('','الكل ('+cnt('')+')')+alPickOptions(kind).map(function(o){ return chip(o.v,o.t+' ('+cnt(o.v)+')'); }).join('');
+  (function(){   // الصف الموحد: الفرع (لو مش هو الفلتر الأساسي) · لسه / اتعمل النهارده
+    var pvU=(AL_PICK&&AL_PICK.kind===kind?'\''+AL_PICK.val+'\'':'null'), raw=AL_PICK_DEF[kind]&&window['_alRaw_'+kind]?window['_alRaw_'+kind]():null;
+    var L=raw?[].concat(raw.rows||[],raw.none||[],raw.booked||[]):[];
+    var u=function(on,col,t,js){ return '<button onclick="'+js+'" style="border:1px solid '+(on?col:'var(--brd)')+';background:'+(on?col:'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border-radius:14px;padding:3px 10px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">'+t+'</button>'; };
+    var row='';
+    if(['streaks','dropped'].indexOf(kind)>=0&&AL_BRANCHES.length>1){
+      row+=u(!AL_BRF,'var(--acc)','كل الفروع',"AL_BRF='';alOpenPick('"+kind+"',"+pvU+")")+AL_BRANCHES.map(function(b){ var n=L.filter(function(x){ return alRowBr(x)===b.key; }).length;
+        return u(AL_BRF===b.key,'var(--acc)',b.label+' ('+n+')',"AL_BRF='"+b.key+"';alOpenPick('"+kind+"',"+pvU+")"); }).join('');
+    }
+    if(kind!=='streaks'){ var nA=L.filter(alActedToday).length;
+      row+=u(AL_ACT2==='todo','#ef4444','⬜ لسه محدش عمل حاجة ('+(L.length-nA)+')',"AL_ACT2=AL_ACT2==='todo'?'':'todo';alOpenPick('"+kind+"',"+pvU+")")+
+           u(AL_ACT2==='done','#10b981','✅ اتعمل النهارده ('+nA+')',"AL_ACT2=AL_ACT2==='done'?'':'done';alOpenPick('"+kind+"',"+pvU+")");
+    }
+    if(row) d.innerHTML+='<span style="width:100%;height:0"></span>'+row;
+  })();
   if(kind==='streaks'&&full&&full.rows){   // ⬜ لسه / ✅ اتعمل النهارده — على كل المجموعات
     var base2=(full.rows||[]).filter(function(x){ return !x.removed&&(!AL_PICK||AL_PICK.kind!==kind||isNaN(+AL_PICK.val)||alGrpHas(AL_STREAK_GROUPS[+AL_PICK.val],x)); });
     var nD=base2.filter(alActedToday).length, nT=base2.length-nD, pv2=(AL_PICK&&AL_PICK.kind===kind?'\''+AL_PICK.val+'\'':'null');
@@ -13035,9 +13099,9 @@ function alPickChips(kind){
 (function(){
   Object.keys(AL_PICK_DEF).forEach(function(kind){
     var def=AL_PICK_DEF[kind], getOrig=window[def.get], openOrig=window[def.open];
-    if(typeof getOrig==='function') window[def.get]=function(){ return alPickFilter(kind, getOrig.apply(this, arguments)); };
+    if(typeof getOrig==='function'){ window['_alRaw_'+kind]=getOrig; window[def.get]=function(){ return alPickFilter(kind, getOrig.apply(this, arguments)); }; }
     if(typeof openOrig==='function') window[def.open]=function(fromNotes){
-      if(!fromNotes && !AL_PICKING) { AL_PICK=null; AL_NOWONLY=false; AL_BRF=''; AL_REFF=''; AL_EVF=''; AL_LASTKIND=kind; }          /* الضغط على الكارت = الكل */
+      if(!fromNotes && !AL_PICKING) { AL_PICK=null; AL_NOWONLY=false; AL_BRF=''; AL_REFF=''; AL_EVF=''; AL_ACT2=''; AL_LASTKIND=kind; }          /* الضغط على الكارت = الكل */
       if(!fromNotes){ var om=document.getElementById('al-modal'); if(om) om.remove(); }
       AL_INOPEN=kind;
       try{ openOrig.apply(this, arguments); } finally { AL_INOPEN=null; }

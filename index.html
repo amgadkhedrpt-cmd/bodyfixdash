@@ -1618,6 +1618,28 @@ function buildApptHtml(r, showDoc){
     (r.other_notes?'<div class="pnt">📝 '+r.other_notes+'</div>':'')+
     '</div></div>';
 }
+/* 📅 لينك من الإيميل: …/#pt=<id المريض>|<الاسم> → قايمة بمواعيده على Medicolize (الجاية الأول) */
+function ptApptsShow(pid,name){
+  var A=((MED_DATA&&MED_DATA.appointments)||[]).filter(function(a){ var p=a.patient||{}; return (pid&&p.id===pid)||(!pid&&((p.firstName||'')+' '+(p.lastName||'')).trim()===name); });
+  var now=Date.now(); A.sort(function(a,b){ return new Date(a.start)-new Date(b.start); });
+  var fut=A.filter(function(a){ return new Date(a.start)>=now-36e5*12; }), past=A.filter(function(a){ return new Date(a.start)<now-36e5*12; }).slice(-5);
+  var row=function(a){ var t=new Date(a.start); return '<div style="border-bottom:1px solid var(--brd);padding:5px 0;font-size:.66rem"><b>'+t.toLocaleDateString('ar-EG',{weekday:'short',day:'numeric',month:'numeric'})+' '+t.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})+'</b> — '+alEsc(a.type||'')+' · '+alEsc(alDocAr((a.doctor||{}).name||'')||((a.doctor||{}).name||''))+' · <span style="color:var(--mute)">'+alEsc(a.status||'')+'</span>'+(a.branch&&a.branch.name==='FIX ZONE'?' · الدقي':'')+'</div>'; };
+  var m=document.createElement('div'); m.id='al-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+  m.onclick=function(e){ if(e.target===m) m.remove(); };
+  m.innerHTML='<div dir="rtl" style="background:var(--card);border:1px solid var(--brd);border-radius:14px 14px 0 0;width:100%;max-width:560px;max-height:80vh;overflow:auto;padding:14px 16px 22px;font-family:Cairo,sans-serif;color:var(--txt)">'+
+    '<div style="display:flex;align-items:center"><b style="flex:1;font-size:.82rem">📅 مواعيد '+alEsc(name||'')+'</b><button onclick="document.getElementById(\'al-modal\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;cursor:pointer">✕</button></div>'+
+    '<div style="font-weight:700;font-size:.68rem;margin:10px 0 2px;color:var(--g)">الجاية ('+fut.length+')</div>'+(fut.length?fut.map(row).join(''):'<div style="font-size:.64rem;color:var(--r);font-weight:700">مالوش أي ميعاد جاي</div>')+
+    (past.length?'<div style="font-weight:700;font-size:.68rem;margin:12px 0 2px;color:var(--mute)">آخر مواعيد فاتت</div>'+past.reverse().map(row).join(''):'')+'</div>';
+  var o=document.getElementById('al-modal'); if(o) o.remove(); document.body.appendChild(m);
+}
+(function(){
+  if(!/^#pt=/.test(location.hash||'')) return;
+  var raw=decodeURIComponent(location.hash.slice(4)), k=raw.indexOf('|'), pid=k>=0?raw.slice(0,k):'', name=k>=0?raw.slice(k+1):raw;
+  var n=0, t=setInterval(function(){ n++;
+    try{ if(MED_DATA&&MED_DATA.appointments){ clearInterval(t); ptApptsShow(pid,name); } }catch(e){}
+    if(n>80) clearInterval(t); },600);
+})();
 function searchPt(){
   var q = document.getElementById('psearch').value.trim().toLowerCase();
   var res = document.getElementById('pt-res');

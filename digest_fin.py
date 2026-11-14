@@ -39,7 +39,17 @@ def chour(iso):
         return 0
 
 
+_LOADED = {}
+
+
 def load():
+    if "d" in _LOADED:
+        return _LOADED["d"]
+    _LOADED["d"] = _load()
+    return _LOADED["d"]
+
+
+def _load():
     if not os.environ.get("FIN_PASS"):
         return None
     import fin_sync
@@ -523,3 +533,79 @@ def steps_money(b, x, T, AUD, STATE):
             out.append({"lvl": 1, "b": b, "t": "🧾 حضر النهارده ومفيش خدمة اتسجلت اتعملت في العمليات (للمراجعة — مش للسكرتارية لسه)", "own": "الاستقبال", "mgr_only": 1,
                         "items": list(nos.values()), "n": len(nos), "val": 0, "prev": None, "solved": 0, "unit": "مريض"})
     return out
+
+
+# ================= 🩺 كشوفات النهارده (في جزء المدير) =================
+_DOCAR = {}
+
+
+def doc_ar(en):
+    """اسم الدكتور بالعربي من جدول الداشبورد (DOC_MAP في index.html)"""
+    if not _DOCAR:
+        try:
+            src = open("index.html", encoding="utf-8").read()
+            i = src.index("var DOC_MAP={")
+            blk = src[i:src.index("};", i)]
+            for k, v in re.findall(r"'([^']+)'\s*:\s*'([^']+)'", blk):
+                _DOCAR[k.strip().lower()] = v
+        except Exception:
+            _DOCAR["_"] = ""
+    en = str(en or "")
+    v = _DOCAR.get(en.strip().lower())
+    return ("د. " + v) if v else en.replace("Dr. ", "د. ").replace("Dr ", "د. ")
+
+ATT = {"completed", "checked in", "checkedin", "in progress", "inprogress"}
+
+
+def exams_today(T, alerts, dash_url):
+    """لكل دكتور: كام كشف واتحجز لكام · اللي اتحجزله: باقة كام جلسة ودفع كام النهارده · اللي ما اتحجزلوش: ملحوظاته + لينك مواعيده"""
+    import urllib.parse
+    ks = [x for x in (alerts or {}).get("kashf_pending") or []
+          if str(x.get("kashf_date") or "")[:10] == T and str(x.get("kashf_status") or "").lower() in ATT]
+    if not ks:
+        return ""
+    data = load()
+    B = {b: Br(data, b) for b in BR} if data else {}
+    BRK = {"BODYFIX Center": "haram", "FIX ZONE": "dokki"}
+
+    def money_of(x):
+        b = B.get(BRK.get(x.get("branch")))
+        if not b:
+            return None
+        ref = None
+        n0 = nrm(x.get("name"))
+        for r, n in b.nm.items():
+            if nrm(n) == n0:
+                ref = r
+                break
+        if not ref:
+            return None
+        paid = sum(p["amt"] for p in b.pay if p["d"] == T and p["pid"] == ref and not p["bal"] and not p["ref"])
+        inv = [i for i in b.inv if i["d"] == T and i["pid"] == ref]
+        return paid, sum(i["tot"] - i["disc"] for i in inv)
+    out = ['<h3 style="margin:18px 0 6px">🩺 كشوفات النهارده</h3>']
+    for br in ("BODYFIX Center", "FIX ZONE"):
+        L = [x for x in ks if x.get("branch") == br]
+        if not L:
+            continue
+        docs = defaultdict(list)
+        for x in L:
+            docs[x.get("doctor") or "—"].append(x)
+        head = " · ".join(f'{H(doc_ar(d))} {len(v)} ({sum(1 for x in v if x.get("next_pt"))} اتحجزلهم)' for d, v in sorted(docs.items(), key=lambda kv: -len(kv[1])))
+        rows = []
+        for d, v in sorted(docs.items(), key=lambda kv: -len(kv[1])):
+            for x in sorted(v, key=lambda x: bool(x.get("next_pt"))):
+                m = money_of(x)
+                pay = (f' · دفع النهارده <b>{money(m[0])}</b>' + (f' من {money(m[1])}' if m[1] else "")) if m and (m[0] or m[1]) else (" · مدفعش حاجة النهارده" if m else "")
+                if x.get("next_pt"):
+                    pk = f'باقة <b>{x["pkg_size"]} جلسة</b>' if x.get("pkg_size") else "اتحجزله جلسات (من غير فاتورة باقة)"
+                    rows.append(f'<li style="margin:3px 0">✅ {H(x.get("name"))} {sub("— " + H(doc_ar(d)))} — {pk}{pay}</li>')
+                else:
+                    notes = [a.get("note") for a in x.get("appts") or [] if (a.get("note") or "").strip()]
+                    nt = "<br>".join("📝 " + H(n[:200]) for n in dict.fromkeys(notes)) or sub("مفيش ملحوظات")
+                    link = f'{dash_url}#pt={urllib.parse.quote(str(x.get("pid") or "") + "|" + str(x.get("name") or ""))}'
+                    rows.append(f'<li style="margin:5px 0">❌ <b>{H(x.get("name"))}</b> {sub("— " + H(doc_ar(d)))} — ما اتحجزلوش{pay}'
+                                f' · <a href="{link}" style="color:#2563eb">📅 مواعيده الجاية</a><div style="font-size:12px;color:#334155;margin-top:2px">{nt}</div></li>')
+        out.append(f'<div style="font-size:13px;margin:6px 0"><b>🏥 {"الهرم" if br == "BODYFIX Center" else "الدقي"}</b>: {head}'
+                   f'<ul style="margin:3px 0;padding-inline-start:18px">{"".join(rows)}</ul></div>')
+    return "".join(out)

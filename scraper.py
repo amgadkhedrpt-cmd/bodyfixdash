@@ -1180,6 +1180,8 @@ def _cover_unpaid(rows, has_done, inv_money=None):
         op = x.get("operation") or {}
         by_op[str(op.get("id") or "") or ("step:" + str(x.get("id")))].append(x)
     res = {}
+    left = defaultdict(float)     # فلوس زيادة فضلت للمريض بعد ما غطّت باقته (pid → مبلغ)
+    owe = defaultdict(list)       # خدمات لسه عليها باقي (pid → خطوات)
     for key, lst in by_op.items():
         done, plan = [], []
         for x in lst:
@@ -1198,6 +1200,19 @@ def _cover_unpaid(rows, has_done, inv_money=None):
             else:
                 REM_[x.get("id")] = (round(float(x.get("paid") or 0) + credit, 2), round(tot_(x), 2), round(need - credit, 2))
                 credit = 0.0; res[x.get("id")] = "unpaid"
+                owe[str((x.get("patient") or {}).get("id") or "")].append(x)
+        if credit > 1 and lst:
+            left[str((lst[0].get("patient") or {}).get("id") or "")] += credit
+    # المريض دافع زيادة في فاتورة/باقة تانية → تغطي الباقي اللي عليه هنا (الحساب على المريض كله مش كل فاتورة لوحدها)
+    for pid_, xs in owe.items():
+        c = left.get(pid_, 0.0)
+        for x in xs:                                       # الأقدم الأول
+            if c <= 1: break
+            pd_, net_, rem_ = REM_[x.get("id")]
+            if c + 1 >= rem_:
+                c -= rem_; res[x.get("id")] = "covered"; REM_.pop(x.get("id"), None)
+            else:
+                REM_[x.get("id")] = (round(pd_ + c, 2), net_, round(rem_ - c, 2)); c = 0.0
     return res, k_
 
 INV_PAY_Q = ("query INV($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"

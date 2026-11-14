@@ -1,5 +1,5 @@
 {
- "at": "2026-11-13T22:26:36.211Z",
+ "at": "2026-11-14T10:27:49.883Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,17 +91,8 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "conf": {
-  "confirmed_now": 0,
-  "new": 0
- },
- "docerr": {
-  "overrides": 6,
-  "override_error": null,
-  "appts": 3127,
-  "steps": 3081,
-  "day": "2026-11-13",
-  "open_now": 64,
-  "added": 0
+  "confirmed_now": 3,
+  "new": 3
  },
  "kinds": {
   "pay": {
@@ -124,7 +115,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20583,
+    "rows": 20584,
     "cols": [
      "id",
      "type",
@@ -418,7 +409,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131097,
+    "rows": 131107,
     "cols": [
      "start",
      "status",
@@ -470,7 +461,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 45,
+    "rows": 48,
     "cols": [
      "aid",
      "start",
@@ -563,7 +554,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7849,
+    "rows": 7853,
     "cols": [
      "duration",
      "createdAt",
@@ -582,7 +573,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1342,
+    "rows": 1343,
     "cols": [
      "duration",
      "createdAt",
@@ -851,20 +842,10 @@
  },
  "hash": {
   "data/fin.enc": "cc863b82269609e7",
-  "data/fin_c.enc": "d83e63cccc1d7dd1"
+  "data/fin_c.enc": "ffe92bbaa70fcbfd"
  },
- "secs": 59,
- "skipped_at": "2026-11-14T01:24:43.594Z",
- "today_hash": "23437918b9a56e2b",
- "today_at": "2026-11-14T01:24:43.594Z",
- "today_n": {
-  "pay": {
-   "haram": 0,
-   "dokki": 0
-  },
-  "apt": {
-   "haram": 0,
-   "dokki": 0
-  }
- }
+ "written": [
+  "data/fin_c.enc"
+ ],
+ "secs": 56
 }

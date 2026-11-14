@@ -603,7 +603,7 @@ def exams_today(T, alerts, dash_url):
                 else:
                     notes = [a.get("note") for a in x.get("appts") or [] if (a.get("note") or "").strip()]
                     nt = "<br>".join("📝 " + H(n[:200]) for n in dict.fromkeys(notes)) or sub("مفيش ملحوظات")
-                    link = f'{dash_url}#pt={urllib.parse.quote(str(x.get("name") or ""))}'
+                    link = f'{dash_url}#pt={urllib.parse.quote(str(x.get("pid") or "") + "|" + str(x.get("name") or ""))}'
                     rows.append(f'<li style="margin:5px 0">❌ <b>{H(x.get("name"))}</b> {sub("— " + H(doc_ar(d)))} — ما اتحجزلوش{pay}'
                                 f' · <a href="{link}" style="color:#2563eb">📅 مواعيده الجاية</a><div style="font-size:12px;color:#334155;margin-top:2px">{nt}</div></li>')
         out.append(f'<div style="font-size:13px;margin:6px 0"><b>🏥 {"الهرم" if br == "BODYFIX Center" else "الدقي"}</b>: {head}'

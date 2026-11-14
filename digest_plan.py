@@ -288,12 +288,17 @@ def cards(today_s, res, P, alerts, prev_rev=None):
                 put(ow, "💸 حصّلي", (i.get("came", 0), i.get("age") or 0, f'{H(i["n"])} — باقي {int(i["remv"]):,} ج{tag}', "pay", [i["pid"]], [i["n"]],
                                        f'{i["n"]} — باقي {int(i["remv"]):,} ج' + (" (حضر تاني)" if i.get("came") else "")))
         # 🩺 كشوفات · 🔁 بيلغوا
+        # من مهام خطة اليوم المفتوحة بس (اللي في الشيت فعلاً ولسه محدش قفلها) — مش كل اللي في قايمة المشاكل من أسابيع
         for key, sec, gs in CARD_PROB:
-            ow = _owner_g(T, br, gs)
-            for p in PB:
-                if key in p["t"]:
-                    for i in p["items"]:
-                        put(ow, sec, (0, i.get("age") or 0, H(i["n"]) + (f' {sub("(من " + str(i["age"]) + " يوم)")}' if i.get("age") else ""), "prob:" + key, [i["n"]], [i["n"]], i["n"]))
+            dflt_o = _owner_g(T, br, gs)
+            seen_n = set()
+            for t in T:
+                if t["g"] not in gs or t.get("st") in ("done", "snz") or not t.get("n") or t["n"] in seen_n:
+                    continue
+                seen_n.add(t["n"])
+                ag = ages.get((t["k"], t["g"]), 1)
+                put(t.get("o") if t.get("o") and t["o"] != "المدير" else dflt_o, sec,
+                    (0, ag, H(t["n"]) + (f' {sub("(مترحّلة من " + str(ag) + " يوم)")}' if ag >= 2 else ""), "plan", [t["k"]], [t["n"]], t["n"]))
         # 🔁 خلص الباقة ومالوش ميعاد (آخر 7 أيام)
         ow = _owner_g(T, br, ["renew", "call", "drop"])
         for x in (alerts or {}).get("finished_packages") or []:

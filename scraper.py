@@ -1215,6 +1215,32 @@ def _cover_unpaid(rows, has_done, inv_money=None):
                 REM_[x.get("id")] = (round(pd_ + c, 2), net_, round(rem_ - c, 2)); c = 0.0
     return res, k_
 
+def _audN(x):
+    """نفس audN في الصفحة: توحيد الحروف وشيل الأرقام من الآخر"""
+    x = re.sub(r"[\u200e\u200f\u202a-\u202e\u2066-\u2069\u0640]", "", str(x or ""))
+    x = re.sub(r"[أإآ]", "ا", x).replace("ى", "ي").replace("ة", "ه")
+    x = re.sub(r"\s+", " ", x).strip()
+    return re.sub(r"[\s\d.\u0660-\u0669]+$", "", x).strip().lower()
+
+def _svc_map():
+    """جدول ربط نوع الموعد بأسامي الخطوات — نفس AUD_MAP_DEFAULT في index.html (بيتقري منه عشان يفضل واحد).
+    يرجّع ({نوع الموعد: {أسامي الخطوات}}, {أنواع مش خدمة})"""
+    amap, ign = {}, set()
+    try:
+        src = open("index.html", encoding="utf-8").read()
+        blk = src[src.index("var AUD_MAP_DEFAULT=["):]
+        blk = blk[:blk.index("\n];")]
+        for g, on, a, s_ in re.findall(r"\{g:'([^']*)'.*?on:(\d).*?a:\[(.*?)\],\s*s:\[(.*?)\]", blk, re.S):
+            A = [_audN(v) for v in re.findall(r"'([^']*)'", a)]
+            S = {_audN(v) for v in re.findall(r"'([^']*)'", s_)}
+            if "مش خدمة" in g:
+                ign.update(A); continue
+            for t in A:
+                amap.setdefault(t, set()).update(S)
+    except Exception as e:
+        print(f"⚠️ svc map: {str(e)[:120]}")
+    return amap, ign
+
 INV_PAY_Q = ("query INV($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
              "{invoices(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate){id total paid discount patient{id}}}")
 
@@ -1385,51 +1411,66 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
     #   عنده باقة → نحسب أول خطوة Planned كأنها اتعملت ونشوف هيبقى عليه كام (v=1)
     #   مالوش باقة → تنبيه «اتأكدي إنه دفع الجلسة» من غير مبلغ (np=1)
     expect = []   # منفصلة عن debts عشان ما تلخبطش التقارير — بيقراها تنبيه «حصّلي قبل ما يمشي» بس
+    # 💸 كل موعد النهارده (أي حالة غير Waiting/Cancelled/No Show) ولسه مفيش خطوة مكتملة النهارده من نفس نوع الخدمة:
+    #   فيه خطوة Planned من نفس نوع الخدمة → نحسبها كأنها اتعملت ونشوف هيبقى عليه كام (v=1)
+    #   مفيش → تنبيه «مالوش باقة للخدمة دي — اتأكدي إنه دفع» من غير مبلغ (np=1)
     try:
-        SKIP_ST = {"WAITING", "CANCELLED", "CANCELED", "NOSHOW", "NOTE", "DELAYED"}
-        today_ap = {}
+        SKIP_ST = {"WAITING", "CANCELLED", "CANCELED", "NOSHOW", "NOTE"}
+        AMAP, IGN = _svc_map()
+        today_ap = []
         for a in appointments or []:
             if _cairo_date(a.get("start")) != d_to: continue
             if str(a.get("status_en") or "").upper() in SKIP_ST: continue
             if str((a.get("doctor") or {}).get("name") or "").strip().lower() in ("follow up",): continue
             pid_ = str((a.get("patient") or {}).get("id") or "")
-            if pid_ and pid_ not in today_ap: today_ap[pid_] = a
-        done_today, first_plan = set(), {}
+            t_ = _audN(a.get("type"))
+            if not pid_ or t_ in IGN: continue            # كشف/تقييم/متابعه… = مش خدمة في جدول الربط
+            today_ap.append((pid_, AMAP.get(t_), a))
+        pids = {p_ for p_, _, _ in today_ap}
+        steps_of = defaultdict(list)
         for x in rows:
-            pid_ = str((x.get("patient") or {}).get("id") or "")
-            if pid_ not in today_ap: continue
-            k = _step_kind(x.get("status"), has_done)
-            if k == "done" and _cairo_date(x.get("end") or x.get("createdAt")) == d_to:
-                done_today.add(pid_)
-            elif k == "plan":
-                o = first_plan.get(pid_)
-                if o is None or str(x.get("createdAt") or "") < str(o.get("createdAt") or ""):
-                    first_plan[pid_] = x
-        virt = {first_plan[p_]["id"]: p_ for p_ in today_ap if p_ not in done_today and p_ in first_plan
-                and not (inv_rem is not None and float(inv_rem.get(p_) or 0) <= 1)}
+            p_ = str((x.get("patient") or {}).get("id") or "")
+            if p_ in pids: steps_of[p_].append(x)
+        virt, used, seen_ap = {}, set(), set()
+        for p_, names, a in sorted(today_ap, key=lambda z: str(z[2].get("start") or "")):
+            key_ = (p_, tuple(sorted(names)) if names else ("?" + _audN(a.get("type")),))
+            if key_ in seen_ap: continue                   # نفس الخدمة مرتين النهارده = مرة واحدة
+            seen_ap.add(key_)
+            match = (lambda x: _audN(x.get("name")) in names) if names else (lambda x: False)
+            mine = [x for x in steps_of[p_] if match(x)]
+            if any(_step_kind(x.get("status"), has_done) == "done" and _cairo_date(x.get("end") or x.get("createdAt")) == d_to for x in mine):
+                continue                                   # الدكتور قفلها → الحساب العادي
+            plans = sorted([x for x in mine if _step_kind(x.get("status"), has_done) == "plan" and x.get("id") not in used],
+                           key=lambda x: str(x.get("createdAt") or ""))
+            if plans:
+                used.add(plans[0]["id"])
+                if not (inv_rem is not None and float(inv_rem.get(p_) or 0) <= 1):
+                    virt[plans[0]["id"]] = (p_, a)
+                continue
+            expect.append({"id": "np:" + str(a.get("id")), "d": d_to, "pid": p_, "p": _pname(a.get("patient")),
+                           "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
+                           "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1,
+                           "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
         if virt:
             saved = dict(REM_)
             rows2 = [dict(x, status="COMPLETED", end=now.isoformat()) if x.get("id") in virt else x for x in rows]
             pay2, _ = _cover_unpaid(rows2, has_done)
             vrem = {i: REM_.get(i) for i in virt if pay2.get(i) == "unpaid"}
             REM_.clear(); REM_.update(saved)
+            left_cap = {}
             for i, r_ in vrem.items():
+                p_, a = virt[i]
                 x = next(y for y in rows if y.get("id") == i)
                 pd_, net_, rem_ = r_
                 if inv_rem is not None:
-                    rem_ = min(rem_, float(inv_rem.get(virt[i]) or 0))
+                    cap = left_cap.setdefault(p_, float(inv_rem.get(p_) or 0))
+                    rem_ = min(rem_, cap); left_cap[p_] = cap - rem_
                 if rem_ < 20: continue
-                expect.append({"id": "v:" + str(i), "d": d_to, "pid": virt[i], "p": _pname(x.get("patient")),
-                              "dr": ((today_ap[virt[i]].get("doctor") or {}).get("name") or "").strip(), "s": (x.get("name") or "").strip(),
-                              "b": ((x.get("branch") or {}).get("name") or ((today_ap[virt[i]].get("branch") or {}).get("name") or "")),
-                              "pd": pd_, "net": net_, "rem": round(rem_, 2), "v": 1, "ph": ((x.get("patient") or {}).get("phoneNumber") or "")})
-        for p_, a in today_ap.items():
-            if p_ in done_today or p_ in first_plan: continue
-            expect.append({"id": "np:" + str(a.get("id")), "d": d_to, "pid": p_, "p": _pname(a.get("patient")),
-                          "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
-                          "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1,
-                          "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
-        print(f"[{ts()}] 💸 جايين النهارده: {len(virt)} محسوب لهم جلسة النهارده · {sum(1 for r in expect if r.get('np'))} مالهمش باقة")
+                expect.append({"id": "v:" + str(i), "d": d_to, "pid": p_, "p": _pname(x.get("patient")),
+                               "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (x.get("name") or "").strip(),
+                               "b": ((a.get("branch") or {}).get("name") or ((x.get("branch") or {}).get("name") or "")),
+                               "pd": pd_, "net": net_, "rem": round(rem_, 2), "v": 1, "ph": ((x.get("patient") or {}).get("phoneNumber") or "")})
+        print(f"[{ts()}] 💸 جايين النهارده: {len(virt)} محسوب لهم جلسة النهارده · {sum(1 for r in expect if r.get('np'))} مالهمش باقة للخدمة")
     except Exception as e:
         print(f"[{ts()}] ⚠️ جلسة النهارده المتوقعة: {str(e)[:150]}")
     out = {"last_updated": now.isoformat(), "from": d_from, "to": d_to, "lookback_days": STEPS_LOOKBACK,

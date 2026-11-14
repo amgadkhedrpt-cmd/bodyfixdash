@@ -11781,7 +11781,7 @@ function planCashBanner(){
     var o=P[r.pid]||(P[r.pid]={n:r.p,b:r.b,rem:0,today:0,old:0,dr:r.dr}); o.rem+=(+r.rem||0); if(r.d===today) o.today=1; else o.old=1; });
   /* جاي النهارده والجلسة لسه متقفلتش على الخطوات: v = محسوب له جلسة النهارده (متوقع) · np = مالوش باقة */
   (AUD_DATA.expect||[]).forEach(function(r){ if(act.indexOf(r.b)<0||r.d!==today) return;
-    var o=P[r.pid]||(P[r.pid]={n:r.p,b:r.b,rem:0,today:0,old:0,dr:r.dr}); if(r.v){ o.rem+=(+r.rem||0); o.v=1; } if(r.np) o.np=1; });
+    var o=P[r.pid]||(P[r.pid]={n:r.p,b:r.b,rem:0,today:0,old:0,dr:r.dr}); if(r.v){ o.rem+=(+r.rem||0); o.v=1; } if(r.np){ o.np=1; (o.nps=o.nps||[]).push(r.s); } });
   var L=Object.keys(P).map(function(k){return P[k];}).filter(function(o){ return o.rem>=20||o.np; }).sort(function(a,b){ return b.old-a.old||b.rem-a.rem; });
   if(!L.length) return '';
   var upd=''; try{ upd=new Date(AUD_DATA.last_updated).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}); }catch(e){}
@@ -11790,7 +11790,7 @@ function planCashBanner(){
     '<div style="font-weight:800;font-size:.8rem;color:var(--r)">💸 حصّلي قبل ما يمشي ('+L.length+')</div>'+
     Object.keys(byB).map(function(b){ var co=planCashOwner({br:b}); return '<div style="margin-top:6px;font-size:.68rem"><b>'+(b==='FIX ZONE'?'الدقي':'الهرم')+'</b>'+(co?' · على الخزنة: <b>'+alEsc(co)+'</b>':'')+
       '<ul style="margin:3px 0;padding-inline-start:18px;line-height:1.8">'+byB[b].map(function(o){ return '<li>'+alEsc(o.n)+(o.rem>=20?' — باقي <b>'+planMoney(o.rem)+' ج</b>'+(o.v&&!o.old&&!o.today?' <span style="color:var(--am)">(متوقع)</span>':''):'')+
-        (o.np?' — <b style="color:var(--am)">مالوش باقة · اتأكدي إنه دفع الجلسة</b>':'')+
+        (o.np?' — <b style="color:var(--am)">مالوش باقة لـ '+alEsc((o.nps||[]).join(' + '))+' · اتأكدي إنه دفع</b>':'')+
         ' <span style="color:var(--mute)">('+[o.old?'عليه من قبل':'', o.today?'خدمة النهارده':'', o.v?'محسوب جلسة النهارده — لسه متقفلتش على الخطوات':'', o.np?'محجوز النهارده':''].filter(Boolean).join(' · ')+(o.dr?' · '+alEsc(o.dr):'')+')</span></li>'; }).join('')+'</ul></div>'; }).join('')+
     '<div style="font-size:.58rem;color:var(--mute)">«متوقع» = اتحسبت جلسة النهارده من أول ما اتحجز/وصل، قبل ما الدكتور يقفلها · بيختفي لوحده أول ما الدفع يتسجل على Medicolize · آخر تحديث '+alEsc(upd)+' (كل نص ساعة)</div></div>';
 }

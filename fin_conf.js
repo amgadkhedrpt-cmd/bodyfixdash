@@ -2,7 +2,7 @@
 // التأكيدات: السحب بيسجل كل موعد Confirmed + وقت تعديله على Medicolize (= وقت التأكيد) — متشفرة مع باقي البيانات.
 // سجل المكالمات: بيترفع هنا ويتقري على الجهاز بس — مش بيتبعت ولا بيتحفظ في أي حتة.
 'use strict';
-const CF={calls:[],files:[],map:null,sheet:null,sheetTry:false,minT:null,maxT:null,d1:'',d2:'',rep:{}};
+const CF={a1:'',a2:'',calls:[],files:[],map:null,sheet:null,sheetTry:false,minT:null,maxT:null,d1:'',d2:'',rep:{}};
 const cfT1=()=>CF.d1?Date.parse(CF.d1+'T00:00:00Z'):-Infinity,cfT2=()=>CF.d2?Date.parse(CF.d2+'T00:00:00Z')+864e5:Infinity;
 const cfInR=t=>t>=cfT1()&&t<cfT2();
 const cfDig=s=>String(s==null?'':s).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
@@ -65,7 +65,8 @@ function cfConfs(){const T=(RAW&&RAW.kinds&&RAW.kinds.conf&&RAW.kinds.conf.all)|
     for(const r of t.rows){const cT=cfWall(r[I.u]),aT=cfWall(r[I.s]),crT=cfWall(r[I.cr]);if(cT==null||aT==null)continue;
       out.push({aid:r[I.aid],cT,aT,crT,type:tName(r[I.ty]||''),pid:r[I.pid],pn:r[I.pn]||'',ph:cfPh(r[I.ph]),doc:docName(r[I.doc]||''),b:r[I.b],puid:I.puid>=0?r[I.puid]:null,k:cfDay(aT).slice(0,7)})}}
   return out}
-function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(CF.d1||CF.d2?cfInR(c.cT):c.k>=S.from&&c.k<=S.to));
+const cfApOk=c=>{const d=cfDay(c.aT);return (!CF.a1||d>=CF.a1)&&(!CF.a2||d<=CF.a2)};   // فلتر يوم الموعد
+function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(CF.d1||CF.d2||CF.a1||CF.a2?((!(CF.d1||CF.d2)||cfInR(c.cT))&&cfApOk(c)):c.k>=S.from&&c.k<=S.to));
   if(!CF.idx){CF.idx={};CF.calls.forEach(c=>(CF.idx[c.ph]=CF.idx[c.ph]||[]).push(c))}
   // نتيجة الموعد من بيانات المواعيد
   const ap={};D.apt.forEach(a=>{if(!a.pid)return;const k=a.pid+'|'+a.d;(ap[k]=ap[k]||[]).push(a.st)});
@@ -91,7 +92,9 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   let h=`<div class="card"><h3>📞 التأكيدات — اتأكد بمكالمة فعلاً؟<small>${BRN[S.b]} · ${ml(S.from)}–${ml(S.to)}</small></h3>
    <div class="note" style="line-height:1.9">كل موعد بيتعلّم عليه «مؤكد» السحب بيسجّل وقته بالظبط${since?` (التسجيل شغال من ${since})`:''}. ارفع ملفات سجل المكالمات (CSV أو Excel — من الموبايل أو السنترال) وأنا أشوف: قبل التأكيد، هل فيه مكالمة <b>اترد عليها</b> لرقم المريض؟<br>
    الملفات بتتقري على جهازك بس — مش بتترفع ولا بتتحفظ في أي حتة، ولو قفلت الصفحة لازم ترفعها تاني. ملحوظة: التأكيد على <b>واتساب</b> مش بيظهر في سجل المكالمات.</div>
-   <div class="bar" style="margin-top:8px"><label class="sub">الفترة من <input type="date" id="cfD1" value="${CF.d1}"></label><label class="sub">لحد <input type="date" id="cfD2" value="${CF.d2}"></label><button id="cfDAll">كل فترة الملفات</button><span class="sub">${CF.d1||CF.d2?'':'(من غير تاريخ: المكالمات كلها، والتأكيدات حسب شهور الفلتر فوق)'}</span><button class="pri" id="cfX">📥 نزّل التحليل وخطة العمل (Excel)</button></div>
+   <div class="bar" style="margin-top:8px"><b class="sub">📅 يوم الموعد:</b><label class="sub">من <input type="date" id="cfA1" value="${CF.a1}"></label><label class="sub">لحد <input type="date" id="cfA2" value="${CF.a2}"></label></div>
+   <div class="bar" style="margin-top:6px"><b class="sub">✔️ يوم التأكيد (والمكالمات):</b><label class="sub">من <input type="date" id="cfD1" value="${CF.d1}"></label><label class="sub">لحد <input type="date" id="cfD2" value="${CF.d2}"></label><button id="cfDAll">كل فترة الملفات</button><button id="cfDClr">امسح التواريخ</button></div>
+   <div class="bar" style="margin-top:6px"><span class="sub">${CF.a1||CF.a2||CF.d1||CF.d2?'الفلترين مع بعض: مواعيد في «يوم الموعد» اتأكدت في «يوم التأكيد» · «ما اتأكدش خالص» بيتحسب بيوم الموعد':'(من غير تاريخ: المكالمات كلها، والتأكيدات حسب شهور الفلتر فوق)'}</span><button class="pri" id="cfX">📥 نزّل التحليل وخطة العمل (Excel)</button></div>
    <div class="bar" style="margin-top:8px"><label class="drop" style="padding:6px 12px;border:1px dashed var(--brd);border-radius:8px;cursor:pointer">📂 ارفع ملفات المكالمات<input type="file" id="cfF" accept=".csv,.xlsx,.xls,.txt" multiple hidden></label>${CF.calls.length?`<button id="cfClr">🗑️ امسح الملفات</button><span class="sub">${CF.calls.length} مكالمة · من ${cfFmt(CF.minT)} لـ ${cfFmt(CF.maxT)} · صادرة ${ty.out||0} · واردة ${ty.in||0} · فائتة ${ty.miss||0}${ty['?']?` · من غير نوع ${ty['?']}`:''}</span>`:''}<span id="cfMsg" class="sub"></span></div>
    ${fl?`<ul class="ins" style="margin-top:6px">${fl}</ul>`:''}
    ${mp?`<div class="bar" style="margin-top:4px"><span class="sub">الأعمدة اللي فهمتها (غيّرها لو غلط):</span>${colSel('ph','الرقم')}${colSel('date','التاريخ')}${colSel('time','الساعة')}${colSel('type','النوع')}${colSel('dur','المدة')}</div>`:''}</div>`;
@@ -113,7 +116,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   const OG=grp.map(([t,f])=>oRow(t,C.filter(c=>fin_(c)&&f(c)))).filter(o=>o.n);
   // مواعيد ما اتأكدتش خالص (من أول يوم التسجيل لحد امبارح، ومش في التأكيدات)
   {const t0=all.length?cfDay(Math.min(...all.map(c=>c.cT))):null,y=cfDay(Date.now()+2*3600e3-864e5),seen=new Set(all.map(c=>c.pid+'|'+cfDay(c.aT)));
-   if(t0){const st={};D.apt.forEach(a=>{if(!inB(a)||!a.pid||a.d<t0||a.d>y||(CF.d1&&a.d<CF.d1)||(CF.d2&&a.d>CF.d2))return;const k=a.pid+'|'+a.d;if(seen.has(k))return;(st[k]=st[k]||[]).push(a.st)});
+   if(t0){const st={};D.apt.forEach(a=>{if(!inB(a)||!a.pid||a.d<t0||a.d>y||(CF.a1||CF.a2?((CF.a1&&a.d<CF.a1)||(CF.a2&&a.d>CF.a2)):((CF.d1&&a.d<CF.d1)||(CF.d2&&a.d>CF.d2))))return;const k=a.pid+'|'+a.d;if(seen.has(k))return;(st[k]=st[k]||[]).push(a.st)});
      const nc=Object.values(st).map(l=>({res:l.some(s=>/complet|check|progress|delay/i.test(s))?'حضر':l.some(s=>/no ?show/i.test(s))?'ما جاش':l.some(s=>/cancel/i.test(s))?'اعتذر':''})).filter(fin_);
      const o=oRow('⬜ ما اتأكدش خالص',nc);if(o.n)OG.push(o)}}
   const ogRows=OG.map(o=>[o.t,o.n,o.at,o.ca,o.ns,`<b${o.r>0.2?' class="down"':''}>${pc(o.r)}</b>`]);
@@ -158,11 +161,21 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    const bu=done.filter(c=>c.bulk),nb=done.filter(c=>!c.bulk&&!c.atBook);
    if(bu.length&&nb.length)CH_.push(['cfc5','⚡ التأكيد بالجملة (5+ في 3 دقايق) — بيضيع أكتر؟',{type:'bar',data:{labels:['بالجملة ('+bu.length+')','واحد واحد ('+nb.length+')'],datasets:[bar('ضاع %',[Math.round(bu.filter(lost).length/bu.length*1000)/10,Math.round(nb.filter(lost).length/nb.length*1000)/10],['#e34948','#2a78d6'])]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}}]);
    CF.charts=CH_;
+   // 📋 الأسامي حسب إمتى اتأكد (كل المواعيد في الفترة — اللي لسه ما جاش يومها مكتوب «لسه»)
+   const LB=[['🟢 اتحجز «مؤكد» وقت الحجز — والموعد بعدها بأكتر من يوم',c=>c.atBook&&c.crT!=null&&(c.aT-c.crT)/36e5>24],
+     ['اتأكد قبلها بيومين أو أكتر',c=>!c.atBook&&(c.aT-c.cT)/36e5>=48],['اتأكد قبلها بيوم',c=>!c.atBook&&(c.aT-c.cT)/36e5>=20&&(c.aT-c.cT)/36e5<48],
+     ['اتأكد نفس اليوم (بدري)',c=>!c.atBook&&(c.aT-c.cT)/36e5>=6&&(c.aT-c.cT)/36e5<20],['اتأكد قبلها بساعات (أقل من 6 ساعات)',c=>!c.atBook&&(c.aT-c.cT)/36e5>=0&&(c.aT-c.cT)/36e5<6]];
+   const resC=r=>r==='حضر'?'<span style="color:var(--good)">حضر</span>':(r==='اعتذر'||r==='ما جاش')?`<b class="down">${r}</b>`:esc(r||'—');
+   const lead=c=>{const hrs=((c.atBook&&c.crT!=null?c.aT-c.crT:c.aT-c.cT))/36e5;return hrs>=48?Math.round(hrs/24)+' يوم':hrs>=1?Math.round(hrs)+' ساعة':Math.round(hrs*60)+' د'};
+   const lists=LB.map(([t,f])=>{const a=C.filter(f).sort((x,y)=>y.aT-x.aT),dn=a.filter(fin_),ls=dn.filter(lost);
+     return a.length?`<details style="margin-top:6px"><summary style="cursor:pointer;font-weight:700;font-size:.78rem">${t} — ${a.length} موعد${dn.length?` · ضاع ${ls.length} من ${dn.length} (${pc(ls.length/dn.length)})`:''}</summary>${tableHTML(['المريض','الموعد','اتأكد إمتى',{t:'قبلها بـ',n:1},'النتيجة','المسئولة'],a.slice(0,400).map(c=>[esc(c.pn),cfFmt(c.aT)+' · '+esc(c.type),cfFmt(c.atBook&&c.crT!=null?c.crT:c.cT)+(c.atBook?' (وقت الحجز)':'')+(c.bulk?' ⚡':''),lead(c),resC(c.res),esc(c.who||'')]),{h:360})}</details>`:''}).join('');
+   CF.listsHTML=lists?`<div class="card" style="margin-top:12px"><h3>📋 الأسامي حسب إمتى اتأكد<small>دوس على أي مجموعة تفتح أساميها</small></h3>${lists}</div>`:'';
    const few=done.length<60?`<div class="sub" style="margin-top:6px">⚠️ لسه ${done.length} ميعاد بس خلصوا في الفترة دي — الأرقام هتتظبط كل ما الشهر يكمل.</div>`:'';
-   h=h.replace('<!--CFCH-->',CH_.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات<small>من Medicolize لوحده — من غير ملفات المكالمات</small></h3>${few}<div class="grid g2" style="margin-top:8px">${CH_.map(c=>`<div><div style="font-weight:700;font-size:.78rem;margin-bottom:4px">${c[1]}</div><div style="position:relative;height:${c[3]||220}px"><canvas id="${c[0]}"></canvas></div></div>`).join('')}</div></div>`:'')}
+   h=h.replace('<!--CFCH-->',(CH_.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات<small>من Medicolize لوحده — من غير ملفات المكالمات</small></h3>${few}<div class="grid g2" style="margin-top:8px">${CH_.map(c=>`<div><div style="font-weight:700;font-size:.78rem;margin-bottom:4px">${c[1]}</div><div style="position:relative;height:${c[3]||220}px"><canvas id="${c[0]}"></canvas></div></div>`).join('')}</div></div>`:'')+(CF.listsHTML||''))}
   return h}
 function cConf(){(CF.charts||[]).forEach(c=>chart(c[0],c[2]));const d1=$('#cfD1'),d2=$('#cfD2'),da=$('#cfDAll'),x=$('#cfX');const rr=()=>{CF.st=null;CF.rep={};render()};
   if(d1)d1.onchange=()=>{CF.d1=d1.value;rr()};if(d2)d2.onchange=()=>{CF.d2=d2.value;rr()};
+  const a1=$('#cfA1'),a2=$('#cfA2'),dc=$('#cfDClr');if(a1)a1.onchange=()=>{CF.a1=a1.value;rr()};if(a2)a2.onchange=()=>{CF.a2=a2.value;rr()};if(dc)dc.onclick=()=>{CF.a1=CF.a2=CF.d1=CF.d2='';rr()};
   if(da)da.onclick=()=>{if(CF.minT!=null){CF.d1=cfDay(CF.minT);CF.d2=cfDay(CF.maxT)}else{CF.d1=CF.d2=''}rr()};if(x)x.onclick=()=>cfExcel();
   const f=$('#cfF');if(f)f.onchange=e=>{const fs=[...e.target.files];if(fs.length){$('#cfMsg').textContent='بيقرا الملفات…';cfLoad(fs)}};
   const c=$('#cfClr');if(c)c.onclick=()=>{CF.calls=[];CF.files=[];CF.map=null;CF.idx=null;CF.st=null;CF.minT=CF.maxT=null;render()};

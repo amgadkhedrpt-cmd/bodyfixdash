@@ -1,5 +1,5 @@
 {
- "at": "2026-11-14T12:35:27.200Z",
+ "at": "2026-11-14T14:06:38.471Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,8 +91,8 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "conf": {
-  "confirmed_now": 10,
-  "new": 4
+  "confirmed_now": 30,
+  "new": 22
  },
  "kinds": {
   "pay": {
@@ -115,7 +115,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20586,
+    "rows": 20593,
     "cols": [
      "id",
      "type",
@@ -161,7 +161,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1017,
+    "rows": 1018,
     "cols": [
      "type",
      "amount",
@@ -239,7 +239,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 266,
+    "rows": 267,
     "cols": [
      "type",
      "amount",
@@ -330,7 +330,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 260,
+    "rows": 261,
     "cols": [
      "name",
      "type",
@@ -367,7 +367,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131139,
+    "rows": 131176,
     "cols": [
      "start",
      "status",
@@ -386,8 +386,10 @@
     "values": {
      "status": [
       "CANCELED",
+      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
+      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -398,7 +400,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6312,
+    "rows": 6313,
     "cols": [
      "start",
      "status",
@@ -420,7 +422,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 56,
+    "rows": 78,
     "cols": [
      "aid",
      "start",
@@ -513,7 +515,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7864,
+    "rows": 7870,
     "cols": [
      "duration",
      "createdAt",
@@ -532,7 +534,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1347,
+    "rows": 1348,
     "cols": [
      "duration",
      "createdAt",
@@ -603,7 +605,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17422,
+    "rows": 17428,
     "cols": [
      "id",
      "referenceId",
@@ -845,11 +847,10 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "2a2c6028dde0b522"
+  "data/fin_c.enc": "03f8824c4fa6f4f6"
  },
  "written": [
-  "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 98
+ "secs": 63
 }

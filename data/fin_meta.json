@@ -1,5 +1,5 @@
 {
- "at": "2026-11-14T16:20:49.450Z",
+ "at": "2026-11-14T17:49:32.980Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,8 +91,8 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "conf": {
-  "confirmed_now": 29,
-  "new": 1
+  "confirmed_now": 27,
+  "new": 5
  },
  "kinds": {
   "pay": {
@@ -115,7 +115,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20601,
+    "rows": 20606,
     "cols": [
      "id",
      "type",
@@ -202,7 +202,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 2998,
+    "rows": 3002,
     "cols": [
      "id",
      "type",
@@ -287,7 +287,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 2994,
+    "rows": 3000,
     "cols": [
      "name",
      "type",
@@ -367,7 +367,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131209,
+    "rows": 131227,
     "cols": [
      "start",
      "status",
@@ -389,7 +389,6 @@
       "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
-      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -400,7 +399,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6316,
+    "rows": 6318,
     "cols": [
      "start",
      "status",
@@ -422,7 +421,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 85,
+    "rows": 90,
     "cols": [
      "aid",
      "start",
@@ -605,7 +604,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17438,
+    "rows": 17442,
     "cols": [
      "id",
      "referenceId",
@@ -847,10 +846,10 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "bc358a7c3f4121a8"
+  "data/fin_c.enc": "cce5688f387fffc2"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 64
+ "secs": 59
 }

@@ -12066,14 +12066,15 @@ function planTasks(useAll){
     });
   }
   // 🩺 الدقي: كشفوا مع دكتور غير د. أمجد ومستنيين إعادة تقييم معاه — يتحجزوا يوم زيارته (بتتقفل لما يتحجز)
-  if(act.indexOf('FIX ZONE')>=0) (D.amgad_eval||[]).forEach(function(x){ if(evd[x.pid]) return;
+  var recent=function(d){ return d&&Math.round((new Date(today+'T12:00:00')-new Date(d+'T12:00:00'))/864e5)<=21; };   // أقدم من 3 أسابيع = تراكم: في قايمة «محتاجين تقييم» بس
+  if(act.indexOf('FIX ZONE')>=0) (D.amgad_eval||[]).forEach(function(x){ if(evd[x.pid]||!recent(x.kashf&&x.kashf.date)) return;
     add('office',{grp:['evalamg'], key:'evalamg|'+x.pid, icon:'🩺', kind:'احجز إعادة تقييم مع د. أمجد '+planAmgDay(), name:x.name, phone:x.phone||'', br:'FIX ZONE',
       lines:['كشف مع '+alEsc(alDocAr(x.kashf.doctor)||x.kashf.doctor)+' يوم '+alEsc(alFmtDay(x.kashf.date))+(x.after?' · حضر '+x.after+' مرة بعده':'')+
         (x.next?' · ميعاده الجاي '+alEsc(alFmtDay(String(x.next.time).slice(0,10)))+' مع '+alEsc(alDocAr(x.next.doctor)||x.next.doctor):' · <span style="color:var(--r)">مالوش ميعاد جاي</span>')]});
   });
   // 🩺 الهرم: محتاج تقييم (6 جلسات / إعادة تقييم مع د. أمجد) ومالوش ميعاد خالص → كلمه واحجزله
   if(act.indexOf('BODYFIX Center')>=0) (D.eval_pending||[]).forEach(function(x){ if(x.branch!=='BODYFIX Center'||x.next||evd[x.pid]) return;
-    var k=x.kashf_other;
+    var k=x.kashf_other; if(!(k&&recent(k.date))&&!(x.n6!=null&&x.n6<=8)) return;
     add('office',{grp:['evalamg'], key:'evalamg|'+x.pid, icon:'🩺', kind:'محتاج تقييم ومالوش ميعاد — كلمه واحجزله'+(k?' إعادة تقييم مع د. أمجد':''), name:x.name, phone:x.phone||'', br:'BODYFIX Center',
       lines:[(k?'كشف مع '+alEsc(alDocAr(k.doctor)||k.doctor)+' يوم '+alEsc(alFmtDay(k.date))+(k.after?' · حضر '+k.after+' مرة بعده':''):'')+(k&&x.n6!=null?' · ':'')+(x.n6!=null?x.n6+' جلسات من غير تقييم':'')]});
   });

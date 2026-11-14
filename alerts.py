@@ -1016,7 +1016,7 @@ def build_alerts(appointments, now=None, packages=None):
                           key=lambda a: a["start"], default=None)
             frm = max([d for d in (cstart, last_ev["start"].date() if last_ev else None) if d] or [sday])
             n = sum(1 for d in pdays if d >= frm and not (last_ev and d == last_ev["start"].date())) + 1
-            if n < EVAL_DUE_N:
+            if n < EVAL_DUE_N or n > EVAL_DUE_N + 2:      # اللي عدّى 8 جلسات = تراكم قديم: في قايمة «محتاجين تقييم» بس، مش مهمة يومية
                 continue
             eval_due.append({
                 "name": ses["name"], "phone": ses["phone"], "pid": ses["pid"], "branch": ses["branch"],
@@ -1041,7 +1041,7 @@ def build_alerts(appointments, now=None, packages=None):
                 continue
             ses = nxt[0]; sday = ses["start"].date()
             ex = max((a for a in appts if is_ex(a) and a["status"] in ATTENDED and a["branch"] == ses["branch"]
-                      and (today - timedelta(days=60)) <= a["start"].date() < sday), key=lambda a: a["start"], default=None)
+                      and (today - timedelta(days=21)) <= a["start"].date() < sday), key=lambda a: a["start"], default=None)   # أقدم من 3 أسابيع = تراكم: في القايمة بس
             if not ex or is_amg(ex):
                 continue
             ed = ex["start"].date()

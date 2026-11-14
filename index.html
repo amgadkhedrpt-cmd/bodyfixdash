@@ -12061,7 +12061,8 @@ function planTasks(useAll){
     });
   });
   var recDone={}; T.rec.forEach(function(t){ recDone[t.key]=t; });
-  [['eval','🩺 ✅ اتحجزله تقييم على السيستم','اتحجز تقييم'],['nonext','📅 ✅ اتحجزله ميعاد جاي على السيستم','اتحجزله ميعاد']].forEach(function(z){
+  [['eval','🩺 ✅ اتحجزله تقييم على السيستم','اتحجز تقييم'],['nonext','📅 ✅ اتحجزله ميعاد جاي على السيستم','اتحجزله ميعاد'],
+   ['svc','🧩 ✅ الخدمة الناقصة اتحجزت على السيستم','اتحجزت الخدمة'],['debt','💸 ✅ اتدفع الباقي على Medicolize','اتحصّل']].forEach(function(z){
     (RES[z[0]]||[]).forEach(function(x){
       var k=today+'|rec|'+z[0]+'|'+x.pid, ex=recDone[k];
       if(ex){ ex.sys=z[2]; ex.what=x.what||''; return; }
@@ -12674,6 +12675,9 @@ function planHowBar(gk,A){ var c={}; A.forEach(function(t){ var h=planHow(t); if
 var PLAN_NOTE_OK={drop:1, idle:1, streak:1, recur:1};
 /* مكالمات المتابعة: بتتقفل من Medicolize بس (الموعد Completed بملحوظة أو اتصالين بوقتهم + الحجز الجاي) — مفيش قفل ولا «ما ردش» من الداشبورد */
 var PLAN_SYS_ONLY={call:1};
+/* زرار ✅ اليدوي: مهام المدير ومراجعة الفواتير القديمة بس — أي مهمة تانية بتتقفل من Medicolize (أو ملحوظة للمكالمات، أو 🚫 رفض بسبب) */
+var PLAN_MANUAL_OK={mgr:1, invrev:1};
+function planManualOk(t){ var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_MANUAL_OK[x]; }); }
 function planSysOnly(t){ return (t.grp||[]).some(function(g){ return PLAN_SYS_ONLY[g]; }); }
 function planNoteCloses(t){ var g=(t&&t.grp)||[]; return g.length>0&&g.every(function(x){ return PLAN_NOTE_OK[x]; }); }
 var PLAN_REF_R=['مش عايز','مسافر','السعر','هيرجع بعدين'];
@@ -12705,7 +12709,8 @@ function planRow(t){
   var isCall=(t.grp||[]).some(function(g){ return PLAN_CALLG[g]; }), auto=planIsAuto(t), live=state==='open'||state==='nr';
   // الزرار السريع: المكالمات «ما ردش» · غيرها «اتعمل» (لو مش بتتقفل لوحدها)
   var sysOnly=planSysOnly(t);
-  var quick=live&&!sysOnly?(isCall?ico('nr','📞 ما ردش','rgba(245,158,11,.14)','ما ردش'):(!auto?ico('done','✅','rgba(16,185,129,.16)','اتعمل'):'')):'';
+  var manOk=planManualOk(t);
+  var quick=live&&!sysOnly?(isCall?ico('nr','📞 ما ردش','rgba(245,158,11,.14)','ما ردش'):(manOk?ico('done','✅','rgba(16,185,129,.16)','اتعمل'):'')):'';
   var dot=state==='done'?'var(--g)':state==='nr'?'var(--am)':state==='snz'?'var(--mute)':'var(--brd)';
   var open=!!PLAN_OPEN[h];
   // ملحوظات مهمة بتفضل ظاهرة (ملحوظة الموعد · الملحوظة المكتوبة)
@@ -12728,7 +12733,7 @@ function planRow(t){
       (state==='done'?(function(){ var w=t.what||(st.note?'📝 '+st.note:''); return w?'<div style="font-size:.62rem;margin-top:4px;background:rgba(16,185,129,.08);border-radius:6px;padding:3px 8px;color:var(--g)">📌 اللي اتعمل: '+(/<[a-z]/i.test(w)?w:alEsc(w))+(st.by?' · '+alEsc(st.by)+' '+alEsc(st.at||''):'')+'</div>':''; })():'')+
       (phone?'<div dir="ltr" style="font-size:.6rem;color:var(--g);margin-top:4px;text-align:right">'+alEsc(phone)+'</div>':'')+
       '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">'+
-        (live?(auto?'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">🤖 بتتقفل لوحدها لما '+alEsc(PLAN_AUTO_G[(t.grp||[])[0]]||'')+(sysOnly?' — اكتبي المكالمات في ملحوظة الموعد على Medicolize':'')+'</span>':btn('done','✅ اتعمل','rgba(16,185,129,.15)'))+(isCall||sysOnly?'':btn('nr','📞 ما ردش','rgba(245,158,11,.12)'))+(planNoteCloses(t)||sysOnly?'':'<button onclick="event.stopPropagation();planRef(\''+k+'\')" style="background:rgba(249,115,22,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🚫 رفض</button>')+btn('later','⏭ أجّل','transparent'):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
+        (live?(auto?'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">🤖 بتتقفل لوحدها لما '+alEsc(PLAN_AUTO_G[(t.grp||[])[0]]||'')+(sysOnly?' — اكتبي المكالمات في ملحوظة الموعد على Medicolize':'')+'</span>':manOk?btn('done','✅ اتعمل','rgba(16,185,129,.15)'):'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">🤖 بتتقفل لما الشغل يتسجل على Medicolize — أو «🚫 رفض» لو المريض رفض</span>')+(isCall||sysOnly?'':btn('nr','📞 ما ردش','rgba(245,158,11,.12)'))+(planNoteCloses(t)||sysOnly?'':'<button onclick="event.stopPropagation();planRef(\''+k+'\')" style="background:rgba(249,115,22,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🚫 رفض</button>')+btn('later','⏭ أجّل','transparent'):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
         '<input id="pn_'+h+'" value="'+alEsc(st.note||'')+'" placeholder="💬 ملحوظة…" onchange="planNote(\''+k+'\')" onkeydown="if(event.key===\'Enter\')this.blur()" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--brd);border-radius:7px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.62rem;padding:5px 8px">'+
         '<span id="pst_'+h+'" style="font-size:.56rem;color:var(--mute)"></span></div></div></div>';
 }

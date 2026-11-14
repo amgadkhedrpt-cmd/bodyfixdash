@@ -10578,8 +10578,10 @@ function alertsRender(){
     html+=alCard('#ef4444',
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:.95rem">⚡</span><span style="font-weight:700;font-size:.76rem;flex:1">اعتذار مفاجئ / No Show</span>'+
       '<span style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 10px;font-size:.72rem;font-weight:900">'+sdT.length+' النهارده</span></div>'+
-      (function(){ if(!sdT.length) return ''; var c={sys:0,man:0,ref:0,nr:0,todo:0}; sdT.forEach(function(x){ var h=alRowHow(x,'sudden'); c[h in c?h:'todo']++; });
-        var dn=c.sys+c.man+c.ref; return '<div data-prog="1" style="font-size:.64rem;font-weight:700;margin:-2px 0 8px">النهارده: <span style="color:var(--g)">✅ '+dn+' اتعملوا</span>'+(dn?' <span style="color:var(--mute);font-weight:400">(🤖 '+c.sys+' · ✋ '+c.man+' · 🚫 '+c.ref+')</span>':'')+' · '+(c.nr?'<span style="color:var(--am)">📞 '+c.nr+' ما ردش</span> · ':'')+'<span style="color:'+(c.todo?'var(--r)':'var(--mute)')+'">⬜ '+c.todo+' لسه</span></div>'; })()+
+      (function(){ if(!sdT.length) return ''; var M=alHowMap('sudden'), c={sys:0,ref:0,nr:0,todo:0};
+        /* اتعمل = الشروط اتحققت على Medicolize بس (🤖): اسم الموعد اتغير لـ «الغاء مفاجئ» + من تاني مرة الجلسة اتخصمت — الملحوظة لوحدها مش بتتحسب */
+        sdT.forEach(function(x){ var h=M[x.pid]; c[h==='sys'?'sys':h==='ref'?'ref':h==='nr'?'nr':'todo']++; });
+        return '<div data-prog="1" title="اتعمل = اسم الموعد اتغير لـ «الغاء مفاجئ» على Medicolize + (من تاني مرة) الجلسة اتخصمت بخطوة Completed النهارده" style="font-size:.64rem;font-weight:700;margin:-2px 0 8px">النهارده: <span style="color:var(--g)">✅ '+c.sys+' اتعملوا</span>'+(c.ref?' · <span style="color:#f97316">🚫 '+c.ref+' رفض بسبب</span>':'')+(c.nr?' · <span style="color:var(--am)">📞 '+c.nr+' ما ردش</span>':'')+' · <span style="color:'+(c.todo?'var(--r)':'var(--mute)')+'">⬜ '+c.todo+' لسه</span></div>'; })()+
       '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
         [['late','⚡ اعتذار مفاجئ'],['noshow','🚫 No Show']].map(function(k){ var n=sdA.filter(function(x){return x.kind===k[0];}).length;
           return '<div onclick="event.stopPropagation();SD_F.kind=\''+k[0]+'\';alertsOpenSD()" style="flex:1;min-width:110px;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:7px;text-align:center;cursor:pointer"><div style="font-size:1.2rem;font-weight:900;color:#ef4444">'+n+'</div><div style="font-size:.56rem;color:var(--mute)">'+k[1]+' (أسبوعين)</div></div>'; }).join('')+

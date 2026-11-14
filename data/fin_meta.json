@@ -1,5 +1,5 @@
 {
- "at": "2026-11-14T11:47:51.398Z",
+ "at": "2026-11-14T12:35:27.200Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,7 +91,7 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "conf": {
-  "confirmed_now": 7,
+  "confirmed_now": 10,
   "new": 4
  },
  "kinds": {
@@ -115,7 +115,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20584,
+    "rows": 20586,
     "cols": [
      "id",
      "type",
@@ -256,48 +256,6 @@
     "missing": []
    }
   },
-  "inv": {
-   "haram": {
-    "values": {},
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 17420,
-    "cols": [
-     "referenceId",
-     "createdAt",
-     "total",
-     "paid",
-     "discount",
-     "patient.referenceId",
-     "patient.firstName",
-     "patient.lastName",
-     "referralSource.name",
-     "doctor.name"
-    ],
-    "missing": []
-   },
-   "dokki": {
-    "values": {},
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 773,
-    "cols": [
-     "referenceId",
-     "createdAt",
-     "total",
-     "paid",
-     "discount",
-     "patient.referenceId",
-     "patient.firstName",
-     "patient.lastName",
-     "referralSource.name",
-     "doctor.name"
-    ],
-    "missing": []
-   }
-  },
   "xp": {
    "haram": {
     "values": {
@@ -409,7 +367,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131113,
+    "rows": 131139,
     "cols": [
      "start",
      "status",
@@ -428,9 +386,9 @@
     "values": {
      "status": [
       "CANCELED",
-      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
+      "INPROGRESS",
       "NOSHOW",
       "NOTE",
       "OPEN",
@@ -462,7 +420,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 52,
+    "rows": 56,
     "cols": [
      "aid",
      "start",
@@ -555,7 +513,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7854,
+    "rows": 7864,
     "cols": [
      "duration",
      "createdAt",
@@ -574,7 +532,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1343,
+    "rows": 1347,
     "cols": [
      "duration",
      "createdAt",
@@ -637,6 +595,50 @@
      "2026-08",
      "2026-09"
     ]
+   }
+  },
+  "inv": {
+   "haram": {
+    "values": {},
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 17422,
+    "cols": [
+     "id",
+     "referenceId",
+     "createdAt",
+     "total",
+     "paid",
+     "discount",
+     "patient.referenceId",
+     "patient.firstName",
+     "patient.lastName",
+     "referralSource.name",
+     "doctor.name"
+    ],
+    "missing": []
+   },
+   "dokki": {
+    "values": {},
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 773,
+    "cols": [
+     "id",
+     "referenceId",
+     "createdAt",
+     "total",
+     "paid",
+     "discount",
+     "patient.referenceId",
+     "patient.firstName",
+     "patient.lastName",
+     "referralSource.name",
+     "doctor.name"
+    ],
+    "missing": []
    }
   }
  },
@@ -842,11 +844,12 @@
   ]
  },
  "hash": {
-  "data/fin.enc": "cc863b82269609e7",
-  "data/fin_c.enc": "77c1e601d3ce71fa"
+  "data/fin.enc": "c2dd9907fc16abb4",
+  "data/fin_c.enc": "2a2c6028dde0b522"
  },
  "written": [
+  "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 52
+ "secs": 98
 }

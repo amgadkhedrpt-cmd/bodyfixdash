@@ -622,6 +622,8 @@ def build(now, alerts, ctx, paid):
     try:
         import digest_fin as _df
         out.append(_df.exams_today(today_s, alerts, DASH_URL))
+        import digest_plan as _dp
+        out.append(_dp.dokki_visit(today_s, alerts))
     except Exception as e:
         print(f"exams today: {e}")
     out.append("<!--PLAN-->")

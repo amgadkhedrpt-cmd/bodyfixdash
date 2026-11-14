@@ -114,7 +114,7 @@ class Br:
             d = cday(g("start"))
             if not d:
                 continue
-            a = {"d": d, "h": chour(g("start")), "st": st, "ty": ty, "pid": g("patient.referenceId"), "cr": cday(g("createdAt"))}
+            a = {"d": d, "h": chour(g("start")), "st": st, "ty": ty, "pid": g("patient.referenceId"), "cr": cday(g("createdAt")), "doc": g("doctor.name") or ""}
             self.apt.append(a)
             if a["pid"]:
                 self.byp[a["pid"]].append(a)

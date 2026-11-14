@@ -94,6 +94,11 @@ def build(today_s, reasons):
                 flags.append((abs(d) * 2, f"{F.BR[b]}: الاستمرار بعد أول شهر نزل {abs(d) * 100:.0f} نقطة ({c_now * 100:.0f}%) — راجع مع الدكاترة المرضى اللي وقفوا"))
         out.append(f'<h3 style="margin:16px 0 6px">🏥 {F.BR[b]}</h3>'
                    f'<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0"><tr><th {TH}></th><th {TH}>الأسبوع</th><th {TH}>عن العادي</th><th {TH}>عن السنة اللي فاتت</th></tr>{"".join(rows)}</table>{cont}')
+    # 🏥 الدقي: د. محمود قصاد د. أمجد في الكشف · أكتر أيام وساعات زحمة · كام مريض محتاج د. أمجد في الزيارة
+    try:
+        out.append(dokki_block(B.get("dokki"), t, flags))
+    except Exception as e:
+        print("week dokki:", e)
     # 💸 خدمات اتعملت ومتدفعتش: اتفتح كام واتقفل كام (من حالة الإيميل اليومي)
     try:
         S = json.load(open(F.STATE_F, encoding="utf-8")).get("days") or {}
@@ -148,3 +153,55 @@ def build(today_s, reasons):
     out.insert(3, f'<div style="border:2px solid #0f172a;border-radius:10px;padding:8px 12px;margin:12px 0;font-size:13.5px"><b>🎯 أهم 3 حاجات للأسبوع الجاي</b><ol style="margin:4px 0;padding-inline-start:20px">{top}</ol></div>')
     out.append("</div>")
     return "".join(out)
+
+
+WDN = ["الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت", "الحد"]
+
+
+def dokki_block(x, t, flags):
+    if not x:
+        return ""
+    lo, hi = (t - timedelta(days=90)).isoformat(), (t - timedelta(days=30)).isoformat()
+    td = t.isoformat()
+    by = defaultdict(lambda: [0, 0])
+    for pid, L in x.byp.items():
+        for e in L:
+            if e["st"] in F.DONE and e["ty"] in x.exam_t and lo <= e["d"] <= hi:
+                lim = (date.fromisoformat(e["d"]) + timedelta(days=30)).isoformat()
+                conv = any(a is not e and a["ty"] not in x.exam_t and ((a["st"] in F.DONE and e["d"] < a["d"] <= lim) or (a["d"] >= td and a["st"] not in F.LOST)) for a in L)
+                z = by[F.doc_ar(e["doc"]) if e["doc"] else "—"]
+                z[0] += 1; z[1] += conv
+    rows = "".join(f'<tr><td {TD.replace("center", "right")}>{H(d)}</td><td {TD}>{n}</td><td {TD}><b>{round(c * 100 / n)}%</b></td></tr>'
+                   for d, (n, c) in sorted(by.items(), key=lambda kv: -kv[1][0]) if n >= 3)
+    # الزحمة: آخر 8 أسابيع
+    w0 = (t - timedelta(days=56)).isoformat()
+    slot, exd = defaultdict(int), defaultdict(int)
+    for a in x.apt:
+        if w0 <= a["d"] <= td and a["st"] in F.DONE:
+            wd = date.fromisoformat(a["d"]).weekday()
+            slot[(wd, a["h"])] += 1
+            if a["ty"] in x.exam_t:
+                exd[wd] += 1
+    top = sorted(slot.items(), key=lambda kv: -kv[1])[:4]
+    tops = "، ".join(f"{WDN[w]} {h if h <= 12 else h - 12}{'م' if h >= 12 else 'ص'} ({round(n / 8, 1)} مريض)" for (w, h), n in top)
+    tex = "، ".join(f"{WDN[w]} ({n})" for w, n in sorted(exd.items(), key=lambda kv: -kv[1])[:3])
+    need = ""
+    try:
+        A = json.load(open("alerts.json", encoding="utf-8"))
+        n1 = len(A.get("amgad_eval") or [])
+        n2 = sum(1 for z in A.get("eval_pending") or [] if z.get("branch") == "FIX ZONE" and z.get("n6") is not None and not z.get("kashf_other"))
+        need = f"<br>👨‍⚕️ <b>محتاجينك دلوقتي</b>: {n1} إعادة تقييم (كشفوا مع دكتور تاني) + {n2} عندهم 6 جلسات من غير تقييم"
+    except Exception:
+        pass
+    amg = [(d, n, c) for d, (n, c) in by.items() if "أمجد" in d]
+    oth = [(d, n, c) for d, (n, c) in by.items() if "أمجد" not in d and n >= 5]
+    if amg and oth:
+        ra = amg[0][2] / amg[0][1] if amg[0][1] else 0
+        for d, n, c in oth:
+            if ra - c / n >= 0.15:
+                flags.append((0.5, f"الدقي: كشوفات {d} بتتحول {round(c * 100 / n)}% بس قصاد {round(ra * 100)}% لكشوفاتك — مكالمة فيديو معاك وقت الكشف أو احجز الكشوفات في يومك"))
+    return (f'<h3 style="margin:16px 0 6px">🏥 الدقي — الكشف والزحمة</h3>'
+            + (f'<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0"><tr><th {TH}>الدكتور</th><th {TH}>كشوفات</th><th {TH}>اتحول لجلسات</th></tr>{rows}</table>'
+               + sub("كشوفات من 30–90 يوم · «اتحول» = حضر جلسة في خلال 30 يوم من الكشف أو ليه ميعاد جاي") if rows else "")
+            + f'<div style="font-size:12.5px;line-height:1.9;margin-top:6px">⏰ <b>أكتر ساعات زحمة</b> (متوسط في الأسبوع، آخر 8 أسابيع): {tops or "—"}'
+            + f'<br>🩺 <b>أكتر أيام فيها كشوفات</b>: {tex or "—"}{need}</div>')

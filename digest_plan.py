@@ -471,3 +471,42 @@ def card_review(today_s, reasons, res, P, alerts, debts_by_pid):
 
 
 PB_ = {"haram": "BODYFIX Center", "dokki": "FIX ZONE"}
+
+
+# ================= 📋 زيارة د. أمجد للدقي: مين محتاجك (قبل الزيارة بيومين) =================
+def dokki_visit(today_s, alerts):
+    """قايمة بالأولويات للمرضى اللي يتحجزوا في ساعاتك: إعادة تقييم · 6 جلسات من غير تقييم · خلص الباقة وما جددش · بيلغوا ورا بعض"""
+    from datetime import date as _d
+    A = alerts or {}
+    nd = A.get("amgad_dokki_next")
+    if not nd:
+        return ""
+    gap = (_d.fromisoformat(nd) - _d.fromisoformat(today_s)).days
+    if not (0 < gap <= 3):
+        return ""
+    Z = "FIX ZONE"
+    from digest_fin import doc_ar as dr
+    nx = lambda x: (f'ميعاده الجاي {str(x["next"]["time"])[8:10]}/{str(x["next"]["time"])[5:7]}' if x.get("next") else "مالوش ميعاد")
+    G = []
+    G.append(("🩺 إعادة تقييم (كشفوا مع دكتور تاني)", [
+        f'{H(x["name"])} {sub("— كشف مع " + H(dr(x["kashf"]["doctor"])) + " " + x["kashf"]["date"][8:] + "/" + x["kashf"]["date"][5:7] + " · " + nx(x))}'
+        for x in A.get("amgad_eval") or []]))
+    G.append(("🔢 6 جلسات أو أكتر من غير تقييم", [
+        f'{H(x["name"])} {sub("— " + str(x["n6"]) + " جلسات · " + nx(x))}'
+        for x in A.get("eval_pending") or [] if x.get("branch") == Z and x.get("n6") is not None and not x.get("kashf_other")]))
+    G.append(("🔁 خلص الباقة وما جددش (آخر 30 يوم)", [
+        f'{H(x["name"])} {sub("— آخر جلسة من " + str(x.get("days_since")) + " يوم مع " + H(dr(x.get("doctor"))))}'
+        for x in A.get("finished_packages") or [] if x.get("branch") == Z and (x.get("days_since") or 99) <= 30]))
+    G.append(("⚠️ بيلغوا ورا بعض", [
+        f'{H(x["name"])} {sub("— لغى/غاب " + str(x.get("lost")) + " مرات · مع " + H(dr(x.get("doctor"))))}'
+        for x in A.get("recur_cancel") or [] if x.get("branch") == Z]))
+    G = [(t, L) for t, L in G if L]
+    if not G:
+        return ""
+    wd = WD[_d.fromisoformat(nd).weekday()]
+    tot = sum(len(L) for _, L in G)
+    body = "".join(f'<div style="margin:6px 0"><b>{t}</b> ({len(L)})<ul style="margin:2px 0;padding-inline-start:18px">{"".join("<li>" + x + "</li>" for x in L[:10])}</ul>'
+                   + (sub(f"+ {len(L) - 10} كمان") if len(L) > 10 else "") + "</div>" for t, L in G)
+    return (f'<h3 style="margin:18px 0 6px">📋 زيارتك للدقي يوم {wd} {int(nd[8:])}/{int(nd[5:7])} — {tot} مريض محتاجك</h3>'
+            f'<div style="font-size:13px;border-inline-start:3px solid #7c3aed;padding:2px 10px">{body}'
+            + sub("خلّي الاستقبال يحجزهم في ساعاتك بالترتيب ده · اللي اتحجزله إعادة تقييم معاك بيختفي من القايمة") + "</div>")

@@ -1618,6 +1618,15 @@ function buildApptHtml(r, showDoc){
     (r.other_notes?'<div class="pnt">📝 '+r.other_notes+'</div>':'')+
     '</div></div>';
 }
+/* 📅 لينك من الإيميل: …/#pt=<اسم المريض> → يفتح «بحث مريض» على مواعيده */
+(function(){
+  var h=decodeURIComponent((location.hash||'').replace(/^#pt=/,'')); if(!/^#pt=/.test(location.hash||'')||!h) return;
+  var n=0, t=setInterval(function(){ n++;
+    try{ if(typeof PT_MAP!=='undefined'&&PT_MAP&&Object.keys(PT_MAP).length){
+      var btn=document.querySelector('.tab[onclick*="sw(\'patients\'"]'); if(btn) sw('patients',btn);
+      var q=document.getElementById('psearch'); q.value=h; searchPt(); clearInterval(t); } }catch(e){}
+    if(n>60) clearInterval(t); },700);
+})();
 function searchPt(){
   var q = document.getElementById('psearch').value.trim().toLowerCase();
   var res = document.getElementById('pt-res');

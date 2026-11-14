@@ -297,8 +297,10 @@ def cards(today_s, res, P, alerts, prev_rev=None):
                 why = " · ".join(w for w in ((f"إعادة تقييم مع د. أمجد (كشف مع {dr})" if k else ""), (f"{x['n6']} جلسات من غير تقييم" if x.get("n6") is not None else "")) if w)
                 put(ow3, "📵 محتاج تقييم ومالوش ميعاد — كلميه واحجزيله", (0, x.get("n6") or 0, f'{H(x.get("name"))} — {H(why)}', "eval", [x.get("pid")], [x.get("name")], f'{x.get("name")} — {why}'))
         # 🩺 الدقي: احجزي إعادة تقييم مع د. أمجد يوم زيارته (كل اللي كشفوا مع دكتور تاني ولسه ما اتحجزلهمش)
-        if br == "FIX ZONE":
-            ad = amg_next(today_s, alerts)
+        _ad = amg_next(today_s, alerts)
+        _gap = (date.fromisoformat(_ad) - date.fromisoformat(today_s)).days if _ad else 99
+        if br == "FIX ZONE" and 0 < _gap <= 3:   # كارت الدقي: قبل زيارة د. أمجد بس
+            ad = _ad
             adl = f"{WD[date.fromisoformat(ad).weekday()]} {int(ad[8:])}/{int(ad[5:7])}" if ad else "(لسه مفيش يوم لد. أمجد على السيستم)"
             ow2 = _owner_g(T, br, ["evalamg", "eval"]) or ow
             tom = {x.get("pid") for x in (alerts or {}).get("eval_due") or [] if x.get("branch") == br and x.get("day") == "tomorrow"}

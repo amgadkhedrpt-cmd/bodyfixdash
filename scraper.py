@@ -1468,6 +1468,18 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
         for x in rows:
             p_ = str((x.get("patient") or {}).get("id") or "")
             if p_ in pids: steps_of[p_].append(x)
+        # «إعادة تقييم» اتحجزت النهارده (ميعاد تقييم جاي اتعمل النهارده) → بتقفل مهمة «مالوش باقة»
+        EV_RE = re.compile(r"تقييم|تقيم|evaluat|assess", re.I)
+        ev_today = set()
+        for a2 in appointments or []:
+            if str(a2.get("status_en") or "").upper() in SKIP_ST: continue
+            if EV_RE.search(str(a2.get("type") or "")) and _cairo_date(a2.get("createdAt")) == d_to and (_cairo_date(a2.get("start")) or "") >= d_to:
+                ev_today.add(str((a2.get("patient") or {}).get("id") or ""))
+        def np_row(a, p_, extra):
+            return dict({"id": "np:" + str(a.get("id")), "d": d_to, "pid": p_, "p": _pname(a.get("patient")),
+                         "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
+                         "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1, "t": a.get("start"),
+                         "ph": ((a.get("patient") or {}).get("phoneNumber") or "")}, **extra)
         virt, used, seen_ap = {}, set(), set()
         for p_, names, a in sorted(today_ap, key=lambda z: str(z[2].get("start") or "")):
             key_ = (p_, tuple(sorted(names)) if names else ("?" + _audN(a.get("type")),))
@@ -1476,15 +1488,15 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
             match = (lambda x: _audN(x.get("name")) in names) if names else (lambda x: False)
             mine = [x for x in steps_of[p_] if match(x)]
             done_t = [x for x in mine if _step_kind(x.get("status"), has_done) == "done" and _cairo_date(x.get("end") or x.get("createdAt")) == d_to]
+            # «مالوش باقة» = مفيش ولا خطوة للخدمة دي قبل النهارده → المطلوب: تتفتحله باقة (خطوات اتعملت النهارده) أو يتحجزله إعادة تقييم
+            if not [x for x in mine if (_cairo_date(x.get("createdAt")) or d_to) < d_to]:
+                new_ = [x for x in mine if _step_kind(x.get("status"), has_done) != "cancel"]
+                pkg = any(_step_kind(x.get("status"), has_done) == "plan" for x in new_) or len(new_) >= 2
+                ev = p_ in ev_today
+                unp = any(pay.get(x.get("id")) == "unpaid" for x in done_t)
+                expect.append(np_row(a, p_, {"ok": 1 if (pkg or ev) else 0, "pkg": 1 if pkg else 0, "ev": 1 if ev else 0,
+                                             "unp": 1 if unp else 0, "one": 1 if (done_t and not pkg) else 0}))
             if done_t:                                     # الدكتور قفلها → الحساب العادي
-                # كان «مالوش باقة» (الخطوة اتعملت النهارده ومفيش خطوات قبل كده للخدمة دي) → نسيبه في القايمة كـ «اتحل» عشان مهمة ندى تتقفل 🤖
-                if names and all(_cairo_date(x.get("createdAt")) == d_to for x in mine):
-                    unp = any(pay.get(x.get("id")) == "unpaid" for x in done_t)
-                    expect.append({"id": "np:" + str(a.get("id")), "d": d_to, "pid": p_, "p": _pname(a.get("patient")),
-                                   "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
-                                   "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1,
-                                   "ok": 0 if unp else 1, "unp": 1 if unp else 0, "t": a.get("start"),
-                                   "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
                 continue
             plans = sorted([x for x in mine if _step_kind(x.get("status"), has_done) == "plan" and x.get("id") not in used],
                            key=lambda x: str(x.get("createdAt") or ""))
@@ -1493,10 +1505,6 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
                 if not (inv_rem is not None and float(inv_rem.get(p_) or 0) <= 1):
                     virt[plans[0]["id"]] = (p_, a)
                 continue
-            expect.append({"id": "np:" + str(a.get("id")), "d": d_to, "pid": p_, "p": _pname(a.get("patient")),
-                           "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
-                           "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1, "t": a.get("start"),
-                           "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
         # 📅 يوم الشغل الجاي (من غير الجمعة): جاي ومالوش باقة للخدمة → مهمة لإنجي تكلّمه النهارده · بتتقفل 🤖 لما الباقة تتعمل (خطوة Planned اتعملت النهارده)
         try:
             nd = (datetime.strptime(d_to, "%Y-%m-%d") + timedelta(days=1)).date()
@@ -1523,10 +1531,12 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
                 plans = [x for x in nsteps[p_] if _audN(x.get("name")) in names and _step_kind(x.get("status"), has_done) == "plan"]
                 if plans and not all(_cairo_date(x.get("createdAt")) == d_to for x in plans):
                     continue                               # عنده باقة من قبل → مش محتاج حاجة
+                ev = p_ in ev_today
                 expect.append({"id": "nx:" + str(a.get("id")), "d": nd, "pid": p_, "p": _pname(a.get("patient")),
                                "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
                                "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1, "nx": 1,
-                               "ok": 1 if plans else 0, "t": a.get("start"), "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
+                               "ok": 1 if (plans or ev) else 0, "pkg": 1 if plans else 0, "ev": 1 if ev else 0,
+                               "t": a.get("start"), "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
         except Exception as e:
             print(f"[{ts()}] ⚠️ next-day no-package: {str(e)[:150]}")
         if virt:

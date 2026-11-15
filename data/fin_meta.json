@@ -1,5 +1,5 @@
 {
- "at": "2026-11-15T20:27:16.387Z",
+ "at": "2026-11-15T20:41:42.103Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,19 +91,19 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "ph2_field": "phoneNumber2",
- "ph2_n": 17,
+ "ph2_n": 18,
  "conf": {
-  "confirmed_now": 52,
-  "new": 2
+  "confirmed_now": 53,
+  "new": 1
  },
  "docerr": {
   "overrides": 6,
   "override_error": null,
-  "appts": 3253,
+  "appts": 3261,
   "steps": 3181,
   "day": "2026-11-15",
-  "open_now": 93,
-  "added": 5
+  "open_now": 97,
+  "added": 6
  },
  "kinds": {
   "pay": {
@@ -126,7 +126,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20657,
+    "rows": 20658,
     "cols": [
      "id",
      "type",
@@ -378,7 +378,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131485,
+    "rows": 131487,
     "cols": [
      "start",
      "status",
@@ -408,7 +408,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6343,
+    "rows": 6344,
     "cols": [
      "start",
      "status",
@@ -430,7 +430,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 196,
+    "rows": 197,
     "cols": [
      "aid",
      "start",
@@ -498,7 +498,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16688,
+    "rows": 16689,
     "cols": [
      "name",
      "end",
@@ -564,7 +564,7 @@
     "months": 2,
     "first": "2026-10",
     "last": "2026-11",
-    "rows": 103,
+    "rows": 109,
     "cols": [
      "التاريخ",
      "اسم المريض",
@@ -614,7 +614,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17495,
+    "rows": 17496,
     "cols": [
      "id",
      "referenceId",
@@ -863,10 +863,10 @@
  },
  "hash": {
   "data/fin.enc": "888400d6e1c56d9a",
-  "data/fin_c.enc": "030263270a50e43c"
+  "data/fin_c.enc": "0db5b7a4709500f9"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 90
+ "secs": 86
 }

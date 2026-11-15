@@ -12515,6 +12515,7 @@ function planOwner0(t,g){
     return hz<17?(Rz.DM||Rz.DE||''):(Rz.DE||Rz.DM||''); }
   if(g==='nonext'&&t.br!=='FIX ZONE'){ var tdn=(ALERTS_DATA&&ALERTS_DATA.today)||'', an=PLAN_ST['asg|'+tdn+'|'+t.sec+'|nonext|'+t.br]; if(an&&an.by) return an.by;
     var Rn=PLAN_ROLES[t.br]||{}, cl=planRoomClinic(t.room);
+    var offc=String(t.room||'').replace(/\s+/g,'').toUpperCase().match(/OFFICE(\d)/); if(offc){ var orl=offc[1]==='2'?'F':offc[1]==='1'?'J':''; if(orl&&Rn[orl]) return Rn[orl]; }   // من د. أمجد: Office 2 → ندى (الصباحي) · Office 1 → إنجي (عيادة 2)
     if(!cl){ var gdn=(typeof resolveDocGender==='function')?resolveDocGender(t.doctor):''; cl=gdn==='female'?2:gdn?1:0; }   // مفيش أوضة → رجالي عيادة 1 · ستات عيادة 2
     if(cl===1&&Rn.H) return Rn.H; if(cl===2&&Rn.J) return Rn.J; }
   if(g==='conftoday'||g==='late'){ var tdx=(ALERTS_DATA&&ALERTS_DATA.today)||'', ax=PLAN_ST['asg|'+tdx+'|'+t.sec+'|'+g+'|'+t.br]; if(ax&&ax.by) return ax.by;

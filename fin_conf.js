@@ -61,11 +61,11 @@ async function cfRead(file){let rows;
   const head=rows[hi],body=rows.slice(hi+1).filter(r=>r.length>1);const mp=CF.map&&CF.map.cols===head.join('|')?CF.map:Object.assign(cfDetect(head,body),{cols:head.join('|'),head});
   // يوم/شهر ولا شهر/يوم؟ من الأرقام نفسها
   let dmy=true;const di=mp.date;if(di>=0){let a12=0,b12=0;body.slice(0,400).forEach(r=>{const m=String(cfDig(r[di])).match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-]/);if(m){if(+m[1]>12)a12++;if(+m[2]>12)b12++}});dmy=!(b12>a12)}
-  const out=[];let bad=0;
+  const out=[];let bad=0;const ui=head.findIndex(x=>/unique\s*id|call\s*id/i.test(String(x)));   // رقم المكالمة الثابت لو موجود — عشان المكرر
   let ex=null;
   for(const r of body){const ph=cfPh(r[mp.ph]);const t=cfTime(r[mp.date],mp.time>=0?r[mp.time]:null,dmy);if(!ph||t==null){bad++;if(!ex)ex={d:String(r[mp.date]??''),t:mp.time>=0?String(r[mp.time]??''):'',p:String(r[mp.ph]??'').replace(/\d(?=\d{3})/g,'•'),why:!ph?'الرقم':'التاريخ/الساعة'};continue}
-    const dur=mp.dur>=0?cfDur(r[mp.dur]):0;let ty=mp.type>=0?cfType(r[mp.type]):'';if(ty==='miss'&&dur>0)ty='in';if(ty==='in'&&dur===0&&mp.dur>=0)ty='miss';
-    out.push({ph,t,dur,ty:ty||'?'})}
+    const dur=mp.dur>=0?cfDur(r[mp.dur]):0;let ty=mp.type>=0?cfType(r[mp.type]):'';if(ty==='in'&&dur===0&&mp.dur>=0)ty='miss';   // «فائتة» بتفضل فائتة حتى لو الملف حاطط وقت الرنة في المدة
+    const o={ph,t,dur:ty==='miss'?0:dur,ty:ty||'?'};if(ui>=0&&String(r[ui]).trim())o.u=String(r[ui]).trim();out.push(o)}
   return {out,bad,mp,head,dmy,n:body.length,ex}}
 // ---------- الحفظ على الجهاز (IndexedDB) — مش بيتبعت لأي حتة ----------
 const cfDB=(mode,fn)=>new Promise((res,rej)=>{let q;try{q=indexedDB.open('bodyfix_calls',1)}catch(e){return rej(e)}q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onerror=()=>rej(q.error);
@@ -73,8 +73,9 @@ const cfDB=(mode,fn)=>new Promise((res,rej)=>{let q;try{q=indexedDB.open('bodyfi
 const cfMM=()=>{let a=null,b=null;for(const c of CF.calls){if(a==null||c.t<a)a=c.t;if(b==null||c.t>b)b=c.t}CF.minT=a;CF.maxT=b;CF.idx=null;CF.st=null;CF.rch=null};
 async function cfSave(){try{await cfDB('readwrite',s=>CF.calls.length||CF.files.length?s.put({v:1,calls:CF.calls,files:CF.files,map:CF.map,at:Date.now()},'log'):s.delete('log'));CF.saved=true}catch(e){console.warn(e);CF.saved=false}}
 CF.ready=(async()=>{try{const d=await cfDB('readonly',s=>s.get('log'));if(d&&d.calls&&d.calls.length&&!CF.calls.length){CF.calls=d.calls;CF.files=d.files||[];CF.map=d.map||null;CF.saved=true;cfMM();if(typeof S!=='undefined'&&S.tab==='conf'&&typeof D!=='undefined'&&D)render()}}catch(e){console.warn(e)}})();
-async function cfLoad(files,lines){await CF.ready;const seen=new Set(CF.calls.map(c=>c.ph+'|'+c.t+'|'+c.ty));for(const f of files){try{const r=await cfRead(f);CF.map=r.mp;
-    let add=0,dup=0;const ln=(lines&&lines[files.indexOf(f)])||f.name.replace(/\.[^.]+$/,'');r.out.forEach(c=>{const k=c.ph+'|'+c.t+'|'+c.ty;if(!seen.has(k)){seen.add(k);c.ln=ln;c.src=f.name;CF.calls.push(c);add++}else dup++});
+const cfK=c=>c.u?'u'+c.u:c.ph+'|'+c.t+'|'+c.ty+'|'+c.dur;
+async function cfLoad(files,lines){await CF.ready;const have=new Map();CF.calls.forEach(c=>{const k=cfK(c);have.set(k,(have.get(k)||0)+1)});for(const f of files){try{const r=await cfRead(f);CF.map=r.mp;
+    let add=0,dup=0;const ln=(lines&&lines[files.indexOf(f)])||f.name.replace(/\.[^.]+$/,''),fc=new Map();r.out.forEach(c=>{const k=cfK(c),n=(fc.get(k)||0)+1;fc.set(k,n);if(n>(have.get(k)||0)){c.ln=ln;c.src=f.name;CF.calls.push(c);add++}else dup++});fc.forEach((n,k)=>{if(n>(have.get(k)||0))have.set(k,n)});
     CF.files.push({name:f.name,ln,n:r.n,ok:add,dup,bad:r.bad,mp:r.mp,dmy:r.dmy,ex:r.ex,at:Date.now()})}catch(e){CF.files.push({name:f.name,err:e.message||String(e),at:Date.now()})}}
   cfMM();await cfSave();render()}
 // ---------- مين المسئولة (من خطة اليوم) ----------

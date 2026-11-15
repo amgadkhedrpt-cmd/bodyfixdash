@@ -1,6 +1,8 @@
 {
- "at": "2026-11-15T00:24:29.108Z",
- "errors": [],
+ "at": "2026-11-15T01:15:23.734Z",
+ "errors": [
+  "fatal: Traceback (most recent call last):\n  File \"/home/runner/work/bodyfixdash/bodyfixdash/fin_sync.py\", line 739, in <module>\n    main()\n  File \"/home/runner/work/bodyfixdash/bodyfixdash/fin_sync.py\", line 734, in main\n    META_D[\"secs\"] = int(time.time() - t0)\n                         ~~~~~~~~~~~~^~~~\nTypeError: unsupported operand type(s) for -: 'float' and 'dict'\n"
+ ],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
  "pay_pages": {
@@ -433,7 +435,8 @@
      "b",
      "by",
      "seen",
-     "puid"
+     "puid",
+     "ph2"
     ],
     "missing": [
      "2024-06",
@@ -835,7 +838,14 @@
  },
  "stripped": {
   "createdAppointments": [
-   "room{}"
+   "room{}",
+   "secondaryPhoneNumber",
+   "secondPhoneNumber",
+   "secondaryPhone",
+   "otherPhoneNumber",
+   "alternativePhone",
+   "phone2",
+   "mobile2"
   ],
   "createdOperationSteps": [
    "paidDate",
@@ -844,20 +854,9 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "cc9be722bb759ce1"
+  "data/fin_c.enc": "3639a55a7df1ffc9"
  },
- "secs": 51,
- "skipped_at": "2026-11-15T01:04:21.521Z",
- "today_hash": "dfc9fe7bea5ed862",
- "today_at": "2026-11-15T01:04:21.521Z",
- "today_n": {
-  "pay": {
-   "haram": 0,
-   "dokki": 0
-  },
-  "apt": {
-   "haram": 0,
-   "dokki": 0
-  }
- }
+ "written": [
+  "data/fin_c.enc"
+ ]
 }

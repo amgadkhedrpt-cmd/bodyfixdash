@@ -90,10 +90,13 @@ const CS={
   async load(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('calls/'+m+'/'))));const out=[];
     docs.forEach(x=>{const d=x.data||x;(d.r||[]).forEach(r=>out.push(CS.unpack(r,d.d,d.ln)))});return out},
   async logs(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('callsup/'+m+'/'))));return docs.map(x=>x.data||x).sort((a,b)=>(b.at||0)-(a.at||0))},
-  // الأساس (من د. أمجد): 010 مريم (عيادة 1) · 011 إنجي (عيادة 2) — اللي اتغيّر من جدول الخطوط بيكسب
-  DEF:{'010':{br:'BODYFIX Center',role:'H'},'011':{br:'BODYFIX Center',role:'J'}},
+  // مين ماسك الموبايل (من د. أمجد): am = لحد الساعة sw · pm = بعدها — اللي اتغيّر من جدول الخطوط بيكسب
+  // الهرم: 010 و011 مع الشيفت الصباحي لحد 3 العصر، وبعدها 010 مريم (عيادة 1) · 011 إنجي (عيادة 2) — الدقي: الصباحي لحد 5 والمسائي من 5 لـ 11
+  DEF:{'010':{br:'BODYFIX Center',sw:15,am:'F',pm:'H'},'011':{br:'BODYFIX Center',sw:15,am:'F',pm:'J'}},
+  // الدور اللي ماسك الخط: h = الساعة · old = يوم فات (الصبح أول واحد بيمسك الموبايل)
+  roleAt(cfg,br,h,old){cfg=cfg||{};const sw=cfg.sw||(br==='FIX ZONE'?17:15),am=cfg.am||cfg.role||(br==='FIX ZONE'?'DM':'F'),pm=cfg.pm||cfg.role||(br==='FIX ZONE'?'DE':am);return old||h<sw?am:pm},
   normLn:ln=>cfDig(String(ln||'')).trim(),
-  newLine(ln,br){return Object.assign({br,role:br==='FIX ZONE'?'DM':'F'},CS.DEF[ln]||{},{auto:1})},
+  newLine(ln,br){return Object.assign(br==='FIX ZONE'?{br,sw:17,am:'DM',pm:'DE'}:{br,sw:15,am:'F',pm:'F'},CS.DEF[ln]||{},{auto:1})},
   async lines(){let L={};try{const j=await CS.call({action:'get',path:'config/call_lines'});const d=j&&j.doc;L=(d&&(d.lines||(d.data&&d.data.lines)))||{}}catch(e){}
     for(const k in CS.DEF)if(!L[k]||L[k].auto)L[k]=Object.assign({},CS.DEF[k],{auto:1});return L},
   async setLines(lines){await CS.call({action:'batch',items:[{path:'config/call_lines',data:{lines,at:Date.now()}}]})},

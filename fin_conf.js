@@ -436,18 +436,21 @@ function vCallAlerts(){if(!CF.calls.length&&!(CF.upl||[]).length)return '';if(!C
     const miss=[];if(cc.length){const first=cc.reduce((m,c)=>Math.min(m,c.t),Infinity);for(let i=1;i<=14;i++){const d=cfDay(Date.parse(today+'T00:00:00Z')-i*864e5);if(d<cfDay(first))break;if(new Date(d+'T00:00:00Z').getUTCDay()===5)continue;if(!days.has(d))miss.push(d.slice(8,10)+'/'+d.slice(5,7))}}
     const gone=u.reduce((s,x)=>s+(x.gone||0),0),names=(CF.sheet&&CF.sheet.roles&&CF.sheet.roles[br])||{};
     return [`<b>${esc(l)}</b>`,`<select data-cfbr="${esc(l)}"><option value="BODYFIX Center"${br==='BODYFIX Center'?' selected':''}>الهرم</option><option value="FIX ZONE"${br==='FIX ZONE'?' selected':''}>الدقي</option></select>`,
-      `<select data-cfrole="${esc(l)}">${CF_RL[br].map(r=>`<option value="${r}"${(cfg.role||CF_RL[br][0])===r?' selected':''}>${CF_RLL[r]}${names[r]?' — '+esc(names[r]):''}</option>`).join('')}</select>`,
+      (()=>{const sw=cfg.sw||(br==='FIX ZONE'?17:15),am=CS.roleAt(cfg,br,0),pm=CS.roleAt(cfg,br,23),sel=(k,v)=>`<select data-cfrole="${esc(l)}" data-k="${k}">${CF_RL[br].map(r=>`<option value="${r}"${v===r?' selected':''}>${CF_RLL[r]}${names[r]?' — '+esc(names[r]):''}</option>`).join('')}</select>`;
+        return `<span class="sub">لحد الساعة <input data-cfsw="${esc(l)}" type="number" min="8" max="23" value="${sw}" style="width:48px">:</span> ${sel('am',am)}<br><span class="sub">بعدها:</span> ${sel('pm',pm)}`})(),
       u[0]?cfFmt(cfWall(new Date(u[0].at).toISOString())):'—',last?cfFmt(last):'—',miss.length?`<span class="down">${miss.length}: ${miss.slice(0,6).join('، ')}${miss.length>6?'…':''}</span>`:'✅',gone?`<b class="down">⚠️ ${gone}</b>`:'—']});
   const G=[];U.forEach(x=>(x.goneR||[]).forEach(r=>G.push({ln:x.ln,at:x.at,c:CS.unpack(r.slice(1),r[0],x.ln)})));
   const ic={in:'📥 واردة',out:'📤 صادرة',miss:'📵 فايتة','?':'📞'};
   return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--warn)"><h3>📞 الخطوط والتنبيهات</h3>
-   ${tableHTML(['الخط','الفرع','مين ماسكه (مهمة «المكالمات الفائتة»)','آخر رفع','آخر مكالمة','أيام شغل من غير مكالمات (آخر 14 يوم)','مكالمات اتمسحت'],rows,{h:300})}
+   ${tableHTML(['الخط','الفرع','مين ماسك الموبايل (المكالمات الفايتة بتروح له)','آخر رفع','آخر مكالمة','أيام شغل من غير مكالمات (آخر 14 يوم)','مكالمات اتمسحت'],rows,{h:300})}
    <div class="sub" style="margin-top:4px">«أيام من غير مكالمات» = يوم شغل (من غير الجمعة) مفيش فيه ولا مكالمة في الملفات — يا إما الملف بتاعه ما اترفعش، يا إما حاجة غلط. · «اتمسحت» = مكالمة كانت متحفظة من ملف قديم، وملف أحدث لنفس الأيام ما فيهوش.</div>
    ${G.length?`<details style="margin-top:8px"><summary><b class="down">⚠️ المكالمات اللي اتمسحت (${G.length})</b></summary>${tableHTML(['الخط','وقت المكالمة','الرقم','النوع',{t:'المدة (ث)',n:1},'اتكشفت في رفع'],G.sort((a,b)=>b.c.t-a.c.t).slice(0,300).map(g=>[esc(g.ln),cfFmt(g.c.t),`<span dir="ltr">${cfPh0(g.c.ph)}</span>`,ic[g.c.ty]||'',g.c.dur,cfFmt(cfWall(new Date(g.at).toISOString()))]),{h:320})}</details>`:''}
    ${U.length?`<details style="margin-top:8px"><summary><b>📜 آخر مرات الرفع (${U.length})</b></summary>${tableHTML(['إمتى','الخط','الملف','من',{t:'جديدة',n:1},{t:'كانت موجودة',n:1},{t:'اتمسحت',n:1}],U.slice(0,40).map(x=>[cfFmt(cfWall(new Date(x.at).toISOString())),esc(x.ln||''),esc(x.file||''),esc(x.by==='fin'?'صفحة الماليات':x.by||''),x.add||0,x.dup||0,x.gone?`<b class="down">${x.gone}</b>`:0]),{h:300})}</details>`:''}</div>`}
 function cCallCfg(){const sv=async()=>{try{await CS.setLines(CF.lines)}catch(e){alert('ما اتحفظش: '+(e.message||e))}render()};
-  document.querySelectorAll('[data-cfbr]').forEach(x=>x.onchange=()=>{const l=x.dataset.cfbr;CF.lines[l]={br:x.value,role:CF_RL[x.value][0]};sv()});
-  document.querySelectorAll('[data-cfrole]').forEach(x=>x.onchange=()=>{const l=x.dataset.cfrole;CF.lines[l]=Object.assign({br:'BODYFIX Center'},CF.lines[l]||{},{role:x.value});delete CF.lines[l].auto;sv()})}
+  document.querySelectorAll('[data-cfbr]').forEach(x=>x.onchange=()=>{const l=x.dataset.cfbr;CF.lines[l]=x.value==='FIX ZONE'?{br:x.value,sw:17,am:'DM',pm:'DE'}:{br:x.value,sw:15,am:'F',pm:'F'};sv()});
+  const fix=l=>{const c=CF.lines[l]=Object.assign({br:'BODYFIX Center'},CF.lines[l]||{});c.sw=c.sw||(c.br==='FIX ZONE'?17:15);c.am=CS.roleAt(c,c.br,0);c.pm=CS.roleAt(c,c.br,23);delete c.role;delete c.auto;return c};
+  document.querySelectorAll('[data-cfrole]').forEach(x=>x.onchange=()=>{const c=fix(x.dataset.cfrole);c[x.dataset.k]=x.value;sv()});
+  document.querySelectorAll('[data-cfsw]').forEach(x=>x.onchange=()=>{const c=fix(x.dataset.cfsw);c.sw=Math.max(8,Math.min(23,+x.value||15));sv()})}
 
 // ================= 📥 Excel: التحليل + خطة العمل =================
 const cfTxt=x=>{if(x==null)return '';const d=document.createElement('div');d.innerHTML=String(x).replace(/<br\s*\/?>/gi,' ');return d.textContent.replace(/\s+/g,' ').trim()};

@@ -12487,7 +12487,7 @@ function planRoomClinic(room){ var m=String(room||'').toUpperCase().replace(/\s+
   if(m[1]==='G') return 1; if(m[1]==='F') return 2; return n<=6?1:2; }
 function planOwner0(t,g){
   if(g==='mcall'||g==='mcallup'){ var tdm=(ALERTS_DATA&&ALERTS_DATA.today)||'', am=PLAN_ST['asg|'+tdm+'|'+t.sec+'|'+g+'|'+t.br]; if(am&&am.by) return am.by;
-    var mcg=(MC.lines||{})[t.line]||{}, mrk=mcg.role||(t.br==='FIX ZONE'?'DM':'F'), mnm=(PLAN_ROLES[t.br]||{})[mrk]; if(mnm) return mnm; }
+    var mrk=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mnm=(PLAN_ROLES[t.br]||{})[mrk]; if(mnm) return mnm; }
   if(g==='nonext'&&t.br==='FIX ZONE'){ var tdz=(ALERTS_DATA&&ALERTS_DATA.today)||'', az=PLAN_ST['asg|'+tdz+'|'+t.sec+'|nonext|'+t.br]; if(az&&az.by) return az.by;
     var Rz=PLAN_ROLES[t.br]||{}, hz=t.time?new Date(t.time).getHours():12;   // الدقي: موعده قبل 5 → الصباحي · من 5 وبعد → المسائي
     return hz<17?(Rz.DM||Rz.DE||''):(Rz.DE||Rz.DM||''); }
@@ -12528,19 +12528,24 @@ function mcTasks(today,act){
   act.forEach(function(br){
     var lns=byBr[br]||[];
     if(!lns.length){ // لسه مفيش خط متسجل للفرع ده
-      out.push({grp:['mcallup'], key:'mcallup|'+today+'|'+br, icon:'📂', kind:'ارفع سجل مكالمات موبايل الفرع (أول مرة)', name:'سجل المكالمات', br:br, line:'',
+      out.push({grp:['mcallup'], _h:0, key:'mcallup|'+today+'|'+br, icon:'📂', kind:'ارفع سجل مكالمات موبايل الفرع (أول مرة)', name:'سجل المكالمات', br:br, line:'',
         lines:['اكتبي اسم الخط (مثلاً 010 أو 011) وارفعي ملف سجل المكالمات من الموبايل:', mcUpHTML('',br)]});
       return; }
     lns.forEach(function(ln){
       var up=(MC.upl||[]).filter(function(x){ return x.ln===ln&&mcCairoDay(x.at)===today; }), u0=up[0];
-      out.push({grp:['mcallup'], key:'mcallup|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' (كل يوم)', name:'خط '+ln, br:br, line:ln,
+      var cfg=(MC.lines||{})[ln]||{}, sw=cfg.sw||(br==='FIX ZONE'?17:15), nowH=+new Date().toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2);
+      var upPm=(MC.upl||[]).filter(function(x){ return x.ln===ln&&mcCairoDay(x.at)===today&&+new Date(x.at).toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2)>=sw; })[0];
+      if(nowH>=sw||upPm) out.push({grp:['mcallup'], _h:sw, key:'mcallup2|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' — بعد التسليم ('+(sw>12?sw-12:sw)+' م)', name:'خط '+ln+' (المسائي)', br:br, line:ln,
+        sys:upPm?'اترفع ملف بعد التسليم':'', what:upPm?('اترفع — '+(upPm.add||0)+' مكالمة جديدة'):'',
+        lines:[upPm?'<span style="color:var(--g)">✅ اترفع</span>':'<span style="color:var(--r)">ارفعي الملف آخر الشيفت عشان المكالمات الفايتة بتاعتك تبان وتتقفل</span>', mcUpHTML(ln,br)]});
+      out.push({grp:['mcallup'], _h:0, key:'mcallup|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' (الصبح)', name:'خط '+ln, br:br, line:ln,
         sys:u0?'اترفع ملف النهارده':'', what:u0?('اترفع الساعة '+new Date(u0.at).toLocaleTimeString('ar-EG',{timeZone:'Africa/Cairo',hour:'numeric',minute:'2-digit'})+' — '+(u0.add||0)+' مكالمة جديدة'):'',
         lines:[u0?'<span style="color:var(--g)">✅ اترفع النهارده — ارفعي تاني آخر اليوم عشان المكالمات الفايتة تتقفل</span>':'<span style="color:var(--r)">لسه ما اترفعش ملف النهارده</span>', mcUpHTML(ln,br)]});
       if(!MC.ep) return;
       MC.ep.filter(function(e){ return e.s==='miss'&&e.ln===ln&&e.ph.length>=9&&cfDay(e.t0)>=from&&(e.tC==null||cfDay(e.tC)===today); })
         .sort(function(a,b){ return a.t0-b.t0; }).forEach(function(e){
           var ph=cfPh0(e.ph), nm=mcName(e.ph), done=e.tC!=null;
-          out.push({grp:['mcall'], key:'mcall|'+ln+'|'+e.ph+'|'+cfDay(e.t0), icon:'📵', kind:'اتصل وما اترد عليهوش — رجّعيله'+(nm?'':' · <b style="color:#f59e0b">رقم مش متسجل (ممكن مريض جديد)</b>'), name:nm||ph, phone:ph, br:br, line:ln,
+          out.push({grp:['mcall'], _h:new Date(e.t0).getUTCHours(), _old:cfDay(e.t0)<today, key:'mcall|'+ln+'|'+e.ph+'|'+cfDay(e.t0), icon:'📵', kind:'اتصل وما اترد عليهوش — رجّعيله'+(nm?'':' · <b style="color:#f59e0b">رقم مش متسجل (ممكن مريض جديد)</b>'), name:nm||ph, phone:ph, br:br, line:ln,
             sys:done?(e.how==='we'?'رجعناله واتكلمنا':'هو اتصل تاني واتكلمنا'):'', what:done?((e.how==='we'?'📤 رجعناله ':'📥 اتصل تاني ')+cfFmt(e.tC)):'',
             lines:['📵 اتصل '+e.nI+' مرة · أول مرة '+cfFmt(e.t0)+(e.nI>1?' · آخر مرة '+cfFmt(e.last):'')+' · خط '+alEsc(ln),
                    e.nO&&!done?'<span style="color:#f59e0b">📤 حاولنا نرجعله '+e.nO+' مرة وما ردش — حاولي تاني أو ابعتي واتساب</span>':'',

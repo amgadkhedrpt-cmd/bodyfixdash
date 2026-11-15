@@ -85,12 +85,14 @@ const CS={
   pack:c=>[c.ph,Math.round((c.t-CS.d0(cfDay(c.t)))/1000),CS.TY[c.ty]||'q',c.dur||0,c.u||''],
   unpack(r,d,ln){const o={ph:r[0],t:CS.d0(d)+r[1]*1000,ty:CS.YT[r[2]]||'?',dur:r[3]||0,ln};if(r[4])o.u=r[4];return o},
   months(n,end){const out=[],e=new Date(end||Date.now());for(let i=0;i<n;i++){const d=new Date(Date.UTC(e.getUTCFullYear(),e.getUTCMonth()-i,1));out.push(d.toISOString().slice(0,7))}return out},
-  async list(prefix){const j=await CS.call({action:'list',prefix});return (j&&j.docs)||[]},
+  // المخزن ممكن يرجّع البيانات object أو نص JSON أو جوه data — نفكها في كل الحالات
+  dd(x){let d=x&&x.data!==undefined?x.data:x;if(typeof d==='string'){try{d=JSON.parse(d)}catch(e){}}if(d&&d.data&&!d.r&&!d.ln&&!d.at)d=typeof d.data==='string'?JSON.parse(d.data):d.data;return d||{}},
+  async list(prefix){const j=await CS.call({action:'list',prefix});const D=(j&&j.docs)||[];if(D.length&&!CS.dbg)CS.dbg=Object.keys(D[0]).join(',')+'|'+typeof D[0].data+'|'+Object.keys(CS.dd(D[0])).slice(0,6).join(',');return D},
   // كل المكالمات المحفوظة في الشهور دي
   // الترتيب زي باقي المخزن (days/<يوم>/rows/<id>): مجموعة = calls/<شهر>/days · واحد تحت = <الخط>~<اليوم>
   async load(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('calls/'+m+'/days'))));const out=[];
-    docs.forEach(x=>{const d=x.data||x;(d.r||[]).forEach(r=>out.push(CS.unpack(r,d.d,d.ln)))});return out},
-  async logs(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('calls/'+m+'/up'))));return docs.map(x=>x.data||x).sort((a,b)=>(b.at||0)-(a.at||0))},
+    docs.forEach(x=>{const d=CS.dd(x);(d.r||[]).forEach(r=>out.push(CS.unpack(r,d.d,d.ln)))});return out},
+  async logs(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('calls/'+m+'/up'))));return docs.map(x=>CS.dd(x)).sort((a,b)=>(b.at||0)-(a.at||0))},
   // مين ماسك الموبايل (من د. أمجد): am = لحد الساعة sw · pm = بعدها — اللي اتغيّر من جدول الخطوط بيكسب
   // الهرم: 010 و011 مع الشيفت الصباحي لحد 3 العصر، وبعدها 010 مريم (عيادة 1) · 011 إنجي (عيادة 2) — الدقي: الصباحي لحد 5 والمسائي من 5 لـ 11
   DEF:{'010':{br:'BODYFIX Center',sw:15,am:'F',pm:'H'},'011':{br:'BODYFIX Center',sw:15,am:'F',pm:'J'}},
@@ -106,7 +108,7 @@ const CS={
     let mn=Infinity,mx=-Infinity;calls.forEach(c=>{if(c.t<mn)mn=c.t;if(c.t>mx)mx=c.t});
     const ms=[...new Set(calls.map(c=>cfDay(c.t).slice(0,7)))],lk=CS.lk(ln);
     const docs=[].concat(...await Promise.all(ms.map(m=>CS.list('calls/'+m+'/days'))));
-    const old={};docs.forEach(x=>{const d=x.data||x;if(d.ln!==ln)return;(old[d.d]=old[d.d]||[]).push(...(d.r||[]).map(r=>CS.unpack(r,d.d,ln)))});
+    const old={};docs.forEach(x=>{const d=CS.dd(x);if(d.ln!==ln)return;(old[d.d]=old[d.d]||[]).push(...(d.r||[]).map(r=>CS.unpack(r,d.d,ln)))});
     const nw={};calls.forEach(c=>{(nw[cfDay(c.t)]=nw[cfDay(c.t)]||[]).push(c)});
     const d1=cfDay(mn),d2=cfDay(mx);let add=0,dup=0;const gone=[],items=[];
     for(const d of Object.keys(nw).concat(Object.keys(old).filter(d=>d>d1&&d<d2&&!nw[d]))){if(items.some(i=>i._d===d))continue;

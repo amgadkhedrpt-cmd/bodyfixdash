@@ -12533,10 +12533,10 @@ function planOwner0(t,g){
    (🤖 بتتقفل لما سجل المكالمات اللي بعده يبان فيه إننا اتكلمنا معاه — رجعناله أو هو اتصل تاني) · الخط وفرعه ومين ماسكه: صفحة الماليات ← «📞 المكالمات» */
 var MC={calls:null,lines:{},upl:[],at:0,busy:false,names:null};
 function mcLoad(force){
-  if(MC.busy||(!force&&Date.now()-MC.at<5*60000)) return; MC.busy=true; MC.at=Date.now();
-  Promise.all([CS.load(CS.months(2)),CS.lines(),CS.logs(CS.months(1)).catch(function(){ return []; })])
-    .then(function(r){ MC.calls=r[0]; MC.lines=r[1]||{}; MC.upl=r[2]||[]; MC.busy=false; MC.ep=null; planRender(); })
-    .catch(function(){ MC.busy=false; MC.at=0; });
+  if(MC.busy&&MC.p) return MC.p; if(!force&&Date.now()-MC.at<5*60000) return Promise.resolve(); MC.busy=true; MC.at=Date.now();
+  return MC.p=Promise.all([CS.load(CS.months(2)),CS.lines(),CS.logs(CS.months(1)).catch(function(e){ MC.err2=String(e&&e.message||e); return []; })])
+    .then(function(r){ MC.calls=r[0]; MC.lines=r[1]||{}; MC.upl=r[2]||[]; MC.busy=false; MC.err=''; MC.ep=null; planRender(); })
+    .catch(function(e){ MC.busy=false; MC.at=0; MC.err=String(e&&e.message||e); });
 }
 function mcName(ph){
   if(!MC.names){ MC.names={}; ((ALERTS_DATA&&ALERTS_DATA.pt_index)||[]).forEach(function(r){ var p=cfPh(r[1]); if(p&&!MC.names[p]) MC.names[p]=r[0]; }); }
@@ -12607,9 +12607,9 @@ async function mcUpload(f,ln,br){
     if(!MC.lines[ln]){ MC.lines[ln]=CS.newLine(ln,br); await CS.setLines(MC.lines); }
     if(m.back===0) throw new Error('اتبعت للمخزن بس مش قادر أقراه تاني — ابعتي صورة الرسالة دي لدكتور أمجد');
     mcToast('✅ اتحفظ ملف خط <b>'+alEsc(ln)+'</b>: '+m.add+' مكالمة جديدة'+(m.dup?' · '+m.dup+' كانت موجودة':'')+' — بيحدّث المهام…','ok',true);
-    MC.at=0; MC.busy=false; mcLoad(true);
-    setTimeout(function(){ var n=(MC.calls||[]).length, u=(MC.upl||[]).filter(function(x){ return x.ln===ln; }).length;
-      mcToast((n?'✅ ':'⚠️ ')+'اتحفظ ملف خط <b>'+alEsc(ln)+'</b> ('+m.add+' جديدة) · المخزن فيه دلوقتي '+n+' مكالمة'+(u?'':' — بس سجل الرفع لسه مش باين')+' · المهام اتحدثت',n?'ok':'err'); },6000);
+    MC.at=0; MC.busy=false; MC.p=null; await mcLoad(true);
+    var n=(MC.calls||[]).length, u=(MC.upl||[]).filter(function(x){ return x.ln===ln; }).length;
+    mcToast((n&&u?'✅ ':'⚠️ ')+'اتحفظ ملف خط <b>'+alEsc(ln)+'</b> ('+m.add+' جديدة) · المخزن فيه دلوقتي '+n+' مكالمة'+(u?'':' — سجل الرفع مش باين')+(MC.err?' · ❌ '+alEsc(MC.err):'')+(MC.err2?' · ❌ '+alEsc(MC.err2):'')+' <span style="opacity:.6;font-size:.7em" dir="ltr">['+m.back+'/'+(MC.upl||[]).length+' '+alEsc(CS.dbg||'')+']</span>',n&&u?'ok':'err');
   }catch(e){ mcToast('❌ الملف ما اتحفظش: '+alEsc(e.message||String(e)),'err'); }
 }
 var cfPh0=function(ph){ return ph.length===10&&ph[0]!=='0'?'0'+ph:ph; };

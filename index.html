@@ -12556,6 +12556,13 @@ function mcPt(ph){
 }
 function mcName(ph){ return mcPt(ph).n; }
 function mcCairoDay(ms){ return new Date(ms).toLocaleDateString('sv-SE',{timeZone:'Africa/Cairo'}); }
+/* الأرقام اللي فاتتنا على الخط ده ولسه ما حصلش كلام (ولا جه العيادة) — نفس اللي بيطلع مهام «📵» */
+function mcMissFor(ln,today){ if(!MC.ep&&MC.calls) MC.ep=cfEpisodes(MC.calls).E; if(!MC.ep) return [];
+  return MC.ep.filter(function(e){ if(e.s!=='miss'||e.ln!==ln||e.ph.length<9) return false; var pt=mcPt(e.ph), came=pt.last&&pt.last>=cfDay(e.t0);
+    e._came=came&&e.tC==null?pt.last:''; return (e.tC==null&&(!came||pt.last===today))||(e.tC!=null&&cfDay(e.tC)===today); }); }
+function mcOpenFor(ln,today){ var L=mcMissFor(ln,today).filter(function(e){ return e.tC==null&&!e._came&&(PLAN_ST['mcall|'+ln+'|'+e.ph+'|'+cfDay(e.t0)]||{}).s!=='ref'; });
+  return {n:L.length, nw:L.filter(function(e){ return !mcName(e.ph); }).length}; }
+function mcOpenHTML(ln,today){ var o=mcOpenFor(ln,today); return o.n?'<span style="color:var(--r);font-weight:700">📵 محتاج يترجعلهم '+o.n+' رقم'+(o.nw?' ('+o.nw+' منهم أرقام جديدة)':'')+' — تحت في «مكالمات فايتة — رجّعيلها»</span>':'<span style="color:var(--g)">📵 مفيش أرقام فايتة مستنية حد يرجعلها ✅</span>'; }
 function mcTasks(today,act){
   var out=[], L=MC.lines||{}, d3=new Date(today+'T12:00:00Z'); d3.setUTCDate(d3.getUTCDate()-3); var from=d3.toISOString().slice(0,10);
   var byBr={}; Object.keys(L).forEach(function(ln){ var br=(L[ln]||{}).br||'BODYFIX Center'; (byBr[br]=byBr[br]||[]).push(ln); });
@@ -12575,14 +12582,13 @@ function mcTasks(today,act){
       var swL=(sw>12?sw-12:sw)+(sw>=12?' م':' ص');
       out.push({grp:['mcallup'], _h:sw, key:'mcallup2|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' — آخر الشيفت (بعد '+swL+')', name:'خط '+ln+' (المسائي)', br:br, line:ln,
         sys:upPm?'اترفع ملف بعد التسليم':'', what:upPm?('اترفع — '+(upPm.add||0)+' مكالمة جديدة'):'',
-        lines:[upPm?'<span style="color:var(--g)">✅ اترفع</span>':(nowH<sw?'<span style="color:var(--mute)">⏳ بعد ما تستلمي الموبايل الساعة '+swL+' — ارفعي الملف آخر الشيفت</span>':'<span style="color:var(--r)">ارفعي الملف آخر الشيفت عشان المكالمات الفايتة بتاعتك تبان وتتقفل</span>'), mcUpHTML(ln,br)]});
+        lines:[MC.ep||MC.calls?mcOpenHTML(ln,today):'', upPm?'<span style="color:var(--g)">✅ اترفع</span>':(nowH<sw?'<span style="color:var(--mute)">⏳ بعد ما تستلمي الموبايل الساعة '+swL+' — ارفعي الملف آخر الشيفت</span>':'<span style="color:var(--r)">ارفعي الملف آخر الشيفت عشان المكالمات الفايتة بتاعتك تبان وتتقفل</span>'), mcUpHTML(ln,br)]});
       out.push({grp:['mcallup'], _h:0, key:'mcallup|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' (الصبح)', name:'خط '+ln, br:br, line:ln,
         sys:u0?'اترفع ملف النهارده':'', what:u0?('اترفع الساعة '+new Date(u0.at).toLocaleTimeString('ar-EG',{timeZone:'Africa/Cairo',hour:'numeric',minute:'2-digit'})+' — '+(u0.add||0)+' مكالمة جديدة'):'',
-        lines:[u0?'<span style="color:var(--g)">✅ اترفع النهارده — ارفعي تاني آخر اليوم عشان المكالمات الفايتة تتقفل</span>':'<span style="color:var(--r)">لسه ما اترفعش ملف النهارده</span>', mcUpHTML(ln,br)]});
+        lines:[MC.ep||MC.calls?mcOpenHTML(ln,today):'', u0?'<span style="color:var(--g)">✅ اترفع النهارده — ارفعي تاني آخر اليوم عشان المكالمات الفايتة تتقفل</span>':'<span style="color:var(--r)">لسه ما اترفعش ملف النهارده</span>', mcUpHTML(ln,br)]});
       if(!MC.ep) return;
       // كل رقم فاتنا ولسه ما حصلش بيننا كلام — مهما كان قديم (لحد ما نتكلم معاه / ييجي العيادة / 🚫 رفض بسبب) · اللي اتحل النهارده بيفضل باين ✅
-      MC.ep.filter(function(e){ if(e.s!=='miss'||e.ln!==ln||e.ph.length<9) return false; var pt=mcPt(e.ph), came=pt.last&&pt.last>=cfDay(e.t0);
-          e._came=came&&e.tC==null?pt.last:''; return (e.tC==null&&(!came||pt.last===today))||(e.tC!=null&&cfDay(e.tC)===today); })
+      mcMissFor(ln,today)
         .sort(function(a,b){ return a.t0-b.t0; }).forEach(function(e){
           var ph=cfPh0(e.ph), nm=mcName(e.ph), done=e.tC!=null||!!e._came, age=Math.round((Date.parse(today)-Date.parse(cfDay(e.t0)))/864e5);
           out.push({grp:['mcall'], _h:new Date(e.t0).getUTCHours(), _old:cfDay(e.t0)<today, key:'mcall|'+ln+'|'+e.ph+'|'+cfDay(e.t0), icon:'📵', kind:'اتصل وما اترد عليهوش — رجّعيله'+(nm?'':' · <b style="color:#f59e0b">رقم مش متسجل (ممكن مريض جديد)</b>'), name:nm||ph, phone:ph, br:br, line:ln,
@@ -12623,8 +12629,8 @@ async function mcUpload(f,ln,br){
     if(m.back===0) throw new Error('اتبعت للمخزن بس مش قادر أقراه تاني — ابعتي صورة الرسالة دي لدكتور أمجد');
     mcToast('✅ اتحفظ ملف خط <b>'+alEsc(ln)+'</b>: '+m.add+' مكالمة جديدة'+(m.dup?' · '+m.dup+' كانت موجودة':'')+' — بيحدّث المهام…','ok',true);
     MC.at=0; MC.busy=false; MC.p=null; await mcLoad(true);
-    var n=(MC.calls||[]).length, u=(MC.upl||[]).filter(function(x){ return x.ln===ln; }).length;
-    mcToast((n&&u?'✅ ':'⚠️ ')+'اتحفظ ملف خط <b>'+alEsc(ln)+'</b> ('+m.add+' جديدة) · المخزن فيه دلوقتي '+n+' مكالمة'+(u?'':' — سجل الرفع مش باين')+(MC.err?' · ❌ '+alEsc(MC.err):'')+(MC.err2?' · ❌ '+alEsc(MC.err2):'')+' <span style="opacity:.6;font-size:.7em" dir="ltr">['+m.back+'/'+(MC.upl||[]).length+' '+alEsc(CS.dbg||'')+']</span>',n&&u?'ok':'err');
+    var n=(MC.calls||[]).length, u=(MC.upl||[]).filter(function(x){ return x.ln===ln; }).length, op=mcOpenFor(ln,(ALERTS_DATA&&ALERTS_DATA.today)||'');
+    mcToast((n&&u?'✅ ':'⚠️ ')+'اتحفظ ملف خط <b>'+alEsc(ln)+'</b> ('+m.add+' مكالمة جديدة)<br>'+(op.n?'<b style="color:#fca5a5">📵 محتاج ترجّعي لـ '+op.n+' رقم'+(op.nw?' ('+op.nw+' منهم أرقام جديدة — ممكن مرضى جداد)':'')+'</b> — هتلاقيهم في «مكالمات فايتة — رجّعيلها»':'<b style="color:#86efac">📵 مفيش أرقام فايتة مستنية حد يرجعلها 👏</b>')+'<br><span style="opacity:.7;font-size:.8em">المخزن فيه '+n+' مكالمة</span>'+(u?'':' — سجل الرفع مش باين')+(MC.err?' · ❌ '+alEsc(MC.err):'')+(MC.err2?' · ❌ '+alEsc(MC.err2):'')+' <span style="opacity:.6;font-size:.7em" dir="ltr">['+m.back+'/'+(MC.upl||[]).length+' '+alEsc(CS.dbg||'')+']</span>',n&&u?'ok':'err');
   }catch(e){ mcToast('❌ الملف ما اتحفظش: '+alEsc(e.message||String(e)),'err'); }
 }
 var cfPh0=function(ph){ return ph.length===10&&ph[0]!=='0'?'0'+ph:ph; };

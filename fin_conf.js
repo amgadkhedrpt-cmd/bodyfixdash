@@ -5,6 +5,10 @@
 const CF={a1:'',a2:'',calls:[],files:[],map:null,sheet:null,sheetTry:false,minT:null,maxT:null,d1:'',d2:'',rep:{}};
 const cfT1=()=>CF.d1?Date.parse(CF.d1+'T00:00:00Z'):-Infinity,cfT2=()=>CF.d2?Date.parse(CF.d2+'T00:00:00Z')+864e5:Infinity;
 const cfInR=t=>t>=cfT1()&&t<cfT2();
+// فلاتر المكالمات: الخط (كل ملف = خط/سكرتيرة) + الساعة من/لحد (لو «من» أكبر من «لحد» = بتلف بعد نص الليل)
+CF.ln='';CF.h1='';CF.h2='';
+const cfHOk=t=>{if(CF.h1===''&&CF.h2==='')return true;const h=new Date(t).getUTCHours(),a=CF.h1===''?0:+CF.h1,b=CF.h2===''?24:+CF.h2;return a<=b?h>=a&&h<b:h>=a||h<b};
+const cfCOk=(t,ln,allLines)=>cfInR(t)&&cfHOk(t)&&(allLines||!CF.ln||ln===CF.ln);
 const cfDig=s=>String(s==null?'':s).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 const cfPh=s=>{const d=cfDig(s).replace(/\D/g,'');return d.length>=10?d.slice(-10):d.length===9?'0'+d:d.length>=3?d:''};   // 10+ = موبايل/أرضي كامل · 9 = أرضي من غير الصفر · أقصر = رقم مختصر (خدمة عملاء…) بيتحسب مكالمة بس مش هيطابق مريض
 // وقت القاهرة «على الحيطة» كرقم (عشان نقارن بوقت سجل المكالمات اللي متسجل بتوقيت الموبايل)
@@ -71,7 +75,7 @@ async function cfSave(){try{await cfDB('readwrite',s=>CF.calls.length||CF.files.
 CF.ready=(async()=>{try{const d=await cfDB('readonly',s=>s.get('log'));if(d&&d.calls&&d.calls.length&&!CF.calls.length){CF.calls=d.calls;CF.files=d.files||[];CF.map=d.map||null;CF.saved=true;cfMM();if(typeof S!=='undefined'&&S.tab==='conf'&&typeof D!=='undefined'&&D)render()}}catch(e){console.warn(e)}})();
 async function cfLoad(files){await CF.ready;const seen=new Set(CF.calls.map(c=>c.ph+'|'+c.t+'|'+c.ty));for(const f of files){try{const r=await cfRead(f);CF.map=r.mp;
     let add=0,dup=0;const ln=f.name.replace(/\.[^.]+$/,'');r.out.forEach(c=>{const k=c.ph+'|'+c.t+'|'+c.ty;if(!seen.has(k)){seen.add(k);c.ln=ln;c.src=f.name;CF.calls.push(c);add++}else dup++});
-    CF.files.push({name:f.name,n:r.n,ok:add,dup,bad:r.bad,mp:r.mp,dmy:r.dmy,ex:r.ex,at:Date.now()})}catch(e){CF.files.push({name:f.name,err:e.message||String(e),at:Date.now()})}}
+    CF.files.push({name:f.name,ln,n:r.n,ok:add,dup,bad:r.bad,mp:r.mp,dmy:r.dmy,ex:r.ex,at:Date.now()})}catch(e){CF.files.push({name:f.name,err:e.message||String(e),at:Date.now()})}}
   cfMM();await cfSave();render()}
 // ---------- مين المسئولة (من خطة اليوم) ----------
 async function cfSheet(){if(CF.sheetTry)return;CF.sheetTry=true;try{const d=await jsonp({action:'getAll'},25000);const r=(d&&d.reasons)||{};const o={sum:{},roles:null};
@@ -108,7 +112,7 @@ const CF_CAT={ok:['✅ مكالمة اترد عليها','var(--good)'],tried:['
   nocov:['خارج فترة ملفات المكالمات','var(--t3)'],noph:['مفيش رقم على السيستم','var(--t3)'],book:['اتحجز «مؤكد» وقت الحجز (مش محتاج مكالمة)','var(--t3)'],nofile:['—','var(--t3)']};
 function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!c.atBook),J=chk.filter(c=>['ok','tried','missonly','none'].includes(c.cat));
   const all=cfConfs();const since=all.length?cfFmt(Math.min(...all.map(c=>c.cT))):'';
-  const fl=CF.files.map(f=>f.err?`<li><b>${esc(f.name)}</b> — <span class="down">${esc(f.err)}</span></li>`:`<li><b>${esc(f.name)}</b>${f.at?` <span class="sub">(اترفع ${cfFmt(cfWall(new Date(f.at).toISOString()))})</span>`:''} — ${f.ok} مكالمة جديدة${f.dup?` <span class="sub">+ ${f.dup} كانت موجودة قبل كده</span>`:''}${f.bad?` (${f.bad} سطر ما اتقراش)`:''}${f.bad&&f.ex?`<div class="sub" style="color:var(--warn)">مثال لسطر ما اتقراش — ${esc(f.ex.why)} مش مفهوم: التاريخ «${esc(f.ex.d)}» · الساعة «${esc(f.ex.t)}» · الرقم «${esc(f.ex.p)}» — ابعت الصورة دي لو لسه مش بيقرا</div>`:''}</li>`).join('');
+  const fl=CF.files.map((f,i)=>f.err?`<li><b>${esc(f.name)}</b> — <span class="down">${esc(f.err)}</span></li>`:`<li><b>${esc(f.name)}</b> <label class="sub">📞 الخط: <input data-cfln="${i}" list="cfLnL" value="${esc(f.ln||f.name.replace(/\.[^.]+$/,''))}" style="width:140px"></label>${f.at?` <span class="sub">(اترفع ${cfFmt(cfWall(new Date(f.at).toISOString()))})</span>`:''} — ${f.ok} مكالمة جديدة${f.dup?` <span class="sub">+ ${f.dup} كانت موجودة قبل كده</span>`:''}${f.bad?` (${f.bad} سطر ما اتقراش)`:''}${f.bad&&f.ex?`<div class="sub" style="color:var(--warn)">مثال لسطر ما اتقراش — ${esc(f.ex.why)} مش مفهوم: التاريخ «${esc(f.ex.d)}» · الساعة «${esc(f.ex.t)}» · الرقم «${esc(f.ex.p)}» — ابعت الصورة دي لو لسه مش بيقرا</div>`:''}</li>`).join('');
   const mp=CF.map;const colSel=(k,lbl)=>mp?`<label class="sub">${lbl} <select data-cfc="${k}"><option value="-1">—</option>${mp.head.map((h,i)=>`<option value="${i}"${mp[k]===i?' selected':''}>${esc(String(h)).slice(0,30)}</option>`).join('')}</select></label>`:'';
   const ty={};CF.calls.forEach(c=>ty[c.ty]=(ty[c.ty]||0)+1);
   let h=`<div class="card"><h3>📞 التأكيدات — اتأكد بمكالمة فعلاً؟<small>${BRN[S.b]} · ${ml(S.from)}–${ml(S.to)}</small></h3>
@@ -118,7 +122,10 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    <div class="bar" style="margin-top:6px"><b class="sub">✔️ يوم التأكيد (والمكالمات):</b><label class="sub">من <input type="date" id="cfD1" value="${CF.d1}"></label><label class="sub">لحد <input type="date" id="cfD2" value="${CF.d2}"></label><button id="cfDAll">كل فترة الملفات</button><button id="cfDClr">امسح التواريخ</button></div>
    <div class="bar" style="margin-top:6px"><span class="sub">${CF.a1||CF.a2||CF.d1||CF.d2?'الفلترين مع بعض: مواعيد في «يوم الموعد» اتأكدت في «يوم التأكيد» · «ما اتأكدش خالص» بيتحسب بيوم الموعد':'(من غير تاريخ: المكالمات كلها، والتأكيدات حسب شهور الفلتر فوق)'}</span><button class="pri" id="cfX">📥 نزّل التحليل وخطة العمل (Excel)</button></div>
    <div class="bar" style="margin-top:8px"><label class="drop" style="padding:6px 12px;border:1px dashed var(--brd);border-radius:8px;cursor:pointer">📂 ارفع ملفات المكالمات<input type="file" id="cfF" accept=".csv,.xlsx,.xls,.txt" multiple hidden></label>${CF.calls.length?`<button id="cfClr">🗑️ امسح المكالمات المحفوظة</button><span class="sub">${CF.saved?'💾 محفوظة على الجهاز · ':''}${CF.calls.length} مكالمة · من ${cfFmt(CF.minT)} لـ ${cfFmt(CF.maxT)} · صادرة ${ty.out||0} · واردة ${ty.in||0} · فائتة ${ty.miss||0}${ty['?']?` · من غير نوع ${ty['?']}`:''}</span>`:''}<span id="cfMsg" class="sub"></span></div>
-   ${fl?`<ul class="ins" style="margin-top:6px">${fl}</ul>`:''}
+   ${fl?`<ul class="ins" style="margin-top:6px">${fl}</ul><datalist id="cfLnL">${[...new Set(CF.calls.map(c=>c.ln))].map(l=>`<option value="${esc(l)}">`).join('')}</datalist><div class="sub">كل ملف = خط. لو رفعت ملفين لنفس الخط (مثلاً شهرين) اكتب نفس اسم الخط في الاتنين وهيتجمعوا.</div>`:''}
+   ${CF.calls.length?`<div class="bar" style="margin-top:8px"><b class="sub">📞 الخط:</b><select id="cfLn"><option value="">كل الخطوط</option>${[...new Set(CF.calls.map(c=>c.ln))].sort().map(l=>`<option${l===CF.ln?' selected':''}>${esc(l)}</option>`).join('')}</select>
+    <b class="sub">🕐 الساعة:</b><label class="sub">من <input id="cfH1" type="number" min="0" max="23" value="${CF.h1}" placeholder="0" style="width:56px"></label><label class="sub">لحد <input id="cfH2" type="number" min="1" max="24" value="${CF.h2}" placeholder="24" style="width:56px"></label><button id="cfHClr">كل الخطوط وكل الساعات</button>
+    <span class="sub">بيفلتر تحليل المكالمات وتقييم الأداء وقايمة «ما اتكلمناش» (مع التاريخ اللي فوق)</span></div>`:''}
    ${mp?`<div class="bar" style="margin-top:4px"><span class="sub">الأعمدة اللي فهمتها (غيّرها لو غلط):</span>${colSel('ph','الرقم')}${colSel('date','التاريخ')}${colSel('time','الساعة')}${colSel('type','النوع')}${colSel('dur','المدة')}</div>`:''}</div>`;
   if(!all.length)return h+`<div class="card" style="margin-top:12px">⏳ التسجيل بيبدأ من أول سحب جاي (11 الصبح). ارفع ملفات مكالمات من بعد كده — قبل كده مفيش تأكيدات متسجلة تتقارن.</div>`;
   const pc_=(a,f)=>a.length?pc(a.filter(f).length/a.length):'—';
@@ -202,6 +209,9 @@ function cConf(){(CF.charts||[]).forEach(c=>chart(c[0],c[2]));const d1=$('#cfD1'
   const a1=$('#cfA1'),a2=$('#cfA2'),dc=$('#cfDClr');if(a1)a1.onchange=()=>{CF.a1=a1.value;rr()};if(a2)a2.onchange=()=>{CF.a2=a2.value;rr()};if(dc)dc.onclick=()=>{CF.a1=CF.a2=CF.d1=CF.d2='';rr()};
   if(da)da.onclick=()=>{if(CF.minT!=null){CF.d1=cfDay(CF.minT);CF.d2=cfDay(CF.maxT)}else{CF.d1=CF.d2=''}rr()};if(x)x.onclick=()=>cfExcel();
   const f=$('#cfF');if(f)f.onchange=e=>{const fs=[...e.target.files];if(fs.length){$('#cfMsg').textContent='بيقرا الملفات…';cfLoad(fs)}};
+  const ls=$('#cfLn'),h1=$('#cfH1'),h2=$('#cfH2'),hc=$('#cfHClr');if(ls)ls.onchange=()=>{CF.ln=ls.value;rr()};const hv=v=>v===''?'':String(Math.max(0,Math.min(24,Math.round(+v)||0)));
+  if(h1)h1.onchange=()=>{CF.h1=hv(h1.value);rr()};if(h2)h2.onchange=()=>{CF.h2=hv(h2.value);rr()};if(hc)hc.onclick=()=>{CF.ln=CF.h1=CF.h2='';rr()};
+  document.querySelectorAll('[data-cfln]').forEach(x=>x.onchange=async()=>{const f=CF.files[+x.dataset.cfln],v=x.value.trim();if(!f||!v)return;const old=f.ln||f.name.replace(/\.[^.]+$/,'');f.ln=v;CF.calls.forEach(c=>{if(c.src===f.name)c.ln=v});if(CF.ln===old)CF.ln=v;cfMM();CF.rep={};await cfSave();render()});
   const c=$('#cfClr');if(c)c.onclick=async()=>{if(!confirm('امسح كل المكالمات المحفوظة على الجهاز ده؟ هتحتاج ترفع الملفات تاني.'))return;CF.calls=[];CF.files=[];CF.map=null;cfMM();await cfSave();CF.saved=false;render()};
   document.querySelectorAll('[data-cfc]').forEach(s=>s.onchange=async()=>{const cols=CF.map.cols;CF.map[s.dataset.cfc]=+s.value;const bad=new Set(CF.files.filter(f=>f.mp&&f.mp.cols===cols).map(f=>f.name));CF.calls=CF.calls.filter(c=>!bad.has(c.src));CF.files=CF.files.filter(f=>!bad.has(f.name));cfMM();await cfSave();render();const m=$('#cfMsg');if(m)m.textContent='ارفع الملفات دي تاني بعد تعديل الأعمدة: '+[...bad].join('، ')})}
 // ================= 📊 تحليل سجل المكالمات =================
@@ -220,10 +230,10 @@ function cfStats(){if(CF.st)return CF.st;const by={};CF.calls.forEach(c=>(by[c.p
     if(ep)EP.push(ep)}
   EP.forEach(e=>{e.wA=e.tA!=null?(e.tA-e.t0)/60e3:null;e.wC=e.tC!=null?(e.tC-e.t0)/60e3:null;
     e.st=e.tC!=null?(e.how==='رجعناله'?'ok':'self'):e.tA!=null?'tried':(end-e.last<60*60e3?'pend':'none')});
-  const EPr=EP.filter(e=>cfInR(e.t0));return CF.st={EP:EPr,by}}
-function vCalls(){if(!CF.calls.length)return '';const {EP}=cfStats(),C=CF.calls.filter(c=>cfInR(c.t)),P=cfPts();if(!C.length)return '<div class="card" style="margin-top:12px">مفيش مكالمات في الفترة دي.</div>';
+  const EPr=EP.filter(e=>cfCOk(e.t0,e.ln,true));return CF.st={EP:EPr,by}}
+function vCalls(){if(!CF.calls.length)return '';const EPa=cfStats().EP,EP=EPa.filter(e=>!CF.ln||e.ln===CF.ln),C0=CF.calls.filter(c=>cfCOk(c.t,c.ln,true)),C=C0.filter(c=>!CF.ln||c.ln===CF.ln),P=cfPts();if(!C.length)return '<div class="card" style="margin-top:12px">مفيش مكالمات بالفلتر ده (التاريخ/الساعة/الخط).</div>';
   const inc=C.filter(c=>c.ty==='in'||c.ty==='miss'),ans=C.filter(c=>c.ty==='in'&&c.dur>0),out=C.filter(c=>c.ty==='out'),outA=out.filter(c=>c.dur>0);
-  const E=EP.filter(e=>e.st!=='pend'),Eo=E.filter(e=>e.open),ret=E.filter(e=>e.wA!=null);
+  const E0=EPa.filter(e=>e.st!=='pend'),E=E0.filter(e=>!CF.ln||e.ln===CF.ln),Eo=E.filter(e=>e.open),ret=E.filter(e=>e.wA!=null);
   const r=(a,f)=>a.length?a.filter(f).length/a.length:null;
   const bk=[[0,15,'أقل من ربع ساعة'],[15,60,'ربع ساعة – ساعة'],[60,180,'1–3 ساعات'],[180,1440,'3 ساعات – يوم'],[1440,1e9,'أكتر من يوم']];
   const dist=(arr)=>bk.map(b=>arr.filter(e=>e.wA!=null&&e.wA>=b[0]&&e.wA<b[1]).length).concat([arr.filter(e=>e.wA==null&&e.st!=='self').length,arr.filter(e=>e.st==='self'&&e.wA==null).length]);
@@ -236,8 +246,12 @@ function vCalls(){if(!CF.calls.length)return '';const {EP}=cfStats(),C=CF.calls.
   const W={};inc.forEach(c=>{const w=new Date(c.t).getUTCDay(),z=W[w]=W[w]||{n:0,m:0,w:[]};z.n++;if(c.ty==='miss')z.m++});E.forEach(e=>{const w=new Date(e.t0).getUTCDay();(W[w]=W[w]||{n:0,m:0,w:[]}).w.push(e.wA==null?1e9:e.wA)});
   const wRows=[6,0,1,2,3,4,5].filter(w=>W[w]).map(w=>{const z=W[w];const md=cfMed(z.w);return [DAYS[w],z.n,z.m,pc(z.m/z.n),(md>=1e9?'أغلبها ما رجعناش':cfDurF(md))]});
   // بالخط (كل ملف = خط)
-  const lns=[...new Set(C.map(c=>c.ln))];const lRows=lns.map(l=>{const cc=C.filter(c=>c.ln===l),ii=cc.filter(c=>c.ty==='in'||c.ty==='miss'),ee=E.filter(e=>e.ln===l),oo=cc.filter(c=>c.ty==='out');
-    const md=cfMed(ee.filter(e=>e.wA!=null).map(e=>e.wA));return [esc(l),ii.length,ii.length?pc(ii.filter(c=>c.ty==='miss').length/ii.length):'—',oo.length,oo.length?pc(oo.filter(c=>c.dur>0).length/oo.length):'—',ee.length,cfDurF(md),ee.filter(e=>e.st==='none').length]});
+  // تقييم الأداء: الإجمالي + كل خط لوحده (بفلتر التاريخ والساعة — من غير فلتر الخط عشان تقارن)
+  const lns=[...new Set(C0.map(c=>c.ln))].sort();const lStat=(l,cc,ee)=>{const ii=cc.filter(c=>c.ty==='in'||c.ty==='miss'),oo=cc.filter(c=>c.ty==='out'),eo=ee.filter(e=>e.open);
+    const md=cfMed(eo.filter(e=>e.wA!=null).map(e=>e.wA)),mR=ii.length?ii.filter(c=>c.ty==='miss').length/ii.length:null,r1=r(eo,e=>e.wA!=null&&e.wA<60),rN=r(eo,e=>e.st==='none');
+    const row=[l,ii.length,mR==null?'—':`<span class="${mR>0.2?'down':''}">${pc(mR)}</span>`,eo.length,r1==null?'—':pc(r1),cfDurF(md),rN==null?'—':`<span class="${rN>0.1?'down':''}">${pc(rN)}</span>`,oo.length,oo.length?pc(oo.filter(c=>c.dur>0).length/oo.length):'—',ee.filter(e=>e.st==='none').length];
+    return row};
+  const lRows=[Object.assign(lStat('<b>الإجمالي</b>',C0,E0).map((x,i)=>i&&typeof x!=='number'?'<b>'+x+'</b>':x),{_c:'tot'})].concat(lns.map(l=>{const x=lStat(`<a href="#" data-cfl="${esc(l)}">${esc(l)}</a>`,C0.filter(c=>c.ln===l),E0.filter(e=>e.ln===l));if(l===CF.ln)x._c='hl';return x}));
   // قوايم
   const who=ph=>{const p=P[ph];return p?esc(p.pn||'مريض')+(p.next?` <span class="sub">· موعد ${p.next.slice(8,10)}/${p.next.slice(5,7)}</span>`:p.last?` <span class="sub">· آخر زيارة ${p.last.slice(8,10)}/${p.last.slice(5,7)}</span>`:''):'<b style="color:var(--warn)">مش متسجل — ممكن مريض جديد</b>'};
   const ph0=ph=>'0'+ph;const now=CF.maxT;
@@ -256,22 +270,22 @@ function vCalls(){if(!CF.calls.length)return '';const {EP}=cfStats(),C=CF.calls.
   const worstH=Object.entries(H).filter(([h,z])=>z.n>=10&&cfIsOpen(Date.UTC(2026,0,1,+h))).sort((a,b)=>b[1].m/b[1].n-a[1].m/a[1].n)[0];
   CF.rep.calls={kpi:[['مكالمات داخلة',inc.length],['اترد عليها',pc(ans.length/(inc.length||1))],['فاتت وقت الشغل (مرات)',Eo.length],['بنرجع بعد (النص) — وقت الشغل',cfDurF(md)],['رجعنا خلال ساعة',pc(r(Eo,e=>e.wA!=null&&e.wA<60))],['ما رجعناش خالص (وقت الشغل)',pc(r(Eo,e=>e.st==='none'))],['أرقام لسه محدش رجعلهم',none.length],['منهم مش متسجلين',unk],['رجعنالهم وما ردوش',tried.length],['مكالمات طالعة',out.length],['ردوا على الطالعة',out.length?pc(outA.length/out.length):'—']],
     L,distRows,lRows,hRows,wRows,nRows,tRows,none,tried,P,r1h:r(Eo,e=>e.wA!=null&&e.wA<60),rNone:r(Eo,e=>e.st==='none'),outR:out.length?outA.length/out.length:null,worstH,
-    lines:lns.map(l=>{const ee=E.filter(e=>e.ln===l),ii=C.filter(c=>c.ln===l&&(c.ty==='in'||c.ty==='miss'));return {l,miss:ii.length?ii.filter(c=>c.ty==='miss').length/ii.length:0,med:cfMed(ee.filter(e=>e.wA!=null).map(e=>e.wA)),none:ee.filter(e=>e.st==='none').length,n:ee.length}})};
-  return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--acc)"><h3>📊 تحليل سجل المكالمات<small>${CF.d1||CF.d2?(CF.d1||'…')+' → '+(CF.d2||'…'):cfFmt(CF.minT)+' – '+cfFmt(CF.maxT)}</small></h3>
+    lines:lns.map(l=>{const ee=E0.filter(e=>e.ln===l),ii=C0.filter(c=>c.ln===l&&(c.ty==='in'||c.ty==='miss'));return {l,miss:ii.length?ii.filter(c=>c.ty==='miss').length/ii.length:0,med:cfMed(ee.filter(e=>e.wA!=null).map(e=>e.wA)),none:ee.filter(e=>e.st==='none').length,n:ee.length}})};
+  return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--acc)"><h3>📊 تحليل سجل المكالمات${CF.ln?' — '+esc(CF.ln):' — كل الخطوط'}<small>${CF.h1!==''||CF.h2!==''?'🕐 '+(CF.h1||0)+'–'+(CF.h2||24)+' · ':''}${CF.d1||CF.d2?(CF.d1||'…')+' → '+(CF.d2||'…'):cfFmt(CF.minT)+' – '+cfFmt(CF.maxT)}</small></h3>
    <div class="bar"><label class="sub">مواعيد الشغل من <input id="cfO1" type="number" min="0" max="23" value="${CF.oh[0]}" style="width:52px"> لـ <input id="cfO2" type="number" min="1" max="24" value="${CF.oh[1]}" style="width:52px"></label><span class="sub">«فاتت» = واردة ما اترد عليهاش · «رجعنا» = أول مكالمة طالعة للرقم بعد ما فاتت (حتى لو ما ردش) · لو ما اترد عليهاش وفاتت تاني قبل ما نرجع = نفس المرة</span></div>
    <div class="grid g4">${kpi('مكالمات داخلة',inc.length,`اترد ${pc(ans.length/(inc.length||1))}`)}${kpi('فاتت وقت الشغل',Eo.length,`نرجع في خلال ${cfDurF(md)} (النص)`)}${kpi('رجعنا في خلال ساعة',pc(r(Eo,e=>e.wA!=null&&e.wA<60)),'من اللي فاتت وقت الشغل')}${kpi('لسه محدش رجعلهم',none.length,unk?unk+' مش متسجلين':'',none.length?'down':'')}</div>
    <h3 style="margin-top:12px">📖 القراية</h3><ul class="ins">${L.map(x=>`<li>${x}</li>`).join('')}</ul>
    <div class="card" style="margin-top:10px"><h3>نسبة المكالمات اللي بتفوت كل ساعة</h3><div class="ch"><canvas id="cl1"></canvas></div></div></div>
   <div class="grid g2" style="margin-top:12px">
    <div class="card"><h3>رجعنا كلمناه بعد قد إيه؟</h3>${tableHTML(['',{t:'وقت الشغل',n:1},{t:'النسبة',n:1},{t:'بعد المواعيد',n:1}],distRows,{h:320})}</div>
-   <div class="card"><h3>كل خط (كل ملف اترفع)</h3>${tableHTML(['الخط',{t:'داخلة',n:1},{t:'فاتت',n:1},{t:'طالعة',n:1},{t:'ردوا علينا',n:1},{t:'مرات فاتت',n:1},{t:'نرجع بعد (النص)',n:1},{t:'ما رجعناش',n:1}],lRows,{h:320})}</div>
+   <div class="card" style="grid-column:1/-1"><h3>🏅 تقييم الأداء — الإجمالي وكل خط لوحده<small>دوس على اسم الخط عشان التحليل كله يبقى عليه</small></h3>${tableHTML(['الخط',{t:'داخلة',n:1},{t:'فاتت %',n:1},{t:'فاتت وقت الشغل',n:1},{t:'رجعنا خلال ساعة',n:1},{t:'نرجع بعد (النص)',n:1},{t:'ما رجعناش',n:1},{t:'طالعة',n:1},{t:'ردوا علينا',n:1},{t:'لسه محدش رجعلهم',n:1}],lRows,{h:360})}<div class="sub">«رجعنا خلال ساعة» و«ما رجعناش» محسوبين على المكالمات اللي فاتت في مواعيد الشغل · لو حد رجع للمريض من خط تاني بيتحسب إنه اترجعله.</div></div>
    <div class="card"><h3>بالساعة</h3>${tableHTML(['الساعة',{t:'داخلة',n:1},{t:'فاتت',n:1},{t:'نسبة',n:1},{t:'نرجع بعد',n:1}],hRows,{h:360})}</div>
    <div class="card"><h3>باليوم</h3>${tableHTML(['اليوم',{t:'داخلة',n:1},{t:'فاتت',n:1},{t:'نسبة',n:1},{t:'نرجع بعد',n:1}],wRows,{h:360})}</div>
    <div class="card" style="grid-column:1/-1"><h3>📵 فاتت ولسه محدش رجعلهم<small>${none.length} رقم</small></h3>${tableHTML(['الرقم','مين',{t:'مرات',n:1},'فاتت',{t:'من',n:1},'','الخط'],nRows,{h:420})}</div>
    ${tRows.length?`<div class="card" style="grid-column:1/-1"><h3>📤 رجعنالهم وما ردوش (ولسه ما اتكلمناش)<small>${tRows.length}</small></h3>${tableHTML(['الرقم','مين',{t:'فاتت',n:1},'أول مرة',{t:'حاولنا',n:1},{t:'رجعنا بعد',n:1},'من خط'],tRows,{h:360})}</div>`:''}
   </div>`}
-function cCalls(){if(!CF.calls.length)return;const o1=$('#cfO1'),o2=$('#cfO2');const sv=()=>{CF.oh=[+o1.value||0,+o2.value||24];try{localStorage.setItem('fin_cfoh',JSON.stringify(CF.oh))}catch(e){}CF.st=null;render()};if(o1)o1.onchange=sv;if(o2)o2.onchange=sv;
-  const H={};CF.calls.filter(c=>c.ty==='in'||c.ty==='miss').forEach(c=>{const h=new Date(c.t).getUTCHours(),z=H[h]=H[h]||{n:0,m:0};z.n++;if(c.ty==='miss')z.m++});const hs=Object.keys(H).map(Number).sort((a,b)=>a-b);
+function cCalls(){if(!CF.calls.length)return;const o1=$('#cfO1'),o2=$('#cfO2');const sv=()=>{CF.oh=[+o1.value||0,+o2.value||24];try{localStorage.setItem('fin_cfoh',JSON.stringify(CF.oh))}catch(e){}CF.st=null;render()};if(o1)o1.onchange=sv;if(o2)o2.onchange=sv;document.querySelectorAll('[data-cfl]').forEach(a=>a.onclick=e=>{e.preventDefault();CF.ln=CF.ln===a.dataset.cfl?'':a.dataset.cfl;CF.st=null;CF.rep={};render()});
+  const H={};CF.calls.filter(c=>cfCOk(c.t,c.ln)&&(c.ty==='in'||c.ty==='miss')).forEach(c=>{const h=new Date(c.t).getUTCHours(),z=H[h]=H[h]||{n:0,m:0};z.n++;if(c.ty==='miss')z.m++});const hs=Object.keys(H).map(Number).sort((a,b)=>a-b);
   chart('cl1',{data:{labels:hs.map(h=>(h%12||12)+(h<12?'ص':'م')),datasets:[bar('فاتت %',hs.map(h=>+(100*H[h].m/H[h].n).toFixed(1)),SER()[0])]},
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>' فاتت '+x.parsed.y+'% من '+H[hs[x.dataIndex]].n+' مكالمة'}}},scales:{y:{ticks:{callback:v=>v+'%'}}}}})}
 
@@ -289,7 +303,7 @@ function cfReach(){if(CF.rch)return CF.rch;const by={},E=[];CF.calls.forEach(c=>
 const cfRoW=e=>e.tC==null?'still':e.how;
 function cfReachBody(){const {E,by}=cfReach(),P=cfPts(),q=cfDig(CF.rq).trim(),qd=q.replace(/\D/g,''),ql=q.toLowerCase();
   const nm=ph=>P[ph]&&P[ph].pn||'';
-  let R=E.filter(e=>cfInR(e.t0)&&(CF.rs==='all'||e.s===CF.rs));
+  let R=E.filter(e=>cfCOk(e.t0,e.ln)&&(CF.rs==='all'||e.s===CF.rs));
   const cnt={we:0,he:0,still:0};R.forEach(e=>cnt[cfRoW(e)]++);
   if(CF.rf!=='all')R=R.filter(e=>cfRoW(e)===CF.rf);
   if(q)R=R.filter(e=>qd.length>=3?('0'+e.ph).includes(qd)||e.ph.includes(qd):nm(e.ph).toLowerCase().includes(ql));
@@ -308,7 +322,7 @@ function cfReachBody(){const {E,by}=cfReach(),P=cfPts(),q=cfDig(CF.rq).trim(),qd
    ${R.length?tableHTML(['الرقم','مين','بدأت بـ','أول مرة',{t:'اتصل هو',n:1},{t:'اتصلنا',n:1},'حصل إيه','إمتى اتكلمنا',{t:'بعد قد إيه',n:1}],rows,{h:460}):'<div class="sub" style="margin-top:8px">مفيش أرقام بالفلتر ده.</div>'}
    ${R.length>600?`<div class="sub">بيعرض أول 600 من ${R.length} — ضيّق التاريخ أو ابحث برقم.</div>`:''}${tl}`}
 function vReach(){if(!CF.calls.length)return '';
-  return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--warn)"><h3>🔎 رقم ما اتكلمناش معاه — رجعنا كلمناه ولا هو كلمنا؟<small>${CF.d1||CF.d2?(CF.d1||'…')+' → '+(CF.d2||'…'):'كل المكالمات المحفوظة'}</small></h3>
+  return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--warn)"><h3>🔎 رقم ما اتكلمناش معاه — رجعنا كلمناه ولا هو كلمنا؟<small>${CF.ln?esc(CF.ln)+' · ':''}${CF.d1||CF.d2?(CF.d1||'…')+' → '+(CF.d2||'…'):'كل المكالمات المحفوظة'}</small></h3>
    <div class="sub" style="line-height:1.8">كل رقم <b>بدأ</b> فيه «ما اتكلمناش» في الفترة اللي فوق (يوم التأكيد/المكالمات) — مكالمة فاتتنا أو اتصلنا وما ردش — وبعدها حصل إيه في كل الملفات المحفوظة (حتى بعد الفترة): احنا رجعنا اتكلمنا معاه، ولا هو اللي اتصل واتكلمنا، ولا لسه. اكتب رقم (7 أرقام أو أكتر) يطلعلك كل مكالماته.</div>
    <div class="bar" style="margin-top:6px"><input id="cfRq" type="search" placeholder="🔍 رقم أو اسم" value="${esc(CF.rq)}" style="min-width:220px"></div>
    <div id="cfRchB">${cfReachBody()}</div></div>`}
@@ -353,7 +367,7 @@ async function cfExcel(){if(!CF.rep.calls&&!CF.rep.conf){alert('ارفع ملف�
     sh('رجعنا بعد قد إيه',['','وقت الشغل','النسبة','بعد المواعيد'],c.distRows,[34,12,10,14]);
     sh('بالساعة',['الساعة','داخلة','فاتت','نسبة','نرجع بعد'],c.hRows,[10,10,10,10,20]);
     sh('باليوم',['اليوم','داخلة','فاتت','نسبة','نرجع بعد'],c.wRows,[12,10,10,10,20]);
-    sh('كل خط',['الخط','داخلة','فاتت','طالعة','ردوا علينا','مرات فاتت','نرجع بعد (النص)','ما رجعناش'],c.lRows,[20,10,10,10,12,12,16,12])}
+    sh('تقييم كل خط',['الخط','داخلة','فاتت %','فاتت وقت الشغل','رجعنا خلال ساعة','نرجع بعد (النص)','ما رجعناش','طالعة','ردوا علينا','لسه محدش رجعلهم'],c.lRows,[22,10,10,14,14,16,12,10,12,16])}
   if(R.conf){const f=R.conf;
     sh('التأكيد — حسب المسئولة',['المسئولة','تأكيدات','بمكالمة','ما ردش','مفيش مكالمة','بالجملة','ما جاش/اعتذر'],f.wRows,[22,10,10,10,12,10,14]);
     sh('التأكيد — كل يوم',['اليوم','تأكيدات','بالجملة','بمكالمة'],f.dRows,[18,10,10,10]);

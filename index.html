@@ -12579,25 +12579,34 @@ function mcTasks(today,act){
   });
   return out;
 }
-function mcUpHTML(ln,br){ var id='mc_'+Math.random().toString(36).slice(2,8);
-  return '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px" onclick="event.stopPropagation()">'+(ln?'':'<input id="'+id+'_n" placeholder="اسم الخط — مثلاً 010" style="width:150px;background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.62rem">')+
-    '<label style="cursor:pointer;background:rgba(14,165,233,.15);border:1px dashed var(--brd);border-radius:7px;padding:4px 10px;font-size:.62rem">📂 ارفعي ملف سجل المكالمات<input type="file" accept=".csv,.xlsx,.xls,.txt" hidden onchange="mcUpload(this,\''+alEsc(ln).replace(/'/g,"\\'")+'\',\''+br+'\',\''+id+'\')"></label>'+
-    '<span id="'+id+'" style="font-size:.58rem;color:var(--mute)">من الموبايل: سجل المكالمات ← تصدير (Export / Backup) ← CSV أو Excel</span></div>';
+function mcUpHTML(ln,br){ var id='mc_'+(ln||br).replace(/[^\w]/g,'_');
+  return '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px" onclick="event.stopPropagation()">'+(ln?'':'<input id="'+id+'_n" placeholder="اسم الخط — مثلاً 010" onchange="MC.nm[\''+id+'\']=this.value" value="'+alEsc((MC.nm||{})[id]||'')+'" style="width:150px;background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.62rem">')+
+    '<button type="button" onclick="event.stopPropagation();mcPick(\''+alEsc(ln).replace(/'/g,"\\'")+'\',\''+br+'\',\''+id+'\')" style="cursor:pointer;background:rgba(14,165,233,.15);border:1px dashed var(--brd);color:var(--txt);border-radius:7px;padding:5px 12px;font-family:Cairo,sans-serif;font-size:.64rem">📂 ارفعي ملف سجل المكالمات</button>'+
+    '<span style="font-size:.58rem;color:var(--mute)">من الموبايل: سجل المكالمات ← تصدير (Export / Backup) ← CSV أو Excel</span></div>';
 }
-async function mcUpload(inp,ln,br,id){
-  var f=inp.files&&inp.files[0], msg=document.getElementById(id); if(!f) return;
-  if(!ln){ var ni=document.getElementById(id+'_n'); ln=ni&&ni.value.trim(); if(!ln){ alert('اكتبي اسم الخط الأول (مثلاً 010)'); inp.value=''; return; } }
+/* زرار الرفع بيفتح خانة ملف ثابتة برّه الخطة (الخطة بتتحدث لوحدها كل شوية — فالخانة اللي جواها كانت بتتمسح والملف يضيع) */
+MC.nm={};
+function mcToast(html,kind,keep){ var t=document.getElementById('mcToast'); if(!t){ t=document.createElement('div'); t.id='mcToast'; t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:99999;max-width:92vw;background:#0f172a;color:#fff;border-radius:12px;padding:12px 16px;font-family:Cairo,sans-serif;font-size:.8rem;box-shadow:0 8px 30px rgba(0,0,0,.45);direction:rtl;line-height:1.7'; document.body.appendChild(t); }
+  t.style.border='2px solid '+(kind==='ok'?'#10b981':kind==='err'?'#ef4444':'#0ea5e9'); t.innerHTML=html+(keep?'':'')+' <button onclick="this.parentNode.remove()" style="margin-inline-start:10px;background:transparent;border:1px solid #475569;color:#fff;border-radius:6px;padding:0 8px;cursor:pointer">✕</button>';
+  clearTimeout(MC.tt); if(!keep) MC.tt=setTimeout(function(){ var x=document.getElementById('mcToast'); if(x) x.remove(); },kind==='err'?20000:8000); }
+function mcPick(ln,br,id){
+  if(!ln){ var ni=document.getElementById(id+'_n'); ln=((ni&&ni.value)||MC.nm[id]||'').trim(); if(!ln){ alert('اكتبي اسم الخط الأول (مثلاً 010)'); return; } }
+  var inp=document.getElementById('mcFile'); if(!inp){ inp=document.createElement('input'); inp.type='file'; inp.id='mcFile'; inp.accept='.csv,.xlsx,.xls,.txt,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; inp.style.display='none'; document.body.appendChild(inp);
+    inp.addEventListener('change',function(){ var f=inp.files&&inp.files[0], j=MC.job; inp.value=''; if(f&&j) mcUpload(f,j.ln,j.br); }); }
+  MC.job={ln:ln,br:br}; inp.value=''; inp.click();
+}
+async function mcUpload(f,ln,br){
+  mcToast('📂 بيقرا <b>'+alEsc(f.name)+'</b> (خط '+alEsc(ln)+')…','',true);
   try{
-    if(msg) msg.textContent='بيقرا الملف…';
     var r=await cfReadFile(f,null,null);
-    if(!r.out.length||r.bad>r.n*0.3) throw new Error('الملف مش مفهوم ('+r.bad+' من '+r.n+' سطر) — ابعتيه لدكتور أمجد');
-    if(msg) msg.textContent='بيحفظ…';
+    if(!r.out.length||r.bad>r.n*0.3) throw new Error('الملف مش مفهوم ('+r.bad+' من '+r.n+' سطر ما اتقروش) — ابعتيه لدكتور أمجد');
+    mcToast('☁️ بيحفظ '+r.out.length+' مكالمة…','',true);
+    ln=CS.normLn(ln);
     var m=await CS.merge(r.out,ln,{file:f.name,by:PLAN_ME||'',from:'plan',br:br});
-    ln=CS.normLn(ln); if(!MC.lines[ln]){ MC.lines[ln]=CS.newLine(ln,br); await CS.setLines(MC.lines); }
-    if(msg) msg.textContent='✅ اتحفظ: '+m.add+' مكالمة جديدة';
+    if(!MC.lines[ln]){ MC.lines[ln]=CS.newLine(ln,br); await CS.setLines(MC.lines); }
+    mcToast('✅ اتحفظ ملف خط <b>'+alEsc(ln)+'</b>: '+m.add+' مكالمة جديدة'+(m.dup?' · '+m.dup+' كانت موجودة':'')+' — المهام هتتحدث خلال ثواني','ok');
     mcLoad(true);
-  }catch(e){ if(msg) msg.textContent='❌ '+(e.message||e); alert('الملف ما اتحفظش: '+(e.message||e)); }
-  inp.value='';
+  }catch(e){ mcToast('❌ الملف ما اتحفظش: '+alEsc(e.message||String(e)),'err'); }
 }
 var cfPh0=function(ph){ return ph.length===10&&ph[0]!=='0'?'0'+ph:ph; };
 /* ═══ 👥 الفريق النهارده: غياب / تغطية + توزيع المهام أوتوماتيك ═══

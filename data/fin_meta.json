@@ -1,5 +1,5 @@
 {
- "at": "2026-11-15T13:12:10.047Z",
+ "at": "2026-11-15T13:23:55.842Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,10 +91,10 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "ph2_field": "phoneNumber2",
- "ph2_n": 17,
+ "ph2_n": 16,
  "conf": {
-  "confirmed_now": 47,
-  "new": 3
+  "confirmed_now": 46,
+  "new": 1
  },
  "kinds": {
   "pay": {
@@ -117,7 +117,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20618,
+    "rows": 20619,
     "cols": [
      "id",
      "type",
@@ -369,7 +369,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131277,
+    "rows": 131279,
     "cols": [
      "start",
      "status",
@@ -422,7 +422,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 134,
+    "rows": 135,
     "cols": [
      "aid",
      "start",
@@ -535,7 +535,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1353,
+    "rows": 1354,
     "cols": [
      "duration",
      "createdAt",
@@ -606,7 +606,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17459,
+    "rows": 17460,
     "cols": [
      "id",
      "referenceId",
@@ -855,7 +855,7 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "46dbe9f9df5ef660"
+  "data/fin_c.enc": "b5c0a46cbdc59745"
  },
  "written": [
   "data/fin_c.enc"

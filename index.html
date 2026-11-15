@@ -11955,19 +11955,23 @@ function planCashBanner(){
   AUD_DATA.debts.forEach(function(r){ if(act.indexOf(r.b)<0||OFF[audN(r.s)]) return; if(r.d!==today&&!came[r.pid]) return;
     var o=P[r.pid]||(P[r.pid]={n:r.p,b:r.b,rem:0,today:0,old:0,dr:r.dr}); o.rem+=(+r.rem||0); if(r.d===today) o.today=1; else o.old=1; });
   /* جاي النهارده والجلسة لسه متقفلتش على الخطوات: v = محسوب له جلسة النهارده (متوقع) · np = مالوش باقة */
-  (AUD_DATA.expect||[]).forEach(function(r){ if(act.indexOf(r.b)<0||r.d!==today) return;
+  (AUD_DATA.expect||[]).forEach(function(r){ if(act.indexOf(r.b)<0||r.d!==today||r.nx||(r.np&&(r.ok||r.unp))) return;
     var o=P[r.pid]||(P[r.pid]={n:r.p,b:r.b,rem:0,today:0,old:0,dr:r.dr}); if(r.v){ o.rem+=(+r.rem||0); o.v=1; } if(r.np){ o.np=1; (o.nps=o.nps||[]).push(r.s); } });
-  var L=Object.keys(P).map(function(k){return P[k];}).filter(function(o){ return o.rem>=20||o.np; }).sort(function(a,b){ return b.old-a.old||b.rem-a.rem; });
+  // 🟢 وصل (Check In / بيتعالج / خلص) أو ميعاده بعد ربع ساعة أو أقل → أخضر وفوق
+  var ARR=AUD_DATA.arr||{}, nowMs=Date.now();
+  Object.keys(P).forEach(function(pid){ var a=ARR[pid], o=P[pid]; if(!a) return; o.t=a.t;
+    if(/CHECK|PROGRESS|COMPLET|DELAY|ARRIV/.test(a.st||'')) o.g='وصل'; else if(a.t&&Date.parse(a.t)-nowMs<=15*60000) o.g='ميعاده '+planT(a.t); });
+  var L=Object.keys(P).map(function(k){return P[k];}).filter(function(o){ return o.rem>=20||o.np; }).sort(function(a,b){ return (b.g?1:0)-(a.g?1:0)||b.old-a.old||b.rem-a.rem; });
   if(!L.length) return '';
   var upd=''; try{ upd=new Date(AUD_DATA.last_updated).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}); }catch(e){}
   var byB={}; L.forEach(function(o){ (byB[o.b]=byB[o.b]||[]).push(o); });
   return '<div style="background:rgba(239,68,68,.10);border:2px solid var(--r);border-radius:12px;padding:10px 12px;margin-bottom:10px">'+
     '<div style="font-weight:800;font-size:.8rem;color:var(--r)">💸 حصّلي قبل ما يمشي ('+L.length+')</div>'+
     Object.keys(byB).map(function(b){ var co=planCashOwner({br:b}); return '<div style="margin-top:6px;font-size:.68rem"><b>'+(b==='FIX ZONE'?'الدقي':'الهرم')+'</b>'+(co?' · على الخزنة: <b>'+alEsc(co)+'</b>':'')+
-      '<ul style="margin:3px 0;padding-inline-start:18px;line-height:1.8">'+byB[b].map(function(o){ return '<li>'+alEsc(o.n)+(o.rem>=20?' — باقي <b>'+planMoney(o.rem)+' ج</b>'+(o.v&&!o.old&&!o.today?' <span style="color:var(--am)">(متوقع)</span>':''):'')+
+      '<ul style="margin:3px 0;padding-inline-start:18px;line-height:1.8">'+byB[b].map(function(o){ return '<li'+(o.g?' style="background:rgba(16,185,129,.18);border-radius:6px;padding:0 6px"':'')+'>'+(o.g?'<b style="color:var(--g)">🟢 '+alEsc(o.g)+'</b> — ':'')+alEsc(o.n)+(o.rem>=20?' — باقي <b>'+planMoney(o.rem)+' ج</b>'+(o.v&&!o.old&&!o.today?' <span style="color:var(--am)">(متوقع)</span>':''):'')+
         (o.np?' — <b style="color:var(--am)">مالوش باقة لـ '+alEsc((o.nps||[]).join(' + '))+' · اتأكدي إنه دفع</b>':'')+
         ' <span style="color:var(--mute)">('+[o.old?'عليه من قبل':'', o.today?'خدمة النهارده':'', o.v?'محسوب جلسة النهارده — لسه متقفلتش على الخطوات':'', o.np?'محجوز النهارده':''].filter(Boolean).join(' · ')+(o.dr?' · '+alEsc(o.dr):'')+')</span></li>'; }).join('')+'</ul></div>'; }).join('')+
-    '<div style="font-size:.58rem;color:var(--mute)">«متوقع» = اتحسبت جلسة النهارده من أول ما اتحجز/وصل، قبل ما الدكتور يقفلها · بيختفي لوحده أول ما الدفع يتسجل على Medicolize · آخر تحديث '+alEsc(upd)+' (كل نص ساعة)</div></div>';
+    '<div style="font-size:.58rem;color:var(--mute)">🟢 = وصل أو ميعاده بعد ربع ساعة أو أقل · «متوقع» = اتحسبت جلسة النهارده من أول ما اتحجز/وصل، قبل ما الدكتور يقفلها · بيختفي لوحده أول ما الدفع يتسجل على Medicolize · آخر تحديث '+alEsc(upd)+' (كل نص ساعة)</div></div>';
 }
 setInterval(function(){ try{ if(document.getElementById('planBox')&&document.getElementById('planBox').offsetParent&&typeof audAutoLoad==='function'){ var was=AUD_DATA&&AUD_DATA.last_updated;
   audAutoLoad(true); setTimeout(function(){ if(AUD_DATA&&AUD_DATA.last_updated!==was) planRender(); },8000); } }catch(e){} }, 5*60000);
@@ -12391,6 +12395,19 @@ function planTasks(useAll){
                 second&&!ded?'• دي مرة '+(n+1)+': اعملي <b>خطوة عملية Completed النهارده</b> من باقته (خصم الجلسة)':''].filter(Boolean).join('<br>')+
                '<br><span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها بعد الـ Sync الجاي (كل نص ساعة) — رسالة الواتساب مش شرط</span></div>']});
   });
+  // 💳 مالوش باقة للخدمة: النهارده → ندى (تتأكد إنه يدفع قبل الجلسة) · يوم الشغل الجاي → إنجي (تكلّمه النهارده)
+  if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.expect){ var npSeen={};
+    AUD_DATA.expect.forEach(function(r){ if(!r.np||act.indexOf(r.b)<0) return; var nx=!!r.nx; if(!nx&&r.d!==today) return;
+      var k=(nx?'nopkgnext|':'nopkg|')+r.d+'|'+r.pid+'|'+r.s; if(npSeen[k]) return; npSeen[k]=1;
+      var ok=nx?!!r.ok:!!(r.ok);
+      add(nx?'office':'rec',{grp:[nx?'nopkgnext':'nopkg'], key:k, icon:'💳', name:r.p, phone:r.ph, br:r.b, time:r.t, doctor:r.dr,
+        kind:(nx?'جاي '+alEsc(alFmtDay(r.d))+' ':'جاي النهارده ')+(r.t?alEsc(planT(r.t))+' ':'')+'— مالوش باقة لـ '+alEsc(r.s),
+        sys:ok?(nx?'الباقة اتعملت على Medicolize':'الجلسة اتقفلت واتدفعت'):'', what:ok?(nx?'💳 اتعملتله باقة':'💳 دفع'):'',
+        lines:[nx?'كلّميه النهارده: ميعاده '+alEsc(alFmtDay(r.d))+' ومالوش باقة لـ <b>'+alEsc(r.s)+'</b> — يجدد الباقة أو يجهّز تمن الجلسة':'اتأكدي إنه يدفع تمن <b>'+alEsc(r.s)+'</b> (أو يعمل باقة) قبل ما يمشي',
+          r.unp?'<span style="color:var(--r)">⚠️ الجلسة اتقفلت ولسه متدفعتش — بقت في «حصّلي قبل ما يمشي»</span>':'',
+          ok?'':'<span style="color:var(--mute);font-size:.58rem">'+(nx?'بتتقفل 🤖 لما الباقة تتعمل على Medicolize — أو اكتبي في الملحوظة رده (هيدفع كاش / مش جاي…)':'بتتقفل 🤖 لما الدكتور يقفل الجلسة ويتسجل الدفع')+'</span>']});
+    });
+  }
   // 📵 المكالمات الفائتة + 📂 رفع سجل المكالمات (من المخزن الخاص — calls_core.js)
   if(typeof CS!=='undefined'&&CS.cfg()){ mcLoad(); mcTasks(today,act).forEach(function(t){ add('morning',t); }); }
   // ⏸ متأجل من يوم فات (بسبب غياب) ولسه ما ظهرش تاني لوحده → يرجع النهارده
@@ -12416,6 +12433,7 @@ function planCarrySave(){
     if(!part.length&&!PLAN_ST[key]) continue; var o={d:td, L:part}; PLAN_ST[key]=o; planSaveRaw('PLAN|'+key, part.length?JSON.stringify(o):''); }
 }
 var PLAN_GT={
+  nopkg:['💳','جاي النهارده ومالوش باقة — يدفع قبل ما يمشي'], nopkgnext:['💳','جاي يوم الشغل الجاي ومالوش باقة — كلّميه النهارده'],
   mcall:['📵','مكالمات فايتة — رجّعيلها (من سجل مكالمات الموبايل)'], mcallup:['📂','ارفعي سجل مكالمات الموبايل (كل يوم)'],
   debtph:['📞','تحصيل بالتليفون (خدمة اتعملت ومتدفعتش ومش جاي خلال أسبوع)'], invrev:['🔎','فلوس قديمة (أكتر من 30 يوم) — مراجعة الفاتورة قبل التحصيل'], invfix:['🧾','فواتير محتاجة تتعدل (الخزنة كتبت كده في التحصيلات)'],
   mgr:['👔','ملحوظات محتاجة المدير (شكوى · فلوس · الدكتور · الألم …)'],
@@ -12585,11 +12603,11 @@ var PLAN_ROLES=JSON.parse(JSON.stringify(PLAN_ROLES_DEF));
 try{ var _rl=JSON.parse(localStorage.getItem('planRoles')||'null'); if(_rl) PLAN_ROLES=_rl; }catch(e){}
 /* 📌 الأساس: كل نوع مهمة على أنهي دور (كل يوم بيفتح على كده — التغيير اليومي من الخانة جنب المهمة مؤقت) */
 var PLAN_GROUP_ROLE={
-  'BODYFIX Center':{mcall:'F', mcallup:'F', mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
+  'BODYFIX Center':{nopkg:'F', nopkgnext:'J', mcall:'F', mcallup:'F', mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
     waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', evalamg:'F', renew:'F', svc:'F', kashf:'F',
     waitnext:'J', streak:'J', recur:'J', stop:'J', idle:'J', conf:'J', stale:'J', fix:'J', kashf0:'J',
     call:'H', drop:'H'},
-  'FIX ZONE':{mcall:'DM', mcallup:'DM', mgr:'DM', streak:'DM', recur:'DM', stop:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamgd:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
+  'FIX ZONE':{nopkg:'DM', nopkgnext:'DE', mcall:'DM', mcallup:'DM', mgr:'DM', streak:'DM', recur:'DM', stop:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamgd:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
     waitnext:'DE', nonext:'DE', nonextrev:'DM', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', svc:'DE', sudden:'DE', late:'DE'}
 };
 function planBaseOwner(t,g){ var rk=(PLAN_GROUP_ROLE[t.br]||{})[g]; return rk?((PLAN_ROLES[t.br]||{})[rk]||''):''; }
@@ -12953,7 +12971,7 @@ function planHowBar(gk,A){ var c={}; A.forEach(function(t){ var h=planHow(t); if
   var cur=PLAN_HOW_F[gk]||'', ch=function(v,txt,col){ var on=cur===v; return '<span onclick="PLAN_HOW_F[\''+gk+'\']=\''+(on?'':v)+'\';planRender()" style="cursor:pointer;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:12px;color:'+(on?'#fff':col)+';border:1px solid '+col+';background:'+(on?col:'transparent')+'">'+txt+'</span>'; };
   var keys=['todo','sys','man','ref','nr'].filter(function(k){ return c[k]; }); if(keys.length<2&&!cur) return '';
   return '<div style="display:flex;gap:5px;flex-wrap:wrap;padding:4px 2px 8px">'+ch('','الكل '+(A.length),'var(--mute)')+keys.map(function(k){ var L=PLAN_HOW_L[k]; return ch(k,L[0]+' '+L[1]+' '+c[k],L[2]); }).join('')+'</div>'; }
-var PLAN_NOTE_OK={drop:1, idle:1, streak:1, recur:1};
+var PLAN_NOTE_OK={nopkgnext:1, drop:1, idle:1, streak:1, recur:1};
 /* مكالمات المتابعة: بتتقفل من Medicolize بس (الموعد Completed بملحوظة أو اتصالين بوقتهم + الحجز الجاي) — مفيش قفل ولا «ما ردش» من الداشبورد */
 var PLAN_SYS_ONLY={call:1, mcallup:1};
 var PLAN_NO_NR={mcall:1, mcallup:1, sudden:1, noinv:1, invfix:1, invrev:1, aud:1, stale:1};   // مهام تسجيل على السيستم — مش مكالمة، فمالهاش «ما ردش»
@@ -12985,7 +13003,7 @@ function planRef(key){
   PLAN_ST[key]=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   planRender(); planSaveRaw('PLAN|'+key, JSON.stringify(o));
 }
-var PLAN_AUTO_G={mcall:'حد يتكلم مع الرقم (رجعناله أو هو اتصل تاني) — بيبان لما سجل المكالمات يترفع', mcallup:'يترفع سجل مكالمات النهارده', nonextrev:'يتحجزله ميعاد', stop:'مواعيده الجاية تتلغى + يتشال من شيت التثبيت (أو «✋ مش هيوقف جلسات» لو هيكمل)', idle:'يتحجزله ميعاد أو تتكتب ملحوظة (ولو قال هييجي يوم وما جاش ترجع تتفتح)', conftoday:'الموعد يبقى Confirmed أو Cancelled أو يوصل', late:'تتكتب ملحوظة على الموعد في Medicolize (هيوصل امتى / ما ردش)', waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'المريض يحجز، أو الموعد يتقفل Completed بملحوظة باللي حصل، أو يتكتب اتصالين بوقتهم', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', recur:'تتكتب ملحوظة باللي حصل، أو أول مواعيده الجاية تبقى Confirmed', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
+var PLAN_AUTO_G={nopkg:'الدكتور يقفل الجلسة ويتسجل الدفع', nopkgnext:'الباقة تتعمل على Medicolize (أو ملحوظة برده)', mcall:'حد يتكلم مع الرقم (رجعناله أو هو اتصل تاني) — بيبان لما سجل المكالمات يترفع', mcallup:'يترفع سجل مكالمات النهارده', nonextrev:'يتحجزله ميعاد', stop:'مواعيده الجاية تتلغى + يتشال من شيت التثبيت (أو «✋ مش هيوقف جلسات» لو هيكمل)', idle:'يتحجزله ميعاد أو تتكتب ملحوظة (ولو قال هييجي يوم وما جاش ترجع تتفتح)', conftoday:'الموعد يبقى Confirmed أو Cancelled أو يوصل', late:'تتكتب ملحوظة على الموعد في Medicolize (هيوصل امتى / ما ردش)', waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'المريض يحجز، أو الموعد يتقفل Completed بملحوظة باللي حصل، أو يتكتب اتصالين بوقتهم', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', recur:'تتكتب ملحوظة باللي حصل، أو أول مواعيده الجاية تبقى Confirmed', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
   eval:'يتحجز تقييم', evalamg:'يتحجز تقييم', evalamgd:'يتحجز إعادة تقييم مع د. أمجد', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'اسم الموعد يتغير لـ «الغاء مفاجئ» على Medicolize (أي حالة) + خصم الجلسة من تاني مرة'};
 function planIsAuto(t){ if(t.carry) return false; var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_AUTO_G[x]; }); }
 /* كارت المهمة — سطرين: الاسم/الساعة + المطلوب · أزرار سريعة على الطرف · الباقي يتفتح بدوسة (حالة الفتح محفوظة بين الرسمات) */

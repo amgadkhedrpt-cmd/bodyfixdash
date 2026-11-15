@@ -1398,6 +1398,14 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
                       "dr": ((x.get("doctor") or {}).get("name") or "").strip(), "s": (x.get("name") or "").strip(),
                       "b": ((x.get("branch") or {}).get("name") or ""), "st": str(x.get("status") or ""),
                       "u": 1 if pv == "unpaid" else 0, "c": 1 if pv == "covered" else 0})
+    arr = {}   # مواعيد النهارده: أول ميعاد لكل مريض + حالته — عشان «حصّلي قبل ما يمشي» يعلّم على اللي وصل أو ميعاده قرّب (أخضر)
+    for a in appointments or []:
+        if _cairo_date(a.get("start")) != d_to: continue
+        st_ = str(a.get("status_en") or "").upper()
+        if st_ in ("CANCELLED", "CANCELED", "NOSHOW", "WAITING", "NOTE"): continue
+        p_ = str((a.get("patient") or {}).get("id") or "")
+        if p_ and (p_ not in arr or str(a.get("start")) < arr[p_]["t"]):
+            arr[p_] = {"t": str(a.get("start") or ""), "st": st_}
     appts = []
     for a in appointments or []:
         if str(a.get("status_en") or "").upper() != "COMPLETED" and a.get("status") != "Completed":
@@ -1465,8 +1473,17 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
             seen_ap.add(key_)
             match = (lambda x: _audN(x.get("name")) in names) if names else (lambda x: False)
             mine = [x for x in steps_of[p_] if match(x)]
-            if any(_step_kind(x.get("status"), has_done) == "done" and _cairo_date(x.get("end") or x.get("createdAt")) == d_to for x in mine):
-                continue                                   # الدكتور قفلها → الحساب العادي
+            done_t = [x for x in mine if _step_kind(x.get("status"), has_done) == "done" and _cairo_date(x.get("end") or x.get("createdAt")) == d_to]
+            if done_t:                                     # الدكتور قفلها → الحساب العادي
+                # كان «مالوش باقة» (الخطوة اتعملت النهارده ومفيش خطوات قبل كده للخدمة دي) → نسيبه في القايمة كـ «اتحل» عشان مهمة ندى تتقفل 🤖
+                if names and all(_cairo_date(x.get("createdAt")) == d_to for x in mine):
+                    unp = any(pay.get(x.get("id")) == "unpaid" for x in done_t)
+                    expect.append({"id": "np:" + str(a.get("id")), "d": d_to, "pid": p_, "p": _pname(a.get("patient")),
+                                   "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
+                                   "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1,
+                                   "ok": 0 if unp else 1, "unp": 1 if unp else 0, "t": a.get("start"),
+                                   "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
+                continue
             plans = sorted([x for x in mine if _step_kind(x.get("status"), has_done) == "plan" and x.get("id") not in used],
                            key=lambda x: str(x.get("createdAt") or ""))
             if plans:
@@ -1476,8 +1493,40 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
                 continue
             expect.append({"id": "np:" + str(a.get("id")), "d": d_to, "pid": p_, "p": _pname(a.get("patient")),
                            "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
-                           "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1,
+                           "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1, "t": a.get("start"),
                            "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
+        # 📅 يوم الشغل الجاي (من غير الجمعة): جاي ومالوش باقة للخدمة → مهمة لإنجي تكلّمه النهارده · بتتقفل 🤖 لما الباقة تتعمل (خطوة Planned اتعملت النهارده)
+        try:
+            nd = (datetime.strptime(d_to, "%Y-%m-%d") + timedelta(days=1)).date()
+            if nd.weekday() == 4: nd += timedelta(days=1)
+            nd = nd.isoformat()
+            nx_ap = []
+            for a in appointments or []:
+                if _cairo_date(a.get("start")) != nd: continue
+                if str(a.get("status_en") or "").upper() in SKIP_ST: continue
+                if str((a.get("doctor") or {}).get("name") or "").strip().lower() in ("follow up",): continue
+                pid_ = str((a.get("patient") or {}).get("id") or ""); t_ = _audN(a.get("type"))
+                if not pid_ or t_ in IGN or not AMAP.get(t_): continue
+                nx_ap.append((pid_, AMAP.get(t_), a))
+            nx_p = {p_ for p_, _, _ in nx_ap}
+            nsteps = defaultdict(list)
+            for x in rows:
+                p_ = str((x.get("patient") or {}).get("id") or "")
+                if p_ in nx_p: nsteps[p_].append(x)
+            seen_nx = set()
+            for p_, names, a in sorted(nx_ap, key=lambda z: str(z[2].get("start") or "")):
+                k_ = (p_, tuple(sorted(names)))
+                if k_ in seen_nx: continue
+                seen_nx.add(k_)
+                plans = [x for x in nsteps[p_] if _audN(x.get("name")) in names and _step_kind(x.get("status"), has_done) == "plan"]
+                if plans and not all(_cairo_date(x.get("createdAt")) == d_to for x in plans):
+                    continue                               # عنده باقة من قبل → مش محتاج حاجة
+                expect.append({"id": "nx:" + str(a.get("id")), "d": nd, "pid": p_, "p": _pname(a.get("patient")),
+                               "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
+                               "b": ((a.get("branch") or {}).get("name") or ""), "pd": 0, "net": 0, "rem": 0, "np": 1, "nx": 1,
+                               "ok": 1 if plans else 0, "t": a.get("start"), "ph": ((a.get("patient") or {}).get("phoneNumber") or "")})
+        except Exception as e:
+            print(f"[{ts()}] ⚠️ next-day no-package: {str(e)[:150]}")
         if virt:
             saved = dict(REM_)
             rows2 = [dict(x, status="COMPLETED", end=now.isoformat()) if x.get("id") in virt else x for x in rows]
@@ -1540,7 +1589,7 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
     except Exception as e:
         print(f"[{ts()}] ⚠️ خدمات من غير فاتورة: {str(e)[:150]}")
     out = {"last_updated": now.isoformat(), "from": d_from, "to": d_to, "lookback_days": STEPS_LOOKBACK,
-           "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts, "expect": expect, "noinv": noinv,
+           "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts, "expect": expect, "noinv": noinv, "arr": arr,
            "catalog": {"appt_types": dict(appt_types), "step_names": dict(step_names)}}
     os.makedirs("data", exist_ok=True)
     with open("data/audit.json", "w", encoding="utf-8") as fh:

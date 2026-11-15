@@ -188,15 +188,19 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   {const done=C.filter(fin_),lost=c=>c.res==='اعتذر'||c.res==='ما جاش',CH_=[];
    const tot=OG.reduce((s,o)=>s+o.n,0),okG=OG.filter(o=>!/ما اتأكدش|وقت الحجز|بالجملة/.test(o.t)),nConf=okG.reduce((s,o)=>s+o.n,0),nBook=(OG.find(o=>/وقت الحجز/.test(o.t))||{n:0}).n,nNone=(OG.find(o=>/ما اتأكدش/.test(o.t))||{n:0}).n;
    const G1=OG.filter(o=>!/بالجملة/.test(o.t));
-   if(G1.length)CH_.push(['cfc1','التأكيد بيفرق؟ — من كل 100 ميعاد، كام ضاع (اعتذر أو ما جاش)',{type:'bar',data:{labels:G1.map(o=>o.t.replace(/[✅📵❌⬜⚡]/g,'').trim()+' ('+o.n+')'),datasets:[bar('ضاع %',G1.map(o=>Math.round(o.r*1000)/10),G1.map(o=>/ما اتأكدش/.test(o.t)?'#888780':/وقت الحجز/.test(o.t)?'#1baf7a':o.r>0.25?'#e34948':'#2a78d6'))]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}}]);
-   if(tot)CH_.push(['cfc2','بنأكد على كام من المواعيد أصلاً؟',{type:'doughnut',data:{labels:['اتأكد ('+nConf+')','مؤكد من الحجز ('+nBook+')','ما اتأكدش ('+nNone+')'],datasets:[{data:[nConf,nBook,nNone],backgroundColor:['#2a78d6','#1baf7a','#888780'],borderWidth:2}]},options:{cutout:'60%'}}]);
+   // أسامي واضحة للرسمة (من غير ما نغيّر أسامي الجروبات اللي بتتقري في حتت تانية)
+   const nice=t=>/^✅/.test(t)?'كلّموه ورد عليهم ثم اتعلّم مؤكد':/^📵/.test(t)?'اتصلوا وما ردش — واتعلّم مؤكد برضه':/^❌/.test(t)?'اتعلّم مؤكد من غير ما حد يتصل بيه':/وقت الحجز/.test(t)?'اتحجز «مؤكد» من أول مرة':/ما اتأكدش/.test(t)?'ما حدش أكد عليه خالص':/مش متقارن/.test(t)?'اتأكد (مفيش ملف مكالمات للوقت ده)':t.replace(/[✅📵❌⬜⚡]/g,'').trim();
+   if(G1.length)CH_.push(['cfc1','المواعيد اللي ضاعت (اعتذر أو ما جاش) — حسب طريقة التأكيد',{type:'bar',data:{labels:G1.map(o=>nice(o.t)+' · '+o.n+' ميعاد'),datasets:[bar('ضاع %',G1.map(o=>Math.round(o.r*1000)/10),G1.map(o=>/ما اتأكدش/.test(o.t)?'#888780':/وقت الحجز/.test(o.t)?'#1baf7a':o.r>0.25?'#e34948':'#2a78d6'))]},
+     options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{title:x=>nice(G1[x[0].dataIndex].t),label:x=>{const o=G1[x.dataIndex];return ` ضاع ${o.ca+o.ns} من ${o.n} (${pc(o.r)}) — اعتذر ${o.ca} · ما جاش ${o.ns}`}}}},scales:{x:{ticks:{callback:v=>v+'%'}},y:{ticks:{autoSkip:false}}}}},Math.max(200,G1.length*46+50),
+     'كل عمود = المواعيد اللي اتأكدت بالطريقة دي، والرقم = كام في المية منهم <b>ضاع</b> (اعتذر أو ما جاش). العمود الأطول = طريقة تأكيد مش نافعة. لو جنب الاسم عدد صغير (أقل من 20) النسبة لسه مش مضمونة.']);
+   if(tot)CH_.push(['cfc2','من كل المواعيد اللي خلصت: كام اتأكد عليه؟',{type:'doughnut',data:{labels:['السكرتيرة أكدت عليه ('+nConf+')','اتحجز «مؤكد» من أول مرة ('+nBook+')','ما حدش أكد عليه ('+nNone+')'],datasets:[{label:'مواعيد',data:[nConf,nBook,nNone],backgroundColor:['#2a78d6','#1baf7a','#888780'],borderWidth:2}]},options:{cutout:'60%',plugins:{tooltip:{callbacks:{label:x=>' '+x.raw+' ميعاد ('+pc(x.raw/(nConf+nBook+nNone))+')'}}}}},240,'الأزرق = اتغيّر لـ«مؤكد» بعد الحجز · الأخضر = اتسجّل «مؤكد» وقت الحجز نفسه (غالباً المريض كان قدامهم) · الرمادي = فضل «مفتوح» لحد الميعاد.']);
    const W=Object.entries(g).filter(([k,z])=>z.done>0).sort((a,b)=>b[1].done-a[1].done);
-   if(W.length)CH_.push(['cfc3','لكل سكرتيرة — اللي أكدت عليهم: جم ولا ضاعوا؟',{type:'bar',data:{labels:W.map(([k,z])=>k+' ('+pc(z.lost/z.done)+')'),datasets:[bar('جه',W.map(([k,z])=>z.done-z.lost),'#1baf7a',{stack:'s'}),bar('ضاع',W.map(([k,z])=>z.lost),'#e34948',{stack:'s'})]},options:{indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true}}}},Math.max(160,W.length*42+60)]);
+   if(W.length)CH_.push(['cfc3','لكل سكرتيرة — اللي أكدت عليهم: جم ولا ضاعوا؟',{type:'bar',data:{labels:W.map(([k,z])=>k+' ('+pc(z.lost/z.done)+')'),datasets:[bar('جه',W.map(([k,z])=>z.done-z.lost),'#1baf7a',{stack:'s'}),bar('ضاع',W.map(([k,z])=>z.lost),'#e34948',{stack:'s'})]},options:{indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true}}}},Math.max(160,W.length*42+60),'كل سطر = سكرتيرة: الأخضر = المريض جه، الأحمر = اعتذر أو ما جاش. النسبة جنب الاسم = كام في المية ضاع من اللي هي أكدت عليهم.']);
    const BK=[['قبلها بيومين+',c=>cfDD(c)>=2],['قبلها بيوم',c=>cfDD(c)===1],['نفس اليوم — قبلها بـ3 ساعات+',c=>cfDD(c)===0&&(c.aT-c.cT)/36e5>=3],['نفس اليوم — أقل من 3 ساعات',c=>cfDD(c)===0&&(c.aT-c.cT)>=0&&(c.aT-c.cT)/36e5<3]];
    const L4=BK.map(b=>{const a=done.filter(c=>!c.atBook&&b[1](c));return {t:b[0],n:a.length,r:a.length?a.filter(lost).length/a.length:null}}).filter(x=>x.n);
-   if(L4.length)CH_.push(['cfc4','التأكيد بدري ولا متأخر أحسن؟ — كام ضاع حسب إمتى اتأكد',{type:'bar',data:{labels:L4.map(x=>x.t+' ('+x.n+')'),datasets:[bar('ضاع %',L4.map(x=>Math.round(x.r*1000)/10),'#2a78d6')]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}}]);
+   if(L4.length)CH_.push(['cfc4','التأكيد بدري ولا متأخر أحسن؟ — كام ضاع حسب إمتى اتأكد',{type:'bar',data:{labels:L4.map(x=>x.t+' ('+x.n+')'),datasets:[bar('ضاع %',L4.map(x=>Math.round(x.r*1000)/10),'#2a78d6')]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}},undefined,'اتأكد قبل الميعاد بقد إيه (نفس اليوم / اليوم اللي قبله …)، وكام في المية من دول ضاع. العمود الأقصر = أحسن توقيت للتأكيد.']);
    const bu=done.filter(c=>c.bulk),nb=done.filter(c=>!c.bulk&&!c.atBook);
-   if(bu.length&&nb.length)CH_.push(['cfc5','⚡ التأكيد بالجملة (5+ في 3 دقايق) — بيضيع أكتر؟',{type:'bar',data:{labels:['بالجملة ('+bu.length+')','واحد واحد ('+nb.length+')'],datasets:[bar('ضاع %',[Math.round(bu.filter(lost).length/bu.length*1000)/10,Math.round(nb.filter(lost).length/nb.length*1000)/10],['#e34948','#2a78d6'])]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}}]);
+   if(bu.length&&nb.length)CH_.push(['cfc5','⚡ التأكيد بالجملة (5+ في 3 دقايق) — بيضيع أكتر؟',{type:'bar',data:{labels:['بالجملة ('+bu.length+')','واحد واحد ('+nb.length+')'],datasets:[bar('ضاع %',[Math.round(bu.filter(lost).length/bu.length*1000)/10,Math.round(nb.filter(lost).length/nb.length*1000)/10],['#e34948','#2a78d6'])]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}},undefined,'«بالجملة» = 5 مواعيد أو أكتر اتعلّم عليهم مؤكد في 3 دقايق (غالباً من غير مكالمات). لو العمود الأحمر أطول = التأكيد بالجملة بيضيّع مواعيد.']);
    CF.charts=CH_;
    // 📋 الأسامي حسب إمتى اتأكد (كل المواعيد في الفترة — اللي لسه ما جاش يومها مكتوب «لسه»)
    const LB=[['🟢 اتحجز «مؤكد» وقت الحجز — والموعد بعدها بأكتر من يوم',c=>c.atBook&&c.crT!=null&&(c.aT-c.crT)/36e5>24],
@@ -209,7 +213,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    CF.listsHTML=lists?`<div class="card" style="margin-top:12px"><h3>📋 الأسامي حسب إمتى اتأكد<small>دوس على أي مجموعة تفتح أساميها</small></h3>${lists}</div>`:'';
    const few=done.length<60?`<div class="sub" style="margin-top:6px">⚠️ لسه ${done.length} ميعاد بس خلصوا في الفترة دي — الأرقام هتتظبط كل ما الشهر يكمل.</div>`:'';
    const noDone=!CH_.length&&C.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات</h3><div class="sub">الرسومات بتتحسب من المواعيد اللي <b>عدّت</b> (جه / اعتذر / ما جاش) — ولا ميعاد من اللي في الفلتر ده عدّى لسه. وسّع «📅 يوم الموعد» لأيام فاتت (مثلاً من أول الشهر لحد امبارح).</div></div>`:'';
-   h=h.replace('<!--CFCH-->',noDone+(CH_.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات<small>من Medicolize لوحده — من غير ملفات المكالمات</small></h3>${few}<div class="grid g2" style="margin-top:8px">${CH_.map(c=>`<div><div style="font-weight:700;font-size:.78rem;margin-bottom:4px">${c[1]}</div><div style="position:relative;height:${c[3]||220}px"><canvas id="${c[0]}"></canvas></div></div>`).join('')}</div></div>`:'')+(CF.listsHTML||''))}
+   h=h.replace('<!--CFCH-->',noDone+(CH_.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات<small>من Medicolize لوحده — من غير ملفات المكالمات</small></h3>${few}<div class="grid g2" style="margin-top:8px">${CH_.map(c=>`<div><div style="font-weight:700;font-size:.78rem;margin-bottom:4px">${c[1]}</div>${c[4]?`<div class="sub" style="margin-bottom:6px;line-height:1.7">${c[4]}</div>`:''}<div style="position:relative;height:${c[3]||220}px"><canvas id="${c[0]}"></canvas></div></div>`).join('')}</div></div>`:'')+(CF.listsHTML||''))}
   return h}
 function cConf(){(CF.charts||[]).forEach(c=>chart(c[0],c[2]));const d1=$('#cfD1'),d2=$('#cfD2'),da=$('#cfDAll'),x=$('#cfX');const rr=()=>{CF.st=null;CF.rep={};render()};
   if(d1)d1.onchange=()=>{CF.d1=d1.value;rr()};if(d2)d2.onchange=()=>{CF.d2=d2.value;rr()};
@@ -290,13 +294,13 @@ function vCalls(){if(!CF.calls.length)return '';const EPa=cfStats().EP,EP=EPa.fi
    <div class="card" style="margin-top:10px"><h3>نسبة المكالمات اللي بتفوت كل ساعة</h3><div class="ch"><canvas id="cl1"></canvas></div></div></div>
   <div class="grid g2" style="margin-top:12px">
    <div class="card"><h3>رجعنا كلمناه بعد قد إيه؟</h3>${tableHTML(['',{t:'وقت الشغل',n:1},{t:'النسبة',n:1},{t:'بعد المواعيد',n:1}],distRows,{h:320})}</div>
-   <div class="card" style="grid-column:1/-1"><h3>🏅 تقييم الأداء — الإجمالي وكل خط لوحده<small>دوس على اسم الخط عشان التحليل كله يبقى عليه</small></h3>${tableHTML(['الخط',{t:'داخلة',n:1},{t:'فاتت %',n:1},{t:'فاتت وقت الشغل',n:1},{t:'رجعنا خلال ساعة',n:1},{t:'نرجع بعد (النص)',n:1},{t:'ما رجعناش',n:1},{t:'طالعة',n:1},{t:'ردوا علينا',n:1},{t:'لسه محدش رجعلهم',n:1}],lRows,{h:360})}<div class="sub">«رجعنا خلال ساعة» و«ما رجعناش» محسوبين على المكالمات اللي فاتت في مواعيد الشغل · لو حد رجع للمريض من خط تاني بيتحسب إنه اترجعله.</div></div>
+   <div class="card" style="grid-column:1/-1"><h3>🏅 تقييم الأداء — الإجمالي وكل خط لوحده<small>دوس على اسم الخط عشان التحليل كله يبقى عليه</small></h3><div class="bar" style="margin-bottom:6px"><button class="pri" data-cfimg="">🖼️ صورة مقارنة الخطوط</button>${lns.map(l=>`<button data-cfimg="${esc(l)}">🖼️ صورة خط ${esc(l)}</button>`).join('')}<span class="sub">صورة للسكرتارية — من غير أسماء ولا أرقام مرضى · بتاخد فلتر التاريخ والساعة</span></div>${tableHTML(['الخط',{t:'داخلة',n:1},{t:'فاتت %',n:1},{t:'فاتت وقت الشغل',n:1},{t:'رجعنا خلال ساعة',n:1},{t:'نرجع بعد (النص)',n:1},{t:'ما رجعناش',n:1},{t:'طالعة',n:1},{t:'ردوا علينا',n:1},{t:'لسه محدش رجعلهم',n:1}],lRows,{h:360})}<div class="sub">«رجعنا خلال ساعة» و«ما رجعناش» محسوبين على المكالمات اللي فاتت في مواعيد الشغل · لو حد رجع للمريض من خط تاني بيتحسب إنه اترجعله.</div></div>
    <div class="card"><h3>بالساعة</h3>${tableHTML(['الساعة',{t:'داخلة',n:1},{t:'فاتت',n:1},{t:'نسبة',n:1},{t:'نرجع بعد',n:1}],hRows,{h:360})}</div>
    <div class="card"><h3>باليوم</h3>${tableHTML(['اليوم',{t:'داخلة',n:1},{t:'فاتت',n:1},{t:'نسبة',n:1},{t:'نرجع بعد',n:1}],wRows,{h:360})}</div>
    <div class="card" style="grid-column:1/-1"><h3>📵 فاتت ولسه محدش رجعلهم<small>${none.length} رقم</small></h3>${tableHTML(['الرقم','مين',{t:'مرات',n:1},'فاتت',{t:'من',n:1},'','الخط'],nRows,{h:420})}</div>
    ${tRows.length?`<div class="card" style="grid-column:1/-1"><h3>📤 رجعنالهم وما ردوش (ولسه ما اتكلمناش)<small>${tRows.length}</small></h3>${tableHTML(['الرقم','مين',{t:'فاتت',n:1},'أول مرة',{t:'حاولنا',n:1},{t:'رجعنا بعد',n:1},'من خط'],tRows,{h:360})}</div>`:''}
   </div>`}
-function cCalls(){if(!CF.calls.length)return;const o1=$('#cfO1'),o2=$('#cfO2');const sv=()=>{CF.oh=[+o1.value||0,+o2.value||24];try{localStorage.setItem('fin_cfoh',JSON.stringify(CF.oh))}catch(e){}CF.st=null;render()};if(o1)o1.onchange=sv;if(o2)o2.onchange=sv;document.querySelectorAll('[data-cfl]').forEach(a=>a.onclick=e=>{e.preventDefault();CF.ln=CF.ln===a.dataset.cfl?'':a.dataset.cfl;CF.st=null;CF.rep={};render()});
+function cCalls(){if(!CF.calls.length)return;const o1=$('#cfO1'),o2=$('#cfO2');const sv=()=>{CF.oh=[+o1.value||0,+o2.value||24];try{localStorage.setItem('fin_cfoh',JSON.stringify(CF.oh))}catch(e){}CF.st=null;render()};if(o1)o1.onchange=sv;if(o2)o2.onchange=sv;document.querySelectorAll('[data-cfimg]').forEach(b=>b.onclick=()=>cfLineImg(b.dataset.cfimg||null));document.querySelectorAll('[data-cfl]').forEach(a=>a.onclick=e=>{e.preventDefault();CF.ln=CF.ln===a.dataset.cfl?'':a.dataset.cfl;CF.st=null;CF.rep={};render()});
   const H={};CF.calls.filter(c=>cfCOk(c.t,c.ln)&&(c.ty==='in'||c.ty==='miss')).forEach(c=>{const h=new Date(c.t).getUTCHours(),z=H[h]=H[h]||{n:0,m:0};z.n++;if(c.ty==='miss')z.m++});const hs=Object.keys(H).map(Number).sort((a,b)=>a-b);
   chart('cl1',{data:{labels:hs.map(h=>(h%12||12)+(h<12?'ص':'م')),datasets:[bar('فاتت %',hs.map(h=>+(100*H[h].m/H[h].n).toFixed(1)),SER()[0])]},
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>' فاتت '+x.parsed.y+'% من '+H[hs[x.dataIndex]].n+' مكالمة'}}},scales:{y:{ticks:{callback:v=>v+'%'}}}}})}
@@ -384,6 +388,59 @@ async function cfTodoXL(){if(!CF.calls.length){alert('ارفع ملفات الم
   add('مؤكد من غير مكالمة',['#','الميعاد','المريض','الرقم','نوع الميعاد','الدكتور','اتعلّم مؤكد','مين أكد','المطلوب','اتصلت؟ (✔)','النتيجة','ملاحظة'],
     U.map((c,i)=>[i+1,cfFmt(c.aT),c.pn,cfPh0(c.ph||c.ph2),c.type,c.doc,cfFmt(c.cT),c.who||'',(c.aT-cfWall(new Date().toISOString())<36*3600e3?'⚠️ قريب — ':'')+'كلّم المريض وأكّد الميعاد بنفسك (ملقناش مكالمة اترد عليها قبل التأكيد)','','','']),[4,12,24,14,18,16,12,14,52,10,22,24]);
   XLSX.writeFile(wb,`اتصالات السكرتارية — ${BRN[S.b]} — ${cfDay(cfWall(new Date().toISOString()))}.xlsx`)}
+
+// ================= 🖼️ صورة تقييم الخطوط (تتبعت للسكرتارية) — من غير أسماء ولا أرقام مرضى =================
+function cfLineStats(){const EP=cfStats().EP.filter(e=>e.st!=='pend'),C0=CF.calls.filter(c=>cfCOk(c.t,c.ln,true)),r=(a,f)=>a.length?a.filter(f).length/a.length:null;
+  const one=(l,cc,ee)=>{const ii=cc.filter(c=>c.ty==='in'||c.ty==='miss'),oo=cc.filter(c=>c.ty==='out'),eo=ee.filter(e=>e.open);
+    return {l,inc:ii.length,miss:ii.length?ii.filter(c=>c.ty==='miss').length/ii.length:null,eo:eo.length,r1:r(eo,e=>e.wA!=null&&e.wA<60),md:cfMed(eo.filter(e=>e.wA!=null).map(e=>e.wA)),
+      rN:r(eo,e=>e.st==='none'),none:ee.filter(e=>e.st==='none').length,out:oo.length,outR:oo.length?oo.filter(c=>c.dur>0).length/oo.length:null,talk:Math.round(cc.reduce((s,c)=>s+(c.ty!=='miss'?c.dur:0),0)/60)}};
+  const lns=[...new Set(C0.map(c=>c.ln))].sort();
+  return {T:one('الإجمالي',C0,EP),L:lns.map(l=>one(l,C0.filter(c=>c.ln===l),EP.filter(e=>e.ln===l)))}}
+// [المقياس, المفتاح, شكل الرقم, الأحسن: 1 أعلى / -1 أقل / 0 مش بيتقارن, شرح بسيط]
+const CF_M=[['📥 مكالمات داخلة','inc',v=>fm(v),0,'كل اللي اتصل بينا'],['📵 فاتت من غير رد','miss',v=>pc(v),-1,'من الداخلة — كل ما تقل أحسن'],['⏱️ رجعنا خلال ساعة','r1',v=>pc(v),1,'من اللي فاتت في مواعيد الشغل'],
+  ['🕐 بنرجع بعد (في المتوسط)','md',v=>cfDurF(v),-1,'نص المرات بنرجع في الوقت ده أو أقل'],['🚫 ما رجعناش خالص','rN',v=>pc(v),-1,'فاتت ومحدش رجعله'],['📌 أرقام لسه محدش رجعلها','none',v=>fm(v),-1,'لحد آخر ملف اترفع'],
+  ['📤 مكالمات طالعة','out',v=>fm(v),0,'كل اللي اتصلنا بيه'],['✅ المريض رد على الطالعة','outR',v=>pc(v),1,''],['🗣️ دقايق كلام','talk',v=>fm(v),0,'']];
+const CF_GOAL={miss:[0.1,0.2,-1],r1:[0.7,0.4,1],rN:[0.05,0.1,-1],md:[30,120,-1]};   // [كويس, وحش, اتجاه]
+function cfGrade(k,v){const g=CF_GOAL[k];if(!g||v==null)return 0;return g[2]<0?(v<=g[0]?1:v>g[1]?-1:0):(v>=g[0]?1:v<g[1]?-1:0)}
+function cfNotes(x){const good=[],bad=[];
+  if(x.miss!=null){if(cfGrade('miss',x.miss)>0)good.push('بيرد على أغلب المكالمات ('+pc(1-x.miss)+')');else if(cfGrade('miss',x.miss)<0)bad.push('مكالمات كتير بتفوت من غير رد ('+pc(x.miss)+') — لازم حد يبقى فاضي للتليفون')}
+  if(x.r1!=null){if(cfGrade('r1',x.r1)>0)good.push('بيرجع بسرعة للي فاتته ('+pc(x.r1)+' خلال ساعة)');else if(cfGrade('r1',x.r1)<0)bad.push('بيتأخر يرجع للي فاتته — '+pc(x.r1)+' بس خلال ساعة (المطلوب 70%)')}
+  if(x.rN!=null){if(cfGrade('rN',x.rN)>0)good.push('تقريباً مفيش حد فاته من غير ما نرجعله');else if(cfGrade('rN',x.rN)<0)bad.push(pc(x.rN)+' من اللي فاتوا محدش رجعلهم خالص')}
+  if(x.none)bad.push(x.none+' رقم لسه مستني حد يرجعله — يتكلموا النهارده');
+  return {good,bad}}
+async function cfLineImg(only){const {T,L}=cfLineStats();if(!L.length){alert('مفيش مكالمات بالفلتر ده');return}
+  const cols=only?[L.find(x=>x.l===only),T].filter(Boolean):(L.length>1?L.concat([T]):L),cmp=!only&&L.length>1;
+  const ff=getComputedStyle(document.body).fontFamily||'Cairo, sans-serif',W=1080,P=40,cv=document.createElement('canvas'),x=cv.getContext('2d');
+  const dd=d=>d?d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(0,4):'…',per='من '+dd(CF.d1||cfDay(CF.minT))+' لحد '+dd(CF.d2||cfDay(CF.maxT))+(CF.h1!==''||CF.h2!==''?'   ·   الساعة من '+(CF.h1||0)+' لـ '+(CF.h2||24):'');
+  const notesL=(only?cols.slice(0,1):L).map(c=>({c,n:cfNotes(c)}));
+  const rowH=58,hdr=150,tblH=60+CF_M.length*rowH,notesH=notesL.reduce((s,o)=>s+70+Math.max(1,o.n.good.length+o.n.bad.length)*40,0),H=hdr+tblH+40+notesH+90;
+  cv.width=W;cv.height=H;x.direction='rtl';x.textBaseline='middle';
+  const F=(sz,w)=>x.font=(w||400)+' '+sz+'px '+ff,T_=(t,X,Y,al,c)=>{x.fillStyle=c||'#1f2937';x.textAlign=al||'right';x.fillText(t,X,Y)},R=(X,Y,w,h,c,rad)=>{x.fillStyle=c;x.beginPath();x.roundRect?x.roundRect(X,Y,w,h,rad||0):x.rect(X,Y,w,h);x.fill()};
+  R(0,0,W,H,'#ffffff');R(0,0,W,hdr-20,'#0f766e');
+  F(40,800);T_(only?'📞 تقييم أداء خط '+only:'📞 تقييم أداء خطوط التليفون',W-P,52,'right','#fff');
+  F(24,600);T_((typeof BRN!=='undefined'?BRN[S.b]+'   ·   ':'')+per,W-P,100,'right','#d1fae5');
+  // الجدول
+  let y=hdr;const labW=360,cw=(W-2*P-labW)/cols.length;
+  R(P,y,W-2*P,54,'#f1f5f9',10);F(24,800);T_('المقياس',W-P-16,y+27);
+  cols.forEach((c,i)=>{const cx=W-P-labW-cw*i-cw/2;T_(c.l,cx,y+27,'center',c===T?'#475569':'#0f766e')});y+=60;
+  CF_M.forEach(([lab,k,f,dir,why],ri)=>{if(ri%2)R(P,y,W-2*P,rowH,'#f8fafc');F(23,700);T_(lab,W-P-16,y+(why?20:rowH/2));if(why){F(16);T_(why,W-P-16,y+44,'right','#64748b')}
+    const vals=cols.filter(c=>c!==T).map(c=>c[k]).filter(v=>v!=null),best=dir&&cmp&&vals.length>1?(dir>0?Math.max(...vals):Math.min(...vals)):null,worst=dir&&cmp&&vals.length>1?(dir>0?Math.min(...vals):Math.max(...vals)):null;
+    cols.forEach((c,i)=>{const v=c[k],cx=W-P-labW-cw*i-cw/2;let bg=null,fg='#111827';
+      if(v!=null&&c!==T&&best!==worst){if(v===best){bg='#dcfce7';fg='#166534'}else if(v===worst){bg='#fee2e2';fg='#991b1b'}}
+      if(!bg&&c!==T&&!cmp){const g=cfGrade(k,v);if(g>0){bg='#dcfce7';fg='#166534'}else if(g<0){bg='#fee2e2';fg='#991b1b'}}
+      if(bg)R(cx-cw/2+6,y+6,cw-12,rowH-12,bg,8);F(26,c===T?600:800);T_(v==null?'—':f(v),cx,y+rowH/2,'center',c===T?'#475569':fg)});
+    y+=rowH});
+  x.strokeStyle='#e2e8f0';x.lineWidth=2;x.strokeRect(P,hdr,W-2*P,y-hdr);
+  F(17);T_(cmp?'🟩 الأحسن بين الخطوط   🟥 الأضعف   ·   «الإجمالي» للمقارنة بس':'🟩 كويس   🟥 محتاج يتحسن   ·   «الإجمالي» = كل الخطوط مع بعض',W-P,y+22,'right','#64748b');y+=50;
+  // ملاحظات لكل خط
+  notesL.forEach(({c,n})=>{R(P,y,W-2*P,56,'#ecfeff',10);F(26,800);T_('📋 خط '+c.l,W-P-16,y+28,'right','#0e7490');y+=68;F(22,600);
+    if(!n.good.length&&!n.bad.length){T_('• أداء متوسط — مفيش حاجة واضحة لا كويسة ولا وحشة',W-P-16,y+14);y+=40}
+    n.good.forEach(t=>{T_('✅ '+t,W-P-16,y+14,'right','#166534');y+=40});n.bad.forEach(t=>{T_('⚠️ '+t,W-P-16,y+14,'right','#991b1b');y+=40});y+=6});
+  F(16);T_('«فاتت» = مكالمة داخلة ما اترد عليهاش  ·  «رجعنا» = اتصلنا بالرقم بعدها (حتى لو ما ردش)',W-P,H-62,'right','#94a3b8');T_('من سجل المكالمات اللي اترفع لحد '+cfFmt(CF.maxT),W-P,H-36,'right','#94a3b8');
+  F(18,800);T_('BODYFIX',P,H-36,'left','#0f766e');
+  cv.toBlob(async b=>{const name=(only?'تقييم خط '+only:'تقييم الخطوط')+' — '+cfDay(cfWall(new Date().toISOString()))+'.png';const file=new File([b],name,{type:'image/png'});
+    try{if(navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){await navigator.share({files:[file],title:name});return}}catch(e){if(e&&e.name==='AbortError')return}
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)},'image/png')}
 
 // ================= 📥 Excel: التحليل + خطة العمل =================
 const cfTxt=x=>{if(x==null)return '';const d=document.createElement('div');d.innerHTML=String(x).replace(/<br\s*\/?>/gi,' ');return d.textContent.replace(/\s+/g,' ').trim()};

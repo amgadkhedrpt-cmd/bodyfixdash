@@ -11964,7 +11964,7 @@ function planCashBanner(){
     if(a.x) return;
     if(/CHECK|PROGRESS|COMPLET|DELAY|ARRIV/.test(a.st||'')) o.g='وصل'; else if(a.t&&Date.parse(a.t)-nowMs<=15*60000&&nowMs-Date.parse(a.t)<=60*60000) o.g='ميعاده '+planT(a.t); });
   var stTag=function(o){ if(!o.t&&!o.st) return ''; var l=STL[o.st]||[o.st||'','var(--mute)']; return ' <span style="font-size:.6rem;border:1px solid var(--brd);border-radius:6px;padding:0 5px;white-space:nowrap">📅 '+(o.t?alEsc(planT(o.t))+' · ':'')+'<b style="color:'+l[1]+'">'+alEsc(l[0])+'</b></span>'; };
-  var L=Object.keys(P).map(function(k){return P[k];}).filter(function(o){ return o.rem>=20||o.np; }).sort(function(a,b){ return (b.g?1:0)-(a.g?1:0)||b.old-a.old||b.rem-a.rem; });
+  var L=Object.keys(P).map(function(k){return P[k];}).filter(function(o){ return o.rem>=20||o.np; }).sort(function(a,b){ var ta=a.t?Date.parse(a.t):9e15, tb=b.t?Date.parse(b.t):9e15; return ta-tb||b.rem-a.rem; });   // بميعاد المريض النهارده (الأبدر فوق) · اللي مالوش ميعاد في الآخر
   if(!L.length) return '';
   var upd=''; try{ upd=new Date(AUD_DATA.last_updated).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}); }catch(e){}
   var byB={}; L.forEach(function(o){ (byB[o.b]=byB[o.b]||[]).push(o); });

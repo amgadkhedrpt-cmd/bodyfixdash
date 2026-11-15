@@ -1,5 +1,5 @@
 {
- "at": "2026-11-15T16:18:38.885Z",
+ "at": "2026-11-15T17:09:45.770Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,10 +91,10 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "ph2_field": "phoneNumber2",
- "ph2_n": 14,
+ "ph2_n": 16,
  "conf": {
-  "confirmed_now": 40,
-  "new": 6
+  "confirmed_now": 41,
+  "new": 7
  },
  "kinds": {
   "pay": {
@@ -117,7 +117,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20637,
+    "rows": 20639,
     "cols": [
      "id",
      "type",
@@ -369,7 +369,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131412,
+    "rows": 131463,
     "cols": [
      "start",
      "status",
@@ -390,6 +390,7 @@
       "CANCELED",
       "COMPLETED",
       "CONFIRMED",
+      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -400,7 +401,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6337,
+    "rows": 6338,
     "cols": [
      "start",
      "status",
@@ -422,7 +423,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 153,
+    "rows": 160,
     "cols": [
      "aid",
      "start",
@@ -606,7 +607,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17477,
+    "rows": 17480,
     "cols": [
      "id",
      "referenceId",
@@ -855,10 +856,10 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "cd71023b78e79685"
+  "data/fin_c.enc": "48dd1a6aa7465f4a"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 67
+ "secs": 62
 }

@@ -422,12 +422,17 @@ async function cfLineImg(only){const {T,L}=cfLineStats();if(!L.length){alert('م
   notesL.forEach(({c,n})=>{R(P,y,W-2*P,56,'#ecfeff',10);F(26,800);T_('📋 خط '+c.l,W-P-16,y+28,'right','#0e7490');y+=68;F(22,600);
     if(!n.good.length&&!n.bad.length){T_('• أداء متوسط — مفيش حاجة واضحة لا كويسة ولا وحشة',W-P-16,y+14);y+=40}
     n.good.forEach(t=>{T_('✅ '+t,W-P-16,y+14,'right','#166534');y+=40});n.bad.forEach(t=>{T_('⚠️ '+t,W-P-16,y+14,'right','#991b1b');y+=40});y+=6});
+  const BD=cfBadDays().filter(b=>(!only||b.ln===only)&&(!CF.d1||b.d>=CF.d1)&&(!CF.d2||b.d<=CF.d2));if(BD.length){F(20,800);T_('⚠️ تنبيه: ملف '+BD.map(b=>'خط '+b.ln+' يوم '+b.d.slice(8,10)+'/'+b.d.slice(5,7)).join(' · ')+' اتحفظ من غير ساعات — الأرقام دي مش دقيقة',W-P,H-96,'right','#dc2626')}
   F(16);T_('«فاتت» = مكالمة داخلة ما اترد عليهاش  ·  «رجعنا» = اتصلنا بالرقم بعدها (حتى لو ما ردش)',W-P,H-62,'right','#94a3b8');T_('من سجل المكالمات اللي اترفع لحد '+cfFmt(CF.maxT),W-P,H-36,'right','#94a3b8');
   F(18,800);T_('BODYFIX',P,H-36,'left','#0f766e');
   cv.toBlob(async b=>{const name=(only?'تقييم خط '+only:'تقييم الخطوط')+' — '+cfDay(cfWall(new Date().toISOString()))+'.png';const file=new File([b],name,{type:'image/png'});
     try{if(navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){await navigator.share({files:[file],title:name});return}}catch(e){if(e&&e.name==='AbortError')return}
     const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)},'image/png')}
 
+// ⚠️ يوم اتحفظ من غير ساعات (كل المكالمات 12:00 بالليل — ملف عربي اتقرا قبل التصليح): الأرقام بتاعته غلط لحد ما الملف يترفع تاني
+function cfBadDays(){const g={};CF.calls.forEach(c=>{const k=c.ln+'|'+cfDay(c.t),z=g[k]=g[k]||{n:0,z:0};z.n++;if(c.t%864e5===0)z.z++});
+  return Object.keys(g).filter(k=>g[k].n>=10&&g[k].z/g[k].n>0.8).map(k=>{const [ln,d]=k.split('|');return {ln,d,n:g[k].n}}).sort((a,b)=>a.d<b.d?1:-1)}
+function cfBadHTML(){const B=cfBadDays();if(!B.length)return '';return `<div class="card" style="margin-top:12px;border:2px solid var(--down,#dc2626)"><b class="down">⚠️ ملفات اتحفظت من غير ساعات — أرقامها غلط (الرجوع والتقييم):</b><ul class="ins">${B.map(b=>`<li>خط <b>${esc(b.ln)}</b> يوم <b>${b.d.slice(8,10)}/${b.d.slice(5,7)}</b> (${b.n} مكالمة كلهم 12:00 بالليل)</li>`).join('')}</ul><div class="sub">الحل: ارفع ملف اليوم ده تاني (من هنا أو من خطة اليوم) — الرفع بيصلّح الساعات لوحده.</div></div>`}
 // ================= ⚠️ تنبيهات المكالمات + مين ماسك كل خط =================
 const CF_RL={'BODYFIX Center':['F','H','J','L'],'FIX ZONE':['DM','DE']},CF_RLL={L:'المشرف',F:'الشيفت الصباحي',H:'عيادة 1',J:'عيادة 2',DM:'الشيفت الصباحي',DE:'الشيفت المسائي'};
 function vCallAlerts(){if(!CF.calls.length&&!(CF.upl||[]).length)return '';if(!CF.sheet)cfSheet();
@@ -501,4 +506,4 @@ async function cfExcel(){if(!CF.rep.calls&&!CF.rep.conf){alert('ارفع ملف�
     if(f.sus.length)sh('تأكيدات مشكوك فيها',['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],f.sus,[14,30,26,18,12,34,40,10])}
   XLSX.writeFile(wb,`تحليل المكالمات والتأكيدات — ${BRN[S.b]} — ${per.replace(/[\/\\?*\[\]:]/g,'-')}.xlsx`)}
 VIEWS.conf=[()=>{CF.lists=null;let s='';try{s+=cfUpHTML()}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}}];
-VIEWS.calls=[()=>{let s='';for(const f of [cfUpHTML,vCallAlerts,vCalls,vReach]){try{s+=f()}catch(e){console.error(e);s+='<div class="card">خطأ: '+esc(e.message)+'</div>'}}return s},()=>{cConf();for(const f of [cCalls,cReach,cCallCfg]){try{f()}catch(e){console.error(e)}}}];
+VIEWS.calls=[()=>{let s='';for(const f of [cfUpHTML,cfBadHTML,vCallAlerts,vCalls,vReach]){try{s+=f()}catch(e){console.error(e);s+='<div class="card">خطأ: '+esc(e.message)+'</div>'}}return s},()=>{cConf();for(const f of [cCalls,cReach,cCallCfg]){try{f()}catch(e){console.error(e)}}}];

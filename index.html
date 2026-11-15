@@ -12605,8 +12605,11 @@ async function mcUpload(f,ln,br){
     ln=CS.normLn(ln);
     var m=await CS.merge(r.out,ln,{file:f.name,by:PLAN_ME||'',from:'plan',br:br});
     if(!MC.lines[ln]){ MC.lines[ln]=CS.newLine(ln,br); await CS.setLines(MC.lines); }
-    mcToast('✅ اتحفظ ملف خط <b>'+alEsc(ln)+'</b>: '+m.add+' مكالمة جديدة'+(m.dup?' · '+m.dup+' كانت موجودة':'')+' — المهام هتتحدث خلال ثواني','ok');
-    mcLoad(true);
+    if(m.back===0) throw new Error('اتبعت للمخزن بس مش قادر أقراه تاني — ابعتي صورة الرسالة دي لدكتور أمجد');
+    mcToast('✅ اتحفظ ملف خط <b>'+alEsc(ln)+'</b>: '+m.add+' مكالمة جديدة'+(m.dup?' · '+m.dup+' كانت موجودة':'')+' — بيحدّث المهام…','ok',true);
+    MC.at=0; MC.busy=false; mcLoad(true);
+    setTimeout(function(){ var n=(MC.calls||[]).length, u=(MC.upl||[]).filter(function(x){ return x.ln===ln; }).length;
+      mcToast((n?'✅ ':'⚠️ ')+'اتحفظ ملف خط <b>'+alEsc(ln)+'</b> ('+m.add+' جديدة) · المخزن فيه دلوقتي '+n+' مكالمة'+(u?'':' — بس سجل الرفع لسه مش باين')+' · المهام اتحدثت',n?'ok':'err'); },6000);
   }catch(e){ mcToast('❌ الملف ما اتحفظش: '+alEsc(e.message||String(e)),'err'); }
 }
 var cfPh0=function(ph){ return ph.length===10&&ph[0]!=='0'?'0'+ph:ph; };

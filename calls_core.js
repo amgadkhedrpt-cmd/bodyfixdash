@@ -87,9 +87,10 @@ const CS={
   months(n,end){const out=[],e=new Date(end||Date.now());for(let i=0;i<n;i++){const d=new Date(Date.UTC(e.getUTCFullYear(),e.getUTCMonth()-i,1));out.push(d.toISOString().slice(0,7))}return out},
   async list(prefix){const j=await CS.call({action:'list',prefix});return (j&&j.docs)||[]},
   // كل المكالمات المحفوظة في الشهور دي
-  async load(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('calls/'+m+'/'))));const out=[];
+  // الترتيب زي باقي المخزن (days/<يوم>/rows/<id>): مجموعة = calls/<شهر>/days · واحد تحت = <الخط>~<اليوم>
+  async load(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('calls/'+m+'/days'))));const out=[];
     docs.forEach(x=>{const d=x.data||x;(d.r||[]).forEach(r=>out.push(CS.unpack(r,d.d,d.ln)))});return out},
-  async logs(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('callsup/'+m+'/'))));return docs.map(x=>x.data||x).sort((a,b)=>(b.at||0)-(a.at||0))},
+  async logs(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('calls/'+m+'/up'))));return docs.map(x=>x.data||x).sort((a,b)=>(b.at||0)-(a.at||0))},
   // مين ماسك الموبايل (من د. أمجد): am = لحد الساعة sw · pm = بعدها — اللي اتغيّر من جدول الخطوط بيكسب
   // الهرم: 010 و011 مع الشيفت الصباحي لحد 3 العصر، وبعدها 010 مريم (عيادة 1) · 011 إنجي (عيادة 2) — الدقي: الصباحي لحد 5 والمسائي من 5 لـ 11
   DEF:{'010':{br:'BODYFIX Center',sw:15,am:'F',pm:'H'},'011':{br:'BODYFIX Center',sw:15,am:'F',pm:'J'}},
@@ -104,7 +105,7 @@ const CS={
   async merge(calls,ln,meta){ln=CS.normLn(ln);if(!calls.length)return {add:0,dup:0,gone:[]};
     let mn=Infinity,mx=-Infinity;calls.forEach(c=>{if(c.t<mn)mn=c.t;if(c.t>mx)mx=c.t});
     const ms=[...new Set(calls.map(c=>cfDay(c.t).slice(0,7)))],lk=CS.lk(ln);
-    const docs=[].concat(...await Promise.all(ms.map(m=>CS.list('calls/'+m+'/'+lk+'/'))));
+    const docs=[].concat(...await Promise.all(ms.map(m=>CS.list('calls/'+m+'/days'))));
     const old={};docs.forEach(x=>{const d=x.data||x;if(d.ln!==ln)return;(old[d.d]=old[d.d]||[]).push(...(d.r||[]).map(r=>CS.unpack(r,d.d,ln)))});
     const nw={};calls.forEach(c=>{(nw[cfDay(c.t)]=nw[cfDay(c.t)]||[]).push(c)});
     const d1=cfDay(mn),d2=cfDay(mx);let add=0,dup=0;const gone=[],items=[];
@@ -114,9 +115,11 @@ const CS={
       if(d>d1&&d<d2){const left=new Map(fc);O.forEach(c=>{const k=cfK(c),n=left.get(k)||0;if(n>0)left.set(k,n-1);else gone.push(c)})}
       if(M.length===O.length)continue;
       M.sort((a,b)=>a.t-b.t);const R=M.map(CS.pack);
-      for(let p=0;p*800<R.length;p++)items.push({_d:d,path:'calls/'+d.slice(0,7)+'/'+lk+'/'+d+(p?'~'+p:''),data:{ln,d,p,r:R.slice(p*800,p*800+800),at:Date.now()}})}
+      for(let p=0;p*800<R.length;p++)items.push({_d:d,path:'calls/'+d.slice(0,7)+'/days/'+lk+'~'+d+(p?'~'+p:''),data:{ln,d,p,r:R.slice(p*800,p*800+800),at:Date.now()}})}
     const at=Date.now();
-    items.push({path:'callsup/'+cfDay(at).slice(0,7)+'/'+at+'_'+lk,data:Object.assign({ln,at,n:calls.length,add,dup,gone:gone.length,goneR:gone.slice(0,300).map(c=>[cfDay(c.t)].concat(CS.pack(c))),mn,mx},meta||{})});
+    items.push({path:'calls/'+cfDay(at).slice(0,7)+'/up/'+at+'_'+lk,data:Object.assign({ln,at,n:calls.length,add,dup,gone:gone.length,goneR:gone.slice(0,300).map(c=>[cfDay(c.t)].concat(CS.pack(c))),mn,mx},meta||{})});
     for(let i=0;i<items.length;i+=15)await CS.call({action:'batch',items:items.slice(i,i+15).map(x=>({path:x.path,data:x.data}))});
-    return {add,dup,gone}}
+    // نتأكد إن اللي اتحفظ بيتقري تاني
+    let back=-1;try{back=(await CS.list('calls/'+cfDay(mx).slice(0,7)+'/days')).length}catch(e){}
+    return {add,dup,gone,back}}
 };

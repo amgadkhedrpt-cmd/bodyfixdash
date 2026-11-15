@@ -28,7 +28,7 @@ async function cfPushLocal(){const d=CF.local;if(!d)return;const by={};d.calls.f
 async function cfLoad(files,lines){await CF.ready;
   if(CF.cloud){const msg=$('#cfMsg');for(const f of files){const ln=CS.normLn((lines&&lines[files.indexOf(f)])||f.name.replace(/\.[^.]+$/,''));
       try{if(msg)msg.textContent='بيقرا '+f.name+'…';const r=await cfRead(f);CF.map=r.mp;if(!r.out.length||r.bad>r.n*0.3)throw new Error('الملف مش مفهوم ('+r.bad+' من '+r.n+' سطر ما اتقروش) — ما اتحفظش. اتأكد من الأعمدة أو ابعت الملف');if(msg)msg.textContent='بيحفظ '+f.name+' في المخزن…';
-        const m=await CS.merge(r.out,ln,{file:f.name,by:'fin'});CF.files.push({name:f.name,ln,n:r.n,ok:m.add,dup:m.dup,gone:m.gone.length,bad:r.bad,ex:r.ex,at:Date.now()})}
+        const m=await CS.merge(r.out,ln,{file:f.name,by:'fin'});if(m.back===0)throw new Error('اتبعت للمخزن بس مش قادر أقراه تاني');CF.files.push({name:f.name,ln,n:r.n,ok:m.add,dup:m.dup,gone:m.gone.length,bad:r.bad,ex:r.ex,at:Date.now()})}
       catch(e){CF.files.push({name:f.name,ln,err:e.message||String(e),at:Date.now()})}}
     for(const l0 of new Set(lines||[])){const ln=CS.normLn(l0);if(ln&&!CF.lines[ln])CF.lines[ln]=CS.newLine(ln,S.b==='dokki'?'FIX ZONE':'BODYFIX Center')}
     try{await CS.setLines(CF.lines)}catch(e){}

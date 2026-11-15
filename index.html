@@ -12538,10 +12538,16 @@ function mcLoad(force){
     .then(function(r){ MC.calls=r[0]; MC.lines=r[1]||{}; MC.upl=r[2]||[]; MC.busy=false; MC.err=''; MC.ep=null; planRender(); })
     .catch(function(e){ MC.busy=false; MC.at=0; MC.err=String(e&&e.message||e); });
 }
-function mcName(ph){
-  if(!MC.names){ MC.names={}; ((ALERTS_DATA&&ALERTS_DATA.pt_index)||[]).forEach(function(r){ var p=cfPh(r[1]); if(p&&!MC.names[p]) MC.names[p]=r[0]; }); }
-  return MC.names[ph]||'';
+/* الرقم ده مين؟ + آخر مرة جه العيادة — من كل اللي في الداشبورد (فهرس المرضى · المواعيد · الحسابات) */
+function mcPt(ph){
+  if(!MC.names||MC.namesAt<Date.now()-5*60000){ var N={}, put=function(p,n,d){ p=cfPh(p); if(!p||p.length<9) return; var o=N[p]||(N[p]={n:'',last:''}); if(n&&!o.n) o.n=n; if(d&&d>o.last) o.last=d; };
+    ((ALERTS_DATA&&ALERTS_DATA.pt_index)||[]).forEach(function(r){ put(r[1],r[0],String(r[4]||'').slice(0,10)); });
+    if(typeof MED_DATA!=='undefined'&&MED_DATA&&MED_DATA.appointments) MED_DATA.appointments.forEach(function(a){ var p=a.patient||{}; put(p.phoneNumber,((p.firstName||'')+' '+(p.lastName||'')).trim(),/COMPLET|CHECK|PROGRESS/.test(String(a.status_en||'').toUpperCase())?mcCairoDay(Date.parse(a.start)):''); });
+    if(typeof AUD_DATA!=='undefined'&&AUD_DATA){ (AUD_DATA.debts||[]).concat(AUD_DATA.expect||[]).forEach(function(r){ put(r.ph,r.p,''); }); }
+    MC.names=N; MC.namesAt=Date.now(); }
+  return MC.names[ph]||{n:'',last:''};
 }
+function mcName(ph){ return mcPt(ph).n; }
 function mcCairoDay(ms){ return new Date(ms).toLocaleDateString('sv-SE',{timeZone:'Africa/Cairo'}); }
 function mcTasks(today,act){
   var out=[], L=MC.lines||{}, d3=new Date(today+'T12:00:00Z'); d3.setUTCDate(d3.getUTCDate()-3); var from=d3.toISOString().slice(0,10);
@@ -12567,14 +12573,16 @@ function mcTasks(today,act){
         sys:u0?'اترفع ملف النهارده':'', what:u0?('اترفع الساعة '+new Date(u0.at).toLocaleTimeString('ar-EG',{timeZone:'Africa/Cairo',hour:'numeric',minute:'2-digit'})+' — '+(u0.add||0)+' مكالمة جديدة'):'',
         lines:[u0?'<span style="color:var(--g)">✅ اترفع النهارده — ارفعي تاني آخر اليوم عشان المكالمات الفايتة تتقفل</span>':'<span style="color:var(--r)">لسه ما اترفعش ملف النهارده</span>', mcUpHTML(ln,br)]});
       if(!MC.ep) return;
-      MC.ep.filter(function(e){ return e.s==='miss'&&e.ln===ln&&e.ph.length>=9&&cfDay(e.t0)>=from&&(e.tC==null||cfDay(e.tC)===today); })
+      // كل رقم فاتنا ولسه ما حصلش بيننا كلام — مهما كان قديم (لحد ما نتكلم معاه / ييجي العيادة / 🚫 رفض بسبب) · اللي اتحل النهارده بيفضل باين ✅
+      MC.ep.filter(function(e){ if(e.s!=='miss'||e.ln!==ln||e.ph.length<9) return false; var pt=mcPt(e.ph), came=pt.last&&pt.last>=cfDay(e.t0);
+          e._came=came&&e.tC==null?pt.last:''; return (e.tC==null&&(!came||pt.last===today))||(e.tC!=null&&cfDay(e.tC)===today); })
         .sort(function(a,b){ return a.t0-b.t0; }).forEach(function(e){
-          var ph=cfPh0(e.ph), nm=mcName(e.ph), done=e.tC!=null;
+          var ph=cfPh0(e.ph), nm=mcName(e.ph), done=e.tC!=null||!!e._came, age=Math.round((Date.parse(today)-Date.parse(cfDay(e.t0)))/864e5);
           out.push({grp:['mcall'], _h:new Date(e.t0).getUTCHours(), _old:cfDay(e.t0)<today, key:'mcall|'+ln+'|'+e.ph+'|'+cfDay(e.t0), icon:'📵', kind:'اتصل وما اترد عليهوش — رجّعيله'+(nm?'':' · <b style="color:#f59e0b">رقم مش متسجل (ممكن مريض جديد)</b>'), name:nm||ph, phone:ph, br:br, line:ln,
-            sys:done?(e.how==='we'?'رجعناله واتكلمنا':'هو اتصل تاني واتكلمنا'):'', what:done?((e.how==='we'?'📤 رجعناله ':'📥 اتصل تاني ')+cfFmt(e.tC)):'',
-            lines:['📵 اتصل '+e.nI+' مرة · أول مرة '+cfFmt(e.t0)+(e.nI>1?' · آخر مرة '+cfFmt(e.last):'')+' · خط '+alEsc(ln),
+            sys:done?(e.tC==null?'جه العيادة':e.how==='we'?'رجعناله واتكلمنا':'هو اتصل تاني واتكلمنا'):'', what:done?(e.tC==null?'🏥 جه العيادة النهارده':(e.how==='we'?'📤 رجعناله ':'📥 اتصل تاني ')+cfFmt(e.tC)):'',
+            lines:['📵 اتصل '+e.nI+' مرة · أول مرة '+cfFmt(e.t0)+(e.nI>1?' · آخر مرة '+cfFmt(e.last):'')+' · خط '+alEsc(ln)+(age>=1&&!done?' · <b style="color:'+(age>=3?'var(--r)':'#f59e0b')+'">من '+age+' يوم</b>':''),
                    e.nO&&!done?'<span style="color:#f59e0b">📤 حاولنا نرجعله '+e.nO+' مرة وما ردش — حاولي تاني أو ابعتي واتساب</span>':'',
-                   done?'':'<span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها لما سجل المكالمات الجاي يترفع ويبان إنكم اتكلمتم · لو رقم غلط / إعلانات / مش محتاج: «🚫 رفض» واكتبي السبب</span>']});
+                   done?'':'<span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها لما سجل المكالمات الجاي يترفع ويبان إنكم اتكلمتم، أو لو جه العيادة · لو رقم غلط / إعلانات / حاولتي 3 مرات وما ردش: «🚫 رفض» واكتبي السبب</span>']});
         });
     });
   });

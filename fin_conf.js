@@ -127,7 +127,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    الملفات بتتقري على جهازك بس — مش بتترفع لأي حتة. <b>بتتحفظ على الجهاز ده</b> (نفس المتصفح) فمش محتاج ترفعها تاني، وكل ما ترفع ملف جديد بيتضاف على القديم والمكالمات المكررة بتتشال لوحدها. على موبايل أو كمبيوتر تاني لازم ترفعها هناك. ملحوظة: التأكيد على <b>واتساب</b> مش بيظهر في سجل المكالمات.</div>
    <div class="bar" style="margin-top:8px"><b class="sub">📅 يوم الموعد:</b><label class="sub">من <input type="date" id="cfA1" value="${CF.a1}"></label><label class="sub">لحد <input type="date" id="cfA2" value="${CF.a2}"></label></div>
    <div class="bar" style="margin-top:6px"><b class="sub">✔️ يوم التأكيد (والمكالمات):</b><label class="sub">من <input type="date" id="cfD1" value="${CF.d1}"></label><label class="sub">لحد <input type="date" id="cfD2" value="${CF.d2}"></label><button id="cfDAll">كل فترة الملفات</button><button id="cfDClr">امسح التواريخ</button></div>
-   <div class="bar" style="margin-top:6px"><span class="sub">${CF.a1||CF.a2||CF.d1||CF.d2?'الفلترين مع بعض: مواعيد في «يوم الموعد» اتأكدت في «يوم التأكيد» · «ما اتأكدش خالص» بيتحسب بيوم الموعد':'(من غير تاريخ: المكالمات كلها، والتأكيدات حسب شهور الفلتر فوق)'}</span><button class="pri" id="cfX">📥 نزّل التحليل وخطة العمل (Excel)</button></div>
+   <div class="bar" style="margin-top:6px"><span class="sub">${CF.a1||CF.a2||CF.d1||CF.d2?'الفلترين مع بعض: مواعيد في «يوم الموعد» اتأكدت في «يوم التأكيد» · «ما اتأكدش خالص» بيتحسب بيوم الموعد':'(من غير تاريخ: المكالمات كلها، والتأكيدات حسب شهور الفلتر فوق)'}</span><button class="pri" id="cfX">📥 نزّل التحليل وخطة العمل (Excel)</button>${CF.calls.length?'<button class="pri" id="cfTodo0">📋 ملف اتصالات للسكرتارية</button>':''}</div>
    <div class="bar" style="margin-top:8px"><label class="drop" style="padding:6px 12px;border:1px dashed var(--brd);border-radius:8px;cursor:pointer">📂 ارفع ملفات المكالمات<input type="file" id="cfF" accept=".csv,.xlsx,.xls,.txt" multiple hidden></label>${CF.calls.length?`<button id="cfClr">🗑️ امسح المكالمات المحفوظة</button><span class="sub">${CF.saved?'💾 محفوظة على الجهاز · ':''}${CF.calls.length} مكالمة · من ${cfFmt(CF.minT)} لـ ${cfFmt(CF.maxT)} · صادرة ${ty.out||0} · واردة ${ty.in||0} · فائتة ${ty.miss||0}${ty['?']?` · من غير نوع ${ty['?']}`:''}</span>`:''}<span id="cfMsg" class="sub"></span></div>
    ${CF.pend?cfPendHTML():''}${fl?`<ul class="ins" style="margin-top:6px">${fl}</ul><datalist id="cfLnL">${[...new Set(CF.calls.map(c=>c.ln))].map(l=>`<option value="${esc(l)}">`).join('')}</datalist><div class="sub">كل ملف = خط. لو رفعت ملفين لنفس الخط (مثلاً شهرين) اكتب نفس اسم الخط في الاتنين وهيتجمعوا.</div>`:''}
    ${CF.calls.length?`<div class="bar" style="margin-top:8px"><b class="sub">📞 الخط:</b><select id="cfLn"><option value="">كل الخطوط</option>${[...new Set(CF.calls.map(c=>c.ln))].sort().map(l=>`<option${l===CF.ln?' selected':''}>${esc(l)}</option>`).join('')}</select>
@@ -306,9 +306,9 @@ function cCalls(){if(!CF.calls.length)return;const o1=$('#cfO1'),o2=$('#cfO2');c
 CF.rf='all';CF.rs='all';CF.rq='';
 const cfTalk=c=>c.dur>0&&c.ty!=='miss';
 function cfReach(){if(CF.rch)return CF.rch;const by={},E=[];CF.calls.forEach(c=>(by[c.ph]=by[c.ph]||[]).push(c));
-  for(const ph in by){const L=by[ph].sort((a,b)=>a.t-b.t);let e=null;
-    for(const c of L){if(cfTalk(c)){if(e){e.tC=c.t;e.how=c.ty==='out'?'we':'he';e.lnC=c.ln;E.push(e);e=null}continue}
-      if(!e)e={ph,t0:c.t,s:c.ty==='out'?'out':'miss',ln:c.ln,nO:0,nI:0};
+  for(const ph in by){const L=by[ph].sort((a,b)=>a.t-b.t);let e=null,lt=null;
+    for(const c of L){if(cfTalk(c)){lt=c.t;if(e){e.tC=c.t;e.how=c.ty==='out'?'we':'he';e.lnC=c.ln;E.push(e);e=null}continue}
+      if(!e)e={ph,t0:c.t,s:c.ty==='out'?'out':'miss',ln:c.ln,nO:0,nI:0,pT:lt};
       if(c.ty==='out'){e.nO++;if(e.tA==null&&e.s==='miss')e.tA=c.t}else e.nI++;e.last=c.t}
     if(e)E.push(e)}
   return CF.rch={E,by}}
@@ -336,12 +336,54 @@ function cfReachBody(){const {E,by}=cfReach(),P=cfPts(),q=cfDig(CF.rq).trim(),qd
 function vReach(){if(!CF.calls.length)return '';
   return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--warn)"><h3>🔎 رقم ما اتكلمناش معاه — رجعنا كلمناه ولا هو كلمنا؟<small>${CF.ln?esc(CF.ln)+' · ':''}${CF.d1||CF.d2?(CF.d1||'…')+' → '+(CF.d2||'…'):'كل المكالمات المحفوظة'}</small></h3>
    <div class="sub" style="line-height:1.8">كل رقم <b>بدأ</b> فيه «ما اتكلمناش» في الفترة اللي فوق (يوم التأكيد/المكالمات) — مكالمة فاتتنا أو اتصلنا وما ردش — وبعدها حصل إيه في كل الملفات المحفوظة (حتى بعد الفترة): احنا رجعنا اتكلمنا معاه، ولا هو اللي اتصل واتكلمنا، ولا لسه. اكتب رقم (7 أرقام أو أكتر) يطلعلك كل مكالماته.</div>
-   <div class="bar" style="margin-top:6px"><input id="cfRq" type="search" placeholder="🔍 رقم أو اسم" value="${esc(CF.rq)}" style="min-width:220px"></div>
+   <div class="bar" style="margin-top:6px"><button class="pri" id="cfTodo">📋 نزّل ملف اتصالات للسكرتارية (Excel)</button><input id="cfRq" type="search" placeholder="🔍 رقم أو اسم" value="${esc(CF.rq)}" style="min-width:220px"></div>
    <div id="cfRchB">${cfReachBody()}</div></div>`}
-function cReach(){const box=$('#cfRchB'),q=$('#cfRq');if(!box)return;const up=()=>{box.innerHTML=cfReachBody()};
+function cReach(){['#cfTodo','#cfTodo0'].forEach(id=>{const b=$(id);if(b)b.onclick=()=>cfTodoXL()});const box=$('#cfRchB'),q=$('#cfRq');if(!box)return;const up=()=>{box.innerHTML=cfReachBody()};
   if(q)q.oninput=()=>{CF.rq=q.value;up()};
   box.onclick=e=>{const a=e.target.closest('[data-cfrf],[data-cfrs],[data-cfph]');if(!a)return;e.preventDefault();
     if(a.dataset.cfrf)CF.rf=a.dataset.cfrf;else if(a.dataset.cfrs)CF.rs=a.dataset.cfrs;else{CF.rq='0'+a.dataset.cfph;if(q)q.value=CF.rq}up()}}
+
+// ================= 📋 ملف اتصالات للسكرتارية (Excel) =================
+// مين لازم يتكلم: (1) فاتتنا ولسه محدش اتكلم معاه (2) اتصلنا وما ردش ولسه ما اتكلمناش (3) مواعيد جاية اتعلّم عليها «مؤكد» من غير مكالمة اترد عليها
+const cfPh0=ph=>ph.length===10&&ph[0]!=='0'?'0'+ph:ph;
+function cfTodo(){const {E}=cfReach(),P=cfPts(),now=cfWall(new Date().toISOString()),soon=now+7*864e5,day=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
+  // بنشيل اللي مش محتاج اتصال فعلاً: جه العيادة بعد المحاولة · اتكلمنا معاه قبلها بأقل من أسبوع (المحاولة غالباً تذكير) · محاولة قديمة ومفيش ميعاد قريب
+  const L=[],drop={came:0,recent:0,old:0};E.filter(e=>e.tC==null&&e.ph.length>=9&&cfCOk(e.t0,e.ln)).forEach(e=>{const p=P[e.ph],nx=p&&p.next,nxT=nx?Date.parse(nx+'T00:00:00Z'):null;
+    if(p&&p.last&&p.last>=cfDay(e.last)){drop.came++;return}
+    let pr,act;
+    if(e.s==='miss'){pr=p?2:1;act=p?'رجّع له المكالمة واعرف كان عايز إيه':'رجّع له المكالمة — رقم مش متسجل (ممكن مريض جديد): اعرف عايز إيه واحجزله'}
+    else if(nxT!=null&&nxT<=soon){pr=3;act='عنده ميعاد '+day(nx)+' — كلّمه وأكّد الميعاد (أو ابعت واتساب)'}
+    else if(e.pT!=null&&e.t0-e.pT<7*864e5){drop.recent++;return}
+    else if(CF.maxT-e.last>3*864e5){drop.old++;return}
+    else{pr=4;act=p?'حاول تاني أو ابعت واتساب':'حاول تاني — رقم مش متسجل'}
+    L.push({pr,e,p,act})});
+  L.sort((a,b)=>a.pr-b.pr||b.e.last-a.e.last);
+  // مواعيد جاية متأكدة من غير مكالمة
+  if(!CF.idx){CF.idx={};CF.calls.forEach(c=>(CF.idx[c.ph]=CF.idx[c.ph]||[]).push(c))}
+  const U=cfConfs().filter(c=>inB(c)&&c.aT>=now&&!(c.crT!=null&&Math.abs(c.cT-c.crT)<3*60e3)&&CF.minT!=null&&c.cT>=CF.minT&&c.cT<=CF.maxT+15*60e3).filter(c=>{
+    const K=(CF.idx[c.ph]||[]).concat(c.ph2&&c.ph2!==c.ph?CF.idx[c.ph2]||[]:[]);return (c.ph||c.ph2)&&!K.some(x=>x.dur>0&&x.ty!=='miss'&&x.t>=c.cT-36*3600e3)}).sort((a,b)=>a.aT-b.aT);
+  U.forEach(c=>{c.who=cfWho(c)[0]});
+  return {L,U,drop}}
+const CF_PR={1:'🔴 عاجل — رقم جديد',2:'🔴 عاجل',3:'🟠 عنده ميعاد قريب',4:'⚪ عادي'};
+async function cfTodoXL(){if(!CF.calls.length){alert('ارفع ملفات المكالمات الأول');return}
+  if(!window.XLSX&&!(await loadLib('XLSX'))){alert('مكتبة Excel ما اتحملتش');return}
+  const {L,U,drop}=cfTodo(),wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};
+  const add=(name,head,rows,w)=>{const ws=XLSX.utils.aoa_to_sheet([head].concat(rows));ws['!cols']=w.map(x=>({wch:x}));ws['!views']=[{RTL:true}];ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(rows.length,1),c:head.length-1}})};XLSX.utils.book_append_sheet(wb,ws,name.replace(/[\/\\?*\[\]:]/g,'-').slice(0,31))};
+  const H=['#','الأولوية','الرقم','الاسم','اللي حصل','أول مرة','آخر محاولة','اتصل هو','اتصلنا','الميعاد الجاي','آخر زيارة','الخط','المطلوب','اتصلت؟ (✔)','النتيجة','ملاحظة'],W=[4,18,14,24,18,12,12,8,8,11,11,12,48,10,22,24];
+  const d2=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
+  const row=(x,i)=>[i+1,CF_PR[x.pr],cfPh0(x.e.ph),x.p?x.p.pn||'مريض':'مش متسجل',x.e.s==='miss'?'📵 فاتتنا مكالمة':'📤 اتصلنا وما ردش',cfFmt(x.e.t0),cfFmt(x.e.last),x.e.nI,x.e.nO,x.p?d2(x.p.next):'',x.p?d2(x.p.last):'',x.e.ln||'',x.act,'','',''];
+  const per=(CF.d1||CF.d2?(CF.d1||'…')+' → '+(CF.d2||'…'):cfDay(CF.minT)+' → '+cfDay(CF.maxT))+(CF.h1!==''||CF.h2!==''?` · الساعة ${CF.h1||0}–${CF.h2||24}`:'');
+  const lines=[...new Set(L.map(x=>x.e.ln||''))].sort(),cnt=p=>L.filter(x=>x.pr===p).length;
+  const sum=[['📋 ملف اتصالات للسكرتارية'],['اتعمل',cfFmt(cfWall(new Date().toISOString()))],['الفترة',per],['الخط',CF.ln||'كل الخطوط'],[''],
+    ['🔴 فاتتنا ولسه محدش رجعله — رقم جديد',cnt(1)],['🔴 فاتتنا ولسه محدش رجعله — مريض',cnt(2)],['🟠 اتصلنا وما ردش وعنده ميعاد خلال أسبوع',cnt(3)],['⚪ اتصلنا وما ردش (باقي الأرقام)',cnt(4)],['✋ مواعيد جاية «مؤكد» من غير مكالمة اترد عليها',U.length],[''],
+    ['اتشالوا من الليستة (مش محتاجين اتصال):'],['  جه العيادة بعد المحاولة',drop.came],['  اتكلمنا معاه قبلها بأقل من أسبوع (المكالمة كانت تذكير غالباً)',drop.recent],['  اتصلنا وما ردش من أكتر من 3 أيام ومفيش ميعاد قريب',drop.old],[''],
+    ['إزاي تستخدمه'],['كل سكرتيرة تفتح شيت الخط بتاعها وتبدأ من فوق (الأحمر الأول).'],['بعد المكالمة: حط ✔ في «اتصلت؟» واكتب النتيجة (حجز / مش عايز / ما ردش تاني / رقم غلط…).'],['الأرقام دي محسوبة من ملفات المكالمات اللي اترفعت لحد '+cfFmt(CF.maxT)+' — أي حد اتكلمنا معاه بعد كده مش هيظهر لما ترفع الملفات الجديدة.']];
+  const ws0=XLSX.utils.aoa_to_sheet(sum);ws0['!cols']=[{wch:48},{wch:40}];ws0['!views']=[{RTL:true}];XLSX.utils.book_append_sheet(wb,ws0,'الملخص');
+  add('الكل',H,L.map(row),W);
+  if(lines.length>1||(lines[0]||''))lines.forEach(l=>add('خط '+(l||'—'),H,L.filter(x=>(x.e.ln||'')===l).map(row),W));
+  add('مؤكد من غير مكالمة',['#','الميعاد','المريض','الرقم','نوع الميعاد','الدكتور','اتعلّم مؤكد','مين أكد','المطلوب','اتصلت؟ (✔)','النتيجة','ملاحظة'],
+    U.map((c,i)=>[i+1,cfFmt(c.aT),c.pn,cfPh0(c.ph||c.ph2),c.type,c.doc,cfFmt(c.cT),c.who||'',(c.aT-cfWall(new Date().toISOString())<36*3600e3?'⚠️ قريب — ':'')+'كلّم المريض وأكّد الميعاد بنفسك (ملقناش مكالمة اترد عليها قبل التأكيد)','','','']),[4,12,24,14,18,16,12,14,52,10,22,24]);
+  XLSX.writeFile(wb,`اتصالات السكرتارية — ${BRN[S.b]} — ${cfDay(cfWall(new Date().toISOString()))}.xlsx`)}
 
 // ================= 📥 Excel: التحليل + خطة العمل =================
 const cfTxt=x=>{if(x==null)return '';const d=document.createElement('div');d.innerHTML=String(x).replace(/<br\s*\/?>/gi,' ');return d.textContent.replace(/\s+/g,' ').trim()};

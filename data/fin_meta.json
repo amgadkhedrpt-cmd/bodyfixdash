@@ -1,5 +1,5 @@
 {
- "at": "2026-11-15T13:32:09.666Z",
+ "at": "2026-11-15T14:07:50.053Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,10 +91,10 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "ph2_field": "phoneNumber2",
- "ph2_n": 16,
+ "ph2_n": 17,
  "conf": {
   "confirmed_now": 47,
-  "new": 1
+  "new": 3
  },
  "kinds": {
   "pay": {
@@ -369,7 +369,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131285,
+    "rows": 131351,
     "cols": [
      "start",
      "status",
@@ -423,7 +423,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 136,
+    "rows": 139,
     "cols": [
      "aid",
      "start",
@@ -491,7 +491,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16677,
+    "rows": 16678,
     "cols": [
      "name",
      "end",
@@ -517,7 +517,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7888,
+    "rows": 7889,
     "cols": [
      "duration",
      "createdAt",
@@ -607,7 +607,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17460,
+    "rows": 17463,
     "cols": [
      "id",
      "referenceId",
@@ -856,10 +856,10 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "28df3be39f273ceb"
+  "data/fin_c.enc": "8da20c380beb8ed9"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 65
+ "secs": 59
 }

@@ -612,11 +612,15 @@ def main():
                     aid = r.get("id")
                     pt = r.get("patient") or {}
                     if aid and aid in have:
-                        t0, r0 = byaid.get(aid, (None, None))
+                        tb, r0 = byaid.get(aid, (None, None))   # (مش t0 — ده وقت بداية السحب)
                         p2 = next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None)
+                        if not META_D.get("ph2_field"):
+                            META_D["ph2_field"] = next((f for f in PH2_F if f in pt), "") or "مش موجود"
+                        if p2:
+                            META_D["ph2_n"] = META_D.get("ph2_n", 0) + 1
                         if r0 is not None and p2:
-                            if t0.get("cols") != CONF_COLS:
-                                t0["cols"] = CONF_COLS
+                            if tb.get("cols") != CONF_COLS:
+                                tb["cols"] = CONF_COLS
                             while len(r0) < len(CONF_COLS):
                                 r0.append(None)
                             r0[CONF_COLS.index("ph2")] = p2
@@ -634,6 +638,8 @@ def main():
                                       next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None)])
                     if not META_D.get("ph2_field"):
                         META_D["ph2_field"] = next((f for f in PH2_F if f in pt), "") or "مش موجود"
+                    if next((1 for f in PH2_F if pt.get(f)), None):
+                        META_D["ph2_n"] = META_D.get("ph2_n", 0) + 1
                     have.add(aid)
                     n_new += 1
             for mk in [k for k in cst if k < months(START, CUR)[-4]]:

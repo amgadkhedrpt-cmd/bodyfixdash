@@ -1,5 +1,5 @@
 {
- "at": "2026-11-15T02:34:09.837Z",
+ "at": "2026-11-15T12:12:04.209Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -93,8 +93,8 @@
  "ph2_field": "phoneNumber2",
  "ph2_n": 19,
  "conf": {
-  "confirmed_now": 43,
-  "new": 0
+  "confirmed_now": 46,
+  "new": 8
  },
  "kinds": {
   "pay": {
@@ -117,7 +117,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20611,
+    "rows": 20616,
     "cols": [
      "id",
      "type",
@@ -369,7 +369,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131260,
+    "rows": 131270,
     "cols": [
      "start",
      "status",
@@ -388,8 +388,10 @@
     "values": {
      "status": [
       "CANCELED",
+      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
+      "INPROGRESS",
       "NOSHOW",
       "NOTE",
       "OPEN",
@@ -399,7 +401,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6327,
+    "rows": 6329,
     "cols": [
      "start",
      "status",
@@ -421,7 +423,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 121,
+    "rows": 129,
     "cols": [
      "aid",
      "start",
@@ -489,7 +491,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16656,
+    "rows": 16674,
     "cols": [
      "name",
      "end",
@@ -515,7 +517,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7870,
+    "rows": 7881,
     "cols": [
      "duration",
      "createdAt",
@@ -534,7 +536,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1348,
+    "rows": 1352,
     "cols": [
      "duration",
      "createdAt",
@@ -605,7 +607,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17447,
+    "rows": 17454,
     "cols": [
      "id",
      "referenceId",
@@ -626,7 +628,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 773,
+    "rows": 774,
     "cols": [
      "id",
      "referenceId",
@@ -854,7 +856,10 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "3639a55a7df1ffc9"
+  "data/fin_c.enc": "6da382e423457cb7"
  },
- "secs": 50
+ "written": [
+  "data/fin_c.enc"
+ ],
+ "secs": 59
 }

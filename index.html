@@ -284,6 +284,7 @@ padding:7px 11px;font-family:'Cairo',sans-serif;font-size:.74rem;color:var(--txt
 @media (max-width:640px){ header{flex-wrap:wrap} #bf-sync-btn{order:-2;width:100%} #bf-last{order:-1;width:100%;text-align:center;margin-top:-4px} }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<script src="calls_core.js?v='+Math.floor(Date.now()/6e5)+'"><\/script>');</script>
 </head>
 <body>
 
@@ -12390,6 +12391,8 @@ function planTasks(useAll){
                 second&&!ded?'• دي مرة '+(n+1)+': اعملي <b>خطوة عملية Completed النهارده</b> من باقته (خصم الجلسة)':''].filter(Boolean).join('<br>')+
                '<br><span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها بعد الـ Sync الجاي (كل نص ساعة) — رسالة الواتساب مش شرط</span></div>']});
   });
+  // 📵 المكالمات الفائتة + 📂 رفع سجل المكالمات (من المخزن الخاص — calls_core.js)
+  if(typeof CS!=='undefined'&&CS.cfg()){ mcLoad(); mcTasks(today,act).forEach(function(t){ add('morning',t); }); }
   // ⏸ متأجل من يوم فات (بسبب غياب) ولسه ما ظهرش تاني لوحده → يرجع النهارده
   var cdays=Object.keys(PLAN_ST).filter(function(k){ return k.indexOf('carry|')===0&&k.split('|')[1]<today; }).map(function(k){ return k.split('|')[1]; }).sort(), dd=cdays.pop();
   if(dd){ var have={}, CL=[]; Object.keys(PLAN_ST).forEach(function(k){ if(k.indexOf('carry|'+dd+'|')===0) CL=CL.concat((PLAN_ST[k]||{}).L||[]); });
@@ -12413,6 +12416,7 @@ function planCarrySave(){
     if(!part.length&&!PLAN_ST[key]) continue; var o={d:td, L:part}; PLAN_ST[key]=o; planSaveRaw('PLAN|'+key, part.length?JSON.stringify(o):''); }
 }
 var PLAN_GT={
+  mcall:['📵','مكالمات فايتة — رجّعيلها (من سجل مكالمات الموبايل)'], mcallup:['📂','ارفعي سجل مكالمات الموبايل (كل يوم)'],
   debtph:['📞','تحصيل بالتليفون (خدمة اتعملت ومتدفعتش ومش جاي خلال أسبوع)'], invrev:['🔎','فلوس قديمة (أكتر من 30 يوم) — مراجعة الفاتورة قبل التحصيل'], invfix:['🧾','فواتير محتاجة تتعدل (الخزنة كتبت كده في التحصيلات)'],
   mgr:['👔','ملحوظات محتاجة المدير (شكوى · فلوس · الدكتور · الألم …)'],
   waittoday:['⏳','مواعيد على الويتنج النهارده'], conftoday:['📞','تأكيد مواعيد النهارده اللي كانت لسه Open'], late:['⏰','اتأخر ربع ساعة من غير Check In — اتكتب متابعة ولا لأ؟'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'], waitnut:['💜','ويتنج قسم التغذية يوم الشغل الجاي'],
@@ -12482,6 +12486,8 @@ function planCashOwner(t){
 function planRoomClinic(room){ var m=String(room||'').toUpperCase().replace(/\s+/g,'').match(/([PGF])-?(\d+)/); if(!m) return 0; var n=+m[2];
   if(m[1]==='G') return 1; if(m[1]==='F') return 2; return n<=6?1:2; }
 function planOwner0(t,g){
+  if(g==='mcall'||g==='mcallup'){ var tdm=(ALERTS_DATA&&ALERTS_DATA.today)||'', am=PLAN_ST['asg|'+tdm+'|'+t.sec+'|'+g+'|'+t.br]; if(am&&am.by) return am.by;
+    var mcg=(MC.lines||{})[t.line]||{}, mrk=mcg.role||(t.br==='FIX ZONE'?'DM':'F'), mnm=(PLAN_ROLES[t.br]||{})[mrk]; if(mnm) return mnm; }
   if(g==='nonext'&&t.br==='FIX ZONE'){ var tdz=(ALERTS_DATA&&ALERTS_DATA.today)||'', az=PLAN_ST['asg|'+tdz+'|'+t.sec+'|nonext|'+t.br]; if(az&&az.by) return az.by;
     var Rz=PLAN_ROLES[t.br]||{}, hz=t.time?new Date(t.time).getHours():12;   // الدقي: موعده قبل 5 → الصباحي · من 5 وبعد → المسائي
     return hz<17?(Rz.DM||Rz.DE||''):(Rz.DE||Rz.DM||''); }
@@ -12499,6 +12505,72 @@ function planOwner0(t,g){
   if(g==='debt'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by;
   var bn=planBaseOwner(t,g); if(bn) return bn;   // الأساس: كل نوع مهمة ليه دور ثابت (والتغيير من الخانة جنب المهمة للنهارده بس)
   var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
+
+/* ═══ 📵 المكالمات الفائتة — سجل مكالمات موبايل كل خط بيترفع كل يوم (من المهمة نفسها) ويتحفظ في المخزن الخاص ═══
+   مهمة «📂 ارفع سجل المكالمات» لكل خط (🤖 بتتقفل لما ملف النهارده يترفع) + مهمة لكل رقم اتصل وما اترد عليهوش ولسه محدش اتكلم معاه
+   (🤖 بتتقفل لما سجل المكالمات اللي بعده يبان فيه إننا اتكلمنا معاه — رجعناله أو هو اتصل تاني) · الخط وفرعه ومين ماسكه: صفحة الماليات ← «📞 المكالمات» */
+var MC={calls:null,lines:{},upl:[],at:0,busy:false,names:null};
+function mcLoad(force){
+  if(MC.busy||(!force&&Date.now()-MC.at<5*60000)) return; MC.busy=true; MC.at=Date.now();
+  Promise.all([CS.load(CS.months(2)),CS.lines(),CS.logs(CS.months(1)).catch(function(){ return []; })])
+    .then(function(r){ MC.calls=r[0]; MC.lines=r[1]||{}; MC.upl=r[2]||[]; MC.busy=false; MC.ep=null; planRender(); })
+    .catch(function(){ MC.busy=false; MC.at=0; });
+}
+function mcName(ph){
+  if(!MC.names){ MC.names={}; ((ALERTS_DATA&&ALERTS_DATA.pt_index)||[]).forEach(function(r){ var p=cfPh(r[1]); if(p&&!MC.names[p]) MC.names[p]=r[0]; }); }
+  return MC.names[ph]||'';
+}
+function mcCairoDay(ms){ return new Date(ms).toLocaleDateString('sv-SE',{timeZone:'Africa/Cairo'}); }
+function mcTasks(today,act){
+  var out=[], L=MC.lines||{}, d3=new Date(today+'T12:00:00Z'); d3.setUTCDate(d3.getUTCDate()-3); var from=d3.toISOString().slice(0,10);
+  var byBr={}; Object.keys(L).forEach(function(ln){ var br=(L[ln]||{}).br||'BODYFIX Center'; (byBr[br]=byBr[br]||[]).push(ln); });
+  if(!MC.ep&&MC.calls) MC.ep=cfEpisodes(MC.calls).E;
+  act.forEach(function(br){
+    var lns=byBr[br]||[];
+    if(!lns.length){ // لسه مفيش خط متسجل للفرع ده
+      out.push({grp:['mcallup'], key:'mcallup|'+today+'|'+br, icon:'📂', kind:'ارفع سجل مكالمات موبايل الفرع (أول مرة)', name:'سجل المكالمات', br:br, line:'',
+        lines:['اكتبي اسم الخط (مثلاً 010 أو 011) وارفعي ملف سجل المكالمات من الموبايل:', mcUpHTML('',br)]});
+      return; }
+    lns.forEach(function(ln){
+      var up=(MC.upl||[]).filter(function(x){ return x.ln===ln&&mcCairoDay(x.at)===today; }), u0=up[0];
+      out.push({grp:['mcallup'], key:'mcallup|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' (كل يوم)', name:'خط '+ln, br:br, line:ln,
+        sys:u0?'اترفع ملف النهارده':'', what:u0?('اترفع الساعة '+new Date(u0.at).toLocaleTimeString('ar-EG',{timeZone:'Africa/Cairo',hour:'numeric',minute:'2-digit'})+' — '+(u0.add||0)+' مكالمة جديدة'):'',
+        lines:[u0?'<span style="color:var(--g)">✅ اترفع النهارده — ارفعي تاني آخر اليوم عشان المكالمات الفايتة تتقفل</span>':'<span style="color:var(--r)">لسه ما اترفعش ملف النهارده</span>', mcUpHTML(ln,br)]});
+      if(!MC.ep) return;
+      MC.ep.filter(function(e){ return e.s==='miss'&&e.ln===ln&&e.ph.length>=9&&cfDay(e.t0)>=from&&(e.tC==null||cfDay(e.tC)===today); })
+        .sort(function(a,b){ return a.t0-b.t0; }).forEach(function(e){
+          var ph=cfPh0(e.ph), nm=mcName(e.ph), done=e.tC!=null;
+          out.push({grp:['mcall'], key:'mcall|'+ln+'|'+e.ph+'|'+cfDay(e.t0), icon:'📵', kind:'اتصل وما اترد عليهوش — رجّعيله'+(nm?'':' · <b style="color:#f59e0b">رقم مش متسجل (ممكن مريض جديد)</b>'), name:nm||ph, phone:ph, br:br, line:ln,
+            sys:done?(e.how==='we'?'رجعناله واتكلمنا':'هو اتصل تاني واتكلمنا'):'', what:done?((e.how==='we'?'📤 رجعناله ':'📥 اتصل تاني ')+cfFmt(e.tC)):'',
+            lines:['📵 اتصل '+e.nI+' مرة · أول مرة '+cfFmt(e.t0)+(e.nI>1?' · آخر مرة '+cfFmt(e.last):'')+' · خط '+alEsc(ln),
+                   e.nO&&!done?'<span style="color:#f59e0b">📤 حاولنا نرجعله '+e.nO+' مرة وما ردش — حاولي تاني أو ابعتي واتساب</span>':'',
+                   done?'':'<span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها لما سجل المكالمات الجاي يترفع ويبان إنكم اتكلمتم · لو رقم غلط / إعلانات / مش محتاج: «🚫 رفض» واكتبي السبب</span>']});
+        });
+    });
+  });
+  return out;
+}
+function mcUpHTML(ln,br){ var id='mc_'+Math.random().toString(36).slice(2,8);
+  return '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px" onclick="event.stopPropagation()">'+(ln?'':'<input id="'+id+'_n" placeholder="اسم الخط — مثلاً 010" style="width:150px;background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.62rem">')+
+    '<label style="cursor:pointer;background:rgba(14,165,233,.15);border:1px dashed var(--brd);border-radius:7px;padding:4px 10px;font-size:.62rem">📂 ارفعي ملف سجل المكالمات<input type="file" accept=".csv,.xlsx,.xls,.txt" hidden onchange="mcUpload(this,\''+alEsc(ln).replace(/'/g,"\\'")+'\',\''+br+'\',\''+id+'\')"></label>'+
+    '<span id="'+id+'" style="font-size:.58rem;color:var(--mute)">من الموبايل: سجل المكالمات ← تصدير (Export / Backup) ← CSV أو Excel</span></div>';
+}
+async function mcUpload(inp,ln,br,id){
+  var f=inp.files&&inp.files[0], msg=document.getElementById(id); if(!f) return;
+  if(!ln){ var ni=document.getElementById(id+'_n'); ln=ni&&ni.value.trim(); if(!ln){ alert('اكتبي اسم الخط الأول (مثلاً 010)'); inp.value=''; return; } }
+  try{
+    if(msg) msg.textContent='بيقرا الملف…';
+    var r=await cfReadFile(f,null,null);
+    if(!r.out.length||r.bad>r.n*0.3) throw new Error('الملف مش مفهوم ('+r.bad+' من '+r.n+' سطر) — ابعتيه لدكتور أمجد');
+    if(msg) msg.textContent='بيحفظ…';
+    var m=await CS.merge(r.out,ln,{file:f.name,by:PLAN_ME||'',from:'plan',br:br});
+    if(!MC.lines[ln]){ MC.lines[ln]={br:br,role:br==='FIX ZONE'?'DM':'F'}; await CS.setLines(MC.lines); }
+    if(msg) msg.textContent='✅ اتحفظ: '+m.add+' مكالمة جديدة';
+    mcLoad(true);
+  }catch(e){ if(msg) msg.textContent='❌ '+(e.message||e); alert('الملف ما اتحفظش: '+(e.message||e)); }
+  inp.value='';
+}
+var cfPh0=function(ph){ return ph.length===10&&ph[0]!=='0'?'0'+ph:ph; };
 /* ═══ 👥 الفريق النهارده: غياب / تغطية + توزيع المهام أوتوماتيك ═══
    الأدوار: الهرم L المشرف · F الصباحي · H عيادة 1 · J عيادة 2 — الدقي DM الصباحي · DE المسائي
    الحالة: PLAN|team|<اليوم> = {p:{اسم:{st:'in'|'out'|'cover', br, for}}, am:{فرع:اسم}} · الأدوار: PLANCFG|roles */
@@ -12508,11 +12580,11 @@ var PLAN_ROLES=JSON.parse(JSON.stringify(PLAN_ROLES_DEF));
 try{ var _rl=JSON.parse(localStorage.getItem('planRoles')||'null'); if(_rl) PLAN_ROLES=_rl; }catch(e){}
 /* 📌 الأساس: كل نوع مهمة على أنهي دور (كل يوم بيفتح على كده — التغيير اليومي من الخانة جنب المهمة مؤقت) */
 var PLAN_GROUP_ROLE={
-  'BODYFIX Center':{mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
+  'BODYFIX Center':{mcall:'F', mcallup:'F', mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
     waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', evalamg:'F', renew:'F', svc:'F', kashf:'F',
     waitnext:'J', streak:'J', recur:'J', stop:'J', idle:'J', conf:'J', stale:'J', fix:'J', kashf0:'J',
     call:'H', drop:'H'},
-  'FIX ZONE':{mgr:'DM', streak:'DM', recur:'DM', stop:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamgd:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
+  'FIX ZONE':{mcall:'DM', mcallup:'DM', mgr:'DM', streak:'DM', recur:'DM', stop:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamgd:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
     waitnext:'DE', nonext:'DE', nonextrev:'DM', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', svc:'DE', sudden:'DE', late:'DE'}
 };
 function planBaseOwner(t,g){ var rk=(PLAN_GROUP_ROLE[t.br]||{})[g]; return rk?((PLAN_ROLES[t.br]||{})[rk]||''):''; }
@@ -12878,8 +12950,8 @@ function planHowBar(gk,A){ var c={}; A.forEach(function(t){ var h=planHow(t); if
   return '<div style="display:flex;gap:5px;flex-wrap:wrap;padding:4px 2px 8px">'+ch('','الكل '+(A.length),'var(--mute)')+keys.map(function(k){ var L=PLAN_HOW_L[k]; return ch(k,L[0]+' '+L[1]+' '+c[k],L[2]); }).join('')+'</div>'; }
 var PLAN_NOTE_OK={drop:1, idle:1, streak:1, recur:1};
 /* مكالمات المتابعة: بتتقفل من Medicolize بس (الموعد Completed بملحوظة أو اتصالين بوقتهم + الحجز الجاي) — مفيش قفل ولا «ما ردش» من الداشبورد */
-var PLAN_SYS_ONLY={call:1};
-var PLAN_NO_NR={sudden:1, noinv:1, invfix:1, invrev:1, aud:1, stale:1};   // مهام تسجيل على السيستم — مش مكالمة، فمالهاش «ما ردش»
+var PLAN_SYS_ONLY={call:1, mcallup:1};
+var PLAN_NO_NR={mcall:1, mcallup:1, sudden:1, noinv:1, invfix:1, invrev:1, aud:1, stale:1};   // مهام تسجيل على السيستم — مش مكالمة، فمالهاش «ما ردش»
 /* زرار ✅ اليدوي: مهام المدير ومراجعة الفواتير القديمة بس — أي مهمة تانية بتتقفل من Medicolize (أو ملحوظة للمكالمات، أو 🚫 رفض بسبب) */
 var PLAN_MANUAL_OK={mgr:1, invrev:1};
 function planManualOk(t){ var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_MANUAL_OK[x]; }); }
@@ -12908,7 +12980,7 @@ function planRef(key){
   PLAN_ST[key]=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   planRender(); planSaveRaw('PLAN|'+key, JSON.stringify(o));
 }
-var PLAN_AUTO_G={nonextrev:'يتحجزله ميعاد', stop:'مواعيده الجاية تتلغى + يتشال من شيت التثبيت (أو «✋ مش هيوقف جلسات» لو هيكمل)', idle:'يتحجزله ميعاد أو تتكتب ملحوظة (ولو قال هييجي يوم وما جاش ترجع تتفتح)', conftoday:'الموعد يبقى Confirmed أو Cancelled أو يوصل', late:'تتكتب ملحوظة على الموعد في Medicolize (هيوصل امتى / ما ردش)', waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'المريض يحجز، أو الموعد يتقفل Completed بملحوظة باللي حصل، أو يتكتب اتصالين بوقتهم', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', recur:'تتكتب ملحوظة باللي حصل، أو أول مواعيده الجاية تبقى Confirmed', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
+var PLAN_AUTO_G={mcall:'حد يتكلم مع الرقم (رجعناله أو هو اتصل تاني) — بيبان لما سجل المكالمات يترفع', mcallup:'يترفع سجل مكالمات النهارده', nonextrev:'يتحجزله ميعاد', stop:'مواعيده الجاية تتلغى + يتشال من شيت التثبيت (أو «✋ مش هيوقف جلسات» لو هيكمل)', idle:'يتحجزله ميعاد أو تتكتب ملحوظة (ولو قال هييجي يوم وما جاش ترجع تتفتح)', conftoday:'الموعد يبقى Confirmed أو Cancelled أو يوصل', late:'تتكتب ملحوظة على الموعد في Medicolize (هيوصل امتى / ما ردش)', waitnut:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', confsp:'الميعاد يبقى Confirmed أو Cancelled', invfix:'المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)', waittoday:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'الميعاد يتنقل من الويتنج أو يتلغى — أو ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', call:'المريض يحجز، أو الموعد يتقفل Completed بملحوظة باللي حصل، أو يتكتب اتصالين بوقتهم', streak:'يتشال من شيت التثبيت أو تتكتب ملحوظة', recur:'تتكتب ملحوظة باللي حصل، أو أول مواعيده الجاية تبقى Confirmed', miss:'يتحجزله ميعاد أو ييجي', kashf:'يحجز جلسة', conf:'الميعاد يبقى Confirmed أو Cancelled', drop:'يتحجزله ميعاد أو تتكتب ملحوظة',
   eval:'يتحجز تقييم', evalamg:'يتحجز تقييم', evalamgd:'يتحجز إعادة تقييم مع د. أمجد', nonext:'يتحجزله ميعاد', fix:'يتثبت في شيت الدكتور', stale:'الموعد يتقفل على Medicolize', kashf0:'يحجز جلسة', sudden:'اسم الموعد يتغير لـ «الغاء مفاجئ» على Medicolize (أي حالة) + خصم الجلسة من تاني مرة'};
 function planIsAuto(t){ if(t.carry) return false; var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_AUTO_G[x]; }); }
 /* كارت المهمة — سطرين: الاسم/الساعة + المطلوب · أزرار سريعة على الطرف · الباقي يتفتح بدوسة (حالة الفتح محفوظة بين الرسمات) */
@@ -12950,7 +13022,7 @@ function planRow(t){
       (state==='done'?(function(){ var w=t.what||(st.note?'📝 '+st.note:''); return w?'<div style="font-size:.62rem;margin-top:4px;background:rgba(16,185,129,.08);border-radius:6px;padding:3px 8px;color:var(--g)">📌 اللي اتعمل: '+(/<[a-z]/i.test(w)?w:alEsc(w))+(st.by?' · '+alEsc(st.by)+' '+alEsc(st.at||''):'')+'</div>':''; })():'')+
       (phone?'<div dir="ltr" style="font-size:.6rem;color:var(--g);margin-top:4px;text-align:right">'+alEsc(phone)+'</div>':'')+
       '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">'+
-        (live?(auto?'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">🤖 بتتقفل لوحدها لما '+alEsc(PLAN_AUTO_G[(t.grp||[])[0]]||'')+(sysOnly?' — اكتبي المكالمات في ملحوظة الموعد على Medicolize':'')+'</span>':manOk?btn('done','✅ اتعمل','rgba(16,185,129,.15)'):'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">'+(PLAN_NOTE_REF[(t.grp||[])[0]]?'🤖 بتتقفل لما الخدمة تتحجز على Medicolize — ولو مش عايزها اكتبي السبب في الملحوظة (بتتحسب 🚫 رفض)':'🤖 بتتقفل لما الشغل يتسجل على Medicolize — أو «🚫 رفض» لو المريض رفض')+'</span>')+(isCall||sysOnly||PLAN_NO_NR[(t.grp||[])[0]]?'':btn('nr','📞 ما ردش','rgba(245,158,11,.12)'))+((t.grp||[])[0]==='stop'?'<button onclick="event.stopPropagation();planStopNo(\''+k+'\')" style="background:rgba(167,139,250,.14);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">✋ مش هيوقف جلسات</button>':
+        (live?(auto?'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">🤖 بتتقفل لوحدها لما '+alEsc(PLAN_AUTO_G[(t.grp||[])[0]]||'')+(sysOnly&&(t.grp||[])[0]==='call'?' — اكتبي المكالمات في ملحوظة الموعد على Medicolize':'')+'</span>':manOk?btn('done','✅ اتعمل','rgba(16,185,129,.15)'):'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">'+(PLAN_NOTE_REF[(t.grp||[])[0]]?'🤖 بتتقفل لما الخدمة تتحجز على Medicolize — ولو مش عايزها اكتبي السبب في الملحوظة (بتتحسب 🚫 رفض)':'🤖 بتتقفل لما الشغل يتسجل على Medicolize — أو «🚫 رفض» لو المريض رفض')+'</span>')+(isCall||sysOnly||PLAN_NO_NR[(t.grp||[])[0]]?'':btn('nr','📞 ما ردش','rgba(245,158,11,.12)'))+((t.grp||[])[0]==='stop'?'<button onclick="event.stopPropagation();planStopNo(\''+k+'\')" style="background:rgba(167,139,250,.14);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">✋ مش هيوقف جلسات</button>':
          planNoteCloses(t)||sysOnly?'':'<button onclick="event.stopPropagation();planRef(\''+k+'\')" style="background:rgba(249,115,22,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🚫 رفض</button>')+btn('later','⏭ أجّل','transparent'):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
         '<input id="pn_'+h+'" value="'+alEsc(st.note||'')+'" placeholder="💬 ملحوظة…" onchange="planNote(\''+k+'\')" onkeydown="if(event.key===\'Enter\')this.blur()" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--brd);border-radius:7px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.62rem;padding:5px 8px">'+
         '<span id="pst_'+h+'" style="font-size:.56rem;color:var(--mute)"></span></div></div></div>';

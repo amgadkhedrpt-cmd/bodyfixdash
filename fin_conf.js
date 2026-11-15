@@ -73,8 +73,8 @@ const cfDB=(mode,fn)=>new Promise((res,rej)=>{let q;try{q=indexedDB.open('bodyfi
 const cfMM=()=>{let a=null,b=null;for(const c of CF.calls){if(a==null||c.t<a)a=c.t;if(b==null||c.t>b)b=c.t}CF.minT=a;CF.maxT=b;CF.idx=null;CF.st=null;CF.rch=null};
 async function cfSave(){try{await cfDB('readwrite',s=>CF.calls.length||CF.files.length?s.put({v:1,calls:CF.calls,files:CF.files,map:CF.map,at:Date.now()},'log'):s.delete('log'));CF.saved=true}catch(e){console.warn(e);CF.saved=false}}
 CF.ready=(async()=>{try{const d=await cfDB('readonly',s=>s.get('log'));if(d&&d.calls&&d.calls.length&&!CF.calls.length){CF.calls=d.calls;CF.files=d.files||[];CF.map=d.map||null;CF.saved=true;cfMM();if(typeof S!=='undefined'&&S.tab==='conf'&&typeof D!=='undefined'&&D)render()}}catch(e){console.warn(e)}})();
-async function cfLoad(files){await CF.ready;const seen=new Set(CF.calls.map(c=>c.ph+'|'+c.t+'|'+c.ty));for(const f of files){try{const r=await cfRead(f);CF.map=r.mp;
-    let add=0,dup=0;const ln=f.name.replace(/\.[^.]+$/,'');r.out.forEach(c=>{const k=c.ph+'|'+c.t+'|'+c.ty;if(!seen.has(k)){seen.add(k);c.ln=ln;c.src=f.name;CF.calls.push(c);add++}else dup++});
+async function cfLoad(files,lines){await CF.ready;const seen=new Set(CF.calls.map(c=>c.ph+'|'+c.t+'|'+c.ty));for(const f of files){try{const r=await cfRead(f);CF.map=r.mp;
+    let add=0,dup=0;const ln=(lines&&lines[files.indexOf(f)])||f.name.replace(/\.[^.]+$/,'');r.out.forEach(c=>{const k=c.ph+'|'+c.t+'|'+c.ty;if(!seen.has(k)){seen.add(k);c.ln=ln;c.src=f.name;CF.calls.push(c);add++}else dup++});
     CF.files.push({name:f.name,ln,n:r.n,ok:add,dup,bad:r.bad,mp:r.mp,dmy:r.dmy,ex:r.ex,at:Date.now()})}catch(e){CF.files.push({name:f.name,err:e.message||String(e),at:Date.now()})}}
   cfMM();await cfSave();render()}
 // ---------- مين المسئولة (من خطة اليوم) ----------
@@ -110,6 +110,12 @@ function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(CF.d1||CF.d2||CF.a1||CF.
   return {C:C0,bursts}}
 const CF_CAT={ok:['✅ مكالمة اترد عليها','var(--good)'],tried:['📵 اتصلوا وما ردش — واتأكد','var(--warn)'],missonly:['📵 هو اللي اتصل وما اتردش عليه','var(--warn)'],none:['❌ مفيش أي مكالمة للرقم','var(--bad)'],
   nocov:['خارج فترة ملفات المكالمات','var(--t3)'],noph:['مفيش رقم على السيستم','var(--t3)'],book:['اتحجز «مؤكد» وقت الحجز (مش محتاج مكالمة)','var(--t3)'],nofile:['—','var(--t3)']};
+function cfPendHTML(){const ex=[...new Set(CF.calls.map(c=>c.ln).concat(CF.files.map(f=>f.ln).filter(Boolean)))].sort();
+  const guess=n=>{const b=n.toLowerCase().replace(/\.[^.]+$/,'');const hit=ex.filter(l=>b.includes(l.toLowerCase())||l.replace(/\D/g,'').length>=3&&b.replace(/\D/g,'').includes(l.replace(/\D/g,'')));return hit.sort((a,c)=>c.length-a.length)[0]||''};
+  return `<div class="card" style="margin-top:8px;border:2px solid var(--acc)"><h3>📞 الملفات دي لأنهي خط؟</h3>
+   ${CF.pend.map((f,i)=>{const g=guess(f.name);return `<div style="margin:8px 0"><b>${esc(f.name)}</b><div class="bar" style="margin-top:4px">${ex.map(l=>`<button data-cfpk="${i}" data-v="${esc(l)}" class="${l===g?'pri':''}">${esc(l)}</button>`).join('')}
+     <label class="sub">${ex.length?'أو خط جديد:':'اسم الخط:'} <input data-cfpl="${i}" value="${esc(g)}" placeholder="مثلاً 010 أو 011 مريم" style="width:170px"></label>${g?'<span class="sub">✔️ اتعرف من اسم الملف</span>':''}</div></div>`}).join('')}
+   <div class="bar"><button class="pri" id="cfPGo">✅ ضيف المكالمات</button><button id="cfPX">إلغاء</button><span class="sub">نفس اسم الخط = بيتجمعوا مع بعض في التقييم</span></div></div>`}
 function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!c.atBook),J=chk.filter(c=>['ok','tried','missonly','none'].includes(c.cat));
   const all=cfConfs();const since=all.length?cfFmt(Math.min(...all.map(c=>c.cT))):'';
   const fl=CF.files.map((f,i)=>f.err?`<li><b>${esc(f.name)}</b> — <span class="down">${esc(f.err)}</span></li>`:`<li><b>${esc(f.name)}</b> <label class="sub">📞 الخط: <input data-cfln="${i}" list="cfLnL" value="${esc(f.ln||f.name.replace(/\.[^.]+$/,''))}" style="width:140px"></label>${f.at?` <span class="sub">(اترفع ${cfFmt(cfWall(new Date(f.at).toISOString()))})</span>`:''} — ${f.ok} مكالمة جديدة${f.dup?` <span class="sub">+ ${f.dup} كانت موجودة قبل كده</span>`:''}${f.bad?` (${f.bad} سطر ما اتقراش)`:''}${f.bad&&f.ex?`<div class="sub" style="color:var(--warn)">مثال لسطر ما اتقراش — ${esc(f.ex.why)} مش مفهوم: التاريخ «${esc(f.ex.d)}» · الساعة «${esc(f.ex.t)}» · الرقم «${esc(f.ex.p)}» — ابعت الصورة دي لو لسه مش بيقرا</div>`:''}</li>`).join('');
@@ -122,7 +128,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    <div class="bar" style="margin-top:6px"><b class="sub">✔️ يوم التأكيد (والمكالمات):</b><label class="sub">من <input type="date" id="cfD1" value="${CF.d1}"></label><label class="sub">لحد <input type="date" id="cfD2" value="${CF.d2}"></label><button id="cfDAll">كل فترة الملفات</button><button id="cfDClr">امسح التواريخ</button></div>
    <div class="bar" style="margin-top:6px"><span class="sub">${CF.a1||CF.a2||CF.d1||CF.d2?'الفلترين مع بعض: مواعيد في «يوم الموعد» اتأكدت في «يوم التأكيد» · «ما اتأكدش خالص» بيتحسب بيوم الموعد':'(من غير تاريخ: المكالمات كلها، والتأكيدات حسب شهور الفلتر فوق)'}</span><button class="pri" id="cfX">📥 نزّل التحليل وخطة العمل (Excel)</button></div>
    <div class="bar" style="margin-top:8px"><label class="drop" style="padding:6px 12px;border:1px dashed var(--brd);border-radius:8px;cursor:pointer">📂 ارفع ملفات المكالمات<input type="file" id="cfF" accept=".csv,.xlsx,.xls,.txt" multiple hidden></label>${CF.calls.length?`<button id="cfClr">🗑️ امسح المكالمات المحفوظة</button><span class="sub">${CF.saved?'💾 محفوظة على الجهاز · ':''}${CF.calls.length} مكالمة · من ${cfFmt(CF.minT)} لـ ${cfFmt(CF.maxT)} · صادرة ${ty.out||0} · واردة ${ty.in||0} · فائتة ${ty.miss||0}${ty['?']?` · من غير نوع ${ty['?']}`:''}</span>`:''}<span id="cfMsg" class="sub"></span></div>
-   ${fl?`<ul class="ins" style="margin-top:6px">${fl}</ul><datalist id="cfLnL">${[...new Set(CF.calls.map(c=>c.ln))].map(l=>`<option value="${esc(l)}">`).join('')}</datalist><div class="sub">كل ملف = خط. لو رفعت ملفين لنفس الخط (مثلاً شهرين) اكتب نفس اسم الخط في الاتنين وهيتجمعوا.</div>`:''}
+   ${CF.pend?cfPendHTML():''}${fl?`<ul class="ins" style="margin-top:6px">${fl}</ul><datalist id="cfLnL">${[...new Set(CF.calls.map(c=>c.ln))].map(l=>`<option value="${esc(l)}">`).join('')}</datalist><div class="sub">كل ملف = خط. لو رفعت ملفين لنفس الخط (مثلاً شهرين) اكتب نفس اسم الخط في الاتنين وهيتجمعوا.</div>`:''}
    ${CF.calls.length?`<div class="bar" style="margin-top:8px"><b class="sub">📞 الخط:</b><select id="cfLn"><option value="">كل الخطوط</option>${[...new Set(CF.calls.map(c=>c.ln))].sort().map(l=>`<option${l===CF.ln?' selected':''}>${esc(l)}</option>`).join('')}</select>
     <b class="sub">🕐 الساعة:</b><label class="sub">من <input id="cfH1" type="number" min="0" max="23" value="${CF.h1}" placeholder="0" style="width:56px"></label><label class="sub">لحد <input id="cfH2" type="number" min="1" max="24" value="${CF.h2}" placeholder="24" style="width:56px"></label><button id="cfHClr">كل الخطوط وكل الساعات</button>
     <span class="sub">بيفلتر تحليل المكالمات وتقييم الأداء وقايمة «ما اتكلمناش» (مع التاريخ اللي فوق)</span></div>`:''}
@@ -208,7 +214,12 @@ function cConf(){(CF.charts||[]).forEach(c=>chart(c[0],c[2]));const d1=$('#cfD1'
   if(d1)d1.onchange=()=>{CF.d1=d1.value;rr()};if(d2)d2.onchange=()=>{CF.d2=d2.value;rr()};
   const a1=$('#cfA1'),a2=$('#cfA2'),dc=$('#cfDClr');if(a1)a1.onchange=()=>{CF.a1=a1.value;rr()};if(a2)a2.onchange=()=>{CF.a2=a2.value;rr()};if(dc)dc.onclick=()=>{CF.a1=CF.a2=CF.d1=CF.d2='';rr()};
   if(da)da.onclick=()=>{if(CF.minT!=null){CF.d1=cfDay(CF.minT);CF.d2=cfDay(CF.maxT)}else{CF.d1=CF.d2=''}rr()};if(x)x.onclick=()=>cfExcel();
-  const f=$('#cfF');if(f)f.onchange=e=>{const fs=[...e.target.files];if(fs.length){$('#cfMsg').textContent='بيقرا الملفات…';cfLoad(fs)}};
+  const f=$('#cfF');if(f)f.onchange=e=>{const fs=[...e.target.files];if(fs.length){CF.pend=fs;render()}};
+  // اختيار الخط لكل ملف قبل القراية
+  document.querySelectorAll('[data-cfpk]').forEach(b=>b.onclick=()=>{const i=$(`[data-cfpl="${b.dataset.cfpk}"]`);if(i)i.value=b.dataset.v;document.querySelectorAll(`[data-cfpk="${b.dataset.cfpk}"]`).forEach(x=>x.classList.toggle('pri',x===b))});
+  const pg=$('#cfPGo'),px=$('#cfPX');if(px)px.onclick=()=>{CF.pend=null;render()};
+  if(pg)pg.onclick=()=>{const L=CF.pend.map((f,i)=>{const v=($(`[data-cfpl="${i}"]`)||{}).value;return (v||'').trim()});const bad=L.findIndex(v=>!v);if(bad>=0){alert('اختار الخط للملف: '+CF.pend[bad].name);return}
+    const fs=CF.pend;CF.pend=null;$('#cfMsg').textContent='بيقرا الملفات…';cfLoad(fs,L)};
   const ls=$('#cfLn'),h1=$('#cfH1'),h2=$('#cfH2'),hc=$('#cfHClr');if(ls)ls.onchange=()=>{CF.ln=ls.value;rr()};const hv=v=>v===''?'':String(Math.max(0,Math.min(24,Math.round(+v)||0)));
   if(h1)h1.onchange=()=>{CF.h1=hv(h1.value);rr()};if(h2)h2.onchange=()=>{CF.h2=hv(h2.value);rr()};if(hc)hc.onclick=()=>{CF.ln=CF.h1=CF.h2='';rr()};
   document.querySelectorAll('[data-cfln]').forEach(x=>x.onchange=async()=>{const f=CF.files[+x.dataset.cfln],v=x.value.trim();if(!f||!v)return;const old=f.ln||f.name.replace(/\.[^.]+$/,'');f.ln=v;CF.calls.forEach(c=>{if(c.src===f.name)c.ln=v});if(CF.ln===old)CF.ln=v;cfMM();CF.rep={};await cfSave();render()});

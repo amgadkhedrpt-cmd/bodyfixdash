@@ -1,5 +1,5 @@
 {
- "at": "2026-11-15T15:06:12.590Z",
+ "at": "2026-11-15T16:18:38.885Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,10 +91,10 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "ph2_field": "phoneNumber2",
- "ph2_n": 19,
+ "ph2_n": 14,
  "conf": {
-  "confirmed_now": 48,
-  "new": 7
+  "confirmed_now": 40,
+  "new": 6
  },
  "kinds": {
   "pay": {
@@ -117,7 +117,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20624,
+    "rows": 20637,
     "cols": [
      "id",
      "type",
@@ -369,7 +369,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131379,
+    "rows": 131412,
     "cols": [
      "start",
      "status",
@@ -388,7 +388,6 @@
     "values": {
      "status": [
       "CANCELED",
-      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
       "INPROGRESS",
@@ -401,7 +400,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6333,
+    "rows": 6337,
     "cols": [
      "start",
      "status",
@@ -423,7 +422,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 147,
+    "rows": 153,
     "cols": [
      "aid",
      "start",
@@ -491,7 +490,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16678,
+    "rows": 16681,
     "cols": [
      "name",
      "end",
@@ -607,7 +606,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17466,
+    "rows": 17477,
     "cols": [
      "id",
      "referenceId",
@@ -828,9 +827,9 @@
     "prod": 5
    },
    "2026-11": {
-    "fu": 98,
+    "fu": 100,
     "dev": 28,
-    "physio": 33,
+    "physio": 34,
     "mezo": 4,
     "inj": 34,
     "exam": 14,
@@ -856,23 +855,10 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "ccb0fde49ad48f59"
+  "data/fin_c.enc": "cd71023b78e79685"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 62,
- "skipped_at": "2026-11-15T16:06:35.426Z",
- "today_hash": "f357d696cc80544d",
- "today_at": "2026-11-15T16:06:35.426Z",
- "today_n": {
-  "pay": {
-   "haram": 25,
-   "dokki": 1
-  },
-  "apt": {
-   "haram": 146,
-   "dokki": 10
-  }
- }
+ "secs": 67
 }

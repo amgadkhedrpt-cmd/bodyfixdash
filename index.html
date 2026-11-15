@@ -12548,14 +12548,17 @@ function mcTasks(today,act){
     if(!lns.length){ // لسه مفيش خط متسجل للفرع ده
       out.push({grp:['mcallup'], _h:0, key:'mcallup|'+today+'|'+br, icon:'📂', kind:'ارفع سجل مكالمات موبايل الفرع (أول مرة)', name:'سجل المكالمات', br:br, line:'',
         lines:['اكتبي اسم الخط (مثلاً 010 أو 011) وارفعي ملف سجل المكالمات من الموبايل:', mcUpHTML('',br)]});
+      if(br==='FIX ZONE') out.push({grp:['mcallup'], _h:17, key:'mcallup2|'+today+'|'+br, icon:'📂', kind:'ارفع سجل مكالمات موبايل الفرع — آخر الشيفت (بعد 5 م)', name:'سجل المكالمات (المسائي)', br:br, line:'',
+        lines:['لو الملف لسه ما اترفعش ولا مرة: اكتبي اسم الخط وارفعيه آخر الشيفت:', mcUpHTML('',br)]});
       return; }
     lns.forEach(function(ln){
       var up=(MC.upl||[]).filter(function(x){ return x.ln===ln&&mcCairoDay(x.at)===today; }), u0=up[0];
       var cfg=(MC.lines||{})[ln]||{}, sw=cfg.sw||(br==='FIX ZONE'?17:15), nowH=+new Date().toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2);
       var upPm=(MC.upl||[]).filter(function(x){ return x.ln===ln&&mcCairoDay(x.at)===today&&+new Date(x.at).toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2)>=sw; })[0];
-      if(nowH>=sw||upPm) out.push({grp:['mcallup'], _h:sw, key:'mcallup2|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' — بعد التسليم ('+(sw>12?sw-12:sw)+' م)', name:'خط '+ln+' (المسائي)', br:br, line:ln,
+      var swL=(sw>12?sw-12:sw)+(sw>=12?' م':' ص');
+      out.push({grp:['mcallup'], _h:sw, key:'mcallup2|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' — آخر الشيفت (بعد '+swL+')', name:'خط '+ln+' (المسائي)', br:br, line:ln,
         sys:upPm?'اترفع ملف بعد التسليم':'', what:upPm?('اترفع — '+(upPm.add||0)+' مكالمة جديدة'):'',
-        lines:[upPm?'<span style="color:var(--g)">✅ اترفع</span>':'<span style="color:var(--r)">ارفعي الملف آخر الشيفت عشان المكالمات الفايتة بتاعتك تبان وتتقفل</span>', mcUpHTML(ln,br)]});
+        lines:[upPm?'<span style="color:var(--g)">✅ اترفع</span>':(nowH<sw?'<span style="color:var(--mute)">⏳ بعد ما تستلمي الموبايل الساعة '+swL+' — ارفعي الملف آخر الشيفت</span>':'<span style="color:var(--r)">ارفعي الملف آخر الشيفت عشان المكالمات الفايتة بتاعتك تبان وتتقفل</span>'), mcUpHTML(ln,br)]});
       out.push({grp:['mcallup'], _h:0, key:'mcallup|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' (الصبح)', name:'خط '+ln, br:br, line:ln,
         sys:u0?'اترفع ملف النهارده':'', what:u0?('اترفع الساعة '+new Date(u0.at).toLocaleTimeString('ar-EG',{timeZone:'Africa/Cairo',hour:'numeric',minute:'2-digit'})+' — '+(u0.add||0)+' مكالمة جديدة'):'',
         lines:[u0?'<span style="color:var(--g)">✅ اترفع النهارده — ارفعي تاني آخر اليوم عشان المكالمات الفايتة تتقفل</span>':'<span style="color:var(--r)">لسه ما اترفعش ملف النهارده</span>', mcUpHTML(ln,br)]});

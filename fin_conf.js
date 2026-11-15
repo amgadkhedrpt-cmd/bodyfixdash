@@ -306,9 +306,9 @@ function cCalls(){if(!CF.calls.length)return;const o1=$('#cfO1'),o2=$('#cfO2');c
 CF.rf='all';CF.rs='all';CF.rq='';
 const cfTalk=c=>c.dur>0&&c.ty!=='miss';
 function cfReach(){if(CF.rch)return CF.rch;const by={},E=[];CF.calls.forEach(c=>(by[c.ph]=by[c.ph]||[]).push(c));
-  for(const ph in by){const L=by[ph].sort((a,b)=>a.t-b.t);let e=null;
-    for(const c of L){if(cfTalk(c)){if(e){e.tC=c.t;e.how=c.ty==='out'?'we':'he';e.lnC=c.ln;E.push(e);e=null}continue}
-      if(!e)e={ph,t0:c.t,s:c.ty==='out'?'out':'miss',ln:c.ln,nO:0,nI:0};
+  for(const ph in by){const L=by[ph].sort((a,b)=>a.t-b.t);let e=null,lt=null;
+    for(const c of L){if(cfTalk(c)){lt=c.t;if(e){e.tC=c.t;e.how=c.ty==='out'?'we':'he';e.lnC=c.ln;E.push(e);e=null}continue}
+      if(!e)e={ph,t0:c.t,s:c.ty==='out'?'out':'miss',ln:c.ln,nO:0,nI:0,pT:lt};
       if(c.ty==='out'){e.nO++;if(e.tA==null&&e.s==='miss')e.tA=c.t}else e.nI++;e.last=c.t}
     if(e)E.push(e)}
   return CF.rch={E,by}}
@@ -347,10 +347,14 @@ function cReach(){['#cfTodo','#cfTodo0'].forEach(id=>{const b=$(id);if(b)b.oncli
 // مين لازم يتكلم: (1) فاتتنا ولسه محدش اتكلم معاه (2) اتصلنا وما ردش ولسه ما اتكلمناش (3) مواعيد جاية اتعلّم عليها «مؤكد» من غير مكالمة اترد عليها
 const cfPh0=ph=>ph.length===10&&ph[0]!=='0'?'0'+ph:ph;
 function cfTodo(){const {E}=cfReach(),P=cfPts(),now=cfWall(new Date().toISOString()),soon=now+7*864e5,day=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
-  const L=[];E.filter(e=>e.tC==null&&e.ph.length>=9&&cfCOk(e.t0,e.ln)).forEach(e=>{const p=P[e.ph],nx=p&&p.next,nxT=nx?Date.parse(nx+'T00:00:00Z'):null;
+  // بنشيل اللي مش محتاج اتصال فعلاً: جه العيادة بعد المحاولة · اتكلمنا معاه قبلها بأقل من أسبوع (المحاولة غالباً تذكير) · محاولة قديمة ومفيش ميعاد قريب
+  const L=[],drop={came:0,recent:0,old:0};E.filter(e=>e.tC==null&&e.ph.length>=9&&cfCOk(e.t0,e.ln)).forEach(e=>{const p=P[e.ph],nx=p&&p.next,nxT=nx?Date.parse(nx+'T00:00:00Z'):null;
+    if(p&&p.last&&p.last>=cfDay(e.last)){drop.came++;return}
     let pr,act;
     if(e.s==='miss'){pr=p?2:1;act=p?'رجّع له المكالمة واعرف كان عايز إيه':'رجّع له المكالمة — رقم مش متسجل (ممكن مريض جديد): اعرف عايز إيه واحجزله'}
     else if(nxT!=null&&nxT<=soon){pr=3;act='عنده ميعاد '+day(nx)+' — كلّمه وأكّد الميعاد (أو ابعت واتساب)'}
+    else if(e.pT!=null&&e.t0-e.pT<7*864e5){drop.recent++;return}
+    else if(CF.maxT-e.last>3*864e5){drop.old++;return}
     else{pr=4;act=p?'حاول تاني أو ابعت واتساب':'حاول تاني — رقم مش متسجل'}
     L.push({pr,e,p,act})});
   L.sort((a,b)=>a.pr-b.pr||b.e.last-a.e.last);
@@ -359,11 +363,11 @@ function cfTodo(){const {E}=cfReach(),P=cfPts(),now=cfWall(new Date().toISOStrin
   const U=cfConfs().filter(c=>inB(c)&&c.aT>=now&&!(c.crT!=null&&Math.abs(c.cT-c.crT)<3*60e3)&&CF.minT!=null&&c.cT>=CF.minT&&c.cT<=CF.maxT+15*60e3).filter(c=>{
     const K=(CF.idx[c.ph]||[]).concat(c.ph2&&c.ph2!==c.ph?CF.idx[c.ph2]||[]:[]);return (c.ph||c.ph2)&&!K.some(x=>x.dur>0&&x.ty!=='miss'&&x.t>=c.cT-36*3600e3)}).sort((a,b)=>a.aT-b.aT);
   U.forEach(c=>{c.who=cfWho(c)[0]});
-  return {L,U}}
+  return {L,U,drop}}
 const CF_PR={1:'🔴 عاجل — رقم جديد',2:'🔴 عاجل',3:'🟠 عنده ميعاد قريب',4:'⚪ عادي'};
 async function cfTodoXL(){if(!CF.calls.length){alert('ارفع ملفات المكالمات الأول');return}
   if(!window.XLSX&&!(await loadLib('XLSX'))){alert('مكتبة Excel ما اتحملتش');return}
-  const {L,U}=cfTodo(),wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};
+  const {L,U,drop}=cfTodo(),wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};
   const add=(name,head,rows,w)=>{const ws=XLSX.utils.aoa_to_sheet([head].concat(rows));ws['!cols']=w.map(x=>({wch:x}));ws['!views']=[{RTL:true}];ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(rows.length,1),c:head.length-1}})};XLSX.utils.book_append_sheet(wb,ws,name.replace(/[\/\\?*\[\]:]/g,'-').slice(0,31))};
   const H=['#','الأولوية','الرقم','الاسم','اللي حصل','أول مرة','آخر محاولة','اتصل هو','اتصلنا','الميعاد الجاي','آخر زيارة','الخط','المطلوب','اتصلت؟ (✔)','النتيجة','ملاحظة'],W=[4,18,14,24,18,12,12,8,8,11,11,12,48,10,22,24];
   const d2=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
@@ -372,6 +376,7 @@ async function cfTodoXL(){if(!CF.calls.length){alert('ارفع ملفات الم
   const lines=[...new Set(L.map(x=>x.e.ln||''))].sort(),cnt=p=>L.filter(x=>x.pr===p).length;
   const sum=[['📋 ملف اتصالات للسكرتارية'],['اتعمل',cfFmt(cfWall(new Date().toISOString()))],['الفترة',per],['الخط',CF.ln||'كل الخطوط'],[''],
     ['🔴 فاتتنا ولسه محدش رجعله — رقم جديد',cnt(1)],['🔴 فاتتنا ولسه محدش رجعله — مريض',cnt(2)],['🟠 اتصلنا وما ردش وعنده ميعاد خلال أسبوع',cnt(3)],['⚪ اتصلنا وما ردش (باقي الأرقام)',cnt(4)],['✋ مواعيد جاية «مؤكد» من غير مكالمة اترد عليها',U.length],[''],
+    ['اتشالوا من الليستة (مش محتاجين اتصال):'],['  جه العيادة بعد المحاولة',drop.came],['  اتكلمنا معاه قبلها بأقل من أسبوع (المكالمة كانت تذكير غالباً)',drop.recent],['  اتصلنا وما ردش من أكتر من 3 أيام ومفيش ميعاد قريب',drop.old],[''],
     ['إزاي تستخدمه'],['كل سكرتيرة تفتح شيت الخط بتاعها وتبدأ من فوق (الأحمر الأول).'],['بعد المكالمة: حط ✔ في «اتصلت؟» واكتب النتيجة (حجز / مش عايز / ما ردش تاني / رقم غلط…).'],['الأرقام دي محسوبة من ملفات المكالمات اللي اترفعت لحد '+cfFmt(CF.maxT)+' — أي حد اتكلمنا معاه بعد كده مش هيظهر لما ترفع الملفات الجديدة.']];
   const ws0=XLSX.utils.aoa_to_sheet(sum);ws0['!cols']=[{wch:48},{wch:40}];ws0['!views']=[{RTL:true}];XLSX.utils.book_append_sheet(wb,ws0,'الملخص');
   add('الكل',H,L.map(row),W);

@@ -15,7 +15,7 @@ function cfCSV(txt){txt=txt.replace(/^﻿/,'');const first=txt.split(/\r?\n/)[0]
     if(q){if(c==='"'){if(txt[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
     else if(c==='"')q=true;else if(c===dl){row.push(f);f=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&txt[i+1]==='\n')i++;row.push(f);f='';if(row.some(x=>x.trim()))rows.push(row);row=[]}else f+=c}
   row.push(f);if(row.some(x=>x.trim()))rows.push(row);return rows}
-const CF_H={ph:/number|phone|mobile|tel|رقم|الرقم|موبايل|تليفون/i,type:/type|direction|نوع|الحاله|الحالة|status/i,dur:/dur|length|مد[ةه]|المد[ةه]|الوقت المستغرق/i,dt:/date|time|تاريخ|وقت|التاريخ/i,date:/date|تاريخ/i,time:/^time$|الساعه|الساعة|^وقت$/i,name:/name|اسم|contact/i};
+const CF_H={ph:/number|phone|mobile|tel|رقم|الرقم|موبايل|تليفون/i,type:/type|direction|نوع|الحاله|الحالة|status/i,dur:/dur|length|مد[ةه]|المد[ةه]|الوقت المستغرق/i,dt:/date|time|تاريخ|وقت|التاريخ/i,date:/date|تاريخ/i,time:/^\s*time\s*:?\s*$|^time\b|الساعه|الساعة|^\s*(ال)?وقت\s*:?\s*$/i,name:/name|اسم|contact/i};
 function cfDetect(head,rows){const h=head.map(x=>String(x||'').trim());const pick=(rx,not)=>h.findIndex((x,i)=>rx.test(x)&&!(not||[]).includes(i));
   let ph=pick(CF_H.ph);if(ph<0){ph=h.findIndex((x,i)=>rows.slice(0,30).filter(r=>cfPh(r[i])).length>=Math.min(10,rows.length*0.6))}
   const type=pick(CF_H.type,[ph]),dur=pick(CF_H.dur,[ph,type]);let date=pick(CF_H.date,[ph,type,dur]),time=pick(CF_H.time,[ph,type,dur,date]);
@@ -108,20 +108,27 @@ const CS={
     let mn=Infinity,mx=-Infinity;calls.forEach(c=>{if(c.t<mn)mn=c.t;if(c.t>mx)mx=c.t});
     const ms=[...new Set(calls.map(c=>cfDay(c.t).slice(0,7)))],lk=CS.lk(ln);
     const docs=[].concat(...await Promise.all(ms.map(m=>CS.list('calls/'+m+'/days'))));
-    const old={};docs.forEach(x=>{const d=CS.dd(x);if(d.ln!==ln)return;(old[d.d]=old[d.d]||[]).push(...(d.r||[]).map(r=>CS.unpack(r,d.d,ln)))});
-    const nw={};calls.forEach(c=>{(nw[cfDay(c.t)]=nw[cfDay(c.t)]||[]).push(c)});
-    const d1=cfDay(mn),d2=cfDay(mx);let add=0,dup=0;const gone=[],items=[];
-    for(const d of Object.keys(nw).concat(Object.keys(old).filter(d=>d>d1&&d<d2&&!nw[d]))){if(items.some(i=>i._d===d))continue;
-      const O=old[d]||[],N=nw[d]||[],have=new Map(),fc=new Map();O.forEach(c=>have.set(cfK(c),(have.get(cfK(c))||0)+1));
-      const M=O.slice();N.forEach(c=>{const k=cfK(c),n=(fc.get(k)||0)+1;fc.set(k,n);if(n>(have.get(k)||0)){M.push(c);add++}else dup++});
-      if(d>d1&&d<d2){const left=new Map(fc);O.forEach(c=>{const k=cfK(c),n=left.get(k)||0;if(n>0)left.set(k,n-1);else gone.push(c)})}
-      if(M.length===O.length)continue;
-      M.sort((a,b)=>a.t-b.t);const R=M.map(CS.pack);
-      for(let p=0;p*800<R.length;p++)items.push({_d:d,path:'calls/'+d.slice(0,7)+'/days/'+lk+'~'+d+(p?'~'+p:''),data:{ln,d,p,r:R.slice(p*800,p*800+800),at:Date.now()}})}
+    const old={},oldU=new Map();docs.forEach(x=>{const d=CS.dd(x);if(d.ln!==ln)return;(old[d.d]=old[d.d]||[]).push(...(d.r||[]).map(r=>CS.unpack(r,d.d,ln)))});
+    for(const d in old)old[d].forEach(c=>{if(c.u)oldU.set(c.u,{d,c})});
+    const d1=cfDay(mn),d2=cfDay(mx);let add=0,dup=0,fix=0;const gone=[],items=[],dirty=new Set(),M={};for(const d in old)M[d]=old[d].slice();
+    // 1) مكالمات ليها رقم ثابت (UniqueID): موجودة بنفس البيانات = مكرر · موجودة ببيانات مختلفة (وقت/نوع اتقرا غلط قبل كده) = تتصلح
+    const rest=[];calls.forEach(c=>{if(!c.u){rest.push(c);return}const o=oldU.get(c.u);
+      if(o&&o.c.t===c.t&&o.c.ty===c.ty&&o.c.dur===c.dur){dup++;return}
+      if(o){M[o.d]=M[o.d].filter(x=>x!==o.c);dirty.add(o.d);fix++}else add++;
+      const d=cfDay(c.t);(M[d]=M[d]||[]).push(c);dirty.add(d);oldU.set(c.u,{d,c})});
+    // 2) من غير رقم ثابت: بالعدد (نفس الرقم/الدقيقة/النوع/المدة)
+    const nw={};rest.forEach(c=>{(nw[cfDay(c.t)]=nw[cfDay(c.t)]||[]).push(c)});
+    for(const d in nw){const O=old[d]||[],have=new Map(),fc=new Map();O.forEach(c=>{if(!c.u)have.set(cfK(c),(have.get(cfK(c))||0)+1)});
+      nw[d].forEach(c=>{const k=cfK(c),n=(fc.get(k)||0)+1;fc.set(k,n);if(n>(have.get(k)||0)){(M[d]=M[d]||[]).push(c);dirty.add(d);add++}else dup++})}
+    // 3) «اتمسحت»: أيام الملف مغطيها كلها — اللي كان متحفظ ومش في الملف الجديد
+    const inFile=new Map();calls.forEach(c=>inFile.set(cfK(c),(inFile.get(cfK(c))||0)+1));
+    for(const d in old){if(!(d>d1&&d<d2))continue;old[d].forEach(c=>{const k=cfK(c),n=inFile.get(k)||0;if(n>0)inFile.set(k,n-1);else gone.push(c)})}
+    for(const d of dirty){const R=(M[d]||[]).sort((a,b)=>a.t-b.t).map(CS.pack),np=Math.max(1,Math.ceil(R.length/800)),op=Math.ceil((old[d]||[]).length/800);
+      for(let p=0;p<Math.max(np,op);p++)items.push({_d:d,path:'calls/'+d.slice(0,7)+'/days/'+lk+'~'+d+(p?'~'+p:''),data:{ln,d,p,r:R.slice(p*800,p*800+800),at:Date.now()}})}
     const at=Date.now();
-    items.push({path:'calls/'+cfDay(at).slice(0,7)+'/up/'+at+'_'+lk,data:Object.assign({ln,at,n:calls.length,add,dup,gone:gone.length,goneR:gone.slice(0,300).map(c=>[cfDay(c.t)].concat(CS.pack(c))),mn,mx},meta||{})});
+    items.push({path:'calls/'+cfDay(at).slice(0,7)+'/up/'+at+'_'+lk,data:Object.assign({ln,at,n:calls.length,add,dup,fix,gone:gone.length,goneR:gone.slice(0,300).map(c=>[cfDay(c.t)].concat(CS.pack(c))),mn,mx},meta||{})});
     for(let i=0;i<items.length;i+=15)await CS.call({action:'batch',items:items.slice(i,i+15).map(x=>({path:x.path,data:x.data}))});
     // نتأكد إن اللي اتحفظ بيتقري تاني
     let back=-1;try{back=(await CS.list('calls/'+cfDay(mx).slice(0,7)+'/days')).length}catch(e){}
-    return {add,dup,gone,back}}
+    return {add,dup,fix,gone,back}}
 };

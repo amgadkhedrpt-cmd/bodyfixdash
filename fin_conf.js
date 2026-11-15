@@ -497,5 +497,5 @@ async function cfExcel(){if(!CF.rep.calls&&!CF.rep.conf){alert('ارفع ملف�
     if(f.bRows.length)sh('تأكيد بالجملة',['الوقت','الفرع','مواعيد','المسئولة'],f.bRows,[22,10,10,30]);
     if(f.sus.length)sh('تأكيدات مشكوك فيها',['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],f.sus,[14,30,26,18,12,34,40,10])}
   XLSX.writeFile(wb,`تحليل المكالمات والتأكيدات — ${BRN[S.b]} — ${per.replace(/[\/\\?*\[\]:]/g,'-')}.xlsx`)}
-VIEWS.conf=[()=>{CF.lists=null;let s=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}}];
-VIEWS.calls=[()=>{let s=cfUpHTML();for(const f of [vCallAlerts,vCalls,vReach]){try{s+=f()}catch(e){console.error(e);s+='<div class="card">خطأ: '+esc(e.message)+'</div>'}}return s},()=>{cConf();for(const f of [cCalls,cReach,cCallCfg]){try{f()}catch(e){console.error(e)}}}];
+VIEWS.conf=[()=>{CF.lists=null;let s='';try{s+=cfUpHTML()}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}}];
+VIEWS.calls=[()=>{let s='';for(const f of [cfUpHTML,vCallAlerts,vCalls,vReach]){try{s+=f()}catch(e){console.error(e);s+='<div class="card">خطأ: '+esc(e.message)+'</div>'}}return s},()=>{cConf();for(const f of [cCalls,cReach,cCallCfg]){try{f()}catch(e){console.error(e)}}}];

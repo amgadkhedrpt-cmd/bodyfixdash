@@ -12404,7 +12404,7 @@ function planTasks(useAll){
       var k=(nx?'nopkgnext|':'nopkg|')+r.d+'|'+r.pid+'|'+r.s; if(npSeen[k]) return; npSeen[k]=1;
       var ok=!!r.ok, how=r.pkg?'اتفتحتله باقة':r.ev?'اتحجزله إعادة تقييم':'اتحل على Medicolize';
       add(nx?'office':'rec',{grp:[nx?'nopkgnext':'nopkg'], key:k, icon:'💳', name:r.p, phone:r.ph, br:r.b, time:r.t, doctor:r.dr,
-        kind:(nx?'جاي '+alEsc(alFmtDay(r.d))+' ':'جاي النهارده ')+(r.t?alEsc(planT(r.t))+' ':'')+'— مالوش باقة لـ '+alEsc(r.s),
+        kind:r.kashf?'🩺 الكشف اتعمل النهارده'+(r.t?' '+alEsc(planT(r.t)):'')+' ('+alEsc(r.s)+') — مالوش باقة، افتحيله باقة':(nx?'جاي '+alEsc(alFmtDay(r.d))+' ':'جاي النهارده ')+(r.t?alEsc(planT(r.t))+' ':'')+'— مالوش باقة لـ '+alEsc(r.s),
         sys:ok?how:'', what:ok?(r.pkg?'💳 باقة جديدة':'🩺 إعادة تقييم'):'',
         lines:[(nx?'ميعاده '+alEsc(alFmtDay(r.d))+' ومالوش باقة لـ <b>'+alEsc(r.s)+'</b> — ':'مالوش باقة لـ <b>'+alEsc(r.s)+'</b> — ')+'كلّميه و<b>افتحيله باقة جديدة</b>، ولو محتاج <b>إعادة تقييم</b> احجزيله تقييم',
           r.one&&!ok?'<span style="color:#f59e0b">⚠️ اتعملت جلسة لوحدها النهارده — لسه محتاج باقة أو إعادة تقييم</span>':'',

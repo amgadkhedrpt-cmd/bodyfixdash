@@ -11959,8 +11959,11 @@ function planCashBanner(){
     var o=P[r.pid]||(P[r.pid]={n:r.p,b:r.b,rem:0,today:0,old:0,dr:r.dr}); if(r.v){ o.rem+=(+r.rem||0); o.v=1; } if(r.np){ o.np=1; (o.nps=o.nps||[]).push(r.s); } });
   // 🟢 وصل (Check In / بيتعالج / خلص) أو ميعاده بعد ربع ساعة أو أقل → أخضر وفوق
   var ARR=AUD_DATA.arr||{}, nowMs=Date.now();
-  Object.keys(P).forEach(function(pid){ var a=ARR[pid], o=P[pid]; if(!a) return; o.t=a.t;
-    if(/CHECK|PROGRESS|COMPLET|DELAY|ARRIV/.test(a.st||'')) o.g='وصل'; else if(a.t&&Date.parse(a.t)-nowMs<=15*60000) o.g='ميعاده '+planT(a.t); });
+  var STL={OPEN:['مفتوح — لسه ما اتأكدش','var(--am)'],CONFIRMED:['مؤكد','var(--b,#3b82f6)'],CHECKEDIN:['وصل','var(--g)'],INPROGRESS:['بيتعالج','var(--g)'],COMPLETED:['خلص الجلسة','var(--g)'],DELAYED:['متأخر','var(--am)'],CANCELLED:['اتلغى','var(--r)'],CANCELED:['اتلغى','var(--r)'],NOSHOW:['ما جاش','var(--r)'],WAITING:['على الويتنج','var(--mute)']};
+  Object.keys(P).forEach(function(pid){ var a=ARR[pid], o=P[pid]; if(!a) return; o.t=a.t; o.st=a.st;
+    if(a.x) return;
+    if(/CHECK|PROGRESS|COMPLET|DELAY|ARRIV/.test(a.st||'')) o.g='وصل'; else if(a.t&&Date.parse(a.t)-nowMs<=15*60000&&nowMs-Date.parse(a.t)<=60*60000) o.g='ميعاده '+planT(a.t); });
+  var stTag=function(o){ if(!o.t&&!o.st) return ''; var l=STL[o.st]||[o.st||'','var(--mute)']; return ' <span style="font-size:.6rem;border:1px solid var(--brd);border-radius:6px;padding:0 5px;white-space:nowrap">📅 '+(o.t?alEsc(planT(o.t))+' · ':'')+'<b style="color:'+l[1]+'">'+alEsc(l[0])+'</b></span>'; };
   var L=Object.keys(P).map(function(k){return P[k];}).filter(function(o){ return o.rem>=20||o.np; }).sort(function(a,b){ return (b.g?1:0)-(a.g?1:0)||b.old-a.old||b.rem-a.rem; });
   if(!L.length) return '';
   var upd=''; try{ upd=new Date(AUD_DATA.last_updated).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}); }catch(e){}
@@ -11968,7 +11971,7 @@ function planCashBanner(){
   return '<div style="background:rgba(239,68,68,.10);border:2px solid var(--r);border-radius:12px;padding:10px 12px;margin-bottom:10px">'+
     '<div style="font-weight:800;font-size:.8rem;color:var(--r)">💸 حصّلي قبل ما يمشي ('+L.length+')</div>'+
     Object.keys(byB).map(function(b){ var co=planCashOwner({br:b}); return '<div style="margin-top:6px;font-size:.68rem"><b>'+(b==='FIX ZONE'?'الدقي':'الهرم')+'</b>'+(co?' · على الخزنة: <b>'+alEsc(co)+'</b>':'')+
-      '<ul style="margin:3px 0;padding-inline-start:18px;line-height:1.8">'+byB[b].map(function(o){ return '<li'+(o.g?' style="background:rgba(16,185,129,.18);border-radius:6px;padding:0 6px"':'')+'>'+(o.g?'<b style="color:var(--g)">🟢 '+alEsc(o.g)+'</b> — ':'')+alEsc(o.n)+(o.rem>=20?' — باقي <b>'+planMoney(o.rem)+' ج</b>'+(o.v&&!o.old&&!o.today?' <span style="color:var(--am)">(متوقع)</span>':''):'')+
+      '<ul style="margin:3px 0;padding-inline-start:18px;line-height:1.8">'+byB[b].map(function(o){ return '<li'+(o.g?' style="background:rgba(16,185,129,.18);border-radius:6px;padding:0 6px"':'')+'>'+(o.g?'<b style="color:var(--g)">🟢 '+alEsc(o.g)+'</b> — ':'')+alEsc(o.n)+stTag(o)+(o.rem>=20?' — باقي <b>'+planMoney(o.rem)+' ج</b>'+(o.v&&!o.old&&!o.today?' <span style="color:var(--am)">(متوقع)</span>':''):'')+
         (o.np?' — <b style="color:var(--am)">مالوش باقة لـ '+alEsc((o.nps||[]).join(' + '))+' · اتأكدي إنه دفع</b>':'')+
         ' <span style="color:var(--mute)">('+[o.old?'عليه من قبل':'', o.today?'خدمة النهارده':'', o.v?'محسوب جلسة النهارده — لسه متقفلتش على الخطوات':'', o.np?'محجوز النهارده':''].filter(Boolean).join(' · ')+(o.dr?' · '+alEsc(o.dr):'')+')</span></li>'; }).join('')+'</ul></div>'; }).join('')+
     '<div style="font-size:.58rem;color:var(--mute)">🟢 = وصل أو ميعاده بعد ربع ساعة أو أقل · «متوقع» = اتحسبت جلسة النهارده من أول ما اتحجز/وصل، قبل ما الدكتور يقفلها · بيختفي لوحده أول ما الدفع يتسجل على Medicolize · آخر تحديث '+alEsc(upd)+' (كل نص ساعة)</div></div>';

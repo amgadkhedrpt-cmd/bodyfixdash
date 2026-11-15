@@ -1402,10 +1402,12 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
     for a in appointments or []:
         if _cairo_date(a.get("start")) != d_to: continue
         st_ = str(a.get("status_en") or "").upper()
-        if st_ in ("CANCELLED", "CANCELED", "NOSHOW", "WAITING", "NOTE"): continue
+        if st_ in ("NOTE",): continue
         p_ = str((a.get("patient") or {}).get("id") or "")
-        if p_ and (p_ not in arr or str(a.get("start")) < arr[p_]["t"]):
-            arr[p_] = {"t": str(a.get("start") or ""), "st": st_}
+        dead = st_ in ("CANCELLED", "CANCELED", "NOSHOW", "WAITING")   # الملغي/الويتنج بيتعرض بس لو مفيش ميعاد تاني شغال النهارده
+        o_ = arr.get(p_)
+        if p_ and (o_ is None or (o_.get("x") and not dead) or (bool(o_.get("x")) == dead and str(a.get("start")) < o_["t"])):
+            arr[p_] = {"t": str(a.get("start") or ""), "st": st_, **({"x": 1} if dead else {})}
     appts = []
     for a in appointments or []:
         if str(a.get("status_en") or "").upper() != "COMPLETED" and a.get("status") != "Completed":

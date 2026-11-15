@@ -601,6 +601,7 @@ def main():
             rng = [C.iso(a0.astimezone(dt.timezone.utc)), C.iso((a0 + dt.timedelta(days=6) - dt.timedelta(milliseconds=1)).astimezone(dt.timezone.utc))]
             cst = data["kinds"].setdefault("conf", {}).setdefault("all", {})
             have = {r[0] for t in cst.values() for r in t.get("rows", [])}
+            byaid = {r[0]: (t, r) for t in cst.values() for r in t.get("rows", [])}   # عشان نكمّل الرقم التاني للصفوف القديمة
             n_conf = n_new = 0
             for key, b in data["branches"].items():
                 rows = run_paged(ctx, [CONF_Q], "createdAppointments", {"branchId": b["id"], "orderBy": "start-asc", "filters": {"status": []}}, rng)
@@ -609,9 +610,19 @@ def main():
                         continue
                     n_conf += 1
                     aid = r.get("id")
-                    if not aid or aid in have:
-                        continue
                     pt = r.get("patient") or {}
+                    if aid and aid in have:
+                        t0, r0 = byaid.get(aid, (None, None))
+                        p2 = next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None)
+                        if r0 is not None and p2:
+                            if t0.get("cols") != CONF_COLS:
+                                t0["cols"] = CONF_COLS
+                            while len(r0) < len(CONF_COLS):
+                                r0.append(None)
+                            r0[CONF_COLS.index("ph2")] = p2
+                        continue
+                    if not aid:
+                        continue
                     try:
                         mk = dt.datetime.fromisoformat(str(r["start"]).replace("Z", "+00:00")).astimezone(TZ).strftime("%Y-%m")
                     except Exception:

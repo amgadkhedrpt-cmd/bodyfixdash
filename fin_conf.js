@@ -26,11 +26,11 @@ async function cfPushLocal(){const d=CF.local;if(!d)return;const by={};d.calls.f
   try{let add=0;for(const ln in by){if(m)m.textContent='بينقل خط '+ln+'…';const r=await CS.merge(by[ln],ln,{file:'من جهاز المدير',by:'fin'});add+=r.add}
     await cfDB('readwrite',s=>s.delete('log'));CF.local=null;await cfCloudLoad();render();alert('اتنقل '+add+' مكالمة للمخزن')}catch(e){alert('ما اتنقلش: '+(e.message||e))}}
 async function cfLoad(files,lines){await CF.ready;
-  if(CF.cloud){const msg=$('#cfMsg');for(const f of files){const ln=(lines&&lines[files.indexOf(f)])||f.name.replace(/\.[^.]+$/,'');
+  if(CF.cloud){const msg=$('#cfMsg');for(const f of files){const ln=CS.normLn((lines&&lines[files.indexOf(f)])||f.name.replace(/\.[^.]+$/,''));
       try{if(msg)msg.textContent='بيقرا '+f.name+'…';const r=await cfRead(f);CF.map=r.mp;if(!r.out.length||r.bad>r.n*0.3)throw new Error('الملف مش مفهوم ('+r.bad+' من '+r.n+' سطر ما اتقروش) — ما اتحفظش. اتأكد من الأعمدة أو ابعت الملف');if(msg)msg.textContent='بيحفظ '+f.name+' في المخزن…';
         const m=await CS.merge(r.out,ln,{file:f.name,by:'fin'});CF.files.push({name:f.name,ln,n:r.n,ok:m.add,dup:m.dup,gone:m.gone.length,bad:r.bad,ex:r.ex,at:Date.now()})}
       catch(e){CF.files.push({name:f.name,ln,err:e.message||String(e),at:Date.now()})}}
-    for(const ln of new Set(lines||[]))if(ln&&!CF.lines[ln])CF.lines[ln]={br:S.b==='dokki'?'FIX ZONE':'BODYFIX Center',role:S.b==='dokki'?'DM':'F'};
+    for(const l0 of new Set(lines||[])){const ln=CS.normLn(l0);if(ln&&!CF.lines[ln])CF.lines[ln]=CS.newLine(ln,S.b==='dokki'?'FIX ZONE':'BODYFIX Center')}
     try{await CS.setLines(CF.lines)}catch(e){}
     try{await cfCloudLoad()}catch(e){}render();return}
 const have=new Map();CF.calls.forEach(c=>{const k=cfK(c);have.set(k,(have.get(k)||0)+1)});for(const f of files){try{const r=await cfRead(f);CF.map=r.mp;
@@ -447,7 +447,7 @@ function vCallAlerts(){if(!CF.calls.length&&!(CF.upl||[]).length)return '';if(!C
    ${U.length?`<details style="margin-top:8px"><summary><b>📜 آخر مرات الرفع (${U.length})</b></summary>${tableHTML(['إمتى','الخط','الملف','من',{t:'جديدة',n:1},{t:'كانت موجودة',n:1},{t:'اتمسحت',n:1}],U.slice(0,40).map(x=>[cfFmt(cfWall(new Date(x.at).toISOString())),esc(x.ln||''),esc(x.file||''),esc(x.by==='fin'?'صفحة الماليات':x.by||''),x.add||0,x.dup||0,x.gone?`<b class="down">${x.gone}</b>`:0]),{h:300})}</details>`:''}</div>`}
 function cCallCfg(){const sv=async()=>{try{await CS.setLines(CF.lines)}catch(e){alert('ما اتحفظش: '+(e.message||e))}render()};
   document.querySelectorAll('[data-cfbr]').forEach(x=>x.onchange=()=>{const l=x.dataset.cfbr;CF.lines[l]={br:x.value,role:CF_RL[x.value][0]};sv()});
-  document.querySelectorAll('[data-cfrole]').forEach(x=>x.onchange=()=>{const l=x.dataset.cfrole;CF.lines[l]=Object.assign({br:'BODYFIX Center'},CF.lines[l]||{},{role:x.value});sv()})}
+  document.querySelectorAll('[data-cfrole]').forEach(x=>x.onchange=()=>{const l=x.dataset.cfrole;CF.lines[l]=Object.assign({br:'BODYFIX Center'},CF.lines[l]||{},{role:x.value});delete CF.lines[l].auto;sv()})}
 
 // ================= 📥 Excel: التحليل + خطة العمل =================
 const cfTxt=x=>{if(x==null)return '';const d=document.createElement('div');d.innerHTML=String(x).replace(/<br\s*\/?>/gi,' ');return d.textContent.replace(/\s+/g,' ').trim()};

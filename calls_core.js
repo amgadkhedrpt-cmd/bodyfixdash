@@ -90,10 +90,15 @@ const CS={
   async load(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('calls/'+m+'/'))));const out=[];
     docs.forEach(x=>{const d=x.data||x;(d.r||[]).forEach(r=>out.push(CS.unpack(r,d.d,d.ln)))});return out},
   async logs(months){const docs=[].concat(...await Promise.all(months.map(m=>CS.list('callsup/'+m+'/'))));return docs.map(x=>x.data||x).sort((a,b)=>(b.at||0)-(a.at||0))},
-  async lines(){try{const j=await CS.call({action:'get',path:'config/call_lines'});const d=j&&j.doc;return (d&&(d.lines||(d.data&&d.data.lines)))||{}}catch(e){return {}}},
+  // الأساس (من د. أمجد): 010 مريم (عيادة 1) · 011 إنجي (عيادة 2) — اللي اتغيّر من جدول الخطوط بيكسب
+  DEF:{'010':{br:'BODYFIX Center',role:'H'},'011':{br:'BODYFIX Center',role:'J'}},
+  normLn:ln=>cfDig(String(ln||'')).trim(),
+  newLine(ln,br){return Object.assign({br,role:br==='FIX ZONE'?'DM':'F'},CS.DEF[ln]||{},{auto:1})},
+  async lines(){let L={};try{const j=await CS.call({action:'get',path:'config/call_lines'});const d=j&&j.doc;L=(d&&(d.lines||(d.data&&d.data.lines)))||{}}catch(e){}
+    for(const k in CS.DEF)if(!L[k]||L[k].auto)L[k]=Object.assign({},CS.DEF[k],{auto:1});return L},
   async setLines(lines){await CS.call({action:'batch',items:[{path:'config/call_lines',data:{lines,at:Date.now()}}]})},
   // ضيف مكالمات ملف لخط: المكرر بيتشال · اللي كان محفوظ في أيام الملف مغطيها كلها واختفى من الملف الجديد = «اتمسح من الموبايل» (بيفضل محفوظ وبيتسجل)
-  async merge(calls,ln,meta){if(!calls.length)return {add:0,dup:0,gone:[]};
+  async merge(calls,ln,meta){ln=CS.normLn(ln);if(!calls.length)return {add:0,dup:0,gone:[]};
     let mn=Infinity,mx=-Infinity;calls.forEach(c=>{if(c.t<mn)mn=c.t;if(c.t>mx)mx=c.t});
     const ms=[...new Set(calls.map(c=>cfDay(c.t).slice(0,7)))],lk=CS.lk(ln);
     const docs=[].concat(...await Promise.all(ms.map(m=>CS.list('calls/'+m+'/'+lk+'/'))));

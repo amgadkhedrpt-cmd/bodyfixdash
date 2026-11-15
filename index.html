@@ -12564,7 +12564,7 @@ async function mcUpload(inp,ln,br,id){
     if(!r.out.length||r.bad>r.n*0.3) throw new Error('الملف مش مفهوم ('+r.bad+' من '+r.n+' سطر) — ابعتيه لدكتور أمجد');
     if(msg) msg.textContent='بيحفظ…';
     var m=await CS.merge(r.out,ln,{file:f.name,by:PLAN_ME||'',from:'plan',br:br});
-    if(!MC.lines[ln]){ MC.lines[ln]={br:br,role:br==='FIX ZONE'?'DM':'F'}; await CS.setLines(MC.lines); }
+    ln=CS.normLn(ln); if(!MC.lines[ln]){ MC.lines[ln]=CS.newLine(ln,br); await CS.setLines(MC.lines); }
     if(msg) msg.textContent='✅ اتحفظ: '+m.add+' مكالمة جديدة';
     mcLoad(true);
   }catch(e){ if(msg) msg.textContent='❌ '+(e.message||e); alert('الملف ما اتحفظش: '+(e.message||e)); }

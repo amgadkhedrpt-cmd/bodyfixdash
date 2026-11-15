@@ -1,8 +1,6 @@
 {
- "at": "2026-11-15T01:15:23.734Z",
- "errors": [
-  "fatal: Traceback (most recent call last):\n  File \"/home/runner/work/bodyfixdash/bodyfixdash/fin_sync.py\", line 739, in <module>\n    main()\n  File \"/home/runner/work/bodyfixdash/bodyfixdash/fin_sync.py\", line 734, in main\n    META_D[\"secs\"] = int(time.time() - t0)\n                         ~~~~~~~~~~~~^~~~\nTypeError: unsupported operand type(s) for -: 'float' and 'dict'\n"
- ],
+ "at": "2026-11-15T02:21:39.768Z",
+ "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
  "pay_pages": {
@@ -92,6 +90,8 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
+ "ph2_field": "phoneNumber2",
+ "ph2_n": 19,
  "conf": {
   "confirmed_now": 43,
   "new": 0
@@ -856,18 +856,5 @@
   "data/fin.enc": "c2dd9907fc16abb4",
   "data/fin_c.enc": "3639a55a7df1ffc9"
  },
- "secs": 51,
- "skipped_at": "2026-11-15T01:55:26.833Z",
- "today_hash": "dfc9fe7bea5ed862",
- "today_at": "2026-11-15T01:55:26.833Z",
- "today_n": {
-  "pay": {
-   "haram": 0,
-   "dokki": 0
-  },
-  "apt": {
-   "haram": 0,
-   "dokki": 0
-  }
- }
+ "secs": 63
 }

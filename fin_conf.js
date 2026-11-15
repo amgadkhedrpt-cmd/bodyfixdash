@@ -6,7 +6,7 @@ const CF={a1:'',a2:'',calls:[],files:[],map:null,sheet:null,sheetTry:false,minT:
 const cfT1=()=>CF.d1?Date.parse(CF.d1+'T00:00:00Z'):-Infinity,cfT2=()=>CF.d2?Date.parse(CF.d2+'T00:00:00Z')+864e5:Infinity;
 const cfInR=t=>t>=cfT1()&&t<cfT2();
 const cfDig=s=>String(s==null?'':s).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
-const cfPh=s=>{const d=cfDig(s).replace(/\D/g,'');return d.length>=10?d.slice(-10):''};
+const cfPh=s=>{const d=cfDig(s).replace(/\D/g,'');return d.length>=10?d.slice(-10):d.length===9?'0'+d:d.length>=3?d:''};   // 10+ = موبايل/أرضي كامل · 9 = أرضي من غير الصفر · أقصر = رقم مختصر (خدمة عملاء…) بيتحسب مكالمة بس مش هيطابق مريض
 // وقت القاهرة «على الحيطة» كرقم (عشان نقارن بوقت سجل المكالمات اللي متسجل بتوقيت الموبايل)
 const cfWall=iso=>{if(!iso)return null;const d=new Date(iso);if(isNaN(d))return null;const s=d.toLocaleString('sv-SE',{timeZone:'Africa/Cairo',hour12:false});return Date.parse(s.replace(' ','T')+'Z')};
 const cfFmt=t=>{if(t==null)return '—';const d=new Date(t);return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+' '+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0')};

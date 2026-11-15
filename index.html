@@ -12502,8 +12502,14 @@ function planCashOwner(t){
   var bk=t.br==='FIX ZONE'?'dokki':'haram', ref=t.time?new Date(t.time):new Date();
   var mins=ref.getHours()*60+ref.getMinutes(), m=function(x){ var a=String(x||'').split(':'); return (+a[0])*60+(+a[1]||0); };
   var hit=PLAN_SHIFTS.filter(function(sh){ return sh.branch===bk; }).find(function(sh){ var a=m(sh.from), b=sh.to?m(sh.to):24*60; return mins>=a&&mins<b; });
-  return hit?hit.name:'';
+  return hit?planNormName(hit.name):'';
 }
+/* نفس الشخص بأكتر من اسم (الخزنة بالاسم الكامل «Nada Abdel Razik» والخطة «Nada»): لو الاسم مش من أسامي الخطة وأول كلمة منه = اسم واحد بس في الخطة → ده هو */
+function planNormName(n){ n=String(n||'').trim(); if(!n) return n;
+  var all=[]; Object.keys(PLAN_NAMES_BR||{}).forEach(function(k){ (PLAN_NAMES_BR[k]||[]).forEach(function(x){ if(all.indexOf(x)<0) all.push(x); }); }); (PLAN_NAMES||[]).forEach(function(x){ if(all.indexOf(x)<0) all.push(x); });
+  Object.keys(PLAN_ROLES||{}).forEach(function(b){ var R=PLAN_ROLES[b]||{}; Object.keys(R).forEach(function(k){ if(R[k]&&all.indexOf(R[k])<0) all.push(R[k]); }); });
+  if(all.indexOf(n)>=0) return n; var f=n.split(/\s+/)[0].toLowerCase(), hit=all.filter(function(x){ return String(x).split(/\s+/)[0].toLowerCase()===f; });
+  return hit.length===1?hit[0]:n; }
 /* 🚪 البارتشن → العيادة (الهرم): عيادة 1 = P1-P6 + G1-G3 · عيادة 2 = P7-P11 + F1-F4 */
 function planRoomClinic(room){ var m=String(room||'').toUpperCase().replace(/\s+/g,'').match(/([PGF])-?(\d+)/); if(!m) return 0; var n=+m[2];
   if(m[1]==='G') return 1; if(m[1]==='F') return 2; return n<=6?1:2; }
@@ -12796,8 +12802,8 @@ function planSecPanel(){
   var T=planTasks(true); if(!T) return '';
   var own={}, hand={};
   ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){
-    (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planOwner(t,g); if(!o) return; (own[o]=own[o]||{})[t.key]=t; });
-    var s=PLAN_ST[t.key]; if(s&&s.by&&(s.s==='done'||s.s==='nr')) (hand[s.by]=hand[s.by]||{})[t.key]=1;
+    (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planNormName(planOwner(t,g)); if(!o) return; (own[o]=own[o]||{})[t.key]=t; });
+    var s=PLAN_ST[t.key]; if(s&&s.by&&(s.s==='done'||s.s==='nr')){ var hb=planNormName(s.by); (hand[hb]=hand[hb]||{})[t.key]=1; }
   }); });
   var names=Object.keys(own); Object.keys(hand).forEach(function(n){ if(names.indexOf(n)<0) names.push(n); });
   if(!names.length) return '<div style="background:var(--card);border:1px dashed var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:.6rem;color:var(--mute)">👩‍💼 اختاري المسئولة جنب كل مهمة (أو اسمك فوق = مسئولة عن الفرع كله) وهيظهر هنا الإنجاز لكل سكرتيرة</div>';

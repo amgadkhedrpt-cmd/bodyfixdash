@@ -1475,6 +1475,15 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
             if str(a2.get("status_en") or "").upper() in SKIP_ST: continue
             if EV_RE.search(str(a2.get("type") or "")) and _cairo_date(a2.get("createdAt")) == d_to and (_cairo_date(a2.get("start")) or "") >= d_to:
                 ev_today.add(str((a2.get("patient") or {}).get("id") or ""))
+        # 🩺 كشف جديد: ما نطلبش «افتحيله باقة» غير لما الكشف يبقى Completed (جه فعلاً) — قبل كده المريض لسه ما اتكشفش
+        KS_RE = re.compile(r"كشف|kashf|consult", re.I)
+        kashf_day = defaultdict(dict)                      # يوم → {مريض: True لو الكشف Completed}
+        for a2 in appointments or []:
+            if str(a2.get("status_en") or "").upper() in SKIP_ST: continue
+            if not KS_RE.search(str(a2.get("type") or "")): continue
+            p2 = str((a2.get("patient") or {}).get("id") or ""); d2 = _cairo_date(a2.get("start"))
+            if p2 and d2:
+                kashf_day[d2][p2] = kashf_day[d2].get(p2, False) or str(a2.get("status_en") or "").upper() == "COMPLETED"
         def np_row(a, p_, extra):
             return dict({"id": "np:" + str(a.get("id")), "d": d_to, "pid": p_, "p": _pname(a.get("patient")),
                          "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
@@ -1489,7 +1498,7 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
             mine = [x for x in steps_of[p_] if match(x)]
             done_t = [x for x in mine if _step_kind(x.get("status"), has_done) == "done" and _cairo_date(x.get("end") or x.get("createdAt")) == d_to]
             # «مالوش باقة» = مفيش ولا خطوة للخدمة دي قبل النهارده → المطلوب: تتفتحله باقة (خطوات اتعملت النهارده) أو يتحجزله إعادة تقييم
-            if not [x for x in mine if (_cairo_date(x.get("createdAt")) or d_to) < d_to]:
+            if not [x for x in mine if (_cairo_date(x.get("createdAt")) or d_to) < d_to] and kashf_day[d_to].get(p_, True):
                 new_ = [x for x in mine if _step_kind(x.get("status"), has_done) != "cancel"]
                 pkg = any(_step_kind(x.get("status"), has_done) == "plan" for x in new_) or len(new_) >= 2
                 ev = p_ in ev_today
@@ -1505,6 +1514,25 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
                 if not (inv_rem is not None and float(inv_rem.get(p_) or 0) <= 1):
                     virt[plans[0]["id"]] = (p_, a)
                 continue
+        # 🩺 الكشف اتعمل Completed النهارده ومفيش ولا خطوة Planned للمريض (باقة) → «افتحيله باقة» (حتى لو مالوش ميعاد جلسة النهارده)
+        try:
+            have_np = {r_["pid"] for r_ in expect if r_.get("np")}
+            allst = defaultdict(list)
+            kp = {p2 for p2, ok in kashf_day[d_to].items() if ok}
+            for x in rows:
+                p2 = str((x.get("patient") or {}).get("id") or "")
+                if p2 in kp: allst[p2].append(x)
+            for a2 in appointments or []:
+                p2 = str((a2.get("patient") or {}).get("id") or "")
+                if p2 not in kp or p2 in have_np or _cairo_date(a2.get("start")) != d_to: continue
+                if not KS_RE.search(str(a2.get("type") or "")) or str(a2.get("status_en") or "").upper() != "COMPLETED": continue
+                have_np.add(p2)
+                pkg = any(_step_kind(x.get("status"), has_done) == "plan" for x in allst[p2])
+                ev = p2 in ev_today
+                expect.append(np_row(a2, p2, {"id": "npk:" + str(a2.get("id")), "ok": 1 if (pkg or ev) else 0, "pkg": 1 if pkg else 0,
+                                              "ev": 1 if ev else 0, "unp": 0, "one": 0, "kashf": 1}))
+        except Exception as e:
+            print(f"[{ts()}] ⚠️ kashf no-package: {str(e)[:150]}")
         # 📅 يوم الشغل الجاي (من غير الجمعة): جاي ومالوش باقة للخدمة → مهمة لإنجي تكلّمه النهارده · بتتقفل 🤖 لما الباقة تتعمل (خطوة Planned اتعملت النهارده)
         try:
             nd = (datetime.strptime(d_to, "%Y-%m-%d") + timedelta(days=1)).date()
@@ -1531,6 +1559,8 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
                 plans = [x for x in nsteps[p_] if _audN(x.get("name")) in names and _step_kind(x.get("status"), has_done) == "plan"]
                 if plans and not all(_cairo_date(x.get("createdAt")) == d_to for x in plans):
                     continue                               # عنده باقة من قبل → مش محتاج حاجة
+                if p_ in kashf_day[nd]:
+                    continue                               # كشف جديد بكره → الباقة تتطلب بعد ما الكشف يتعمل
                 ev = p_ in ev_today
                 expect.append({"id": "nx:" + str(a.get("id")), "d": nd, "pid": p_, "p": _pname(a.get("patient")),
                                "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),

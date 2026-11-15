@@ -1,5 +1,5 @@
 {
- "at": "2026-11-15T18:09:37.034Z",
+ "at": "2026-11-15T19:18:32.134Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,10 +91,10 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "ph2_field": "phoneNumber2",
- "ph2_n": 17,
+ "ph2_n": 20,
  "conf": {
-  "confirmed_now": 42,
-  "new": 14
+  "confirmed_now": 56,
+  "new": 19
  },
  "kinds": {
   "pay": {
@@ -117,7 +117,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20647,
+    "rows": 20654,
     "cols": [
      "id",
      "type",
@@ -369,7 +369,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131473,
+    "rows": 131480,
     "cols": [
      "start",
      "status",
@@ -390,7 +390,6 @@
       "CANCELED",
       "COMPLETED",
       "CONFIRMED",
-      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -401,7 +400,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6339,
+    "rows": 6342,
     "cols": [
      "start",
      "status",
@@ -423,7 +422,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 174,
+    "rows": 193,
     "cols": [
      "aid",
      "start",
@@ -491,7 +490,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16683,
+    "rows": 16688,
     "cols": [
      "name",
      "end",
@@ -607,7 +606,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17489,
+    "rows": 17495,
     "cols": [
      "id",
      "referenceId",
@@ -830,7 +829,7 @@
    "2026-11": {
     "fu": 100,
     "dev": 28,
-    "physio": 35,
+    "physio": 36,
     "mezo": 4,
     "inj": 34,
     "exam": 14,
@@ -856,10 +855,10 @@
  },
  "hash": {
   "data/fin.enc": "c2dd9907fc16abb4",
-  "data/fin_c.enc": "56df7b60852c049a"
+  "data/fin_c.enc": "f39f1ca7b204b2a3"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 59
+ "secs": 58
 }

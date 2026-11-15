@@ -28,8 +28,9 @@ APT_Q2 = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]
           "{id start status type doctor{name} patient{id referenceId firstName lastName}}}")
 CONF_Q = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
           "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
-          "{id start status type createdAt updatedAt createdBy{name} doctor{name} patient{id referenceId firstName lastName phoneNumber}}}")
-CONF_COLS = ["aid", "start", "up", "cr", "type", "pid", "pn", "ph", "doc", "b", "by", "seen", "puid"]
+          "{id start status type createdAt updatedAt createdBy{name} doctor{name} patient{id referenceId firstName lastName phoneNumber secondaryPhoneNumber phoneNumber2 secondPhoneNumber secondaryPhone otherPhoneNumber alternativePhone phone2 mobile2}}}")
+PH2_F = ['secondaryPhoneNumber', 'phoneNumber2', 'secondPhoneNumber', 'secondaryPhone', 'otherPhoneNumber', 'alternativePhone', 'phone2', 'mobile2']   # الرقم التاني (secondary) — الأسامي اللي مش موجودة بتتشال لوحدها
+CONF_COLS = ["aid", "start", "up", "cr", "type", "pid", "pn", "ph", "doc", "b", "by", "seen", "puid", "ph2"]
 PAY_Q = ("query P($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter)"
          "{payments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
          "{id type amount balance refunded refundedAt details createdAt createdBy{name} doctor{name} transaction{treasury{publicName}}"
@@ -618,7 +619,10 @@ def main():
                     t = cst.setdefault(mk, {"cols": CONF_COLS, "rows": []})
                     t["rows"].append([aid, r.get("start"), r.get("updatedAt"), r.get("createdAt"), r.get("type"), pt.get("referenceId"),
                                       " ".join(x for x in (pt.get("firstName"), pt.get("lastName")) if x), pt.get("phoneNumber"),
-                                      (r.get("doctor") or {}).get("name"), key, (r.get("createdBy") or {}).get("name"), C.NOW, pt.get("id")])
+                                      (r.get("doctor") or {}).get("name"), key, (r.get("createdBy") or {}).get("name"), C.NOW, pt.get("id"),
+                                      next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None)])
+                    if not META_D.get("ph2_field"):
+                        META_D["ph2_field"] = next((f for f in PH2_F if f in pt), "") or "مش موجود"
                     have.add(aid)
                     n_new += 1
             for mk in [k for k in cst if k < months(START, CUR)[-4]]:

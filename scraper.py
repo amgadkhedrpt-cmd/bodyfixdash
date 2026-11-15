@@ -63,7 +63,7 @@ NOTE_CANDIDATES = ["note", "notes", "description", "comment", "comments", "detai
                    "patientNote", "appointmentNote", "memo", "info"]
 NOTE_PROBE = {}
 ROOM_FIELD = None   # أوضة / بارتشن الموعد (P1…P11 · G1-3 · F1-4) → توزيع الحجز على عيادة 1 / عيادة 2
-ROOM_CANDIDATES = ["room{id name}", "room", "roomName", "partition{id name}", "partition", "resource{id name}", "place{id name}", "clinic{id name}", "chair{id name}", "bed{id name}"]
+ROOM_CANDIDATES = ["room{name}", "room{id name}", "room", "roomName", "partition{id name}", "partition", "resource{id name}", "place{id name}", "clinic{id name}", "chair{id name}", "bed{id name}"]
 ROOM_PROBE = {}
 PAT_FIELDS = []     # خانات تفاصيل المريض (ملحوظة / تاجز) اللي اشتغلت
 PAT_CANDIDATES = ["notes", "note", "details", "description", "comment", "comments", "remarks", "info", "medicalNotes",

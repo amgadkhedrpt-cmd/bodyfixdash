@@ -11940,6 +11940,16 @@ function planCardShow(force){
     '<button onclick="try{localStorage.setItem(\''+seenK.replace(/'/g,'')+'\',1)}catch(e){};document.getElementById(\'planCardModal\').remove()" style="margin-top:14px;width:100%;background:#0f766e;color:#fff;border:0;border-radius:9px;padding:9px;font-family:Cairo,sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">تمام، هبدأ 👍</button></div>';
   document.body.appendChild(m);
 }
+/* 🔍 أخطاء كومبليت امبارح مع د. أمجد: بتظهر لوحدها جوه نفس المهمة ومش بتتحسب في العدد — «✅ راجعته — مفيش خطأ» */
+var PLAN_AUD_AMG=[];
+function planAudAmgHTML(){ var L=(PLAN_AUD_AMG||[]).filter(function(x){ return planBR().some(function(b){ return b.key===x.br; }); }); if(!L.length) return '';
+  return '<div style="border:1px dashed var(--brd);border-radius:10px;padding:8px 10px;margin:8px 0;background:rgba(148,163,184,.06)"><b style="font-size:.66rem">👨‍⚕️ د. أمجد ('+L.length+') <span style="font-weight:400;color:var(--mute)">— لوحدهم ومش محسوبين في العدد</span></b>'+
+    L.map(function(x){ var st=PLAN_ST[x.key]||{}, dn=st.s==='done';
+      return '<div style="font-size:.62rem;margin-top:6px;'+(dn?'opacity:.55':'')+'"><b>'+alEsc(x.p)+'</b> — '+alEsc(x.note)+' · '+alEsc(x.svc)+' · مواعيد '+x.ap+' / خطوات '+x.op+' '+
+        (dn?'<span style="color:var(--g)">✅ اتراجع — '+alEsc(st.by||'')+'</span>':'<button onclick="event.stopPropagation();planAudAmgOk(\''+String(x.key).replace(/'/g,"\\'")+'\')" style="background:rgba(16,185,129,.15);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:2px 8px;font-family:Cairo,sans-serif;font-size:.58rem;font-weight:700;cursor:pointer">✅ راجعته — مفيش خطأ</button>')+'</div>'; }).join('')+'</div>'; }
+function planAudAmgOk(key){ if(!PLAN_ME){ alert('اختاري اسمك الأول من خانة «السكرتيرة المسئولة» فوق'); return; }
+  var o={s:'done', by:PLAN_ME, at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}), ts:new Date().toISOString()};
+  PLAN_ST[key]=o; planSaveRaw('PLAN|'+key, JSON.stringify(o)); try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender(); }
 /* ⚡ بديل خصم الاعتذار المفاجئ: sudx|<pid>|<day> = {t:'nopkg'|'warn', by, at, name, phone} — «تم التنبيه» مرة واحدة بس لكل مريض */
 function planSudX(pid,day,t,name,phone){
   if(!PLAN_ME){ alert('اختاري اسمك الأول من خانة «السكرتيرة المسئولة» فوق'); return; }
@@ -12316,6 +12326,7 @@ function planTasks(useAll){
     });
   }
   sysAdd('office','stale','stale','اتقفل على السيستم','🧹',function(x){return 'stale|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
+  PLAN_AUD_AMG=[];
   if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.appts){
     var y=new Date(Date.now()-864e5), ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
     var Lm=audMapLook(), brName={haram:'BODYFIX Center', dokki:'FIX ZONE'};
@@ -12326,8 +12337,9 @@ function planTasks(useAll){
       // اتصلّح بعدين: «موعد بدون كومبليت» والخطوة بتاعته اتقفلت Completed بعد امبارح (نفس المريض ونفس الخدمة) → تتقفل 🤖
       var later={}; AUD_DATA.steps.forEach(function(r){ if(r.b===bn&&r.d>ys&&/complet/i.test(r.st||'')&&Lm.S[audN(r.s)]){ var kk=r.p+'|'+Lm.S[audN(r.s)]; later[kk]=(later[kk]||[]).concat([r.d]); } });
       try{ _aud_doAudit(aR,oR).forEach(function(e){
+        if(/amgad|أمجد/i.test(String(e.doc||''))){ PLAN_AUD_AMG.push({key:'aud|'+ys+'|'+e.patient+'|'+e.svc+'|'+e.note, p:e.patient, svc:e.svc, note:e.note, br:b.key, ap:e.appt, op:e.oper}); return; }   // د. أمجد: لوحدهم ومش محسوبين
         var lk=e.patient+'|'+e.svc, fx=/موعد بدون كومبليت/.test(e.note)&&later[lk]&&later[lk].length?later[lk].shift():'';
-        add('office',{grp:['aud'], key:'aud|'+ys+'|'+e.patient+'|'+e.svc+'|'+e.note, icon:'🔍', kind:'كومبليت امبارح: '+alEsc(e.note), name:e.patient, br:b.key,
+        add('office',{grp:['aud'], manOk:/اختلاف في الخدمة/.test(e.note), key:'aud|'+ys+'|'+e.patient+'|'+e.svc+'|'+e.note, icon:'🔍', kind:'كومبليت امبارح: '+alEsc(e.note), name:e.patient, br:b.key,
           sys:fx?'اتصلّح — الخطوة اتقفلت Completed يوم '+alFmtDay(fx):'', what:fx?'✅ الخطوة اتقفلت '+alFmtDay(fx):'',
           lines:[alEsc(e.svc)+' · '+alEsc(doc(e.doc))+' · مواعيد '+e.appt+' / خطوات '+e.oper, fx?'<span style="color:var(--g)">✅ اتصلّح: الخطوة اتقفلت Completed يوم '+alEsc(alFmtDay(fx))+'</span>':'']});
       }); }catch(err){}
@@ -13028,7 +13040,7 @@ function planFuPanel(){
   return h+'<div style="font-size:.54rem;color:var(--mute);margin-top:6px">«مسئولة المتابعة» = اللي كانت متعيّنة على مكالمات المتابعة يوم ما المريض اتتابع، ولو مفيش تعيين = اللي عملت موعد المتابعة على Medicolize · «حجز الميعاد» = اسم الحساب اللي عمل الميعاد على Medicolize</div></div>';
 }
 /* ⬜ ليه المهمة لسه مفتوحة — بيتكتب على كل مهمة مش متقفلة (لو المهمة نفسها ما فيهاش «ناقص …») */
-var PLAN_WHY={aud:'الخطوة تتقفل Completed على Medicolize (بتتقفل لوحدها مع الـ Sync) — أو لو راجعتيه وطلع مش غلط: «✅ راجعته — مفيش خطأ»', debtph:'يدفع اللي عليه (بتتشال لوحدها مع الـ Sync) — أو اكتبي ملحوظة باللي حصل: بتتقفل النهارده وترجع بكره للمتابعة',
+var PLAN_WHY={aud:'الغلط يتصلّح على Medicolize (بتتقفل لوحدها مع الـ Sync) — ولو «اختلاف في الخدمة» وراجعتيه وطلع صح: «✅ راجعته — مفيش خطأ»', debtph:'يدفع اللي عليه (بتتشال لوحدها مع الـ Sync) — أو اكتبي ملحوظة باللي حصل: بتتقفل النهارده وترجع بكره للمتابعة',
   mcall:'حد يتكلم مع الرقم (بيبان لما سجل المكالمات يترفع) — أو 🚫 رفض بسبب', mcallup:'ملف سجل المكالمات يترفع'};
 function planWhyOpen(t,state){ if(state!=='open'&&state!=='nr') return ''; if((t.lines||[]).some(function(l){ return /ناقص|لسه ما اترفعش/.test(String(l||'')); })) return '';
   var g=(t.grp||[])[0], why=PLAN_WHY[g]||(planIsAuto(t)?PLAN_AUTO_G[g]:planNoteCloses(t)?'ملحوظة باللي حصل في المكالمة':planManualOk(t)?'تدوسي ✅ اتعمل بعد ما تخلصيها':PLAN_NOTE_REF[g]?'الخدمة تتحجز على Medicolize — أو سبب الرفض في الملحوظة':'الشغل يتسجل على Medicolize (بيتشيك كل نص ساعة) — أو «🚫 رفض» بسبب');
@@ -13062,8 +13074,8 @@ var PLAN_NOTE_OK={debtph:1, drop:1, idle:1, streak:1, recur:1};
 var PLAN_SYS_ONLY={call:1, mcallup:1, sudden:1};
 var PLAN_NO_NR={mcall:1, mcallup:1, sudden:1, noinv:1, invfix:1, invrev:1, aud:1, stale:1};   // مهام تسجيل على السيستم — مش مكالمة، فمالهاش «ما ردش»
 /* زرار ✅ اليدوي: مهام المدير ومراجعة الفواتير القديمة بس — أي مهمة تانية بتتقفل من Medicolize (أو ملحوظة للمكالمات، أو 🚫 رفض بسبب) */
-var PLAN_MANUAL_OK={mgr:1, invrev:1, aud:1};   // aud: المراجِع راجع وطلع مش غلط (مثلاً متابعة من غير خطوة)
-function planManualOk(t){ var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_MANUAL_OK[x]; }); }
+var PLAN_MANUAL_OK={mgr:1, invrev:1};
+function planManualOk(t){ if(t.manOk!==undefined) return !!t.manOk; var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_MANUAL_OK[x]; }); }
 function planSysOnly(t){ return (t.grp||[]).some(function(g){ return PLAN_SYS_ONLY[g]; }); }
 /* مهام «اعرضها عليه» (ناقصه خدمة): لو المريض مش عايزها، الملحوظة النهارده هي السبب → تتحسب 🚫 رفض (مش ✋ ولا 🤖) */
 var PLAN_NOTE_REF={svc:1};
@@ -13226,7 +13238,7 @@ function planRender(){
       }
       var od=PLAN_OPEN_DONE[gk], hb=planHowBar(gk,A), hf=PLAN_HOW_F[gk]||'';
       if(hf){ var fh=function(t){ return planHow(t)===hf; }; open=open.filter(fh); done=done.filter(fh); snz=snz.filter(fh); if(done.length) od=true; }
-      return head+'<div style="padding:0 6px 8px 0;border-right:2px solid var(--brd);margin:0 8px 10px 0">'+hb+cfBar+
+      return head+'<div style="padding:0 6px 8px 0;border-right:2px solid var(--brd);margin:0 8px 10px 0">'+hb+cfBar+(g==='aud'?planAudAmgHTML():'')+
         (open.length?open.map(planRow).join(''):(hf?'':'<div style="font-size:.64rem;color:var(--g);padding:6px 2px">✅ خلصت كل الأسامي هنا</div>'))+
         (done.length?'<div onclick="PLAN_OPEN_DONE[\''+gk+'\']=!PLAN_OPEN_DONE[\''+gk+'\'];planRender()" style="font-size:.62rem;color:var(--mute);cursor:pointer;padding:4px 2px">'+(od?'▾':'▸')+' اتعمل ('+done.length+')</div>'+(od?done.map(planRow).join(''):''):'')+
         (snz.length?'<div style="font-size:.58rem;color:var(--mute);padding:2px">⏭ '+snz.length+' متأجلين</div>':'')+'</div>';

@@ -1,5 +1,5 @@
 {
- "at": "2026-11-16T13:15:35.078Z",
+ "at": "2026-11-16T14:09:20.202Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -90,11 +90,14 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
+ "rsn_field": "cancelReason",
+ "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 13,
+ "ph2_n": 11,
  "conf": {
-  "confirmed_now": 41,
-  "new": 0
+  "confirmed_now": 37,
+  "new": 4,
+  "cx_changed": 5
  },
  "kinds": {
   "pay": {
@@ -117,7 +120,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20671,
+    "rows": 20673,
     "cols": [
      "id",
      "type",
@@ -163,7 +166,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1022,
+    "rows": 1023,
     "cols": [
      "type",
      "amount",
@@ -369,7 +372,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131499,
+    "rows": 131507,
     "cols": [
      "start",
      "status",
@@ -391,7 +394,6 @@
       "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
-      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -402,7 +404,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6347,
+    "rows": 6351,
     "cols": [
      "start",
      "status",
@@ -424,7 +426,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 208,
+    "rows": 212,
     "cols": [
      "aid",
      "start",
@@ -439,7 +441,8 @@
      "by",
      "seen",
      "puid",
-     "ph2"
+     "ph2",
+     "ub"
     ],
     "missing": [
      "2024-06",
@@ -518,7 +521,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7911,
+    "rows": 7912,
     "cols": [
      "duration",
      "createdAt",
@@ -537,7 +540,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1360,
+    "rows": 1361,
     "cols": [
      "duration",
      "createdAt",
@@ -608,7 +611,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17514,
+    "rows": 17515,
     "cols": [
      "id",
      "referenceId",
@@ -644,6 +647,64 @@
      "doctor.name"
     ],
     "missing": []
+   }
+  },
+  "cx": {
+   "all": {
+    "values": {},
+    "months": 1,
+    "first": "2026-11",
+    "last": "2026-11",
+    "rows": 5,
+    "cols": [
+     "aid",
+     "start",
+     "st",
+     "up",
+     "ub",
+     "rsn",
+     "type",
+     "pid",
+     "pn",
+     "ph",
+     "doc",
+     "b",
+     "by",
+     "cr",
+     "seen",
+     "puid"
+    ],
+    "missing": [
+     "2024-06",
+     "2024-07",
+     "2024-08",
+     "2024-09",
+     "2024-10",
+     "2024-11",
+     "2024-12",
+     "2025-01",
+     "2025-02",
+     "2025-03",
+     "2025-04",
+     "2025-05",
+     "2025-06",
+     "2025-07",
+     "2025-08",
+     "2025-09",
+     "2025-10",
+     "2025-11",
+     "2025-12",
+     "2026-01",
+     "2026-02",
+     "2026-03",
+     "2026-04",
+     "2026-05",
+     "2026-06",
+     "2026-07",
+     "2026-08",
+     "2026-09",
+     "2026-10"
+    ]
    }
   }
  },
@@ -842,6 +903,10 @@
  "stripped": {
   "createdAppointments": [
    "room{}",
+   "lastUpdatedBy",
+   "modifiedBy",
+   "cancellationReason",
+   "cancelationReason",
    "secondaryPhoneNumber",
    "secondPhoneNumber",
    "secondaryPhone",
@@ -856,11 +921,12 @@
   ]
  },
  "hash": {
-  "data/fin.enc": "888400d6e1c56d9a",
-  "data/fin_c.enc": "fc09c33417130044"
+  "data/fin.enc": "b800f7f2c7737cb8",
+  "data/fin_c.enc": "4f2ce327cf355aef"
  },
  "written": [
+  "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 64
+ "secs": 69
 }

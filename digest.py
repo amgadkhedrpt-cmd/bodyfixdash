@@ -681,6 +681,17 @@ def build(now, alerts, ctx, paid):
         out.append(_dp.dokki_visit(today_s, alerts))
     except Exception as e:
         print(f"exams today: {e}")
+    try:
+        import digest_review
+        _roles = None
+        try:
+            _r = (plan_data(today_s)[1] or {}).get("PLANCFG|roles")
+            _roles = json.loads(_r) if isinstance(_r, str) else _r
+        except Exception:
+            pass
+        out.append(digest_review.section(today_s, _roles))
+    except Exception as e:
+        print(f"digest_review: {e}")
     out.append("<!--PLAN-->")
     if probs:
         out += ['<h3 style="margin:18px 0 6px">🔴 مشاكل لسه مفتوحة</h3>',

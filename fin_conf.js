@@ -461,6 +461,74 @@ function cCallCfg(){const sv=async()=>{try{await CS.setLines(CF.lines)}catch(e){
   document.querySelectorAll('[data-cfrole]').forEach(x=>x.onchange=()=>{const c=fix(x.dataset.cfrole);c[x.dataset.k]=x.value;sv()});
   document.querySelectorAll('[data-cfsw]').forEach(x=>x.onchange=()=>{const c=fix(x.dataset.cfsw);c.sw=Math.max(8,Math.min(23,+x.value||15));sv()})}
 
+// ================= 🔍 مراجعة يوم: No Show / ملغي — اتأكد إمتى ومين · اتغيّر إمتى ومين · سبب الإلغاء · المكالمات قبلها =================
+CF.dr={d:'',doc:'',st:'all'};
+const CF_STL={NOSHOW:'No Show',NO_SHOW:'No Show',CANCELED:'اتلغى',CANCELLED:'اتلغى'};
+function cfCx(){const T=(RAW&&RAW.kinds&&RAW.kinds.cx&&RAW.kinds.cx.all)||{},out=[];
+  for(const mk in T){const t=T[mk],ci=n=>t.cols.indexOf(n);for(const r of t.rows){const g=n=>ci(n)>=0?r[ci(n)]:null;const aT=cfWall(g('start'));if(aT==null)continue;
+    out.push({aid:g('aid'),aT,st:String(g('st')||'').toUpperCase(),upT:cfWall(g('up')),ub:g('ub')||'',rsn:g('rsn')||'',type:tName(g('type')||''),pn:g('pn')||'',ph:cfPh(g('ph')),doc:docName(g('doc')||''),b:g('b'),by:g('by')||'',crT:cfWall(g('cr'))})}}
+  return out}
+// مين عمل «مؤكد»: الاسم المتسجل — ولو مش متسجل: صاحب الشيفت ساعتها (الهرم: الصباحي لحد 3 / الدقي لحد 5) *
+function cfConfBy(c){if(c.ub)return [c.ub,1];const R=(CF.sheet&&CF.sheet.roles&&CF.sheet.roles[CF_BR[c.b]])||{},h=new Date(c.cT).getUTCHours(),dk=c.b==='dokki';
+  const rk=dk?(h<17?'DM':'DE'):(h<15?'F':'J');return [(R[rk]||(dk?(h<17?'الشيفت الصباحي':'الشيفت المسائي'):(h<15?'الشيفت الصباحي':'عيادة 2')))+' *',0]}
+function cfDayRev(){if(!CF.sheet)cfSheet();const day=CF.dr.d||cfDay(cfWall(new Date().toISOString())),X=cfCx().filter(x=>inB(x)&&cfDay(x.aT)===day&&(!CF.dr.doc||x.doc===CF.dr.doc));
+  const conf={};cfConfs().forEach(c=>{conf[c.aid]=c});if(!CF.idx){CF.idx={};CF.calls.forEach(c=>(CF.idx[c.ph]=CF.idx[c.ph]||[]).push(c))}
+  const R=X.filter(x=>CF.dr.st==='all'||(CF.dr.st==='ns'?/NO/.test(x.st):!/NO/.test(x.st))).sort((a,b)=>(/NO/.test(a.st)?0:1)-(/NO/.test(b.st)?0:1)||a.aT-b.aT).map(x=>{
+    const c=conf[x.aid],L=((CF.idx[x.ph]||[]).concat(c&&c.ph2&&CF.idx[c.ph2]||[])).filter(k=>k.t<x.aT).sort((a,b)=>a.t-b.t);
+    const ref=c?c.cT:x.aT,talk=L.filter(k=>k.dur>0&&k.ty!=='miss'),lastTalk=talk.length?talk[talk.length-1]:null,before=L.filter(k=>k.t<=ref+15*60e3&&k.t>=ref-36*3600e3);
+    const flags=[];const cov=CF.minT!=null&&ref>=CF.minT&&ref<=CF.maxT+864e5;
+    if(c&&cov&&!before.some(k=>k.dur>0&&k.ty!=='miss'))flags.push('اتأكد من غير مكالمة اترد عليها');
+    if(c&&before.some(k=>k.ty==='out'&&k.dur===0&&c.cT-k.t>=0&&c.cT-k.t<=40*60e3)&&!before.some(k=>k.dur>0&&k.ty!=='miss'))flags.push('اتعلّم «مؤكد» بعد مكالمة ما اتردتش بدقايق');
+    if(/عدم الرد|ما ردش|مردش|لا يرد|no ?answer/i.test(x.rsn)&&cov&&!L.some(k=>k.ty==='out'&&x.upT&&k.t<=x.upT&&k.t>=x.upT-3*864e5))flags.push('إلغاء «لعدم الرد» ومفيش محاولة اتصال');
+    const cb=c?cfConfBy(c):null;
+    return {x,c,cb,lastTalk,tried:L.filter(k=>k.ty==='out'&&k.dur===0&&k.t>=x.aT-7*864e5).length,flags,cov}});
+  // تأكيد بالجملة: 3 أو أكتر في نص ساعة
+  const cs=R.filter(r=>r.c).map(r=>r.c.cT).sort((a,b)=>a-b);let bulk=null;for(let i=0;i+2<cs.length;i++){let j=i;while(j+1<cs.length&&cs[j+1]-cs[i]<=30*60e3)j++;if(j-i>=2&&(!bulk||j-i>bulk[2]))bulk=[cs[i],cs[j],j-i+1]}
+  return {day,R,bulk,docs:[...new Set(cfCx().filter(x=>inB(x)&&cfDay(x.aT)===day).map(x=>x.doc))].sort()}}
+const cfHm=t=>{if(t==null)return '';const d=new Date(t),h=d.getUTCHours();return (h%12||12)+':'+String(d.getUTCMinutes()).padStart(2,'0')+(h<12?' ص':' م')};
+const cfDm=t=>t==null?'':String(new Date(t).getUTCDate()).padStart(2,'0')+'/'+String(new Date(t).getUTCMonth()+1).padStart(2,'0')+' '+cfHm(t);
+function cfDrRows(V,full){return V.R.map(r=>{const x=r.x,ns=/NO/.test(x.st);return {ns,cells:[cfHm(x.aT),...(full?[x.pn,x.ph?cfPh0(x.ph):'']:[]),x.type,...(CF.dr.doc?[]:[x.doc]),
+  r.c?'✔️ '+cfDm(r.c.cT)+' · 👤 '+r.cb[0]:'— ما اتأكدش',(ns?'🚫 No Show':'✖️ اتلغى')+(x.upT?' '+cfDm(x.upT):'')+(x.ub?' · 👤 '+x.ub:''),ns?'':(x.rsn||'—'),
+  r.lastTalk?'آخر كلام '+cfDm(r.lastTalk.t):(r.cov?'❌ ولا مكالمة اترد عليها':'(مفيش سجل مكالمات للوقت ده)'),r.flags.map(f=>'⚠️ '+f).join(' · ')]}})}
+function cfDrHead(full){return ['الميعاد',...(full?['المريض','الرقم']:[]),'النوع',...(CF.dr.doc?[]:['الدكتور']),'اتعلّم Confirmed · مين','الحالة · إمتى · مين','سبب الإلغاء','المكالمات','ملاحظات']}
+function cfDrNotes(V){const N=[],R=V.R,ns=R.filter(r=>r.ns||/NO/.test(r.x.st)),cx=R.filter(r=>!/NO/.test(r.x.st));
+  if(ns.length)N.push(`${ns.length} No Show — منهم ${ns.filter(r=>r.c).length} كانوا «مؤكد»، و${ns.filter(r=>r.c&&r.flags.some(f=>/من غير مكالمة/.test(f))).length} اتأكدوا من غير مكالمة اترد عليها`);
+  if(V.bulk)N.push(`${V.bulk[2]} مواعيد اتعلّم عليهم «مؤكد» مع بعض: ${cfDm(V.bulk[0])} – ${cfHm(V.bulk[1])}`);
+  const nr=R.filter(r=>r.flags.some(f=>/لعدم الرد/.test(f)));if(nr.length)N.push(`${nr.length} إلغاء «لعدم الرد» ومفيش ولا محاولة اتصال قبلها`);
+  const af=R.filter(r=>r.flags.some(f=>/بعد مكالمة ما اتردتش/.test(f)));if(af.length)N.push(`${af.length} اتعلّم «مؤكد» بعد مكالمة ما اتردتش بدقايق`);
+  if(R.some(r=>r.c&&!r.c.ub))N.push('* اسم اللي أكد مش متسجل → صاحب الشيفت ساعتها');return N}
+function vDayRev(){let V;try{V=cfDayRev()}catch(e){return `<div class="card">مراجعة يوم: ${esc(e.message)}</div>`}
+  const has=!!((RAW&&RAW.kinds&&RAW.kinds.cx));const H=cfDrHead(true),rows=cfDrRows(V,true).map(r=>Object.assign(r.cells.map((c,i)=>H[i]==='الرقم'?`<span dir="ltr">${esc(c)}</span>`:H[i]==='ملاحظات'?`<b class="down">${esc(c)}</b>`:esc(c)),{_c:r.ns?'':''}));
+  const N=cfDrNotes(V);
+  return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--down,#dc2626)"><h3>🔍 مراجعة يوم — No Show والملغي<small>اتأكد إمتى ومين · اتغيّر إمتى ومين · سبب الإلغاء · المكالمات قبلها</small></h3>
+   <div class="bar"><label class="sub">اليوم <input type="date" id="drD" value="${V.day}"></label><label class="sub">الدكتور <select id="drDoc"><option value="">كل الدكاترة</option>${V.docs.map(d=>`<option${d===CF.dr.doc?' selected':''}>${esc(d)}</option>`).join('')}</select></label>
+    <label class="sub">الحالة <select id="drSt"><option value="all">No Show + ملغي</option><option value="ns"${CF.dr.st==='ns'?' selected':''}>No Show بس</option><option value="cx"${CF.dr.st==='cx'?' selected':''}>الملغي بس</option></select></label>
+    <button class="pri" id="drImgF">🖼️ صورة كاملة (بالأسامي والأرقام)</button><button class="pri" id="drImgG">🖼️ صورة للجروب (من غير أسامي ولا أرقام المرضى)</button></div>
+   ${!has?'<div class="note" style="margin-top:8px">⏳ تسجيل الملغي والـ No Show (مين وإمتى والسبب) بيبدأ من أول مزامنة كاملة جاية — الأيام اللي قبل كده مش هتبان هنا.</div>':''}
+   ${N.length?`<ul class="ins" style="margin-top:8px">${N.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}
+   ${rows.length?tableHTML(H,rows,{h:520}):'<div class="sub" style="margin-top:8px">مفيش No Show ولا ملغي في اليوم ده (بالفلتر ده).</div>'}
+   <div class="sub" style="margin-top:4px">المكالمات = سجل الخطوط اللي اترفع (تاب 📞 المكالمات) · التأكيد على الواتساب مش بيظهر · «اتأكد من غير مكالمة» = مفيش مكالمة اترد عليها لرقم المريض في الـ 36 ساعة قبل التأكيد</div></div>`}
+function cDayRev(){const d=$('#drD'),dc=$('#drDoc'),st=$('#drSt'),f=$('#drImgF'),g=$('#drImgG');if(d)d.onchange=()=>{CF.dr.d=d.value;render()};if(dc)dc.onchange=()=>{CF.dr.doc=dc.value;render()};if(st)st.onchange=()=>{CF.dr.st=st.value;render()};
+  if(f)f.onclick=()=>cfDrImg(true);if(g)g.onclick=()=>cfDrImg(false)}
+// 🖼️ صورة الجدول (canvas) — full = بأسامي وأرقام المرضى · للجروب = من غير (أسامي السكرتارية موجودة)
+function cfDrImg(full){const V=cfDayRev(),H=cfDrHead(full),Rw=cfDrRows(V,full),N=cfDrNotes(V);if(!Rw.length){alert('مفيش حاجة في اليوم ده');return}
+  const ff=getComputedStyle(document.body).fontFamily||'Cairo, sans-serif',W=Math.max(1400,H.length*190),P=36,cv=document.createElement('canvas'),x=cv.getContext('2d');
+  const F=(sz,w)=>x.font=(w||400)+' '+sz+'px '+ff;const wrap=(t,w)=>{const out=[];String(t).split(' · ').forEach(seg=>{let line='';seg.split(' ').forEach(wd=>{const tt=line?line+' '+wd:wd;if(x.measureText(tt).width>w&&line){out.push(line);line=wd}else line=tt});if(line)out.push(line)});return out};
+  const cw=H.map(h=>/ملاحظات|المكالمات|Confirmed|الحالة/.test(h)?2.1:/المريض/.test(h)?1.6:/الرقم|الدكتور|النوع|سبب/.test(h)?1.2:0.8),sw=cw.reduce((a,b)=>a+b,0),CW=cw.map(c=>c/sw*(W-2*P));
+  F(17,600);const lines=Rw.map(r=>r.cells.map((c,i)=>wrap(c,CW[i]-16))),rh=lines.map(L=>Math.max(...L.map(l=>l.length))*24+18);
+  const hdr=130,th=46,notesH=N.length*30+30,H2=hdr+th+rh.reduce((a,b)=>a+b,0)+notesH+70;cv.width=W;cv.height=H2;x.direction='rtl';x.textBaseline='middle';
+  const T_=(t,X,Y,c,al)=>{x.fillStyle=c||'#111827';x.textAlign=al||'right';x.fillText(t,X,Y)},Rc=(X,Y,w,h,c)=>{x.fillStyle=c;x.fillRect(X,Y,w,h)};
+  Rc(0,0,W,H2,'#fff');Rc(0,0,W,hdr-20,'#0f766e');F(34,800);T_('🔍 مراجعة '+(CF.dr.st==='ns'?'الـ No Show':CF.dr.st==='cx'?'الإلغاء':'الغياب والإلغاء')+(CF.dr.doc?' — '+CF.dr.doc:''),W-P,46,'#fff');
+  F(20,600);T_((BRN[S.b]||'')+' · '+V.day.slice(8,10)+'/'+V.day.slice(5,7)+'/'+V.day.slice(0,4)+' · من سحبات Medicolize + سجل مكالمات الخطوط',W-P,88,'#d1fae5');
+  let y=hdr;Rc(P,y,W-2*P,th,'#f1f5f9');F(17,800);let X=W-P;H.forEach((h,i)=>{T_(h,X-8,y+th/2,'#334155');X-=CW[i]});y+=th;
+  Rw.forEach((r,ri)=>{if(ri%2)Rc(P,y,W-2*P,rh[ri],'#fafafa');X=W-P;r.cells.forEach((c,i)=>{const col=/^⚠️|❌/.test(c)?'#b91c1c':/^✔️/.test(c)?'#1d4ed8':/^🚫|^✖️/.test(c)?'#b91c1c':'#111827';F(17,/^(✔️|🚫|✖️|⚠️)/.test(c)||i===1&&full?700:500);
+      lines[ri][i].forEach((l,li)=>T_(l,X-8,y+20+li*24,col));X-=CW[i]});x.strokeStyle='#e5e7eb';x.beginPath();x.moveTo(P,y+rh[ri]);x.lineTo(W-P,y+rh[ri]);x.stroke();y+=rh[ri]});
+  y+=14;if(N.length){Rc(P,y,W-2*P,notesH-10,'#fef2f2');F(18,700);N.forEach((n,i)=>T_('• '+n,W-P-14,y+24+i*30,'#7f1d1d'))}
+  F(14);T_('التأكيد على الواتساب مش بيظهر في سجل المكالمات · BODYFIX',W-P,H2-24,'#94a3b8');
+  cv.toBlob(async b=>{const name='مراجعة '+V.day+(full?'':' (للجروب)')+'.png',file=new File([b],name,{type:'image/png'});
+    try{if(navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){await navigator.share({files:[file],title:name});return}}catch(e){if(e&&e.name==='AbortError')return}
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)},'image/png')}
+
 // ================= 📥 Excel: التحليل + خطة العمل =================
 const cfTxt=x=>{if(x==null)return '';const d=document.createElement('div');d.innerHTML=String(x).replace(/<br\s*\/?>/gi,' ');return d.textContent.replace(/\s+/g,' ').trim()};
 const cfHr=h=>(h%12||12)+(h<12?' ص':' م');
@@ -506,5 +574,5 @@ async function cfExcel(){if(!CF.rep.calls&&!CF.rep.conf){alert('ارفع ملف�
     if(f.bRows.length)sh('تأكيد بالجملة',['الوقت','الفرع','مواعيد','المسئولة'],f.bRows,[22,10,10,30]);
     if(f.sus.length)sh('تأكيدات مشكوك فيها',['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],f.sus,[14,30,26,18,12,34,40,10])}
   XLSX.writeFile(wb,`تحليل المكالمات والتأكيدات — ${BRN[S.b]} — ${per.replace(/[\/\\?*\[\]:]/g,'-')}.xlsx`)}
-VIEWS.conf=[()=>{CF.lists=null;let s='';try{s+=cfUpHTML()}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}}];
+VIEWS.conf=[()=>{CF.lists=null;let s='';try{s+=vDayRev()}catch(e){console.error(e)}try{s+=cfUpHTML()}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}try{cDayRev()}catch(e){console.error(e)}}];
 VIEWS.calls=[()=>{let s='';for(const f of [cfUpHTML,cfBadHTML,vCallAlerts,vCalls,vReach]){try{s+=f()}catch(e){console.error(e);s+='<div class="card">خطأ: '+esc(e.message)+'</div>'}}return s},()=>{cConf();for(const f of [cCalls,cReach,cCallCfg]){try{f()}catch(e){console.error(e)}}}];

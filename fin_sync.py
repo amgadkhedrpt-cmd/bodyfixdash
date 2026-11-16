@@ -28,10 +28,13 @@ APT_Q2 = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]
           "{id start status type doctor{name} patient{id referenceId firstName lastName}}}")
 CONF_Q = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
           "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
-          "{id start status type createdAt updatedAt createdBy{name} updatedBy{name} lastUpdatedBy{name} modifiedBy{name} doctor{name} patient{id referenceId firstName lastName phoneNumber secondaryPhoneNumber phoneNumber2 secondPhoneNumber secondaryPhone otherPhoneNumber alternativePhone phone2 mobile2}}}")
+          "{id start status type createdAt updatedAt createdBy{name} updatedBy{name} lastUpdatedBy{name} modifiedBy{name} cancellationReason cancelReason cancelationReason doctor{name} patient{id referenceId firstName lastName phoneNumber secondaryPhoneNumber phoneNumber2 secondPhoneNumber secondaryPhone otherPhoneNumber alternativePhone phone2 mobile2}}}")
 PH2_F = ['secondaryPhoneNumber', 'phoneNumber2', 'secondPhoneNumber', 'secondaryPhone', 'otherPhoneNumber', 'alternativePhone', 'phone2', 'mobile2']   # الرقم التاني (secondary) — الأسامي اللي مش موجودة بتتشال لوحدها
 CONF_COLS = ["aid", "start", "up", "cr", "type", "pid", "pn", "ph", "doc", "b", "by", "seen", "puid", "ph2", "ub"]
-UB_F = ["updatedBy", "lastUpdatedBy", "modifiedBy"]   # مين عمل «مؤكد» = آخر حد عدّل الميعاد ساعة ما السحب شافه مؤكد أول مرة (Medicolize بيكتب فوقه بعدين)
+UB_F = ["updatedBy", "lastUpdatedBy", "modifiedBy"]
+RSN_F = ["cancellationReason", "cancelReason", "cancelationReason"]   # سبب الإلغاء — اللي مش موجود بيتشال لوحده
+# 🔍 مراجعة يوم: كل ميعاد اتلغى / No Show — مين غيّر الحالة وإمتى وسبب الإلغاء (أول مرة السحب يشوفه بالحالة دي)
+CX_COLS = ["aid", "start", "st", "up", "ub", "rsn", "type", "pid", "pn", "ph", "doc", "b", "by", "cr", "seen", "puid"]   # مين عمل «مؤكد» = آخر حد عدّل الميعاد ساعة ما السحب شافه مؤكد أول مرة (Medicolize بيكتب فوقه بعدين)
 PAY_Q = ("query P($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter)"
          "{payments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
          "{id type amount balance refunded refundedAt details createdAt createdBy{name} doctor{name} transaction{treasury{publicName}}"
@@ -603,11 +606,37 @@ def main():
             cst = data["kinds"].setdefault("conf", {}).setdefault("all", {})
             have = {r[0] for t in cst.values() for r in t.get("rows", [])}
             byaid = {r[0]: (t, r) for t in cst.values() for r in t.get("rows", [])}   # عشان نكمّل الرقم التاني للصفوف القديمة
-            n_conf = n_new = 0
+            n_conf = n_new = n_cx = 0
+            cxs = data["kinds"].setdefault("cx", {}).setdefault("all", {})
+            cx_by = {r[0]: (t, r) for t in cxs.values() for r in t.get("rows", [])}
             for key, b in data["branches"].items():
                 rows = run_paged(ctx, [CONF_Q], "createdAppointments", {"branchId": b["id"], "orderBy": "start-asc", "filters": {"status": []}}, rng)
                 for r in rows:
-                    if not isinstance(r, dict) or str(r.get("status") or "").upper() != "CONFIRMED":
+                    stu = str((r or {}).get("status") or "").upper() if isinstance(r, dict) else ""
+                    if stu in ("CANCELED", "CANCELLED", "NOSHOW", "NO_SHOW"):
+                        try:
+                            aid = r.get("id"); pt = r.get("patient") or {}
+                            ub = next(((r.get(f) or {}).get("name") for f in UB_F if isinstance(r.get(f), dict) and (r.get(f) or {}).get("name")), None)
+                            rsn = next((str(r.get(f)) for f in RSN_F if r.get(f)), None)
+                            if not META_D.get("rsn_field"):
+                                META_D["rsn_field"] = next((f for f in RSN_F if f in r), "") or "مش موجود"
+                            old = cx_by.get(aid)
+                            if old and old[1][2] == stu:
+                                if rsn and not old[1][5]: old[1][5] = rsn
+                                continue                      # نفس الحالة → سيب مين/إمتى زي ما اتسجلوا أول مرة
+                            mk = dt.datetime.fromisoformat(str(r["start"]).replace("Z", "+00:00")).astimezone(TZ).strftime("%Y-%m")
+                            row = [aid, r.get("start"), stu, r.get("updatedAt"), ub, rsn, r.get("type"), pt.get("referenceId"),
+                                   " ".join(x for x in (pt.get("firstName"), pt.get("lastName")) if x), pt.get("phoneNumber"),
+                                   (r.get("doctor") or {}).get("name"), key, (r.get("createdBy") or {}).get("name"), r.get("createdAt"), C.NOW, pt.get("id")]
+                            if old:
+                                old[1][:] = row
+                            else:
+                                t_ = cxs.setdefault(mk, {"cols": CX_COLS, "rows": []}); t_["rows"].append(row); cx_by[aid] = (t_, row)
+                            n_cx += 1
+                        except Exception as e:
+                            META_D["errors"].append("cx: %s" % str(e)[:120])
+                        continue
+                    if not isinstance(r, dict) or stu != "CONFIRMED":
                         continue
                     n_conf += 1
                     aid = r.get("id")
@@ -654,7 +683,9 @@ def main():
                     n_new += 1
             for mk in [k for k in cst if k < months(START, CUR)[-4]]:
                 cst.pop(mk, None)                       # keep ~4 months
-            META_D["conf"] = {"confirmed_now": n_conf, "new": n_new}
+            for mk in [k for k in cxs if k < months(START, CUR)[-4]]:
+                cxs.pop(mk, None)
+            META_D["conf"] = {"confirmed_now": n_conf, "new": n_new, "cx_changed": n_cx}
         except Exception as e:
             META_D["errors"].append("conf: %s" % str(e)[:160])
         br.close()

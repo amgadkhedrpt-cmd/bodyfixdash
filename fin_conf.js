@@ -594,7 +594,7 @@ function cfTableImg(o){const ff=getComputedStyle(document.body).fontFamily||'Cai
     try{if(navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){await navigator.share({files:[file],title:name});return}}catch(e){if(e&&e.name==='AbortError')return}
     const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)},'image/png')}
 const CF_L3=[
-  {k:'book',t:'🟢 اتحجز «مؤكد» وقت الحجز',d:'الميعاد اتسجّل «مؤكد» من أول ما اتحجز (من غير تأكيد بعد كده)',col:'#0f766e',f:c=>c.atBook},
+  {k:'book',t:'🟢 اتحجز «مؤكد» وقت الحجز — قبل الميعاد بيومين أو أكتر',d:'الميعاد اتسجّل «مؤكد» من أول ما اتحجز ومحدش أكّد تاني اليوم اللي قبله (اللي اتحجز اليوم اللي قبل الميعاد مش بيظهر هنا)',col:'#0f766e',f:c=>c.atBook&&cfDD(c)>=2},
   {k:'early',t:'📅 اتأكد قبل الميعاد بيومين أو أكتر',d:'التأكيد اتعمل من بدري — محتاج تأكيد تاني اليوم اللي قبله',col:'#1d4ed8',f:c=>!c.atBook&&cfDD(c)>=2},
   {k:'nocall',t:'❌ اتأكد من غير مكالمة اترد عليها',d:'مفيش مكالمة اترد عليها لرقم المريض في الـ 36 ساعة قبل التأكيد (الواتساب مش بيظهر)',col:'#b91c1c',f:c=>!c.atBook&&['none','tried','missonly'].includes(c.cat)}];
 function cfL3Rows(L,k,full){const resT=c=>c.res==='حضر'?'✅ حضر':c.res==='ما جاش'?'ما جاش':c.res==='اعتذر'?'اعتذر':c.res==='لسه'?'لسه':'—';

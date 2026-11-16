@@ -1,5 +1,5 @@
 {
- "at": "2026-11-16T13:01:47.914Z",
+ "at": "2026-11-16T13:15:35.078Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,9 +91,9 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "ph2_field": "phoneNumber2",
- "ph2_n": 15,
+ "ph2_n": 13,
  "conf": {
-  "confirmed_now": 44,
+  "confirmed_now": 41,
   "new": 0
  },
  "kinds": {
@@ -117,7 +117,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20667,
+    "rows": 20671,
     "cols": [
      "id",
      "type",
@@ -388,8 +388,10 @@
     "values": {
      "status": [
       "CANCELED",
+      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
+      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -490,7 +492,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16699,
+    "rows": 16700,
     "cols": [
      "name",
      "end",
@@ -516,7 +518,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7910,
+    "rows": 7911,
     "cols": [
      "duration",
      "createdAt",
@@ -606,7 +608,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17511,
+    "rows": 17514,
     "cols": [
      "id",
      "referenceId",
@@ -855,10 +857,10 @@
  },
  "hash": {
   "data/fin.enc": "888400d6e1c56d9a",
-  "data/fin_c.enc": "13615f33ff28f756"
+  "data/fin_c.enc": "fc09c33417130044"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 59
+ "secs": 64
 }

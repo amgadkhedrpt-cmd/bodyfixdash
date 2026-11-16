@@ -11953,10 +11953,12 @@ function planAudAmgOk(key){ if(!PLAN_ME){ alert('اختاري اسمك الأو�
 /* ⚡ بديل خصم الاعتذار المفاجئ: sudx|<pid>|<day> = {t:'nopkg'|'warn', by, at, name, phone} — «تم التنبيه» مرة واحدة بس لكل مريض */
 function planSudX(pid,day,t,name,phone){
   if(!PLAN_ME){ alert('اختاري اسمك الأول من خانة «السكرتيرة المسئولة» فوق'); return; }
-  var L={nopkg:'لا يوجد باقة للخصم',warn:'تم التنبيه — وفي حالة التكرار يتم الخصم المرة القادمة'};
-  if(t){ if(t==='warn'&&Object.keys(PLAN_ST).some(function(kk){ var o=PLAN_ST[kk]; return kk.indexOf('sudx|'+pid+'|')===0&&kk.split('|')[2]<day&&o&&o.t==='warn'; })){ alert('المريض ده اتنبّه قبل كده — المرة دي لازم الخصم'); return; }
+  var L={nopkg:'لا يوجد باقة للخصم',warn:'تم التنبيه — وفي حالة التكرار يتم الخصم المرة القادمة',notsud:'مش مفاجئ'};
+  var why='';
+  if(t==='notsud'){ why=prompt('مش مفاجئ — اكتبي السبب (مثلاً: لغى من بدري / محدش أكّد عليه):',''); if(!why||!why.trim()) return; why=why.trim(); }
+  else if(t){ if(t==='warn'&&Object.keys(PLAN_ST).some(function(kk){ var o=PLAN_ST[kk]; return kk.indexOf('sudx|'+pid+'|')===0&&kk.split('|')[2]<day&&o&&o.t==='warn'; })){ alert('المريض ده اتنبّه قبل كده — المرة دي لازم الخصم'); return; }
     if(!confirm('متأكدة؟\n«'+L[t]+'»'+(t==='warn'?'\n\n⚠️ الزرار ده بيتستخدم مرة واحدة بس للمريض ده — المرة الجاية لازم خصم':'')))return; }
-  var o={t:t||'', by:PLAN_ME, at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}), name:name||'', phone:phone||''};
+  var o={t:t||'', by:PLAN_ME, at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}), name:name||'', phone:phone||'', why:why};
   PLAN_ST['sudx|'+pid+'|'+day]=o; planSaveRaw('PLAN|sudx|'+pid+'|'+day, JSON.stringify(o));
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   planRender();
@@ -12102,7 +12104,7 @@ function planAct(key, s){
 function planNote(key){
   var noteEl=document.getElementById('pn_'+planHash(key)); if(!noteEl) return;
   var cur=PLAN_ST[key]||{}, v=noteEl.value.trim(); if((cur.note||'')===v) return;
-  var o=Object.assign({},cur,{note:v, nby:PLAN_ME||cur.by||''});
+  var o=Object.assign({},cur,{note:v, nby:PLAN_ME||cur.by||'', nts:new Date().toISOString()});
   // الملحوظة = المهمة اتعاملت معاها (اتعرضت/اتكلم/اترفضت) → تتحسب «اتعمل» لو كانت لسه مفتوحة
   var tk0=PLAN_TASKIDX[key]||{}, td0=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   var old0=tk0.daily&&String(cur.ts||'').slice(0,10)<td0;   // مهمة يومية: حالة امبارح ما تمنعش ملحوظة النهارده
@@ -12427,24 +12429,27 @@ function planTasks(useAll){
     // بديل الخصم (مرة تانية وأكتر) — زرارين بس: «لا يوجد باقة للخصم» · «تم التنبيه — المرة الجاية خصم» (مرة واحدة بس لكل مريض)
     var sx=PLAN_ST['sudx|'+x.pid+'|'+today]; if(sx&&!sx.t) sx=null;
     var warnPrev=Object.keys(PLAN_ST).filter(function(kk){ var o=PLAN_ST[kk]; return kk.indexOf('sudx|'+x.pid+'|')===0&&kk.split('|')[2]<today&&o&&o.t==='warn'; }).map(function(kk){ return kk.split('|')[2]; }).sort();
-    var done=conv&&(!second||ded||!!sx);   // من Medicolize — أو زرار البديل لما الخصم مش ممكن
+    var ns=sx&&sx.t==='notsud'?sx:null; if(ns) sx=null;
+    var done=!!ns||(conv&&(!second||ded||!!sx));   // من Medicolize — أو زرار البديل لما الخصم مش ممكن
     var SXL={nopkg:'📭 لا يوجد باقة للخصم',warn:'⚠️ تم التنبيه — وفي حالة التكرار يتم الخصم المرة القادمة'};
     var pa=String(x.pid).replace(/'/g,''), nmq=alEsc(x.name||'').replace(/'/g,''), phq=String(x.phone||'').replace(/'/g,'');
-    var sxBtns=second&&!ded?(sx?'<div style="font-size:.64rem;margin-top:3px"><span style="color:var(--g)">✋</span> '+SXL[sx.t]+' <span style="color:var(--mute)">— '+alEsc(sx.by||'')+' '+alEsc(sx.at||'')+'</span> <button onclick="event.stopPropagation();planSudX(\''+pa+'\',\''+today+'\',\'\')" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:6px;font-size:.56rem;cursor:pointer">↩️ رجّعها</button></div>':
+    var nsBtn=ns?'<div style="font-size:.64rem;margin-top:3px"><span style="color:var(--g)">✋</span> 🙅 مش مفاجئ: <b>'+alEsc(ns.why||'')+'</b> <span style="color:var(--mute)">— '+alEsc(ns.by||'')+' '+alEsc(ns.at||'')+'</span> <button onclick="event.stopPropagation();planSudX(\''+pa+'\',\''+today+'\',\'\')" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:6px;font-size:.56rem;cursor:pointer">↩️ رجّعها</button></div>':
+      (done?'':'<div style="margin-top:5px" onclick="event.stopPropagation()"><button onclick="planSudX(\''+pa+'\',\''+today+'\',\'notsud\',\''+nmq+'\',\''+phq+'\')" style="background:rgba(16,185,129,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer">🙅 مش مفاجئ (بسبب)</button></div>');
+    var sxBtns=ns?'':second&&!ded?(sx?'<div style="font-size:.64rem;margin-top:3px"><span style="color:var(--g)">✋</span> '+SXL[sx.t]+' <span style="color:var(--mute)">— '+alEsc(sx.by||'')+' '+alEsc(sx.at||'')+'</span> <button onclick="event.stopPropagation();planSudX(\''+pa+'\',\''+today+'\',\'\')" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:6px;font-size:.56rem;cursor:pointer">↩️ رجّعها</button></div>':
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px" onclick="event.stopPropagation()"><span style="font-size:.6rem;color:var(--mute);align-self:center">لو الخصم مش ممكن:</span>'+
       '<button onclick="planSudX(\''+pa+'\',\''+today+'\',\'nopkg\',\''+nmq+'\',\''+phq+'\')" style="background:rgba(59,130,246,.15);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer">'+SXL.nopkg+'</button>'+
       (warnPrev.length?'<span style="font-size:.6rem;color:var(--r);align-self:center">⚠️ اتنبّه قبل كده يوم '+alEsc(alFmtDay(warnPrev[warnPrev.length-1]))+' — المرة دي لازم الخصم</span>':
        '<button onclick="planSudX(\''+pa+'\',\''+today+'\',\'warn\',\''+nmq+'\',\''+phq+'\')" style="background:rgba(245,158,11,.15);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer">'+SXL.warn+'</button>')+'</div>'):'';
-    add('office',{grp:['sudden'], sys:done?(sx&&!ded?'اسم الموعد اتغير + ✋ '+SXL[sx.t]:'كل الخطوات اتعملت'):'', what:done?('اسم الموعد اتغير لـ الغاء مفاجئ على Medicolize'+(second?(ded?' + اتخصمت الجلسة':sx?' · '+SXL[sx.t]+' ('+(sx.by||'')+')':''):'')):'', key:k, icon:'⚡',
+    add('office',{grp:['sudden'], sys:done?(ns?'✋ مش مفاجئ — '+(ns.why||''):sx&&!ded?'اسم الموعد اتغير + ✋ '+SXL[sx.t]:'كل الخطوات اتعملت'):'', what:done?('اسم الموعد اتغير لـ الغاء مفاجئ على Medicolize'+(second?(ded?' + اتخصمت الجلسة':sx?' · '+SXL[sx.t]+' ('+(sx.by||'')+')':''):'')):'', key:k, icon:'⚡',
       sys0:sx?1:0, kind:(x.kind==='noshow'?'No Show':'اعتذار مفاجئ')+' النهارده — '+(second?'<b style="color:var(--r)">مرة '+(n+1)+' (خصم جلسة)</b>':'<b>أول مرة</b>'),
       name:x.name, phone:x.phone, br:brOf(x),
       lines:[alEsc(x.type)+' '+alEsc(planT(x.date))+' مع '+alEsc(doc(x.doctor))+(n?' · مرات قبل كده: '+x.prior_sudden.map(alFmtDay).join('، '):''),
              x.note?'📝 '+alEsc(x.note):'',
              waBtn+(wa?' <span style="font-size:.58rem;color:var(--mute)">اتفتح '+alEsc(wa.by||'')+' '+alEsc(wa.at||'')+'</span>':''),
              ok(conv,'اسم الموعد اتغير لـ «الغاء مفاجئ» على Medicolize (الحالة Canceled أو No Show أو Completed — أي واحدة)'),
-             second?ok(ded||!!sx,'الجلسة اتخصمت (خطوة عملية Completed النهارده)'+(sx&&!ded?' — <b>بديل:</b> '+SXL[sx.t]:'')):'', sxBtns,
+             nsBtn, ns?'':second?ok(ded||!!sx,'الجلسة اتخصمت (خطوة عملية Completed النهارده)'+(sx&&!ded?' — <b>بديل:</b> '+SXL[sx.t]:'')):'', sxBtns,
              done?'':'<div style="margin-top:5px;border:1px solid var(--r);border-radius:7px;padding:5px 8px;font-size:.64rem;color:var(--r)"><b>⬜ ناقص علشان المهمة تتقفل:</b><br>'+
-               [!conv?'• على Medicolize غيّري اسم موعد '+alEsc(planT(x.date))+' ('+alEsc(x.type)+') لـ <b>«الغاء مفاجئ»</b> — الحالة تفضل Canceled أو No Show عادي':'',
+               [!conv?'• لو مش إلغاء مفاجئ أصلاً: زرار «🙅 مش مفاجئ» واكتبي السبب<br>• على Medicolize غيّري اسم موعد '+alEsc(planT(x.date))+' ('+alEsc(x.type)+') لـ <b>«الغاء مفاجئ»</b> — الحالة تفضل Canceled أو No Show عادي':'',
                 second&&!ded&&!sx?'• دي مرة '+(n+1)+': اعملي <b>خطوة عملية Completed النهارده</b> من باقته (خصم الجلسة) — أو لو مش ممكن: زرار من الزرارين اللي فوق':''].filter(Boolean).join('<br>')+
                '<br><span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها بعد الـ Sync الجاي (كل نص ساعة) — رسالة الواتساب مش شرط</span></div>']});
   });
@@ -13053,17 +13058,17 @@ var PLAN_DONE_RULE={
   stop:'🤖 مواعيده الجاية تتلغى + يتشال من شيت التثبيت · أو ✋ «مش هيوقف جلسات» لو هيكمل',
   renew:'🤖 يتحجز «تقييم الجلسة الأخيرة» أو تتعمل باقة جديدة · أو 🚫 رفض بسبب', eval:'🤖 يتحجز تقييم على Medicolize · أو 🚫 رفض بسبب', evalamg:'🤖 يتحجز تقييم', evalamgd:'🤖 يتحجز إعادة تقييم مع د. أمجد',
   debt:'🤖 الدفع يتسجل على Medicolize (المتبقي على المريض يخلص)', debtph:'🤖 المريض يدفع اللي عليه (بتتشال خالص) · أو ✋ ملحوظة باللي حصل: بتتقفل النهارده بس وترجع بكره للمتابعة · «ما ردش» 3 مرات → تروح للمدير',
-  invrev:'✋ المشرفة تراجع الفاتورة وتدوس «✅» لو صح (بتتحول للتحصيل بالتليفون) · 🤖 لو اتعدلت على Medicolize بتتقفل لوحدها', invfix:'🤖 المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)',
+  invrev:'✋ المشرفة تراجع الفاتورة وتدوس «✅» لو صح (بتتحول للتحصيل بالتليفون) · 🤖 لو اتعدلت على Medicolize بتتقفل لوحدها · 📝 ملحوظة (ما ردش / مقفول / اتكلمنا مع حد) تقفلها النهارده بس وترجع بكره · ⏭ أجّل = تختفي لحد يوم التأجيل', invfix:'🤖 المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)',
   nonext:'🤖 يتحجزله ميعاد جاي', nonextrev:'🤖 يتحجزله ميعاد جاي (إلا لو اتكتب «منقطع» في تفاصيل المريض النهارده)',
   svc:'🤖 الخدمة الناقصة تتحجز · أو ✋ سبب الرفض في الملحوظة (بتتحسب 🚫)', stale:'🤖 الموعد يتقفل على Medicolize (Completed / Canceled / No Show)',
   aud:'🤖 الغلط يتصلّح على Medicolize (الخطوة تتقفل / الموعد يتصلّح) · ✋ «راجعته — مفيش خطأ» في «اختلاف في الخدمة» بس · أخطاء د. أمجد لوحدها ومش محسوبة',
-  sudden:'🤖 اسم الموعد يتغيّر لـ«الغاء مفاجئ» على Medicolize + من تاني مرة: خطوة Completed النهارده (خصم الجلسة) · ولو الخصم مش ممكن: ✋ «لا يوجد باقة للخصم» أو «تم التنبيه — المرة الجاية خصم» (مرة واحدة للمريض) · مفيش تأجيل ولا رفض',
+  sudden:'🤖 اسم الموعد يتغيّر لـ«الغاء مفاجئ» على Medicolize + من تاني مرة: خطوة Completed النهارده (خصم الجلسة) · ولو الخصم مش ممكن: ✋ «لا يوجد باقة للخصم» أو «تم التنبيه — المرة الجاية خصم» (مرة واحدة للمريض) · أو ✋ «🙅 مش مفاجئ» بسبب مكتوب (بيقفلها على طول) · مفيش تأجيل ولا رفض',
   nopkg:'🤖 تتفتحله باقة أو تتحجزله إعادة تقييم على Medicolize · أو 🚫 رفض بسبب', nopkgnext:'🤖 تتفتحله باقة أو تتحجزله إعادة تقييم على Medicolize · أو 🚫 رفض بسبب',
   mcall:'🤖 حد يتكلم مع الرقم (احنا رجعناله أو هو اتصل تاني — بيبان لما سجل المكالمات يترفع) أو ييجي العيادة · أو 🚫 رفض بسبب (رقم غلط / إعلانات)', mcallup:'🤖 يترفع ملف سجل المكالمات (الصبح · وبعد التسليم)'};
 function planRuleHTML(g){ var r=PLAN_DONE_RULE[g]||PLAN_AUTO_G[g]; if(!r) return '';
   return '<div style="font-size:.6rem;margin:6px 0 4px;padding:5px 9px;border-radius:7px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);line-height:1.7">✅ <b>بتتحسب اتعملت لما:</b> '+alEsc(r).replace(/🤖/g,'<b>🤖</b>')+'</div>'; }
 /* ⬜ ليه المهمة لسه مفتوحة — بيتكتب على كل مهمة مش متقفلة (لو المهمة نفسها ما فيهاش «ناقص …») */
-var PLAN_WHY={aud:'الغلط يتصلّح على Medicolize (بتتقفل لوحدها مع الـ Sync) — ولو «اختلاف في الخدمة» وراجعتيه وطلع صح: «✅ راجعته — مفيش خطأ»', debtph:'يدفع اللي عليه (بتتشال لوحدها مع الـ Sync) — أو اكتبي ملحوظة باللي حصل: بتتقفل النهارده وترجع بكره للمتابعة',
+var PLAN_WHY={invrev:'✅ لو الفاتورة صح — أو ملحوظة باللي حصل النهارده (بتتقفل النهارده وترجع بكره) — أو ⏭ أجّل', sudden:'اسم الموعد «الغاء مفاجئ» على Medicolize (ومن تاني مرة خصم الجلسة) — أو «🙅 مش مفاجئ» بسبب', aud:'الغلط يتصلّح على Medicolize (بتتقفل لوحدها مع الـ Sync) — ولو «اختلاف في الخدمة» وراجعتيه وطلع صح: «✅ راجعته — مفيش خطأ»', debtph:'يدفع اللي عليه (بتتشال لوحدها مع الـ Sync) — أو اكتبي ملحوظة باللي حصل: بتتقفل النهارده وترجع بكره للمتابعة',
   mcall:'حد يتكلم مع الرقم (بيبان لما سجل المكالمات يترفع) — أو 🚫 رفض بسبب', mcallup:'ملف سجل المكالمات يترفع'};
 function planWhyOpen(t,state){ if(state!=='open'&&state!=='nr') return ''; if((t.lines||[]).some(function(l){ return /ناقص|لسه ما اترفعش/.test(String(l||'')); })) return '';
   var g=(t.grp||[])[0], why=PLAN_WHY[g]||(planIsAuto(t)?PLAN_AUTO_G[g]:planNoteCloses(t)?'ملحوظة باللي حصل في المكالمة':planManualOk(t)?'تدوسي ✅ اتعمل بعد ما تخلصيها':PLAN_NOTE_REF[g]?'الخدمة تتحجز على Medicolize — أو سبب الرفض في الملحوظة':'الشغل يتسجل على Medicolize (بيتشيك كل نص ساعة) — أو «🚫 رفض» بسبب');
@@ -13077,6 +13082,7 @@ function planState(t){
   if(st.s==='nr') return 'nr';
   if(st.s==='ref') return 'done';   // رفض بسبب = اتقفلت (بتتعد لوحدها في المراجعة)
   if(!st.s&&String(st.note||'').trim()&&planNoteCloses(t)&&String(t.key||'').indexOf(today+'|')===0) return 'done';   // اتكتبت ملحوظة النهارده = اتعاملت معاها
+  if(PLAN_NOTE_DAY[(t.grp||[])[0]]&&st.s!=='nr'&&String(st.note||'').trim()&&String(st.nts||'').slice(0,10)===today) return 'done';   // ملحوظة النهارده = اتعاملت معاها النهارده بس — ترجع بكره
   if(!st.s&&planNoteIsRef(t)) return 'done';   // عرض خدمة: الملحوظة = سبب إنه مش عايزها → 🚫 رفض
   return 'open';
 }
@@ -13098,6 +13104,7 @@ var PLAN_SYS_ONLY={call:1, mcallup:1, sudden:1};
 var PLAN_NO_NR={mcall:1, mcallup:1, sudden:1, noinv:1, invfix:1, invrev:1, aud:1, stale:1};   // مهام تسجيل على السيستم — مش مكالمة، فمالهاش «ما ردش»
 /* زرار ✅ اليدوي: مهام المدير ومراجعة الفواتير القديمة بس — أي مهمة تانية بتتقفل من Medicolize (أو ملحوظة للمكالمات، أو 🚫 رفض بسبب) */
 var PLAN_MANUAL_OK={mgr:1, invrev:1};
+var PLAN_NOTE_DAY={invrev:1};   // الملحوظة بتقفلها النهارده بس وترجع تاني يوم (لحد ✅ أو تتعدل الفاتورة)
 function planManualOk(t){ if(t.manOk!==undefined) return !!t.manOk; var g=t.grp||[]; return g.length>0&&g.every(function(x){ return PLAN_MANUAL_OK[x]; }); }
 function planSysOnly(t){ return (t.grp||[]).some(function(g){ return PLAN_SYS_ONLY[g]; }); }
 /* مهام «اعرضها عليه» (ناقصه خدمة): لو المريض مش عايزها، الملحوظة النهارده هي السبب → تتحسب 🚫 رفض (مش ✋ ولا 🤖) */

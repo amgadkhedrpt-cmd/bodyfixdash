@@ -13039,6 +13039,29 @@ function planFuPanel(){
       (x.fu_note?'<div style="color:var(--mute);margin-top:2px">📝 '+alEsc(x.fu_note)+'</div>':'')+'</div>'; }).join('')+'</div>';
   return h+'<div style="font-size:.54rem;color:var(--mute);margin-top:6px">«مسئولة المتابعة» = اللي كانت متعيّنة على مكالمات المتابعة يوم ما المريض اتتابع، ولو مفيش تعيين = اللي عملت موعد المتابعة على Medicolize · «حجز الميعاد» = اسم الحساب اللي عمل الميعاد على Medicolize</div></div>';
 }
+/* ✅ إمتى المهمة بتتحسب «اتعملت» — مكتوب تحت عنوان كل قسم (🤖 = السيستم بيقفلها لوحده من Medicolize · ✋ = بإيد السكرتيرة) */
+var PLAN_DONE_RULE={
+  mgr:'✋ المدير يدوس «✅ اتعمل» بعد ما يتعامل معاها · 🤖 لو «هيعمل عملية»: تتقفل لما تتحجز متابعة مع د. أمجد',
+  call:'🤖 المريض يحجز · أو الموعد يتقفل Completed وعليه ملحوظة باللي حصل · أو يتكتب على الموعد اتصالين بوقتهم (لو ما ردش)',
+  conf:'🤖 الميعاد يبقى Confirmed أو Cancelled على Medicolize', confsp:'🤖 الميعاد يبقى Confirmed أو Cancelled على Medicolize',
+  conftoday:'🤖 الميعاد يبقى Confirmed أو Cancelled أو المريض يوصل',
+  waittoday:'🤖 الميعاد يتنقل من الويتنج أو يتلغى · أو ✋ ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'🤖 الميعاد يتنقل من الويتنج أو يتلغى · أو ✋ ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnut:'🤖 الميعاد يتنقل من الويتنج أو يتلغى · أو ✋ ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه',
+  late:'🤖 تتكتب ملحوظة على الموعد في Medicolize (هيوصل إمتى / ما ردش) — للمعلومية',
+  miss:'🤖 يتحجزله ميعاد أو ييجي', kashf:'🤖 يحجز جلسة', kashf0:'🤖 يحجز جلسة', fix:'🤖 اسمه يظهر في شيت تثبيت الدكتور',
+  drop:'🤖 يتحجزله ميعاد · أو ✋ ملحوظة باللي حصل (أو 🚫 رفض بسبب)', idle:'🤖 يتحجزله ميعاد · أو ✋ ملحوظة (ولو قال هييجي يوم وما جاش ترجع تتفتح)',
+  streak:'🤖 يتشال من شيت التثبيت · أو ✋ ملحوظة باللي حصل', recur:'🤖 أول مواعيده الجاية تبقى Confirmed · أو ✋ ملحوظة باللي حصل',
+  stop:'🤖 مواعيده الجاية تتلغى + يتشال من شيت التثبيت · أو ✋ «مش هيوقف جلسات» لو هيكمل',
+  renew:'🤖 يتحجز «تقييم الجلسة الأخيرة» أو تتعمل باقة جديدة · أو 🚫 رفض بسبب', eval:'🤖 يتحجز تقييم على Medicolize · أو 🚫 رفض بسبب', evalamg:'🤖 يتحجز تقييم', evalamgd:'🤖 يتحجز إعادة تقييم مع د. أمجد',
+  debt:'🤖 الدفع يتسجل على Medicolize (المتبقي على المريض يخلص)', debtph:'🤖 المريض يدفع اللي عليه (بتتشال خالص) · أو ✋ ملحوظة باللي حصل: بتتقفل النهارده بس وترجع بكره للمتابعة · «ما ردش» 3 مرات → تروح للمدير',
+  invrev:'✋ المشرفة تراجع الفاتورة وتدوس «✅» لو صح (بتتحول للتحصيل بالتليفون) · 🤖 لو اتعدلت على Medicolize بتتقفل لوحدها', invfix:'🤖 المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت)',
+  nonext:'🤖 يتحجزله ميعاد جاي', nonextrev:'🤖 يتحجزله ميعاد جاي (إلا لو اتكتب «منقطع» في تفاصيل المريض النهارده)',
+  svc:'🤖 الخدمة الناقصة تتحجز · أو ✋ سبب الرفض في الملحوظة (بتتحسب 🚫)', stale:'🤖 الموعد يتقفل على Medicolize (Completed / Canceled / No Show)',
+  aud:'🤖 الغلط يتصلّح على Medicolize (الخطوة تتقفل / الموعد يتصلّح) · ✋ «راجعته — مفيش خطأ» في «اختلاف في الخدمة» بس · أخطاء د. أمجد لوحدها ومش محسوبة',
+  sudden:'🤖 اسم الموعد يتغيّر لـ«الغاء مفاجئ» على Medicolize + من تاني مرة: خطوة Completed النهارده (خصم الجلسة) · ولو الخصم مش ممكن: ✋ «لا يوجد باقة للخصم» أو «تم التنبيه — المرة الجاية خصم» (مرة واحدة للمريض) · مفيش تأجيل ولا رفض',
+  nopkg:'🤖 تتفتحله باقة أو تتحجزله إعادة تقييم على Medicolize · أو 🚫 رفض بسبب', nopkgnext:'🤖 تتفتحله باقة أو تتحجزله إعادة تقييم على Medicolize · أو 🚫 رفض بسبب',
+  mcall:'🤖 حد يتكلم مع الرقم (احنا رجعناله أو هو اتصل تاني — بيبان لما سجل المكالمات يترفع) أو ييجي العيادة · أو 🚫 رفض بسبب (رقم غلط / إعلانات)', mcallup:'🤖 يترفع ملف سجل المكالمات (الصبح · وبعد التسليم)'};
+function planRuleHTML(g){ var r=PLAN_DONE_RULE[g]||PLAN_AUTO_G[g]; if(!r) return '';
+  return '<div style="font-size:.6rem;margin:6px 0 4px;padding:5px 9px;border-radius:7px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);line-height:1.7">✅ <b>بتتحسب اتعملت لما:</b> '+alEsc(r).replace(/🤖/g,'<b>🤖</b>')+'</div>'; }
 /* ⬜ ليه المهمة لسه مفتوحة — بيتكتب على كل مهمة مش متقفلة (لو المهمة نفسها ما فيهاش «ناقص …») */
 var PLAN_WHY={aud:'الغلط يتصلّح على Medicolize (بتتقفل لوحدها مع الـ Sync) — ولو «اختلاف في الخدمة» وراجعتيه وطلع صح: «✅ راجعته — مفيش خطأ»', debtph:'يدفع اللي عليه (بتتشال لوحدها مع الـ Sync) — أو اكتبي ملحوظة باللي حصل: بتتقفل النهارده وترجع بكره للمتابعة',
   mcall:'حد يتكلم مع الرقم (بيبان لما سجل المكالمات يترفع) — أو 🚫 رفض بسبب', mcallup:'ملف سجل المكالمات يترفع'};
@@ -13238,7 +13261,7 @@ function planRender(){
       }
       var od=PLAN_OPEN_DONE[gk], hb=planHowBar(gk,A), hf=PLAN_HOW_F[gk]||'';
       if(hf){ var fh=function(t){ return planHow(t)===hf; }; open=open.filter(fh); done=done.filter(fh); snz=snz.filter(fh); if(done.length) od=true; }
-      return head+'<div style="padding:0 6px 8px 0;border-right:2px solid var(--brd);margin:0 8px 10px 0">'+hb+cfBar+(g==='aud'?planAudAmgHTML():'')+
+      return head+'<div style="padding:0 6px 8px 0;border-right:2px solid var(--brd);margin:0 8px 10px 0">'+planRuleHTML(g)+hb+cfBar+(g==='aud'?planAudAmgHTML():'')+
         (open.length?open.map(planRow).join(''):(hf?'':'<div style="font-size:.64rem;color:var(--g);padding:6px 2px">✅ خلصت كل الأسامي هنا</div>'))+
         (done.length?'<div onclick="PLAN_OPEN_DONE[\''+gk+'\']=!PLAN_OPEN_DONE[\''+gk+'\'];planRender()" style="font-size:.62rem;color:var(--mute);cursor:pointer;padding:4px 2px">'+(od?'▾':'▸')+' اتعمل ('+done.length+')</div>'+(od?done.map(planRow).join(''):''):'')+
         (snz.length?'<div style="font-size:.58rem;color:var(--mute);padding:2px">⏭ '+snz.length+' متأجلين</div>':'')+'</div>';

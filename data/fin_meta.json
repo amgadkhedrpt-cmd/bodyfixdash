@@ -1,5 +1,5 @@
 {
- "at": "2026-11-16T09:22:50.252Z",
+ "at": "2026-11-16T12:27:48.957Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -91,10 +91,10 @@
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
  "ph2_field": "phoneNumber2",
- "ph2_n": 12,
+ "ph2_n": 15,
  "conf": {
-  "confirmed_now": 40,
-  "new": 0
+  "confirmed_now": 44,
+  "new": 8
  },
  "kinds": {
   "pay": {
@@ -117,7 +117,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20660,
+    "rows": 20665,
     "cols": [
      "id",
      "type",
@@ -163,7 +163,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1021,
+    "rows": 1022,
     "cols": [
      "type",
      "amount",
@@ -369,7 +369,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131482,
+    "rows": 131494,
     "cols": [
      "start",
      "status",
@@ -390,6 +390,7 @@
       "CANCELED",
       "COMPLETED",
       "CONFIRMED",
+      "INPROGRESS",
       "NOSHOW",
       "NOTE",
       "OPEN",
@@ -399,7 +400,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6344,
+    "rows": 6347,
     "cols": [
      "start",
      "status",
@@ -421,7 +422,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 198,
+    "rows": 206,
     "cols": [
      "aid",
      "start",
@@ -489,7 +490,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16697,
+    "rows": 16698,
     "cols": [
      "name",
      "end",
@@ -515,7 +516,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7892,
+    "rows": 7907,
     "cols": [
      "duration",
      "createdAt",
@@ -534,7 +535,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1355,
+    "rows": 1359,
     "cols": [
      "duration",
      "createdAt",
@@ -605,7 +606,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17506,
+    "rows": 17508,
     "cols": [
      "id",
      "referenceId",
@@ -626,7 +627,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 774,
+    "rows": 776,
     "cols": [
      "id",
      "referenceId",
@@ -826,7 +827,7 @@
     "prod": 5
    },
    "2026-11": {
-    "fu": 109,
+    "fu": 112,
     "mezo": 5,
     "dev": 32,
     "physio": 36,
@@ -854,10 +855,10 @@
  },
  "hash": {
   "data/fin.enc": "888400d6e1c56d9a",
-  "data/fin_c.enc": "11d2d32ba55962de"
+  "data/fin_c.enc": "11232d872e1a919c"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 60
+ "secs": 61
 }

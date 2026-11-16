@@ -552,6 +552,47 @@ function cfDrImg(full){const V=cfDayRev(),H=cfDrHead(full),Rw=cfDrRows(V,full),N
     try{if(navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){await navigator.share({files:[file],title:name});return}}catch(e){if(e&&e.name==='AbortError')return}
     const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)},'image/png')}
 
+// ================= 🖼️ 3 قوايم تتنزّل صورة: اتحجز مؤكد وقت الحجز · اتأكد قبلها بيومين أو أكتر · اتأكد من غير مكالمة =================
+// صورة جدول عامة (canvas) — نفس شكل صورة «مراجعة يوم»
+function cfTableImg(o){const ff=getComputedStyle(document.body).fontFamily||'Cairo, sans-serif',H=o.head,W=Math.max(1300,H.length*185),P=36,cv=document.createElement('canvas'),x=cv.getContext('2d');
+  const F=(sz,w)=>x.font=(w||400)+' '+sz+'px '+ff;const wrap=(t,w)=>{const out=[];String(t==null?'':t).split(' · ').forEach(seg=>{let line='';seg.split(' ').forEach(wd=>{const tt=line?line+' '+wd:wd;if(x.measureText(tt).width>w&&line){out.push(line);line=wd}else line=tt});if(line)out.push(line)});return out.length?out:['']};
+  const cw=H.map(h=>o.wide&&o.wide.test(h)?2:/المريض/.test(h)?1.6:1.1),sw=cw.reduce((a,b)=>a+b,0),CW=cw.map(c=>c/sw*(W-2*P));
+  F(17,600);const lines=o.rows.map(r=>r.map((c,i)=>wrap(c,CW[i]-16))),rh=lines.map(L=>Math.max(...L.map(l=>l.length))*24+18);
+  const N=o.notes||[],hdr=130,th=46,notesH=N.length?N.length*30+30:0,H2=hdr+th+rh.reduce((a,b)=>a+b,0)+notesH+70;cv.width=W;cv.height=H2;x.direction='rtl';x.textBaseline='middle';
+  const T_=(t,X,Y,c)=>{x.fillStyle=c||'#111827';x.textAlign='right';x.fillText(t,X,Y)},Rc=(X,Y,w,h,c)=>{x.fillStyle=c;x.fillRect(X,Y,w,h)};
+  Rc(0,0,W,H2,'#fff');Rc(0,0,W,hdr-20,o.color||'#0f766e');F(32,800);T_(o.title,W-P,46,'#fff');F(19,600);T_(o.sub||'',W-P,88,'#e0f2f1');
+  let y=hdr;Rc(P,y,W-2*P,th,'#f1f5f9');F(17,800);let X=W-P;H.forEach((h,i)=>{T_(h,X-8,y+th/2,'#334155');X-=CW[i]});y+=th;
+  o.rows.forEach((r,ri)=>{if(ri%2)Rc(P,y,W-2*P,rh[ri],'#fafafa');X=W-P;r.forEach((c,i)=>{const s=String(c==null?'':c),col=/^(⚠️|❌|ما جاش|اعتذر)/.test(s)?'#b91c1c':/^(✅|حضر)/.test(s)?'#15803d':'#111827';F(17,/المريض/.test(H[i])?700:500);
+      lines[ri][i].forEach((l,li)=>T_(l,X-8,y+20+li*24,col));X-=CW[i]});x.strokeStyle='#e5e7eb';x.beginPath();x.moveTo(P,y+rh[ri]);x.lineTo(W-P,y+rh[ri]);x.stroke();y+=rh[ri]});
+  y+=14;if(N.length){Rc(P,y,W-2*P,notesH-10,'#fef2f2');F(18,700);N.forEach((n,i)=>T_('• '+n,W-P-14,y+24+i*30,'#7f1d1d'))}
+  F(14);T_('BODYFIX · '+(o.foot||''),W-P,H2-24,'#94a3b8');
+  cv.toBlob(async b=>{const name=o.fname+'.png',file=new File([b],name,{type:'image/png'});
+    try{if(navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){await navigator.share({files:[file],title:name});return}}catch(e){if(e&&e.name==='AbortError')return}
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)},'image/png')}
+const CF_L3=[
+  {k:'book',t:'🟢 اتحجز «مؤكد» وقت الحجز',d:'الميعاد اتسجّل «مؤكد» من أول ما اتحجز (من غير تأكيد بعد كده)',col:'#0f766e',f:c=>c.atBook},
+  {k:'early',t:'📅 اتأكد قبل الميعاد بيومين أو أكتر',d:'التأكيد اتعمل من بدري — محتاج تأكيد تاني اليوم اللي قبله',col:'#1d4ed8',f:c=>!c.atBook&&cfDD(c)>=2},
+  {k:'nocall',t:'❌ اتأكد من غير مكالمة اترد عليها',d:'مفيش مكالمة اترد عليها لرقم المريض في الـ 36 ساعة قبل التأكيد (الواتساب مش بيظهر)',col:'#b91c1c',f:c=>!c.atBook&&['none','tried','missonly'].includes(c.cat)}];
+function cfL3Rows(L,k,full){const resT=c=>c.res==='حضر'?'✅ حضر':c.res==='ما جاش'?'ما جاش':c.res==='اعتذر'?'اعتذر':c.res==='لسه'?'لسه':'—';
+  return L.map(c=>{const by=k==='book'?(c.by||'—'):cfConfBy(c)[0];
+    const base=[cfDm(c.aT),...(full?[c.pn,cfPh0(c.ph||c.ph2||'')]:[]),c.type,c.doc];
+    if(k==='book')return [...base,cfDm(c.crT),by,resT(c)];
+    if(k==='early')return [...base,cfDm(c.cT),cfDD(c)+' يوم',by,resT(c)];
+    return [...base,cfDm(c.cT),by,c.cat==='none'?'❌ مفيش أي مكالمة للرقم':'⚠️ اتصلوا وما ردش',resT(c)]})}
+function cfL3Head(k,full){const b=['الميعاد',...(full?['المريض','الرقم']:[]),'النوع','الدكتور'];
+  return k==='book'?[...b,'اتحجز إمتى','مين حجز','النتيجة']:k==='early'?[...b,'اتأكد إمتى','قبلها بـ','مين أكد','النتيجة']:[...b,'اتأكد إمتى','مين أكد','المكالمات','النتيجة']}
+function vL3(){const C=cfCalc().C.sort((a,b)=>a.aT-b.aT),per=CF.a1||CF.a2?(CF.a1||'…')+' → '+(CF.a2||'…'):ml(S.from)+' – '+ml(S.to);
+  return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--acc)"><h3>🖼️ قوايم تتنزّل صورة<small>📅 ${esc(per)} (يوم الموعد) · ${BRN[S.b]}</small></h3>`+CF_L3.map(g=>{const L=C.filter(g.f),lost=L.filter(c=>c.res==='اعتذر'||c.res==='ما جاش').length,done=L.filter(c=>['حضر','اعتذر','ما جاش'].includes(c.res)).length;
+    const H=cfL3Head(g.k,true),R=cfL3Rows(L,g.k,true).map(r=>r.map((c,i)=>H[i]==='الرقم'?`<span dir="ltr">${esc(c)}</span>`:esc(c)));
+    return `<details style="margin-top:8px"${L.length?'':' '}><summary><b>${g.t}</b> <span class="sub">(${L.length}${done?` · ضاع ${lost} من ${done} خلصوا (${pc(lost/done)})`:''})</span></summary>
+     <div class="bar" style="margin:6px 0"><button class="pri" data-l3="${g.k}|1">🖼️ صورة كاملة (بالأسامي والأرقام)</button><button data-l3="${g.k}|0">🖼️ صورة للجروب (من غير أسامي ولا أرقام المرضى)</button><span class="sub">${esc(g.d)}</span></div>
+     ${L.length?tableHTML(H,R,{h:380}):'<div class="sub">مفيش في الفترة دي.</div>'}</details>`}).join('')+`</div>`}
+function cL3(){document.querySelectorAll('[data-l3]').forEach(b=>b.onclick=()=>{const [k,f]=b.dataset.l3.split('|'),full=f==='1',g=CF_L3.find(x=>x.k===k),C=cfCalc().C.sort((a,b)=>a.aT-b.aT),L=C.filter(g.f);if(!L.length){alert('مفيش حاجة في القايمة دي');return}
+  const lost=L.filter(c=>c.res==='اعتذر'||c.res==='ما جاش').length,done=L.filter(c=>['حضر','اعتذر','ما جاش'].includes(c.res)).length,per=CF.a1||CF.a2?(CF.a1||'…')+' → '+(CF.a2||'…'):ml(S.from)+' – '+ml(S.to);
+  cfTableImg({title:g.t,sub:(BRN[S.b]||'')+' · مواعيد '+per+' · '+L.length+' ميعاد',head:cfL3Head(k,full),rows:cfL3Rows(L,k,full),color:g.col,wide:/المكالمات|اتأكد إمتى|اتحجز إمتى/,
+    notes:[g.d,...(done?[`من اللي مواعيدهم خلصت (${done}): ضاع ${lost} (${pc(lost/done)}) — اعتذر أو ما جاش`]:[]),...(k!=='book'&&L.some(c=>!c.ub)?['* اسم اللي أكد مش متسجل → صاحب الشيفت ساعتها']:[])],
+    foot:'من سحبات Medicolize'+(k==='nocall'?' + سجل مكالمات الخطوط':''),fname:g.t.replace(/[^؀-ۿ\w ]/g,'').trim()+' '+per.replace(/[\/\\:]/g,'-')+(full?'':' (للجروب)')})})}
+
 // ================= 📥 Excel: التحليل + خطة العمل =================
 const cfTxt=x=>{if(x==null)return '';const d=document.createElement('div');d.innerHTML=String(x).replace(/<br\s*\/?>/gi,' ');return d.textContent.replace(/\s+/g,' ').trim()};
 const cfHr=h=>(h%12||12)+(h<12?' ص':' م');
@@ -597,5 +638,5 @@ async function cfExcel(){if(!CF.rep.calls&&!CF.rep.conf){alert('ارفع ملف�
     if(f.bRows.length)sh('تأكيد بالجملة',['الوقت','الفرع','مواعيد','المسئولة'],f.bRows,[22,10,10,30]);
     if(f.sus.length)sh('تأكيدات مشكوك فيها',['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],f.sus,[14,30,26,18,12,34,40,10])}
   XLSX.writeFile(wb,`تحليل المكالمات والتأكيدات — ${BRN[S.b]} — ${per.replace(/[\/\\?*\[\]:]/g,'-')}.xlsx`)}
-VIEWS.conf=[()=>{CF.lists=null;let s='';try{s+=vDayRev()}catch(e){console.error(e)}try{s+=cfUpHTML(true)}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}try{cDayRev()}catch(e){console.error(e)}}];
+VIEWS.conf=[()=>{CF.lists=null;let s='';try{s+=vDayRev()}catch(e){console.error(e)}try{s+=cfUpHTML(true)}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}try{s+=vL3()}catch(e){console.error(e)}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}try{cDayRev()}catch(e){console.error(e)}try{cL3()}catch(e){console.error(e)}}];
 VIEWS.calls=[()=>{let s='';for(const f of [cfUpHTML,cfBadHTML,vCallAlerts,vCalls,vReach]){try{s+=f()}catch(e){console.error(e);s+='<div class="card">خطأ: '+esc(e.message)+'</div>'}}return s},()=>{cConf();for(const f of [cCalls,cReach,cCallCfg]){try{f()}catch(e){console.error(e)}}}];

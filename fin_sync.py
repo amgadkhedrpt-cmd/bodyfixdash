@@ -379,7 +379,7 @@ def today_snapshot(branches):
                     break
         for key, b in branches.items():
             pay = run_paged(ctx, [PAY_Q], "payments", {"branchId": b["id"], "orderBy": "createdAt-asc", "filters": {}}, rng)
-            apt = run_paged(ctx, [APT_Q, APT_Q2], "createdAppointments", {"branchId": b["id"], "orderBy": "start-asc", "filters": {"status": []}}, rng)
+            apt = run_paged(ctx, [APT_Q, APT_Q2], "createdAppointments", {"branchId": b["id"], "orderBy": "start-asc", "filters": {"status": [], "rangeDateKey": "start"}}, rng)
             out["kinds"]["pay"][key] = table(pay, "pay")
             out["kinds"]["apt"][key] = table(apt, "apt")
         br.close()
@@ -418,9 +418,9 @@ def main():
     data = {"v": 1, "start": START, "branches": old.get("branches", {}), "kinds": old.get("kinds", {}), "types": old.get("types", {}),
             "exp_types": old.get("exp_types", {})}
     ALL = months(START, CUR)
-    if old.get("aptv", 0) < 4:                    # appointments gained booking time / who booked / patient phone (call logs): fetch again
+    if old.get("aptv", 0) < 5:                    # v5: by appointment day (rangeDateKey=start) instead of booking day — fetch again
         data["kinds"].pop("apt", None)
-    data["aptv"] = 4
+    data["aptv"] = 5
     if old.get("xpv", 0) < 2:                     # expenses list gained details / employee / supplier: fetch it again
         data["kinds"].pop("xp", None)
     data["xpv"] = 2
@@ -552,7 +552,7 @@ def main():
             "exp": own_or_page(EXP_Q, "expensePayments", "exp"),
             "inv": lambda bid, rng: run_paged(ctx, [INV_Q, INV_Q2], "invoices", {"branchId": bid, "orderBy": "createdAt-asc"}, rng),
             "apt": lambda bid, rng: run_paged(ctx, [APT_Q, APT_Q2], "createdAppointments",
-                                              {"branchId": bid, "orderBy": "start-asc", "filters": {"status": []}}, rng),
+                                              {"branchId": bid, "orderBy": "start-asc", "filters": {"status": [], "rangeDateKey": "start"}}, rng),
             "xp": own_or_page(XP_Q, "expenses", "xp"),
             "att": (lambda bid, rng: run_listing(ctx, ops["att"], bid, rng)) if ops.get("att") else None,
             "ops": lambda bid, rng: [r for r in run_paged(ctx, [OPS_Q, OPS_Q.replace(" discount", "")], "createdOperationSteps",
@@ -590,7 +590,10 @@ def main():
                         META_D["errors"].append("time limit - continues next run")
                         break
                     try:
-                        rows = fn(b["id"], mrange(k))
+                        rr = mrange(k)
+                        if kind == "apt" and k == ALL[-1]:          # الشهر الحالي + المواعيد الجاية (90 يوم) — بقت بيوم الميعاد
+                            rr = [rr[0], C.iso((NOW + dt.timedelta(days=90)).astimezone(dt.timezone.utc))]
+                        rows = fn(b["id"], rr)
                         bstore[k] = table(rows, kind)
                         bstore[k]["at"] = C.NOW
                     except Exception as e:
@@ -610,7 +613,7 @@ def main():
             cxs = data["kinds"].setdefault("cx", {}).setdefault("all", {})
             cx_by = {r[0]: (t, r) for t in cxs.values() for r in t.get("rows", [])}
             for key, b in data["branches"].items():
-                rows = run_paged(ctx, [CONF_Q], "createdAppointments", {"branchId": b["id"], "orderBy": "start-asc", "filters": {"status": []}}, rng)
+                rows = run_paged(ctx, [CONF_Q], "createdAppointments", {"branchId": b["id"], "orderBy": "start-asc", "filters": {"status": [], "rangeDateKey": "start"}}, rng)
                 for r in rows:
                     stu = str((r or {}).get("status") or "").upper() if isinstance(r, dict) else ""
                     if stu in ("CANCELED", "CANCELLED", "NOSHOW", "NO_SHOW"):

@@ -28,9 +28,10 @@ APT_Q2 = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]
           "{id start status type doctor{name} patient{id referenceId firstName lastName}}}")
 CONF_Q = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter,$branchId:ID)"
           "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
-          "{id start status type createdAt updatedAt createdBy{name} doctor{name} patient{id referenceId firstName lastName phoneNumber secondaryPhoneNumber phoneNumber2 secondPhoneNumber secondaryPhone otherPhoneNumber alternativePhone phone2 mobile2}}}")
+          "{id start status type createdAt updatedAt createdBy{name} updatedBy{name} lastUpdatedBy{name} modifiedBy{name} doctor{name} patient{id referenceId firstName lastName phoneNumber secondaryPhoneNumber phoneNumber2 secondPhoneNumber secondaryPhone otherPhoneNumber alternativePhone phone2 mobile2}}}")
 PH2_F = ['secondaryPhoneNumber', 'phoneNumber2', 'secondPhoneNumber', 'secondaryPhone', 'otherPhoneNumber', 'alternativePhone', 'phone2', 'mobile2']   # الرقم التاني (secondary) — الأسامي اللي مش موجودة بتتشال لوحدها
-CONF_COLS = ["aid", "start", "up", "cr", "type", "pid", "pn", "ph", "doc", "b", "by", "seen", "puid", "ph2"]
+CONF_COLS = ["aid", "start", "up", "cr", "type", "pid", "pn", "ph", "doc", "b", "by", "seen", "puid", "ph2", "ub"]
+UB_F = ["updatedBy", "lastUpdatedBy", "modifiedBy"]   # مين عمل «مؤكد» = آخر حد عدّل الميعاد ساعة ما السحب شافه مؤكد أول مرة (Medicolize بيكتب فوقه بعدين)
 PAY_Q = ("query P($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!,$filters:Filter)"
          "{payments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
          "{id type amount balance refunded refundedAt details createdAt createdBy{name} doctor{name} transaction{treasury{publicName}}"
@@ -611,7 +612,16 @@ def main():
                     n_conf += 1
                     aid = r.get("id")
                     pt = r.get("patient") or {}
+                    ub = next(((r.get(f) or {}).get("name") for f in UB_F if isinstance(r.get(f), dict) and (r.get(f) or {}).get("name")), None)
+                    if not META_D.get("ub_field"):
+                        META_D["ub_field"] = next((f for f in UB_F if f in r), "") or "مش موجود"
                     if aid and aid in have:
+                        tb0, r00 = byaid.get(aid, (None, None))
+                        # لسه ما اتسجلش مين عمل «مؤكد» والميعاد ما اتعدلش من ساعتها → آخر واحد عدّل = اللي أكد
+                        if r00 is not None and ub and str(r.get("updatedAt") or "") == str(r00[2] or ""):
+                            if tb0.get("cols") != CONF_COLS: tb0["cols"] = CONF_COLS
+                            while len(r00) < len(CONF_COLS): r00.append(None)
+                            if not r00[CONF_COLS.index("ub")]: r00[CONF_COLS.index("ub")] = ub
                         tb, r0 = byaid.get(aid, (None, None))   # (مش t0 — ده وقت بداية السحب)
                         p2 = next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None)
                         if not META_D.get("ph2_field"):
@@ -635,7 +645,7 @@ def main():
                     t["rows"].append([aid, r.get("start"), r.get("updatedAt"), r.get("createdAt"), r.get("type"), pt.get("referenceId"),
                                       " ".join(x for x in (pt.get("firstName"), pt.get("lastName")) if x), pt.get("phoneNumber"),
                                       (r.get("doctor") or {}).get("name"), key, (r.get("createdBy") or {}).get("name"), C.NOW, pt.get("id"),
-                                      next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None)])
+                                      next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None), ub])
                     if not META_D.get("ph2_field"):
                         META_D["ph2_field"] = next((f for f in PH2_F if f in pt), "") or "مش موجود"
                     if next((1 for f in PH2_F if pt.get(f)), None):

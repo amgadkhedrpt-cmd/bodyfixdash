@@ -42,14 +42,14 @@ async function cfSheet(){if(CF.sheetTry)return;CF.sheetTry=true;try{const d=awai
   for(const k in r){if(k.indexOf('PLANSUM|')===0){try{o.sum[k.slice(8)]=JSON.parse(r[k])}catch(e){}}else if(k==='PLANCFG|roles'){try{o.roles=JSON.parse(r[k])}catch(e){}}}
   CF.sheet=o}catch(e){CF.sheet={sum:{},roles:null,err:1}}if(S.tab==='conf'||S.tab==='sum')render()}
 const CF_BR={haram:'BODYFIX Center',dokki:'FIX ZONE'},CF_ROLE={haram:'J',dokki:'DM'};
-function cfWho(c){const sh=CF.sheet;if(!sh)return ['…',0];
+function cfWho(c){if(c.ub)return [typeof planNormName==='function'?c.ub:c.ub.split(' ')[0],1];const sh=CF.sheet;if(!sh)return ['…',0];
   for(const d of [cfDay(c.cT),cfDay(c.aT),cfDay(c.cT-864e5)]){const s=sh.sum[d];if(s&&s.cf&&c.puid&&s.cf[c.puid])return [s.cf[c.puid],1]}
   const n=sh.roles&&(sh.roles[CF_BR[c.b]]||{})[CF_ROLE[c.b]];return [n?n+' *':'—',0]}
 // ---------- البيانات ----------
 function cfConfs(){const T=(RAW&&RAW.kinds&&RAW.kinds.conf&&RAW.kinds.conf.all)||{};const out=[];
-  for(const mk in T){const t=T[mk],ci=n=>t.cols.indexOf(n);const I={aid:ci('aid'),s:ci('start'),u:ci('up'),cr:ci('cr'),ty:ci('type'),pid:ci('pid'),pn:ci('pn'),ph:ci('ph'),doc:ci('doc'),b:ci('b'),puid:ci('puid'),ph2:ci('ph2')};
+  for(const mk in T){const t=T[mk],ci=n=>t.cols.indexOf(n);const I={aid:ci('aid'),s:ci('start'),u:ci('up'),cr:ci('cr'),ty:ci('type'),pid:ci('pid'),pn:ci('pn'),ph:ci('ph'),doc:ci('doc'),b:ci('b'),puid:ci('puid'),ph2:ci('ph2'),ub:ci('ub')};
     for(const r of t.rows){const cT=cfWall(r[I.u]),aT=cfWall(r[I.s]),crT=cfWall(r[I.cr]);if(cT==null||aT==null)continue;
-      out.push({aid:r[I.aid],cT,aT,crT,type:tName(r[I.ty]||''),pid:r[I.pid],pn:r[I.pn]||'',ph:cfPh(r[I.ph]),ph2:I.ph2>=0?cfPh(r[I.ph2]):'',doc:docName(r[I.doc]||''),b:r[I.b],puid:I.puid>=0?r[I.puid]:null,k:cfDay(aT).slice(0,7)})}}
+      out.push({aid:r[I.aid],cT,aT,crT,type:tName(r[I.ty]||''),pid:r[I.pid],pn:r[I.pn]||'',ph:cfPh(r[I.ph]),ph2:I.ph2>=0?cfPh(r[I.ph2]):'',doc:docName(r[I.doc]||''),b:r[I.b],puid:I.puid>=0?r[I.puid]:null,ub:I.ub>=0?r[I.ub]||'':'',k:cfDay(aT).slice(0,7)})}}
   return out}
 const cfApOk=c=>{const d=cfDay(c.aT);return (!CF.a1||d>=CF.a1)&&(!CF.a2||d<=CF.a2)};   // فلتر يوم الموعد
 function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(CF.d1||CF.d2||CF.a1||CF.a2?((!(CF.d1||CF.d2)||cfInR(c.cT))&&cfApOk(c)):c.k>=S.from&&c.k<=S.to));

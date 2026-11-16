@@ -1,5 +1,5 @@
 {
- "at": "2026-11-16T18:01:52.182Z",
+ "at": "2026-11-16T18:38:55.261Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -90,18 +90,14 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
- "fallbacks": [
-  "createdAppointments: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   ",
-  "createdAppointments: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   "
- ],
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 35,
+ "ph2_n": 41,
  "conf": {
-  "confirmed_now": 98,
-  "new": 19,
-  "cx_changed": 3
+  "confirmed_now": 104,
+  "new": 15,
+  "cx_changed": 4
  },
  "kinds": {
   "pay": {
@@ -124,7 +120,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20684,
+    "rows": 20688,
     "cols": [
      "id",
      "type",
@@ -363,7 +359,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 328,
+    "rows": 343,
     "cols": [
      "aid",
      "start",
@@ -432,7 +428,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16714,
+    "rows": 16718,
     "cols": [
      "name",
      "end",
@@ -548,7 +544,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17521,
+    "rows": 17525,
     "cols": [
      "id",
      "referenceId",
@@ -592,7 +588,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 114,
+    "rows": 118,
     "cols": [
      "aid",
      "start",
@@ -663,7 +659,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131775,
+    "rows": 131776,
     "cols": [
      "start",
      "status",
@@ -685,6 +681,7 @@
       "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
+      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -695,7 +692,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6354,
+    "rows": 6355,
     "cols": [
      "start",
      "status",
@@ -894,7 +891,7 @@
     "prod": 5
    },
    "2026-11": {
-    "fu": 118,
+    "fu": 119,
     "mezo": 5,
     "dev": 32,
     "physio": 36,
@@ -926,10 +923,10 @@
  },
  "hash": {
   "data/fin.enc": "83d7e73f306cac3d",
-  "data/fin_c.enc": "24fc9b4e46004043"
+  "data/fin_c.enc": "efd26b9b8b8f3737"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 104
+ "secs": 65
 }

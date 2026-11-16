@@ -1361,6 +1361,26 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
             break
         skip += 500
         await asyncio.sleep(0.2)
+    # خطوات اتقفلت في آخر 40 يوم بس اتعملت من أكتر من سنة (باقات قديمة) — السحب فوق بتاريخ الإنشاء، فبنسحب كمان بتاريخ التنفيذ (end) ونضيف الناقص
+    try:
+        have_ids = {x.get("id") for x in rows}
+        q_end = q.replace("$rangeDate:[DateTime!]!)", "$rangeDate:[DateTime!]!,$filters:Filter)", 1).replace("rangeDate:$rangeDate)", "rangeDate:$rangeDate filters:$filters)", 1)
+        rng_end = [(now - timedelta(days=40)).strftime("%Y-%m-%dT00:00:00.000Z"), rng[1]]
+        skip, n_add = 0, 0
+        while True:
+            d = await gql_call(page, cookie_str, extra_headers, q_end,
+                               {"orderBy": "createdAt", "skip": skip, "take": 500, "rangeDate": rng_end, "filters": {"rangeDateKey": "end"}})
+            lst = gql_dec(d, "createdOperationSteps") or []
+            for x in lst:
+                if isinstance(x, dict) and x.get("id") not in have_ids:
+                    rows.append(x); have_ids.add(x.get("id")); n_add += 1
+            if len(lst) < 500 or skip > 20000:
+                break
+            skip += 500
+            await asyncio.sleep(0.2)
+        print(f"[{ts()}] 🧩 خطوات اتقفلت مؤخراً واتعملت من بدري: +{n_add}")
+    except Exception as e:
+        print(f"[{ts()}] ℹ️ steps by end date: {str(e)[:150]}")
     statuses = collections.Counter(str(x.get("status") or "") for x in rows)
     has_done = any(_RE_DONE.search(k) for k in statuses)
     pay, n_rem = _cover_unpaid(rows, has_done)

@@ -168,22 +168,28 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    if(bu.length&&nb.length)CH_.push(['cfc5','⚡ التأكيد بالجملة (5+ في 3 دقايق) — بيضيع أكتر؟',{type:'bar',data:{labels:['بالجملة ('+bu.length+')','واحد واحد ('+nb.length+')'],datasets:[bar('ضاع %',[Math.round(bu.filter(lost).length/bu.length*1000)/10,Math.round(nb.filter(lost).length/nb.length*1000)/10],['#e34948','#2a78d6'])]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}},undefined,'«بالجملة» = 5 مواعيد أو أكتر اتعلّم عليهم مؤكد في 3 دقايق (غالباً من غير مكالمات). لو العمود الأحمر أطول = التأكيد بالجملة بيضيّع مواعيد.']);
    CF.charts=CH_;
    // 🎯 التأكيد من غير مكالمة بيضيّع قد إيه؟ — مقارنة بالنسبة العادية لكل المواعيد في نفس الفترة
+   // الفترة = يوم الموعد: «يوم الموعد» لو متحدد، وإلا الشهور اللي فوق — من أول يوم التسجيل لحد امبارح · نفس الفترة للأعمدة وللنسبة العادية
    {const t0=all.length?cfDay(Math.min(...all.map(c=>c.cT))):null,y=cfDay(Date.now()+2*3600e3-864e5),st={};
-    if(t0)D.apt.forEach(a=>{if(!inB(a)||!a.pid||a.d<t0||a.d>y||(CF.a1||CF.a2?((CF.a1&&a.d<CF.a1)||(CF.a2&&a.d>CF.a2)):((CF.d1&&a.d<CF.d1)||(CF.d2&&a.d>CF.d2))))return;(st[a.pid+'|'+a.d]=st[a.pid+'|'+a.d]||[]).push(a.st)});
+    const mEnd=k=>{const [Y,M]=k.split('-').map(Number);return new Date(Date.UTC(Y,M,0)).toISOString().slice(0,10)};
+    const pF=[t0||'9999',CF.a1||(S.from+'-01')].sort().pop(),pT=[y,CF.a2||mEnd(S.to)].sort()[0],inP=d=>d>=pF&&d<=pT;
+    if(t0)D.apt.forEach(a=>{if(!inB(a)||!a.pid||!inP(a.d)||((CF.d1||CF.d2)&&false))return;(st[a.pid+'|'+a.d]=st[a.pid+'|'+a.d]||[]).push(a.st)});
     const allR=Object.values(st).map(l=>({res:l.some(s=>/complet|check|progress|delay/i.test(s))?'حضر':l.some(s=>/no ?show/i.test(s))?'ما جاش':l.some(s=>/cancel/i.test(s))?'اعتذر':''})).filter(fin_);
-    const gA=oRow('',allR),gNo=oRow('',C.filter(c=>fin_(c)&&!c.atBook&&c.cat==='none')),gTr=oRow('',C.filter(c=>fin_(c)&&!c.atBook&&(c.cat==='tried'||c.cat==='missonly'))),gK=gOk||oRow('',[]);
+    const Cp=C.filter(c=>fin_(c)&&!c.atBook&&inP(cfDay(c.aT)));
+    const gA=oRow('',allR),gNo=oRow('',Cp.filter(c=>c.cat==='none')),gTr=oRow('',Cp.filter(c=>c.cat==='tried'||c.cat==='missonly')),gK=oRow('',Cp.filter(c=>c.cat==='ok'));
+    const pLbl=`📅 مواعيد من <b>${pF.slice(8,10)}/${pF.slice(5,7)}</b> لـ <b>${pT.slice(8,10)}/${pT.slice(5,7)}</b> · ${BRN[S.b]}`+(CF.a1||CF.a2?' · حسب «يوم الموعد»':' · حسب الشهور اللي فوق')+(pF===t0?' (تسجيل التأكيدات شغال من '+t0.slice(8,10)+'/'+t0.slice(5,7)+')':'')+(CF.d1||CF.d2?' · ⚠️ فلتر «يوم التأكيد» شغال على الأعمدة بس':'');
     const G=[['✅ اتأكد بمكالمة اترد عليها',gK,'#1baf7a'],['📵 اتصلوا وما ردش — واتعلّم مؤكد',gTr,'#f59e0b'],['❌ اتأكد من غير أي مكالمة',gNo,'#e34948'],['⚪ كل المواعيد (العادي)',gA,'#888780']].filter(g=>g[1].n);
-    const x_=(a,b)=>a.r!=null&&b.r?(a.r/b.r):null,wo=oRow('',sus_),k1=x_(wo,gA),k2=x_(wo,gK);
+    const x_=(a,b)=>a.r!=null&&b.r?(a.r/b.r):null,wo=oRow('',Cp.filter(c=>['none','tried','missonly'].includes(c.cat))),k1=x_(wo,gA),k2=x_(wo,gK);
     if(G.length>1){const card=`<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--down,#dc2626)"><h3>🎯 التأكيد من غير مكالمة بيضيّع قد إيه؟<small>اعتذر أو ما جاش — مقارنة بالنسبة العادية لكل المواعيد في نفس الفترة</small></h3>
+      <div class="note" style="margin-bottom:8px">${pLbl} — <span class="sub">بيتغيّر بـ: الفرع · الشهور اللي فوق · «يوم الموعد» (لو حددته)</span></div>
       <div class="grid g4">${kpi('اتأكدوا من غير مكالمة مسجلة',wo.n,wo.n?`ضاع منهم <b>${pc(wo.r)}</b> (اعتذر ${wo.ca} · ما جاش ${wo.ns})`:'','down')}
        ${kpi('اتأكدوا بمكالمة اترد عليها',gK.n,gK.n?`ضاع منهم ${pc(gK.r)}`:'')}
        ${kpi('النسبة العادية (كل المواعيد)',pc(gA.r),gA.n+' ميعاد خلص في نفس الفترة')}
        ${kpi('من غير مكالمة = كام ضعف؟',k1!=null?k1.toFixed(1)+'×':'—',k2!=null?`العادي · و${k2.toFixed(1)}× اللي اتأكدوا بمكالمة`:'العادي',k1>1.2?'down':'')}</div>
       <div style="position:relative;height:${Math.max(220,G.length*58+70)}px;margin-top:10px"><canvas id="cfcmp"></canvas></div>
-      <div class="sub" style="margin-top:4px">كل عمود = مواعيد خلصت (جه / اعتذر / ما جاش) · الأحمر = ما جاش · البرتقاني = اعتذر · «من غير مكالمة مسجلة» = مفيش مكالمة اترد عليها لرقم المريض في الـ 36 ساعة قبل التأكيد (الواتساب مش بيظهر) · لو الأعداد صغيرة (أقل من 20) النسبة لسه مش مضمونة</div></div>`;
+      <div class="sub" style="margin-top:4px">كل عمود = مواعيد خلصت (جه / اعتذر / ما جاش) · الأحمر = ما جاش · البرتقاني = اعتذر · الأخضر = جه · «من غير مكالمة مسجلة» = مفيش مكالمة اترد عليها لرقم المريض في الـ 36 ساعة قبل التأكيد (الواتساب مش بيظهر) · لو الأعداد صغيرة (أقل من 20) النسبة لسه مش مضمونة</div></div>`;
      h=h.replace('<!--CFCMP-->',card);
-     CF.charts.push(['cfcmp','',{type:'bar',data:{labels:G.map(g=>g[0]+' · '+g[1].n),datasets:[bar('ما جاش %',G.map(g=>Math.round(g[1].ns/g[1].n*1000)/10),'#e34948',{stack:'s'}),bar('اعتذر %',G.map(g=>Math.round(g[1].ca/g[1].n*1000)/10),'#f59e0b',{stack:'s'})]},
-       options:{indexAxis:'y',plugins:{tooltip:{callbacks:{footer:it=>{const g=G[it[0].dataIndex][1];return 'ضاع '+(g.ca+g.ns)+' من '+g.n+' ('+pc(g.r)+')'}}}},scales:{x:{stacked:true,ticks:{callback:v=>v+'%'}},y:{stacked:true,ticks:{autoSkip:false}}}}}])}}
+     CF.charts.push(['cfcmp','',{type:'bar',data:{labels:G.map(g=>g[0]+' · '+g[1].n),datasets:[bar('ما جاش %',G.map(g=>Math.round(g[1].ns/g[1].n*1000)/10),'#e34948',{stack:'s'}),bar('اعتذر %',G.map(g=>Math.round(g[1].ca/g[1].n*1000)/10),'#f59e0b',{stack:'s'}),bar('جه %',G.map(g=>Math.round(g[1].at/g[1].n*1000)/10),'#1baf7a',{stack:'s'})]},
+       options:{indexAxis:'y',plugins:{tooltip:{callbacks:{footer:it=>{const g=G[it[0].dataIndex][1];return 'ضاع '+(g.ca+g.ns)+' من '+g.n+' ('+pc(g.r)+')'}}}},scales:{x:{stacked:true,max:100,ticks:{callback:v=>v+'%'}},y:{stacked:true,ticks:{autoSkip:false}}}},plugins:[{id:'cfpct',afterDatasetsDraw(ch){const x=ch.ctx;x.save();x.font='bold 12px Cairo,sans-serif';x.textBaseline='middle';x.textAlign='center';x.fillStyle='#fff';ch.data.datasets.forEach((ds,di)=>ch.getDatasetMeta(di).data.forEach((el,i)=>{const v=ds.data[i];if(v>=6)x.fillText(v.toFixed(v<10?1:0)+'%',(el.x+el.base)/2,el.y)}));x.restore()}}]}])}}
    // 📋 الأسامي حسب إمتى اتأكد (كل المواعيد في الفترة — اللي لسه ما جاش يومها مكتوب «لسه»)
    const LB=[['🟢 اتحجز «مؤكد» وقت الحجز — والموعد بعدها بأكتر من يوم',c=>c.atBook&&c.crT!=null&&(c.aT-c.crT)/36e5>24],
      ['اتأكد قبلها بيومين أو أكتر (بالتاريخ)',c=>!c.atBook&&cfDD(c)>=2],['اتأكد اليوم اللي قبله',c=>!c.atBook&&cfDD(c)===1],

@@ -1,6 +1,9 @@
 {
- "at": "2026-11-16T21:46:35.897Z",
- "errors": [],
+ "at": "2026-11-16T22:08:34.280Z",
+ "errors": [
+  "pay own query: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0",
+  "pay dokki 2026-10: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (K"
+ ],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
  "pay_pages": {
@@ -90,23 +93,26 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
+ "fallbacks": [
+  "payments: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   "
+ ],
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
  "ph2_n": 51,
  "conf": {
   "confirmed_now": 120,
-  "new": 6,
+  "new": 0,
   "cx_changed": 0
  },
  "docerr": {
   "overrides": 6,
   "override_error": null,
-  "appts": 3148,
+  "appts": 3147,
   "steps": 3117,
   "day": "2026-11-16",
-  "open_now": 43,
-  "added": 2
+  "open_now": 42,
+  "added": 0
  },
  "kinds": {
   "pay": {
@@ -216,7 +222,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 3009,
+    "rows": 3010,
     "cols": [
      "id",
      "type",
@@ -301,7 +307,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 3006,
+    "rows": 3007,
     "cols": [
      "name",
      "type",
@@ -929,10 +935,10 @@
  },
  "hash": {
   "data/fin.enc": "cc122137daf65823",
-  "data/fin_c.enc": "60309e4989c28da7"
+  "data/fin_c.enc": "8bc64fb98940832f"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 99
+ "secs": 82
 }

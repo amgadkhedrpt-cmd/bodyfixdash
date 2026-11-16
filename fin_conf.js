@@ -96,7 +96,6 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   let h=`<div class="card"><h3>📞 التأكيدات — اتأكد بمكالمة فعلاً؟<small>${BRN[S.b]} · ${ml(S.from)}–${ml(S.to)}</small></h3>
    <div class="note" style="line-height:1.9">كل موعد بيتعلّم عليه «مؤكد» السحب بيسجّل وقته بالظبط${since?` (التسجيل شغال من ${since})`:''}. ارفع ملفات سجل المكالمات (CSV أو Excel — من الموبايل أو السنترال) وأنا أشوف: قبل التأكيد، هل فيه مكالمة <b>اترد عليها</b> لرقم المريض؟<br>
    ملفات المكالمات بتترفع وتتحفظ من تاب «📞 المكالمات» (${CF.calls.length?CF.calls.length+' مكالمة محفوظة':'لسه مفيش'}). ملحوظة: التأكيد على <b>واتساب</b> مش بيظهر في سجل المكالمات.</div>
-   <div class="bar" style="margin-top:8px"><b class="sub">📅 يوم الموعد:</b><label class="sub">من <input type="date" id="cfA1" value="${CF.a1}"></label><label class="sub">لحد <input type="date" id="cfA2" value="${CF.a2}"></label><button id="cfDClr">امسح التاريخ</button><span class="sub">(من غير تاريخ = حسب الشهور اللي فوق)</span></div>
    <div class="bar" style="margin-top:6px"><span class="sub"></span><button class="pri" id="cfX">📥 نزّل التحليل وخطة العمل (Excel)</button><button class="pri" id="cfTodo0">📋 ملف اتصالات للسكرتارية</button></div>
   </div>`;
   if(!all.length)return h+`<div class="card" style="margin-top:12px">⏳ التسجيل بيبدأ من أول سحب جاي (11 الصبح). ارفع ملفات مكالمات من بعد كده — قبل كده مفيش تأكيدات متسجلة تتقارن.</div>`;
@@ -206,6 +205,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
 function cConf(){(CF.charts||[]).forEach(c=>chart(c[0],c[2]));const d1=$('#cfD1'),d2=$('#cfD2'),da=$('#cfDAll'),x=$('#cfX');const rr=()=>{CF.st=null;CF.rep={};render()};
   if(d1)d1.onchange=()=>{CF.d1=d1.value;rr()};if(d2)d2.onchange=()=>{CF.d2=d2.value;rr()};
   const a1=$('#cfA1'),a2=$('#cfA2'),dc=$('#cfDClr');if(a1)a1.onchange=()=>{CF.a1=a1.value;rr()};if(a2)a2.onchange=()=>{CF.a2=a2.value;rr()};if(dc)dc.onclick=()=>{CF.a1=CF.a2=CF.d1=CF.d2='';rr()};
+  document.querySelectorAll('[data-cfq]').forEach(b=>b.onclick=()=>{const [a,c]=b.dataset.cfq.split('|');CF.a1=a;CF.a2=c;rr()});
   if(da)da.onclick=()=>{if(CF.minT!=null){CF.d1=cfDay(CF.minT);CF.d2=cfDay(CF.maxT)}else{CF.d1=CF.d2=''}rr()};if(x)x.onclick=()=>cfExcel();
   const f=$('#cfF');if(f)f.onchange=e=>{const fs=[...e.target.files];if(fs.length){CF.pend=fs;render()}};
   // اختيار الخط لكل ملف قبل القراية
@@ -484,6 +484,11 @@ function cCallCfg(){const sv=async()=>{try{await CS.setLines(CF.lines)}catch(e){
   document.querySelectorAll('[data-cfrole]').forEach(x=>x.onchange=()=>{const c=fix(x.dataset.cfrole);c[x.dataset.k]=x.value;sv()});
   document.querySelectorAll('[data-cfsw]').forEach(x=>x.onchange=()=>{const c=fix(x.dataset.cfsw);c.sw=Math.max(8,Math.min(23,+x.value||15));sv()})}
 
+// ================= 📅 فلتر واحد للتاب كله: يوم الموعد =================
+function vConfFilter(){const t=cfDay(cfWall(new Date().toISOString())),y=cfDay(Date.parse(t)-864e5);
+  return `<div class="card" style="position:sticky;top:0;z-index:3"><div class="bar"><b>📅 يوم الموعد:</b><label class="sub">من <input type="date" id="cfA1" value="${CF.a1}"></label><label class="sub">لحد <input type="date" id="cfA2" value="${CF.a2}"></label>
+   <button data-cfq="${t}|${t}">النهارده</button><button data-cfq="${y}|${y}">امبارح</button><button id="cfDClr">امسح</button>
+   <span class="sub">بيتحكم في التاب كله · من غير تاريخ = الشهور اللي فوق (و«مراجعة يوم» = النهارده)</span></div></div>`}
 // ================= 🔍 مراجعة يوم: No Show / ملغي — اتأكد إمتى ومين · اتغيّر إمتى ومين · سبب الإلغاء · المكالمات قبلها =================
 CF.dr={d:'',doc:'',st:'all'};
 const CF_STL={NOSHOW:'No Show',NO_SHOW:'No Show',CANCELED:'اتلغى',CANCELLED:'اتلغى'};
@@ -494,7 +499,7 @@ function cfCx(){const T=(RAW&&RAW.kinds&&RAW.kinds.cx&&RAW.kinds.cx.all)||{},out
 // مين عمل «مؤكد»: الاسم المتسجل — ولو مش متسجل: صاحب الشيفت ساعتها (الهرم: الصباحي لحد 3 / الدقي لحد 5) *
 function cfConfBy(c){if(c.ub)return [c.ub,1];const R=(CF.sheet&&CF.sheet.roles&&CF.sheet.roles[CF_BR[c.b]])||{},h=new Date(c.cT).getUTCHours(),dk=c.b==='dokki';
   const rk=dk?(h<17?'DM':'DE'):(h<15?'F':'J');return [(R[rk]||(dk?(h<17?'الشيفت الصباحي':'الشيفت المسائي'):(h<15?'الشيفت الصباحي':'عيادة 2')))+' *',0]}
-function cfDayRev(){if(!CF.sheet)cfSheet();const day=CF.dr.d||cfDay(cfWall(new Date().toISOString())),X=cfCx().filter(x=>inB(x)&&cfDay(x.aT)===day&&(!CF.dr.doc||x.doc===CF.dr.doc));
+function cfDayRev(){if(!CF.sheet)cfSheet();const td=cfDay(cfWall(new Date().toISOString())),d1=CF.a1||CF.a2||td,d2=CF.a2||CF.a1||td,day=d1===d2?d1:d1+' → '+d2,inD=d=>d>=d1&&d<=d2,X=cfCx().filter(x=>inB(x)&&inD(cfDay(x.aT))&&(!CF.dr.doc||x.doc===CF.dr.doc));
   const conf={};cfConfs().forEach(c=>{conf[c.aid]=c});if(!CF.idx){CF.idx={};CF.calls.forEach(c=>(CF.idx[c.ph]=CF.idx[c.ph]||[]).push(c))}
   const R=X.filter(x=>CF.dr.st==='all'||(CF.dr.st==='ns'?/NO/.test(x.st):!/NO/.test(x.st))).sort((a,b)=>(/NO/.test(a.st)?0:1)-(/NO/.test(b.st)?0:1)||a.aT-b.aT).map(x=>{
     const c=conf[x.aid],L=((CF.idx[x.ph]||[]).concat(c&&c.ph2&&CF.idx[c.ph2]||[])).filter(k=>k.t<x.aT).sort((a,b)=>a.t-b.t);
@@ -507,7 +512,7 @@ function cfDayRev(){if(!CF.sheet)cfSheet();const day=CF.dr.d||cfDay(cfWall(new D
     return {x,c,cb,lastTalk,tried:L.filter(k=>k.ty==='out'&&k.dur===0&&k.t>=x.aT-7*864e5).length,flags,cov}});
   // تأكيد بالجملة: 3 أو أكتر في نص ساعة
   const cs=R.filter(r=>r.c).map(r=>r.c.cT).sort((a,b)=>a-b);let bulk=null;for(let i=0;i+2<cs.length;i++){let j=i;while(j+1<cs.length&&cs[j+1]-cs[i]<=30*60e3)j++;if(j-i>=2&&(!bulk||j-i>bulk[2]))bulk=[cs[i],cs[j],j-i+1]}
-  return {day,R,bulk,docs:[...new Set(cfCx().filter(x=>inB(x)&&cfDay(x.aT)===day).map(x=>x.doc))].sort()}}
+  return {day,R,bulk,docs:[...new Set(cfCx().filter(x=>inB(x)&&inD(cfDay(x.aT))).map(x=>x.doc))].sort()}}
 const cfHm=t=>{if(t==null)return '';const d=new Date(t),h=d.getUTCHours();return (h%12||12)+':'+String(d.getUTCMinutes()).padStart(2,'0')+(h<12?' ص':' م')};
 const cfDm=t=>t==null?'':String(new Date(t).getUTCDate()).padStart(2,'0')+'/'+String(new Date(t).getUTCMonth()+1).padStart(2,'0')+' '+cfHm(t);
 function cfDrRows(V,full){return V.R.map(r=>{const x=r.x,ns=/NO/.test(x.st);return {ns,cells:[cfHm(x.aT),...(full?[x.pn,x.ph?cfPh0(x.ph):'']:[]),x.type,...(CF.dr.doc?[]:[x.doc]),
@@ -524,14 +529,14 @@ function vDayRev(){let V;try{V=cfDayRev()}catch(e){return `<div class="card">م�
   const has=!!((RAW&&RAW.kinds&&RAW.kinds.cx));const H=cfDrHead(true),rows=cfDrRows(V,true).map(r=>Object.assign(r.cells.map((c,i)=>H[i]==='الرقم'?`<span dir="ltr">${esc(c)}</span>`:H[i]==='ملاحظات'?`<b class="down">${esc(c)}</b>`:esc(c)),{_c:r.ns?'':''}));
   const N=cfDrNotes(V);
   return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--down,#dc2626)"><h3>🔍 مراجعة يوم — No Show والملغي<small>اتأكد إمتى ومين · اتغيّر إمتى ومين · سبب الإلغاء · المكالمات قبلها</small></h3>
-   <div class="bar"><label class="sub">اليوم <input type="date" id="drD" value="${V.day}"></label><label class="sub">الدكتور <select id="drDoc"><option value="">كل الدكاترة</option>${V.docs.map(d=>`<option${d===CF.dr.doc?' selected':''}>${esc(d)}</option>`).join('')}</select></label>
+   <div class="bar"><span class="sub">📅 <b>${V.day.length>10?V.day:V.day.slice(8,10)+'/'+V.day.slice(5,7)}</b> (من فلتر «يوم الموعد» فوق)</span><label class="sub">الدكتور <select id="drDoc"><option value="">كل الدكاترة</option>${V.docs.map(d=>`<option${d===CF.dr.doc?' selected':''}>${esc(d)}</option>`).join('')}</select></label>
     <label class="sub">الحالة <select id="drSt"><option value="all">No Show + ملغي</option><option value="ns"${CF.dr.st==='ns'?' selected':''}>No Show بس</option><option value="cx"${CF.dr.st==='cx'?' selected':''}>الملغي بس</option></select></label>
     <button class="pri" id="drImgF">🖼️ صورة كاملة (بالأسامي والأرقام)</button><button class="pri" id="drImgG">🖼️ صورة للجروب (من غير أسامي ولا أرقام المرضى)</button></div>
    ${!has?'<div class="note" style="margin-top:8px">⏳ تسجيل الملغي والـ No Show (مين وإمتى والسبب) بيبدأ من أول مزامنة كاملة جاية — الأيام اللي قبل كده مش هتبان هنا.</div>':''}
    ${N.length?`<ul class="ins" style="margin-top:8px">${N.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}
    ${rows.length?tableHTML(H,rows,{h:520}):'<div class="sub" style="margin-top:8px">مفيش No Show ولا ملغي في اليوم ده (بالفلتر ده).</div>'}
    <div class="sub" style="margin-top:4px">المكالمات = سجل الخطوط اللي اترفع (تاب 📞 المكالمات) · التأكيد على الواتساب مش بيظهر · «اتأكد من غير مكالمة» = مفيش مكالمة اترد عليها لرقم المريض في الـ 36 ساعة قبل التأكيد</div></div>`}
-function cDayRev(){const d=$('#drD'),dc=$('#drDoc'),st=$('#drSt'),f=$('#drImgF'),g=$('#drImgG');if(d)d.onchange=()=>{CF.dr.d=d.value;render()};if(dc)dc.onchange=()=>{CF.dr.doc=dc.value;render()};if(st)st.onchange=()=>{CF.dr.st=st.value;render()};
+function cDayRev(){const d=null,dc=$('#drDoc'),st=$('#drSt'),f=$('#drImgF'),g=$('#drImgG');if(d)d.onchange=()=>{CF.dr.d=d.value;render()};if(dc)dc.onchange=()=>{CF.dr.doc=dc.value;render()};if(st)st.onchange=()=>{CF.dr.st=st.value;render()};
   if(f)f.onclick=()=>cfDrImg(true);if(g)g.onclick=()=>cfDrImg(false)}
 // 🖼️ صورة الجدول (canvas) — full = بأسامي وأرقام المرضى · للجروب = من غير (أسامي السكرتارية موجودة)
 function cfDrImg(full){const V=cfDayRev(),H=cfDrHead(full),Rw=cfDrRows(V,full),N=cfDrNotes(V);if(!Rw.length){alert('مفيش حاجة في اليوم ده');return}
@@ -542,7 +547,7 @@ function cfDrImg(full){const V=cfDayRev(),H=cfDrHead(full),Rw=cfDrRows(V,full),N
   const hdr=130,th=46,notesH=N.length*30+30,H2=hdr+th+rh.reduce((a,b)=>a+b,0)+notesH+70;cv.width=W;cv.height=H2;x.direction='rtl';x.textBaseline='middle';
   const T_=(t,X,Y,c,al)=>{x.fillStyle=c||'#111827';x.textAlign=al||'right';x.fillText(t,X,Y)},Rc=(X,Y,w,h,c)=>{x.fillStyle=c;x.fillRect(X,Y,w,h)};
   Rc(0,0,W,H2,'#fff');Rc(0,0,W,hdr-20,'#0f766e');F(34,800);T_('🔍 مراجعة '+(CF.dr.st==='ns'?'الـ No Show':CF.dr.st==='cx'?'الإلغاء':'الغياب والإلغاء')+(CF.dr.doc?' — '+CF.dr.doc:''),W-P,46,'#fff');
-  F(20,600);T_((BRN[S.b]||'')+' · '+V.day.slice(8,10)+'/'+V.day.slice(5,7)+'/'+V.day.slice(0,4)+' · من سحبات Medicolize + سجل مكالمات الخطوط',W-P,88,'#d1fae5');
+  F(20,600);T_((BRN[S.b]||'')+' · '+(V.day.length>10?V.day:V.day.slice(8,10)+'/'+V.day.slice(5,7)+'/'+V.day.slice(0,4))+' · من سحبات Medicolize + سجل مكالمات الخطوط',W-P,88,'#d1fae5');
   let y=hdr;Rc(P,y,W-2*P,th,'#f1f5f9');F(17,800);let X=W-P;H.forEach((h,i)=>{T_(h,X-8,y+th/2,'#334155');X-=CW[i]});y+=th;
   Rw.forEach((r,ri)=>{if(ri%2)Rc(P,y,W-2*P,rh[ri],'#fafafa');X=W-P;r.cells.forEach((c,i)=>{const col=/^⚠️|❌/.test(c)?'#b91c1c':/^✔️/.test(c)?'#1d4ed8':/^🚫|^✖️/.test(c)?'#b91c1c':'#111827';F(17,/^(✔️|🚫|✖️|⚠️)/.test(c)||i===1&&full?700:500);
       lines[ri][i].forEach((l,li)=>T_(l,X-8,y+20+li*24,col));X-=CW[i]});x.strokeStyle='#e5e7eb';x.beginPath();x.moveTo(P,y+rh[ri]);x.lineTo(W-P,y+rh[ri]);x.stroke();y+=rh[ri]});
@@ -638,5 +643,5 @@ async function cfExcel(){if(!CF.rep.calls&&!CF.rep.conf){alert('ارفع ملف�
     if(f.bRows.length)sh('تأكيد بالجملة',['الوقت','الفرع','مواعيد','المسئولة'],f.bRows,[22,10,10,30]);
     if(f.sus.length)sh('تأكيدات مشكوك فيها',['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],f.sus,[14,30,26,18,12,34,40,10])}
   XLSX.writeFile(wb,`تحليل المكالمات والتأكيدات — ${BRN[S.b]} — ${per.replace(/[\/\\?*\[\]:]/g,'-')}.xlsx`)}
-VIEWS.conf=[()=>{CF.lists=null;let s='';try{s+=vDayRev()}catch(e){console.error(e)}try{s+=cfUpHTML(true)}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}try{s+=vL3()}catch(e){console.error(e)}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}try{cDayRev()}catch(e){console.error(e)}try{cL3()}catch(e){console.error(e)}}];
+VIEWS.conf=[()=>{CF.lists=null;let s=vConfFilter();try{s+=vDayRev()}catch(e){console.error(e)}try{s+=cfUpHTML(true)}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}try{s+=vL3()}catch(e){console.error(e)}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}try{cDayRev()}catch(e){console.error(e)}try{cL3()}catch(e){console.error(e)}}];
 VIEWS.calls=[()=>{let s='';for(const f of [cfUpHTML,cfBadHTML,vCallAlerts,vCalls,vReach]){try{s+=f()}catch(e){console.error(e);s+='<div class="card">خطأ: '+esc(e.message)+'</div>'}}return s},()=>{cConf();for(const f of [cCalls,cReach,cCallCfg]){try{f()}catch(e){console.error(e)}}}];

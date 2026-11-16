@@ -1,5 +1,5 @@
 {
- "at": "2026-11-16T20:35:54.014Z",
+ "at": "2026-11-16T21:09:29.796Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -90,17 +90,14 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
- "fallbacks": [
-  "invoices: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   "
- ],
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
  "ph2_n": 49,
  "conf": {
-  "confirmed_now": 109,
-  "new": 3,
-  "cx_changed": 3
+  "confirmed_now": 115,
+  "new": 6,
+  "cx_changed": 1
  },
  "docerr": {
   "overrides": 6,
@@ -109,16 +106,7 @@
   "steps": 3226,
   "day": "2026-11-16",
   "open_now": 47,
-  "added": 13
- },
- "docerr": {
-  "overrides": 6,
-  "override_error": null,
-  "appts": 3262,
-  "steps": 3226,
-  "day": "2026-11-16",
-  "open_now": 48,
-  "added": 14
+  "added": 0
  },
  "kinds": {
   "pay": {
@@ -380,7 +368,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 358,
+    "rows": 364,
     "cols": [
      "aid",
      "start",
@@ -565,7 +553,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17524,
+    "rows": 17523,
     "cols": [
      "id",
      "referenceId",
@@ -609,7 +597,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 128,
+    "rows": 129,
     "cols": [
      "aid",
      "start",
@@ -680,7 +668,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131819,
+    "rows": 131824,
     "cols": [
      "start",
      "status",
@@ -710,7 +698,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6371,
+    "rows": 6384,
     "cols": [
      "start",
      "status",
@@ -940,12 +928,12 @@
   ]
  },
  "hash": {
-  "data/fin.enc": "c9734e5aed2c3ba1",
-  "data/fin_c.enc": "fb72fe25aa52c757"
+  "data/fin.enc": "cc122137daf65823",
+  "data/fin_c.enc": "29daf3ad4b328d13"
  },
  "written": [
   "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 112
+ "secs": 111
 }

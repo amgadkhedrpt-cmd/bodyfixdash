@@ -61,7 +61,7 @@ function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(!CF.dr.doc||c.doc===CF.d
   // ⚡ بالجملة: 5 تأكيدات أو أكتر في 3 دقايق (نفس الفرع)
   const bursts=[];for(const b of ['haram','dokki']){const L=C0.filter(c=>c.b===b&&!c.atBook).sort((x,y)=>x.cT-y.cT);let j=0;
     for(let i=0;i<L.length;i++){while(L[i].cT-L[j].cT>3*60e3)j++;if(i-j+1>=5)for(let k=j;k<=i;k++)L[k].bulk=true}
-    let cur=null;L.filter(c=>c.bulk).forEach(c=>{if(cur&&c.cT-cur.e<=3*60e3){cur.e=c.cT;cur.n++;cur.who[c.who]=(cur.who[c.who]||0)+1}else{cur={b,s:c.cT,e:c.cT,n:1,who:{[c.who]:1}};bursts.push(cur)}})}
+    let cur=null;L.filter(c=>c.bulk).forEach(c=>{if(cur&&c.cT-cur.e<=3*60e3){cur.e=c.cT;cur.n++;cur.who[c.who]=(cur.who[c.who]||0)+1;cur.L.push(c)}else{cur={b,s:c.cT,e:c.cT,n:1,who:{[c.who]:1},L:[c]};bursts.push(cur)}})}
   // 📞 سجل المكالمات: مكالمة اترد عليها للرقم ده في الـ 36 ساعة قبل التأكيد (لحد ربع ساعة بعده)
   const has=CF.calls.length;C0.forEach(c=>{if(!has||c.atBook){c.cat=c.atBook?'book':'nofile';return}
     if(CF.minT==null||c.cT<CF.minT||c.cT>CF.maxT+15*60e3){c.cat='nocov';return}
@@ -125,8 +125,9 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   if(gOk&&gOk.n>=10&&gS.n>=10){const d=gS.r-gOk.r;L.push(`<b>الاعتذار والغياب:</b> اللي اتأكدوا بمكالمة حقيقية ${pc(gOk.r)} · اللي شاكين فيهم (من غير مكالمة اترد عليها) <b${d>0.05?' class="down"':''}>${pc(gS.r)}</b>${d>0.05?` — يعني التأكيد المشكوك فيه بيخلّي الموعد يضيع ${(gS.r/Math.max(gOk.r,0.01)).toFixed(1)} مرة أكتر. ده بيأكد إن التأكيد ده مش حقيقي (أو مش مفيد)`:d<-0.03?' — المشكوك فيهم مش بيغيبوا أكتر، فغالباً اتأكدوا بطريقة تانية (واتساب)':' — تقريباً نفس النسبة'}.`)}
   else if(J.length)L.push(`<span class="sub">مقارنة الاعتذار بين المؤكدين بمكالمة والمشكوك فيهم بتظهر لما يبقى فيه 10 مواعيد خلصوا على الأقل في كل مجموعة.</span>`);
   const susLost=C.filter(c=>(c.res==='اعتذر'||c.res==='ما جاش')&&!c.atBook&&(['tried','missonly','none'].includes(c.cat)||c.bulk)).sort((a,b)=>b.aT-a.aT).map(c=>[cfFmt(c.aT),esc(c.pn),esc(c.type),c.res,cfFmt(c.cT),esc(c.who),(c.bulk?'⚡ بالجملة ':'')+(CF_CAT[c.cat]?CF_CAT[c.cat][0]:'')]);
-  if(susLost.length)L.push(`<b class="down">${susLost.length} موعد اعتذر أو ما جاش وكان متعلّم عليه مؤكد من غير مكالمة حقيقية</b> — القايمة تحت.`);
-  if(X.bursts.length)L.push(`<b class="down">${X.bursts.length} مرة اتأكد فيها ${X.bursts.reduce((s,b)=>s+b.n,0)} موعد بالجملة</b> (5 أو أكتر في 3 دقايق) — مستحيل يكونوا مكالمات، غالباً اتعلّموا من غير اتصال أو بعد رسالة واتساب جماعية.`);
+  const cfMini=rows=>'<div style="margin:6px 0 2px;padding:6px 10px;border-inline-start:3px solid var(--bad);background:rgba(239,68,68,.06);border-radius:6px;font-size:.92em;line-height:1.9">'+rows.join('<br>')+'</div>';
+  if(susLost.length)L.push(`<b class="down">${susLost.length} موعد اعتذر أو ما جاش وكان متعلّم عليه مؤكد من غير مكالمة حقيقية</b>:`+cfMini(susLost.map(r=>`• <b>${r[1]}</b> — ${r[2]} · موعده ${r[0]} · <b class="down">${r[3]}</b> · اتأكد ${r[4]} (${r[5]||'—'}) · ${r[6]}`)));
+  if(X.bursts.length)L.push(`<b class="down">${X.bursts.length} مرة اتأكد فيها ${X.bursts.reduce((s,b)=>s+b.n,0)} موعد بالجملة</b> (5 أو أكتر في 3 دقايق) — مستحيل يكونوا مكالمات، غالباً اتعلّموا من غير اتصال أو بعد رسالة واتساب جماعية:`+cfMini(X.bursts.slice().sort((a,b)=>b.s-a.s).map(b=>`⚡ <b>${cfFmt(b.s)}${b.e>b.s?'–'+cfFmt(b.e).slice(6):''}</b> · ${b.n} مواعيد · ${esc(Object.keys(b.who).join('، '))}<br>`+b.L.map(c=>`&nbsp;&nbsp;• ${esc(c.pn)} — ${esc(c.type||'')} · موعده ${cfFmt(c.aT)} · ${c.res}`).join('<br>'))));
   if(chk.some(c=>!c.whoOk))L.push(`<span class="sub">* = المسئولة حسب التوزيع الأساسي (خطة اليوم بقت بتسجل مسئولة كل مريض من النهارده — الأيام الجاية هتبقى بالاسم الصح حتى لو حد غايب).</span>`);
   if(L.length)h+=`<div class="card" style="margin-top:12px"><h3>📖 القراية</h3><ul class="ins">${L.map(x=>`<li>${x}</li>`).join('')}</ul></div>`;
   // حسب المسئولة

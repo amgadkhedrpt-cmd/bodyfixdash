@@ -52,7 +52,7 @@ function cfConfs(){const T=(RAW&&RAW.kinds&&RAW.kinds.conf&&RAW.kinds.conf.all)|
       out.push({aid:r[I.aid],cT,aT,crT,type:tName(r[I.ty]||''),pid:r[I.pid],pn:r[I.pn]||'',ph:cfPh(r[I.ph]),ph2:I.ph2>=0?cfPh(r[I.ph2]):'',doc:docName(r[I.doc]||''),b:r[I.b],puid:I.puid>=0?r[I.puid]:null,ub:I.ub>=0?r[I.ub]||'':'',k:cfDay(aT).slice(0,7)})}}
   return out}
 const cfApOk=c=>{const d=cfDay(c.aT);return (!CF.a1||d>=CF.a1)&&(!CF.a2||d<=CF.a2)};   // فلتر يوم الموعد
-function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(CF.a1||CF.a2?cfApOk(c):c.k>=S.from&&c.k<=S.to));   // تاب التأكيدات: فلتر واحد = يوم الموعد (وإلا الشهور اللي فوق)
+function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(!CF.dr.doc||c.doc===CF.dr.doc)&&(CF.a1||CF.a2?cfApOk(c):c.k>=S.from&&c.k<=S.to));   // تاب التأكيدات: فلتر واحد = يوم الموعد (وإلا الشهور اللي فوق)
   if(!CF.idx){CF.idx={};CF.calls.forEach(c=>(CF.idx[c.ph]=CF.idx[c.ph]||[]).push(c))}
   // نتيجة الموعد من بيانات المواعيد
   const ap={};D.apt.forEach(a=>{if(!a.pid)return;const k=a.pid+'|'+a.d;(ap[k]=ap[k]||[]).push(a.st)});
@@ -171,7 +171,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    {const t0=all.length?cfDay(Math.min(...all.map(c=>c.cT))):null,y=cfDay(Date.now()+2*3600e3-864e5),st={};
     const mEnd=k=>{const [Y,M]=k.split('-').map(Number);return new Date(Date.UTC(Y,M,0)).toISOString().slice(0,10)};
     const pF=[t0||'9999',CF.a1||(S.from+'-01')].sort().pop(),pT=[y,CF.a2||mEnd(S.to)].sort()[0],inP=d=>d>=pF&&d<=pT;
-    if(t0)D.apt.forEach(a=>{if(!inB(a)||!a.pid||!inP(a.d))return;(st[a.pid+'|'+a.d]=st[a.pid+'|'+a.d]||[]).push(a.st)});
+    if(t0)D.apt.forEach(a=>{if(!inB(a)||!a.pid||!inP(a.d)||(CF.dr.doc&&a.doc!==CF.dr.doc))return;(st[a.pid+'|'+a.d]=st[a.pid+'|'+a.d]||[]).push(a.st)});
     const allR=Object.values(st).map(l=>({res:l.some(s=>/complet|check|progress|delay/i.test(s))?'حضر':l.some(s=>/no ?show/i.test(s))?'ما جاش':l.some(s=>/cancel/i.test(s))?'اعتذر':''})).filter(fin_);
     const Cp=C.filter(c=>fin_(c)&&!c.atBook&&inP(cfDay(c.aT)));
     const gA=oRow('',allR),gNo=oRow('',Cp.filter(c=>c.cat==='none')),gTr=oRow('',Cp.filter(c=>c.cat==='tried'||c.cat==='missonly')),gK=oRow('',Cp.filter(c=>c.cat==='ok'));
@@ -485,10 +485,30 @@ function cCallCfg(){const sv=async()=>{try{await CS.setLines(CF.lines)}catch(e){
   document.querySelectorAll('[data-cfsw]').forEach(x=>x.onchange=()=>{const c=fix(x.dataset.cfsw);c.sw=Math.max(8,Math.min(23,+x.value||15));sv()})}
 
 // ================= 📅 فلتر واحد للتاب كله: يوم الموعد =================
-function vConfFilter(){const t=cfDay(cfWall(new Date().toISOString())),y=cfDay(Date.parse(t)-864e5);
-  return `<div class="card" style="position:sticky;top:0;z-index:3"><div class="bar"><b>📅 يوم الموعد:</b><label class="sub">من <input type="date" id="cfA1" value="${CF.a1}"></label><label class="sub">لحد <input type="date" id="cfA2" value="${CF.a2}"></label>
-   <button data-cfq="${t}|${t}">النهارده</button><button data-cfq="${y}|${y}">امبارح</button><button id="cfDClr">امسح</button>
-   <span class="sub">بيتحكم في التاب كله · من غير تاريخ = الشهور اللي فوق (و«مراجعة يوم» = النهارده)</span></div></div>`}
+// شريط الفلاتر (واحد لكل تاب) — زراير بدوسة · الشهور اللي فوق مش بتأثر هنا (الفرع بس)
+const cfToday=()=>cfDay(cfWall(new Date().toISOString())),cfAdd=(d,n)=>cfDay(Date.parse(d+'T00:00:00Z')+n*864e5);
+const CF_PRE={today:['النهارده',t=>[t,t]],yest:['امبارح',t=>[cfAdd(t,-1),cfAdd(t,-1)]],tom:['بكره',t=>[cfAdd(t,1),cfAdd(t,1)]],w7:['آخر 7 أيام',t=>[cfAdd(t,-6),t]],mon:['الشهر ده',t=>[t.slice(0,8)+'01',cfAdd(cfAdd(t.slice(0,8)+'01',32).slice(0,8)+'01',-1)]]};
+CF.cp=CF.cp||'today';CF.kp=CF.kp||'yest';CF.sh=CF.sh||'all';
+function cfPre(kind){const p=kind==='conf'?CF.cp:CF.kp;if(p==='custom'||!CF_PRE[p])return;const [a,b]=CF_PRE[p][1](cfToday());if(kind==='conf'){CF.a1=a;CF.a2=b}else{CF.d1=a;CF.d2=b}}
+const cfDD2=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'…';
+function cfBar(kind){cfPre(kind);const conf=kind==='conf',p=conf?CF.cp:CF.kp,keys=conf?['today','yest','tom','w7','mon']:['today','yest','w7','mon'],a=conf?CF.a1:CF.d1,b=conf?CF.a2:CF.d2;
+  const chip=(attr,v,lbl,on)=>`<button ${attr}="${v}" class="${on?'pri':''}" style="border-radius:999px">${lbl}</button>`;
+  const per=p!=='custom'?CF_PRE[p][0]+' '+(a===b?cfDD2(a):cfDD2(a)+' – '+cfDD2(b)):(cfDD2(a)+' – '+cfDD2(b));
+  let h=`<div class="card" style="position:sticky;top:0;z-index:3;border:1px solid var(--acc)">
+   <div class="bar"><b style="min-width:110px">📅 ${conf?'مواعيد يوم':'مكالمات يوم'}:</b>${keys.map(k=>chip('data-fp',k,CF_PRE[k][0],p===k)).join('')}${chip('data-fp','custom','📆 من … لحد …',p==='custom')}
+    ${p==='custom'?`<label class="sub">من <input type="date" id="${conf?'cfA1':'cfD1'}" value="${a||''}"></label><label class="sub">لحد <input type="date" id="${conf?'cfA2':'cfD2'}" value="${b||''}"></label>`:''}</div>`;
+  if(conf){const docs=[...new Set(cfConfs().filter(inB).map(c=>c.doc).concat(cfCx().filter(inB).map(x=>x.doc)))].filter(Boolean).sort();
+    h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">🩺 الدكتور:</b><select id="cfDoc"><option value="">كل الدكاترة</option>${docs.map(d=>`<option${d===CF.dr.doc?' selected':''}>${esc(d)}</option>`).join('')}</select></div>`}
+  else{const lns=[...new Set(CF.calls.map(c=>c.ln))].sort(),sw=S.b==='dokki'?17:15;
+    h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">📱 الخط:</b>${chip('data-fln','','الكل',!CF.ln)}${lns.map(l=>chip('data-fln',esc(l),esc(l),CF.ln===l)).join('')}</div>
+     <div class="bar" style="margin-top:6px"><b style="min-width:110px">🕐 الشيفت:</b>${chip('data-fsh','all','اليوم كله',CF.sh==='all')}${chip('data-fsh','am','☀️ الصباحي (11–'+(sw-12)+')',CF.sh==='am')}${chip('data-fsh','pm','🌙 المسائي ('+(sw-12)+'–11)',CF.sh==='pm')}</div>`}
+  h+=`<div class="note" style="margin-top:8px">بتشوف: ${conf?'مواعيد':'مكالمات'} <b>${per}</b> · ${BRN[S.b]}${conf?' · '+(CF.dr.doc?esc(CF.dr.doc):'كل الدكاترة'):' · '+(CF.ln?'خط '+esc(CF.ln):'كل الخطوط')+' · '+(CF.sh==='am'?'الشيفت الصباحي':CF.sh==='pm'?'الشيفت المسائي':'اليوم كله')} — <span class="sub">كل الكروت تحت ماشية على كده · الشهور اللي فوق خالص مش بتأثر هنا (الفرع بس)</span></div></div>`;
+  return h}
+function cBar(){const rr=()=>{CF.st=null;CF.rep={};CF.rch=null;CF.lists=null;render()};
+  document.querySelectorAll('[data-fp]').forEach(b=>b.onclick=()=>{const k=b.dataset.fp;if(S.tab==='conf')CF.cp=k;else CF.kp=k;rr()});
+  document.querySelectorAll('[data-fln]').forEach(b=>b.onclick=()=>{CF.ln=b.dataset.fln;rr()});
+  document.querySelectorAll('[data-fsh]').forEach(b=>b.onclick=()=>{CF.sh=b.dataset.fsh;const sw=S.b==='dokki'?'17':'15';[CF.h1,CF.h2]=CF.sh==='am'?['11',sw]:CF.sh==='pm'?[sw,'23']:['',''];rr()});
+  const dc=$('#cfDoc');if(dc)dc.onchange=()=>{CF.dr.doc=dc.value;rr()}}
 // ================= 🔍 مراجعة يوم: No Show / ملغي — اتأكد إمتى ومين · اتغيّر إمتى ومين · سبب الإلغاء · المكالمات قبلها =================
 CF.dr={d:'',doc:'',st:'all'};
 const CF_STL={NOSHOW:'No Show',NO_SHOW:'No Show',CANCELED:'اتلغى',CANCELLED:'اتلغى'};
@@ -501,7 +521,7 @@ function cfConfBy(c){if(c.ub)return [c.ub,1];const R=(CF.sheet&&CF.sheet.roles&&
   const rk=dk?(h<17?'DM':'DE'):(h<15?'F':'J');return [(R[rk]||(dk?(h<17?'الشيفت الصباحي':'الشيفت المسائي'):(h<15?'الشيفت الصباحي':'عيادة 2')))+' *',0]}
 function cfDayRev(){if(!CF.sheet)cfSheet();const td=cfDay(cfWall(new Date().toISOString())),d1=CF.a1||CF.a2||td,d2=CF.a2||CF.a1||td,day=d1===d2?d1:d1+' → '+d2,inD=d=>d>=d1&&d<=d2,X=cfCx().filter(x=>inB(x)&&inD(cfDay(x.aT))&&(!CF.dr.doc||x.doc===CF.dr.doc));
   const conf={};cfConfs().forEach(c=>{conf[c.aid]=c});if(!CF.idx){CF.idx={};CF.calls.forEach(c=>(CF.idx[c.ph]=CF.idx[c.ph]||[]).push(c))}
-  const R=X.filter(x=>CF.dr.st==='all'||(CF.dr.st==='ns'?/NO/.test(x.st):!/NO/.test(x.st))).sort((a,b)=>(/NO/.test(a.st)?0:1)-(/NO/.test(b.st)?0:1)||a.aT-b.aT).map(x=>{
+  const R=X.sort((a,b)=>(/NO/.test(a.st)?0:1)-(/NO/.test(b.st)?0:1)||a.aT-b.aT).map(x=>{
     const c=conf[x.aid],L=((CF.idx[x.ph]||[]).concat(c&&c.ph2&&CF.idx[c.ph2]||[])).filter(k=>k.t<x.aT).sort((a,b)=>a.t-b.t);
     const ref=c?c.cT:x.aT,talk=L.filter(k=>k.dur>0&&k.ty!=='miss'),lastTalk=talk.length?talk[talk.length-1]:null,before=L.filter(k=>k.t<=ref+15*60e3&&k.t>=ref-36*3600e3);
     const flags=[];const cov=CF.minT!=null&&ref>=CF.minT&&ref<=CF.maxT+864e5;
@@ -529,9 +549,7 @@ function vDayRev(){let V;try{V=cfDayRev()}catch(e){return `<div class="card">م�
   const has=!!((RAW&&RAW.kinds&&RAW.kinds.cx));const H=cfDrHead(true),rows=cfDrRows(V,true).map(r=>Object.assign(r.cells.map((c,i)=>H[i]==='الرقم'?`<span dir="ltr">${esc(c)}</span>`:H[i]==='ملاحظات'?`<b class="down">${esc(c)}</b>`:esc(c)),{_c:r.ns?'':''}));
   const N=cfDrNotes(V);
   return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--down,#dc2626)"><h3>🔍 مراجعة يوم — No Show والملغي<small>اتأكد إمتى ومين · اتغيّر إمتى ومين · سبب الإلغاء · المكالمات قبلها</small></h3>
-   <div class="bar"><span class="sub">📅 <b>${V.day.length>10?V.day:V.day.slice(8,10)+'/'+V.day.slice(5,7)}</b> (من فلتر «يوم الموعد» فوق)</span><label class="sub">الدكتور <select id="drDoc"><option value="">كل الدكاترة</option>${V.docs.map(d=>`<option${d===CF.dr.doc?' selected':''}>${esc(d)}</option>`).join('')}</select></label>
-    <label class="sub">الحالة <select id="drSt"><option value="all">No Show + ملغي</option><option value="ns"${CF.dr.st==='ns'?' selected':''}>No Show بس</option><option value="cx"${CF.dr.st==='cx'?' selected':''}>الملغي بس</option></select></label>
-    <button class="pri" id="drImgF">🖼️ صورة كاملة (بالأسامي والأرقام)</button><button class="pri" id="drImgG">🖼️ صورة للجروب (من غير أسامي ولا أرقام المرضى)</button></div>
+   <div class="bar"><span class="sub">📅 <b>${V.day.length>10?V.day:V.day.slice(8,10)+'/'+V.day.slice(5,7)}</b> (من الشريط اللي فوق)</span><button class="pri" id="drImgF">🖼️ صورة كاملة (بالأسامي والأرقام)</button><button class="pri" id="drImgG">🖼️ صورة للجروب (من غير أسامي ولا أرقام المرضى)</button></div>
    ${!has?'<div class="note" style="margin-top:8px">⏳ تسجيل الملغي والـ No Show (مين وإمتى والسبب) بيبدأ من أول مزامنة كاملة جاية — الأيام اللي قبل كده مش هتبان هنا.</div>':''}
    ${N.length?`<ul class="ins" style="margin-top:8px">${N.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}
    ${rows.length?tableHTML(H,rows,{h:520}):'<div class="sub" style="margin-top:8px">مفيش No Show ولا ملغي في اليوم ده (بالفلتر ده).</div>'}
@@ -643,5 +661,5 @@ async function cfExcel(){if(!CF.rep.calls&&!CF.rep.conf){alert('ارفع ملف�
     if(f.bRows.length)sh('تأكيد بالجملة',['الوقت','الفرع','مواعيد','المسئولة'],f.bRows,[22,10,10,30]);
     if(f.sus.length)sh('تأكيدات مشكوك فيها',['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],f.sus,[14,30,26,18,12,34,40,10])}
   XLSX.writeFile(wb,`تحليل المكالمات والتأكيدات — ${BRN[S.b]} — ${per.replace(/[\/\\?*\[\]:]/g,'-')}.xlsx`)}
-VIEWS.conf=[()=>{CF.lists=null;let s=vConfFilter();try{s+=vDayRev()}catch(e){console.error(e)}try{s+=cfUpHTML(true)}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}try{s+=vL3()}catch(e){console.error(e)}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}try{cDayRev()}catch(e){console.error(e)}try{cL3()}catch(e){console.error(e)}}];
-VIEWS.calls=[()=>{let s='';for(const f of [cfUpHTML,cfBadHTML,vCallAlerts,vCalls,vReach]){try{s+=f()}catch(e){console.error(e);s+='<div class="card">خطأ: '+esc(e.message)+'</div>'}}return s},()=>{cConf();for(const f of [cCalls,cReach,cCallCfg]){try{f()}catch(e){console.error(e)}}}];
+VIEWS.conf=[()=>{CF.lists=null;let s=cfBar('conf');try{s+=vDayRev()}catch(e){console.error(e)}try{s+=cfUpHTML(true)}catch(e){console.error(e);s+='<div class="card">خطأ في رفع الملفات: '+esc(e.message)+'</div>'}try{s+=vL3()}catch(e){console.error(e)}s+=vConf();try{s+=vLists()}catch(e){console.error(e);s+='<div class="card">خطأ في القوايم: '+esc(e.message)+'</div>'}return s},()=>{cConf();try{cReach()}catch(e){console.error(e)}try{cDayRev()}catch(e){console.error(e)}try{cL3()}catch(e){console.error(e)}try{cBar()}catch(e){console.error(e)}}];
+VIEWS.calls=[()=>{let s=cfBar('calls');for(const f of [()=>cfUpHTML(true),cfBadHTML,vCallAlerts,vCalls,vReach]){try{s+=f()}catch(e){console.error(e);s+='<div class="card">خطأ: '+esc(e.message)+'</div>'}}return s},()=>{cConf();for(const f of [cCalls,cReach,cCallCfg,cBar]){try{f()}catch(e){console.error(e)}}}];

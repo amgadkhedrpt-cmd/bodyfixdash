@@ -1,5 +1,5 @@
 {
- "at": "2026-11-16T16:01:07.012Z",
+ "at": "2026-11-16T16:17:10.345Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -93,11 +93,11 @@
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 31,
+ "ph2_n": 32,
  "conf": {
   "confirmed_now": 93,
-  "new": 2,
-  "cx_changed": 0
+  "new": 4,
+  "cx_changed": 1
  },
  "kinds": {
   "pay": {
@@ -120,7 +120,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20678,
+    "rows": 20680,
     "cols": [
      "id",
      "type",
@@ -359,7 +359,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 293,
+    "rows": 297,
     "cols": [
      "aid",
      "start",
@@ -544,7 +544,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17515,
+    "rows": 17516,
     "cols": [
      "id",
      "referenceId",
@@ -588,7 +588,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 104,
+    "rows": 105,
     "cols": [
      "aid",
      "start",
@@ -659,7 +659,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131751,
+    "rows": 131762,
     "cols": [
      "start",
      "status",
@@ -678,8 +678,10 @@
     "values": {
      "status": [
       "CANCELED",
+      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
+      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -889,11 +891,11 @@
     "prod": 5
    },
    "2026-11": {
-    "fu": 114,
+    "fu": 117,
     "mezo": 5,
     "dev": 32,
     "physio": 36,
-    "inj": 41,
+    "inj": 42,
     "exam": 18,
     "prod": 1
    }
@@ -921,10 +923,10 @@
  },
  "hash": {
   "data/fin.enc": "83d7e73f306cac3d",
-  "data/fin_c.enc": "63e60df4ef491117"
+  "data/fin_c.enc": "839e32ee0be8ce1f"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 196
+ "secs": 64
 }

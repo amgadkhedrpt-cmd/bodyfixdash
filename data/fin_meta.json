@@ -1,5 +1,5 @@
 {
- "at": "2026-11-16T14:09:20.202Z",
+ "at": "2026-11-16T14:23:04.475Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -93,11 +93,11 @@
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 11,
+ "ph2_n": 31,
  "conf": {
-  "confirmed_now": 37,
-  "new": 4,
-  "cx_changed": 5
+  "confirmed_now": 103,
+  "new": 61,
+  "cx_changed": 94
  },
  "kinds": {
   "pay": {
@@ -166,7 +166,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1023,
+    "rows": 1024,
     "cols": [
      "type",
      "amount",
@@ -353,80 +353,13 @@
     "missing": []
    }
   },
-  "apt": {
-   "haram": {
-    "values": {
-     "status": [
-      "CANCELED",
-      "CHECKEDIN",
-      "COMPLETED",
-      "CONFIRMED",
-      "DELAYED",
-      "INPROGRESS",
-      "NOSHOW",
-      "NOTE",
-      "OPEN",
-      "WAITING"
-     ]
-    },
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 131507,
-    "cols": [
-     "start",
-     "status",
-     "type",
-     "createdAt",
-     "updatedAt",
-     "createdBy.name",
-     "room",
-     "doctor.name",
-     "patient.referenceId",
-     "patient.phoneNumber"
-    ],
-    "missing": []
-   },
-   "dokki": {
-    "values": {
-     "status": [
-      "CANCELED",
-      "CHECKEDIN",
-      "COMPLETED",
-      "CONFIRMED",
-      "INPROGRESS",
-      "NOSHOW",
-      "NOTE",
-      "OPEN",
-      "WAITING"
-     ]
-    },
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 6351,
-    "cols": [
-     "start",
-     "status",
-     "type",
-     "createdAt",
-     "updatedAt",
-     "createdBy.name",
-     "room",
-     "doctor.name",
-     "patient.referenceId",
-     "patient.phoneNumber"
-    ],
-    "missing": []
-   }
-  },
   "conf": {
    "all": {
     "values": {},
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 212,
+    "rows": 273,
     "cols": [
      "aid",
      "start",
@@ -611,7 +544,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17515,
+    "rows": 17516,
     "cols": [
      "id",
      "referenceId",
@@ -655,7 +588,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 5,
+    "rows": 99,
     "cols": [
      "aid",
      "start",
@@ -705,6 +638,73 @@
      "2026-09",
      "2026-10"
     ]
+   }
+  },
+  "apt": {
+   "haram": {
+    "values": {
+     "status": [
+      "CANCELED",
+      "CHECKEDIN",
+      "COMPLETED",
+      "CONFIRMED",
+      "DELAYED",
+      "INPROGRESS",
+      "NOSHOW",
+      "NOTE",
+      "OPEN",
+      "WAITING"
+     ]
+    },
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 131729,
+    "cols": [
+     "start",
+     "status",
+     "type",
+     "createdAt",
+     "updatedAt",
+     "createdBy.name",
+     "room",
+     "doctor.name",
+     "patient.referenceId",
+     "patient.phoneNumber"
+    ],
+    "missing": []
+   },
+   "dokki": {
+    "values": {
+     "status": [
+      "CANCELED",
+      "CHECKEDIN",
+      "COMPLETED",
+      "CONFIRMED",
+      "INPROGRESS",
+      "NOSHOW",
+      "NOTE",
+      "OPEN",
+      "WAITING"
+     ]
+    },
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 6351,
+    "cols": [
+     "start",
+     "status",
+     "type",
+     "createdAt",
+     "updatedAt",
+     "createdBy.name",
+     "room",
+     "doctor.name",
+     "patient.referenceId",
+     "patient.phoneNumber"
+    ],
+    "missing": []
    }
   }
  },
@@ -921,12 +921,12 @@
   ]
  },
  "hash": {
-  "data/fin.enc": "b800f7f2c7737cb8",
-  "data/fin_c.enc": "4f2ce327cf355aef"
+  "data/fin.enc": "83d7e73f306cac3d",
+  "data/fin_c.enc": "ea0c4e5bca1847f5"
  },
  "written": [
   "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 69
+ "secs": 216
 }

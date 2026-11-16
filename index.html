@@ -11940,6 +11940,29 @@ function planCardShow(force){
     '<button onclick="try{localStorage.setItem(\''+seenK.replace(/'/g,'')+'\',1)}catch(e){};document.getElementById(\'planCardModal\').remove()" style="margin-top:14px;width:100%;background:#0f766e;color:#fff;border:0;border-radius:9px;padding:9px;font-family:Cairo,sans-serif;font-weight:800;font-size:.85rem;cursor:pointer">تمام، هبدأ 👍</button></div>';
   document.body.appendChild(m);
 }
+/* ⚡ بديل خصم الاعتذار المفاجئ: sudx|<pid>|<day> = {t:'nopkg'|'warn', by, at, name, phone} — «تم التنبيه» مرة واحدة بس لكل مريض */
+function planSudX(pid,day,t,name,phone){
+  if(!PLAN_ME){ alert('اختاري اسمك الأول من خانة «السكرتيرة المسئولة» فوق'); return; }
+  var L={nopkg:'لا يوجد باقة للخصم',warn:'تم التنبيه — وفي حالة التكرار يتم الخصم المرة القادمة'};
+  if(t){ if(t==='warn'&&Object.keys(PLAN_ST).some(function(kk){ var o=PLAN_ST[kk]; return kk.indexOf('sudx|'+pid+'|')===0&&kk.split('|')[2]<day&&o&&o.t==='warn'; })){ alert('المريض ده اتنبّه قبل كده — المرة دي لازم الخصم'); return; }
+    if(!confirm('متأكدة؟\n«'+L[t]+'»'+(t==='warn'?'\n\n⚠️ الزرار ده بيتستخدم مرة واحدة بس للمريض ده — المرة الجاية لازم خصم':'')))return; }
+  var o={t:t||'', by:PLAN_ME, at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}), name:name||'', phone:phone||''};
+  PLAN_ST['sudx|'+pid+'|'+day]=o; planSaveRaw('PLAN|sudx|'+pid+'|'+day, JSON.stringify(o));
+  try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
+  planRender();
+}
+/* ⚠️ مراجعة: «لا يوجد باقة» واتضح إن عنده باقة · «تم التنبيه» اتستخدم أكتر من مرة لنفس المريض */
+function planSudAlerts(){
+  var by={}; Object.keys(PLAN_ST).forEach(function(kk){ if(kk.indexOf('sudx|')!==0) return; var o=PLAN_ST[kk]; if(!o||!o.t) return; var p=kk.split('|'); (by[p[1]]=by[p[1]]||[]).push(Object.assign({d:p[2]},o)); });
+  var PI={}; ((ALERTS_DATA&&ALERTS_DATA.pt_index)||[]).forEach(function(r){ var ph=String(r[1]||'').replace(/\D/g,'').slice(-10); if(ph) PI[ph]=r; });
+  var out=[];
+  Object.keys(by).forEach(function(pid){ var L=by[pid].sort(function(a,b){ return a.d<b.d?-1:1; }), w=L.filter(function(o){ return o.t==='warn'; }), nm=(L[L.length-1]||{}).name||pid;
+    if(w.length>1) out.push('<b>'+nm+'</b> — «تم التنبيه» اتستخدم <b>'+w.length+' مرات</b> ('+w.map(function(o){ return alFmtDay(o.d)+' · '+alEsc(o.by||''); }).join('، ')+') — المفروض مرة واحدة بس');
+    L.filter(function(o){ return o.t==='nopkg'; }).forEach(function(o){ var r=PI[String(o.phone||'').replace(/\D/g,'').slice(-10)]; if(r&&(+r[8]||0)>(+r[9]||0)) out.push('<b>'+nm+'</b> — اتداس «لا يوجد باقة للخصم» يوم '+alFmtDay(o.d)+' ('+alEsc(o.by||'')+') <b>وهو عنده باقة</b> (حضر '+(+r[9]||0)+' من '+(+r[8]||0)+')'); });
+  });
+  if(!out.length) return '';
+  return '<div style="background:rgba(239,68,68,.10);border:2px solid var(--r);border-radius:12px;padding:10px 12px;margin-bottom:10px"><div style="font-weight:800;font-size:.76rem;color:var(--r)">⚠️ مراجعة خصم الاعتذار المفاجئ ('+out.length+')</div><ul style="margin:4px 0;padding-inline-start:18px;font-size:.66rem;line-height:1.9">'+out.map(function(x){ return '<li>'+x+'</li>'; }).join('')+'</ul></div>';
+}
 /* 💸 حصّلي قبل ما يمشي: خدمة اتعملت النهارده ومتدفعتش · أو حضر النهارده وعليه فلوس من قبل — بيتحدث مع كل مزامنة (كل نص ساعة) */
 var PLAN_LATE=[];
 function planLateInfo(){
@@ -12384,18 +12407,28 @@ function planTasks(useAll){
     var digits=String(x.phone||'').replace(/\D/g,''), br=alBranchOf(x.doctor,x.branch)==='FIX ZONE'?'FIX ZONE':'BODYFIX';
     var msg=planSuddenMsg(x.name, br, x.kind==='noshow', second);
     var waBtn=digits?'<a href="https://wa.me/'+digits+'?text='+encodeURIComponent(msg)+'" target="_blank" onclick="planWa(\''+k+'\')" style="display:inline-block;margin-top:4px;background:#25D366;color:#06281a;border-radius:7px;padding:3px 10px;font-size:.62rem;font-weight:800;text-decoration:none">📲 ابعت رسالة واتساب '+(second?'(تاني مرة — خصم)':'(أول مرة)')+'</a>':'';
-    var done=conv&&(!second||ded);   // من Medicolize بس — الواتساب زرار مساعد ومش شرط
-    add('office',{grp:['sudden'], sys:done?'كل الخطوات اتعملت':'', what:done?('اسم الموعد اتغير لـ الغاء مفاجئ على Medicolize'+(second?' + اتخصمت الجلسة':'')):'', key:k, icon:'⚡',
-      kind:(x.kind==='noshow'?'No Show':'اعتذار مفاجئ')+' النهارده — '+(second?'<b style="color:var(--r)">مرة '+(n+1)+' (خصم جلسة)</b>':'<b>أول مرة</b>'),
+    // بديل الخصم (مرة تانية وأكتر) — زرارين بس: «لا يوجد باقة للخصم» · «تم التنبيه — المرة الجاية خصم» (مرة واحدة بس لكل مريض)
+    var sx=PLAN_ST['sudx|'+x.pid+'|'+today]; if(sx&&!sx.t) sx=null;
+    var warnPrev=Object.keys(PLAN_ST).filter(function(kk){ var o=PLAN_ST[kk]; return kk.indexOf('sudx|'+x.pid+'|')===0&&kk.split('|')[2]<today&&o&&o.t==='warn'; }).map(function(kk){ return kk.split('|')[2]; }).sort();
+    var done=conv&&(!second||ded||!!sx);   // من Medicolize — أو زرار البديل لما الخصم مش ممكن
+    var SXL={nopkg:'📭 لا يوجد باقة للخصم',warn:'⚠️ تم التنبيه — وفي حالة التكرار يتم الخصم المرة القادمة'};
+    var pa=String(x.pid).replace(/'/g,''), nmq=alEsc(x.name||'').replace(/'/g,''), phq=String(x.phone||'').replace(/'/g,'');
+    var sxBtns=second&&!ded?(sx?'<div style="font-size:.64rem;margin-top:3px"><span style="color:var(--g)">✋</span> '+SXL[sx.t]+' <span style="color:var(--mute)">— '+alEsc(sx.by||'')+' '+alEsc(sx.at||'')+'</span> <button onclick="event.stopPropagation();planSudX(\''+pa+'\',\''+today+'\',\'\')" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:6px;font-size:.56rem;cursor:pointer">↩️ رجّعها</button></div>':
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px" onclick="event.stopPropagation()"><span style="font-size:.6rem;color:var(--mute);align-self:center">لو الخصم مش ممكن:</span>'+
+      '<button onclick="planSudX(\''+pa+'\',\''+today+'\',\'nopkg\',\''+nmq+'\',\''+phq+'\')" style="background:rgba(59,130,246,.15);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer">'+SXL.nopkg+'</button>'+
+      (warnPrev.length?'<span style="font-size:.6rem;color:var(--r);align-self:center">⚠️ اتنبّه قبل كده يوم '+alEsc(alFmtDay(warnPrev[warnPrev.length-1]))+' — المرة دي لازم الخصم</span>':
+       '<button onclick="planSudX(\''+pa+'\',\''+today+'\',\'warn\',\''+nmq+'\',\''+phq+'\')" style="background:rgba(245,158,11,.15);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer">'+SXL.warn+'</button>')+'</div>'):'';
+    add('office',{grp:['sudden'], sys:done?(sx&&!ded?'اسم الموعد اتغير + ✋ '+SXL[sx.t]:'كل الخطوات اتعملت'):'', what:done?('اسم الموعد اتغير لـ الغاء مفاجئ على Medicolize'+(second?(ded?' + اتخصمت الجلسة':sx?' · '+SXL[sx.t]+' ('+(sx.by||'')+')':''):'')):'', key:k, icon:'⚡',
+      sys0:sx?1:0, kind:(x.kind==='noshow'?'No Show':'اعتذار مفاجئ')+' النهارده — '+(second?'<b style="color:var(--r)">مرة '+(n+1)+' (خصم جلسة)</b>':'<b>أول مرة</b>'),
       name:x.name, phone:x.phone, br:brOf(x),
       lines:[alEsc(x.type)+' '+alEsc(planT(x.date))+' مع '+alEsc(doc(x.doctor))+(n?' · مرات قبل كده: '+x.prior_sudden.map(alFmtDay).join('، '):''),
              x.note?'📝 '+alEsc(x.note):'',
              waBtn+(wa?' <span style="font-size:.58rem;color:var(--mute)">اتفتح '+alEsc(wa.by||'')+' '+alEsc(wa.at||'')+'</span>':''),
              ok(conv,'اسم الموعد اتغير لـ «الغاء مفاجئ» على Medicolize (الحالة Canceled أو No Show أو Completed — أي واحدة)'),
-             second?ok(ded,'الجلسة اتخصمت (خطوة عملية Completed النهارده)'):'',
+             second?ok(ded||!!sx,'الجلسة اتخصمت (خطوة عملية Completed النهارده)'+(sx&&!ded?' — <b>بديل:</b> '+SXL[sx.t]:'')):'', sxBtns,
              done?'':'<div style="margin-top:5px;border:1px solid var(--r);border-radius:7px;padding:5px 8px;font-size:.64rem;color:var(--r)"><b>⬜ ناقص علشان المهمة تتقفل:</b><br>'+
                [!conv?'• على Medicolize غيّري اسم موعد '+alEsc(planT(x.date))+' ('+alEsc(x.type)+') لـ <b>«الغاء مفاجئ»</b> — الحالة تفضل Canceled أو No Show عادي':'',
-                second&&!ded?'• دي مرة '+(n+1)+': اعملي <b>خطوة عملية Completed النهارده</b> من باقته (خصم الجلسة)':''].filter(Boolean).join('<br>')+
+                second&&!ded&&!sx?'• دي مرة '+(n+1)+': اعملي <b>خطوة عملية Completed النهارده</b> من باقته (خصم الجلسة) — أو لو مش ممكن: زرار من الزرارين اللي فوق':''].filter(Boolean).join('<br>')+
                '<br><span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها بعد الـ Sync الجاي (كل نص ساعة) — رسالة الواتساب مش شرط</span></div>']});
   });
   // 💳 مالوش باقة للخدمة: النهارده → ندى (تتأكد إنه يدفع قبل الجلسة) · يوم الشغل الجاي → إنجي (تكلّمه النهارده)
@@ -13014,7 +13047,7 @@ function planHowBar(gk,A){ var c={}; A.forEach(function(t){ var h=planHow(t); if
   return '<div style="display:flex;gap:5px;flex-wrap:wrap;padding:4px 2px 8px">'+ch('','الكل '+(A.length),'var(--mute)')+keys.map(function(k){ var L=PLAN_HOW_L[k]; return ch(k,L[0]+' '+L[1]+' '+c[k],L[2]); }).join('')+'</div>'; }
 var PLAN_NOTE_OK={drop:1, idle:1, streak:1, recur:1};
 /* مكالمات المتابعة: بتتقفل من Medicolize بس (الموعد Completed بملحوظة أو اتصالين بوقتهم + الحجز الجاي) — مفيش قفل ولا «ما ردش» من الداشبورد */
-var PLAN_SYS_ONLY={call:1, mcallup:1};
+var PLAN_SYS_ONLY={call:1, mcallup:1, sudden:1};
 var PLAN_NO_NR={mcall:1, mcallup:1, sudden:1, noinv:1, invfix:1, invrev:1, aud:1, stale:1};   // مهام تسجيل على السيستم — مش مكالمة، فمالهاش «ما ردش»
 /* زرار ✅ اليدوي: مهام المدير ومراجعة الفواتير القديمة بس — أي مهمة تانية بتتقفل من Medicolize (أو ملحوظة للمكالمات، أو 🚫 رفض بسبب) */
 var PLAN_MANUAL_OK={mgr:1, invrev:1};
@@ -13087,7 +13120,7 @@ function planRow(t){
       (phone?'<div dir="ltr" style="font-size:.6rem;color:var(--g);margin-top:4px;text-align:right">'+alEsc(phone)+'</div>':'')+
       '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">'+
         (live?(auto?'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">🤖 بتتقفل لوحدها لما '+alEsc(PLAN_AUTO_G[(t.grp||[])[0]]||'')+(sysOnly&&(t.grp||[])[0]==='call'?' — اكتبي المكالمات في ملحوظة الموعد على Medicolize':'')+'</span>':manOk?btn('done','✅ اتعمل','rgba(16,185,129,.15)'):'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">'+(PLAN_NOTE_REF[(t.grp||[])[0]]?'🤖 بتتقفل لما الخدمة تتحجز على Medicolize — ولو مش عايزها اكتبي السبب في الملحوظة (بتتحسب 🚫 رفض)':'🤖 بتتقفل لما الشغل يتسجل على Medicolize — أو «🚫 رفض» لو المريض رفض')+'</span>')+(isCall||sysOnly||PLAN_NO_NR[(t.grp||[])[0]]?'':btn('nr','📞 ما ردش','rgba(245,158,11,.12)'))+((t.grp||[])[0]==='stop'?'<button onclick="event.stopPropagation();planStopNo(\''+k+'\')" style="background:rgba(167,139,250,.14);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">✋ مش هيوقف جلسات</button>':
-         planNoteCloses(t)||sysOnly?'':'<button onclick="event.stopPropagation();planRef(\''+k+'\')" style="background:rgba(249,115,22,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🚫 رفض</button>')+btn('later','⏭ أجّل','transparent'):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
+         planNoteCloses(t)||sysOnly?'':'<button onclick="event.stopPropagation();planRef(\''+k+'\')" style="background:rgba(249,115,22,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🚫 رفض</button>')+((t.grp||[])[0]==='sudden'?'':btn('later','⏭ أجّل','transparent')):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
         '<input id="pn_'+h+'" value="'+alEsc(st.note||'')+'" placeholder="💬 ملحوظة…" onchange="planNote(\''+k+'\')" onkeydown="if(event.key===\'Enter\')this.blur()" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--brd);border-radius:7px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.62rem;padding:5px 8px">'+
         '<span id="pst_'+h+'" style="font-size:.56rem;color:var(--mute)"></span></div></div></div>';
 }
@@ -13120,7 +13153,7 @@ function planRender(){
     '<label style="font-size:.62rem;color:var(--mute)">عرض مهام '+
     '<select onchange="PLAN_VIEW=this.value;try{localStorage.setItem(\'planView\',PLAN_VIEW)}catch(e){};planRender()" style="background:var(--bg);border:1px solid '+(PLAN_VIEW?'#ec4899':'var(--brd)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
       '<option value="">كل السكرتيرات</option>'+ALLN.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label>'+
-    (planMyCard()?'<button onclick="planCardShow(1)" style="background:#0f766e;color:#fff;border:0;border-radius:7px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:.64rem;font-weight:800;cursor:pointer">📌 كارتي</button>':'')+'</div>'+planCashBanner()+planLateInfo()+
+    (planMyCard()?'<button onclick="planCardShow(1)" style="background:#0f766e;color:#fff;border:0;border-radius:7px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:.64rem;font-weight:800;cursor:pointer">📌 كارتي</button>':'')+'</div>'+planSudAlerts()+planCashBanner()+planLateInfo()+
     '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
       '<div style="display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:6px"><span>اتعمل <b style="color:var(--g)">'+dn+'</b> من <b>'+vis.length+'</b> مهمة'+(PLAN_VIEW?' (مهام '+alEsc(PLAN_VIEW)+')':'')+' · منهم <b>'+vis.filter(function(t){ var x=PLAN_ST[t.key]||{}; return planState(t)==='done'&&x.s!=='done'; }).length+'</b> اتعملوا على Medicolize و<b>'+vis.filter(function(t){ return (PLAN_ST[t.key]||{}).s==='done'; }).length+'</b> اتقفلوا بزرار ✅</span><b>'+pc+'%</b></div>'+
       '<div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:linear-gradient(90deg,#10b981,#00c6ff)"></div></div>'+

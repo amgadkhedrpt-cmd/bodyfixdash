@@ -400,14 +400,14 @@ function vLists(){const Q=cfLists(),w=c=>esc(c.who||'…'),ph=x=>`<span dir="ltr
 
 // ================= 🖼️ صورة تقييم الخطوط (تتبعت للسكرتارية) — من غير أسماء ولا أرقام مرضى =================
 function cfLineStats(){const EP=cfStats().EP.filter(e=>e.st!=='pend'),C0=CF.calls.filter(c=>cfCOk(c.t,c.ln,true)),r=(a,f)=>a.length?a.filter(f).length/a.length:null;
-  const one=(l,cc,ee)=>{const ii=cc.filter(c=>c.ty==='in'||c.ty==='miss'),oo=cc.filter(c=>c.ty==='out'),eo=ee.filter(e=>e.open);
-    return {l,inc:ii.length,miss:ii.length?ii.filter(c=>c.ty==='miss').length/ii.length:null,eo:eo.length,r1:r(eo,e=>e.wA!=null&&e.wA<60),md:cfMed(eo.filter(e=>e.wA!=null).map(e=>e.wA)),
+  const one=(l,cc,ee)=>{const ii=cc.filter(c=>c.ty==='in'||c.ty==='miss'),oo=cc.filter(c=>c.ty==='out'),eo0=ee.filter(e=>e.open),eo=eo0.filter(e=>!(e.st==='self'&&e.wA==null));   // «المريض رجع اتصل قبل ما نحاول» مش بيتحسب علينا في سرعة الرجوع
+    return {l,inc:ii.length,miss:ii.length?ii.filter(c=>c.ty==='miss').length/ii.length:null,eo:eo.length,self:eo0.length-eo.length,r1:r(eo,e=>e.wA!=null&&e.wA<60),md:cfMed(eo.filter(e=>e.wA!=null).map(e=>e.wA)),
       rN:r(eo,e=>e.st==='none'),none:ee.filter(e=>e.st==='none').length,out:oo.length,outR:oo.length?oo.filter(c=>c.dur>0).length/oo.length:null,talk:Math.round(cc.reduce((s,c)=>s+(c.ty!=='miss'?c.dur:0),0)/60)}};
   const lns=[...new Set(C0.map(c=>c.ln))].sort();
   return {T:one('الإجمالي',C0,EP),L:lns.map(l=>one(l,C0.filter(c=>c.ln===l),EP.filter(e=>e.ln===l)))}}
 // [المقياس, المفتاح, شكل الرقم, الأحسن: 1 أعلى / -1 أقل / 0 مش بيتقارن, شرح بسيط]
 const CF_M=[['📥 مكالمات داخلة','inc',v=>fm(v),0,'كل اللي اتصل بينا'],['📵 فاتت من غير رد','miss',v=>pc(v),-1,'من الداخلة — كل ما تقل أحسن'],['⏱️ رجعنا خلال ساعة','r1',v=>pc(v),1,'من اللي فاتت في مواعيد الشغل'],
-  ['🕐 بنرجع بعد (في المتوسط)','md',v=>cfDurF(v),-1,'نص المرات بنرجع في الوقت ده أو أقل'],['🚫 ما رجعناش خالص','rN',v=>pc(v),-1,'فاتت ومحدش رجعله'],['📌 أرقام لسه محدش رجعلها','none',v=>fm(v),-1,'لحد آخر ملف اترفع'],
+  ['🔁 المريض رجع اتصل هو','self',v=>fm(v),0,'فاتته واتصل تاني قبل ما نرجعله — مش بتتحسب في «رجعنا خلال ساعة»'],['🕐 بنرجع بعد (في المتوسط)','md',v=>cfDurF(v),-1,'نص المرات بنرجع في الوقت ده أو أقل'],['🚫 ما رجعناش خالص','rN',v=>pc(v),-1,'فاتت ومحدش رجعله'],['📌 أرقام لسه محدش رجعلها','none',v=>fm(v),-1,'لحد آخر ملف اترفع'],
   ['📤 مكالمات طالعة','out',v=>fm(v),0,'كل اللي اتصلنا بيه'],['✅ المريض رد على الطالعة','outR',v=>pc(v),1,''],['🗣️ دقايق كلام','talk',v=>fm(v),0,'']];
 const CF_GOAL={miss:[0.1,0.2,-1],r1:[0.7,0.4,1],rN:[0.05,0.1,-1],md:[30,120,-1]};   // [كويس, وحش, اتجاه]
 function cfGrade(k,v){const g=CF_GOAL[k];if(!g||v==null)return 0;return g[2]<0?(v<=g[0]?1:v>g[1]?-1:0):(v>=g[0]?1:v<g[1]?-1:0)}

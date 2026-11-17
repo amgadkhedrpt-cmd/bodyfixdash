@@ -12743,7 +12743,10 @@ function planTeam(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var o=PLAN_ST[
 function planRoleOf(name, br){ var R=PLAN_ROLES[br]||{}; for(var k in R) if(R[k]===name) return k; return ''; }
 function planBrOfName(name){ for(var b in PLAN_ROLES) if(planRoleOf(name,b)) return b; return ''; }
 /* موجودة في الفرع ده النهارده؟ (غايبة أو بتغطي في الفرع التاني = لأ) */
-function planHere(name, br){ var p=planTeam().p[name]; if(!p||p.st==='in'||!p.st) return true; if(p.st==='cover') return p.br===br; return false; }
+function planHere(name, br){ var P=planTeam().p, p=P[name]; if(!p||p.st==='in'||!p.st) return true; if(p.st==='cover') return p.br===br;
+  // متختارة تغطي مكان حد في الفرع ده («مهامها كلها ← فلانة») = موجودة هنا حتى لو متعلّم عليها غايبة في فرعها
+  for(var n in P){ var x=P[n]; if(x&&x.sub===name&&n!==name&&(planBrOfName(n)===br||planRoleOf(n,br))) return true; }
+  return false; }
 function planAM(br){ var T=planTeam(), am=T.am[br]; if(am&&planHere(am,br)) return am; var def=PLAN_ROLES[br]&&(PLAN_ROLES[br].F||PLAN_ROLES[br].DM); return def&&planHere(def,br)?def:''; }
 /* اللي بتغطي مكان فلانة في الفرع ده */
 function planCoverOf(name, br){ var P=planTeam().p; for(var n in P){ var x=P[n]; if(x&&x.st==='cover'&&x.br===br&&x.for===name) return n; } return ''; }

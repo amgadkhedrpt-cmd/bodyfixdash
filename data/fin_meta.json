@@ -1,5 +1,5 @@
 {
- "at": "2026-11-17T15:24:02.290Z",
+ "at": "2026-11-17T15:34:37.947Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -90,14 +90,17 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
+ "fallbacks": [
+  "createdAppointments: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   "
+ ],
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 38,
+ "ph2_n": 35,
  "conf": {
-  "confirmed_now": 102,
+  "confirmed_now": 97,
   "new": 1,
-  "cx_changed": 2
+  "cx_changed": 5
  },
  "kinds": {
   "pay": {
@@ -359,7 +362,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 421,
+    "rows": 422,
     "cols": [
      "aid",
      "start",
@@ -588,7 +591,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 153,
+    "rows": 158,
     "cols": [
      "aid",
      "start",
@@ -659,7 +662,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131968,
+    "rows": 131972,
     "cols": [
      "start",
      "status",
@@ -681,6 +684,7 @@
       "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
+      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -691,7 +695,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6413,
+    "rows": 6414,
     "cols": [
      "start",
      "status",
@@ -922,10 +926,10 @@
  },
  "hash": {
   "data/fin.enc": "cc122137daf65823",
-  "data/fin_c.enc": "6361e2e50b787e2a"
+  "data/fin_c.enc": "fefae9d9a66ee3ad"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 72
+ "secs": 71
 }

@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-11-17T15:21:02.796562+00:00",
+  "last_updated": "2026-11-17T15:32:09.246951+00:00",
   "total": 23000,
   "doctors": [
     "Abeer",
@@ -57,9 +57,9 @@
     "متابعه": 2143,
     "متابعة تغذيه": 2054,
     "متابعه انقطاع": 1047,
-    "اعادة تقييم": 878,
+    "اعادة تقييم": 877,
     "تقييم الجلسه الأخيره": 828,
-    "كشف علاج طبيعي": 716,
+    "كشف علاج طبيعي": 717,
     "منقطع نهائي": 712,
     "موعد محجوز": 489,
     "حقن مونجارو": 421,
@@ -91,16 +91,16 @@
     "جلسة تغذيه": 1
   },
   "by_status": {
-    "Completed": 14956,
-    "Canceled": 3822,
+    "Completed": 14955,
+    "Canceled": 3824,
     "No Show": 1441,
     "Waiting List": 1137,
     "Open": 896,
-    "Note": 511,
-    "Confirmed": 199,
-    "Checked In": 22,
-    "In Progress": 11,
-    "Delayed": 5
+    "Note": 512,
+    "Confirmed": 198,
+    "Checked In": 20,
+    "In Progress": 15,
+    "Delayed": 2
   },
   "by_date": {
     "2027-08-15": {
@@ -605,7 +605,7 @@
       }
     },
     "2026-11-18": {
-      "total": 209,
+      "total": 211,
       "doctors": {
         "Follow up": 50,
         "Dr. Sara Hussein": 4,
@@ -613,7 +613,7 @@
         "Dr Amgad Khedr": 5,
         "Fares": 8,
         "Dr. Yasmin Sakr": 5,
-        "Dina Ahmad": 6,
+        "Dina Ahmad": 8,
         "Fatma Mahmoud": 9,
         "Rawan Yasser": 6,
         "Youssef Mohammad": 5,
@@ -635,7 +635,7 @@
       }
     },
     "2026-11-17": {
-      "total": 239,
+      "total": 240,
       "doctors": {
         "Follow up": 59,
         "Dr. Alaa Harfoush": 33,
@@ -646,7 +646,7 @@
         "Roba": 8,
         "Mohammad Osama": 9,
         "Mariam Mahmoud": 5,
-        "Dr Amgad Khedr": 17,
+        "Dr Amgad Khedr": 18,
         "Sarah Ahmad": 6,
         "Anas Abdelwahab": 4,
         "Malak Ashour": 5,
@@ -1907,7 +1907,7 @@
     "Anwar Essam": 230,
     "Ashraqat": 211,
     "Basmala": 12,
-    "Dina Ahmad": 340,
+    "Dina Ahmad": 342,
     "Doaa Tarek": 311,
     "Dr Amgad Khedr": 1742,
     "Dr. Adel Ashraf": 448,
@@ -1924,7 +1924,7 @@
     "Fatma Mahmoud": 335,
     "Follow up": 4073,
     "Gomaa Mohammad": 411,
-    "Hazem Ibrahim": 422,
+    "Hazem Ibrahim": 420,
     "Hisham": 215,
     "Ibrahim": 480,
     "Mahmoud El Kashef": 948,
@@ -1932,9 +1932,9 @@
     "Mariam Mahmoud": 54,
     "Mohamed Lashin": 103,
     "Mohammad Alaa": 412,
-    "Mohammad Osama": 457,
+    "Mohammad Osama": 456,
     "Nourhan Shaker": 141,
-    "Rana Ali": 114,
+    "Rana Ali": 115,
     "Rawan Wessam": 341,
     "Rawan Yasser": 100,
     "Roba": 416,
@@ -2634,12 +2634,13 @@
       "id": "d34178aa-9d32-41f3-95e3-056de3ab8014",
       "start": "2026-11-17T18:00:00.000Z",
       "end": "2026-11-17T19:30:00.000Z",
-      "status": "Confirmed",
+      "status": "Canceled",
       "type": "جلسة علاج طبيعي",
       "doctor": "Sarah Ahmad",
       "branch": "BODYFIX Center",
       "patient": "مريان مكرم صادق برسوم",
-      "phone": "+20_1200863524"
+      "phone": "+20_1200863524",
+      "reason": "يوم الخميس"
     },
     {
       "id": "b0be2bd7-3838-43c5-b2e0-5d20dbe5bad4",
@@ -3193,6 +3194,17 @@
       "phone": "+967_733099052"
     },
     {
+      "id": "ab882ffb-cb11-4adf-a037-65d17973e13b",
+      "start": "2026-11-17T16:30:00.000Z",
+      "end": "2026-11-17T17:00:00.000Z",
+      "status": "Note",
+      "type": "كشف علاج طبيعي",
+      "doctor": "Dr Amgad Khedr",
+      "branch": "BODYFIX Center",
+      "patient": "",
+      "phone": ""
+    },
+    {
       "id": "23bbdf85-1da5-44ad-8e35-9a484e33e80c",
       "start": "2026-11-17T16:30:00.000Z",
       "end": "2026-11-17T18:00:00.000Z",
@@ -3468,7 +3480,7 @@
       "id": "4ba6cee5-6be2-4c11-9cc1-ebb73a494954",
       "start": "2026-11-17T16:00:00.000Z",
       "end": "2026-11-17T16:15:00.000Z",
-      "status": "Confirmed",
+      "status": "Checked In",
       "type": "تقييم الجلسه الأخيره",
       "doctor": "Dr Amgad Khedr",
       "branch": "BODYFIX Center",
@@ -3723,12 +3735,13 @@
       "id": "8fcd5038-6739-4892-bbfa-59463ad81552",
       "start": "2026-11-17T15:00:00.000Z",
       "end": "2026-11-17T16:30:00.000Z",
-      "status": "Delayed",
+      "status": "In Progress",
       "type": "جلسة علاج طبيعي",
       "doctor": "Hisham",
       "branch": "BODYFIX Center",
       "patient": "محمد محسن حسين المجوحي",
-      "phone": "+967_734592470"
+      "phone": "+967_734592470",
+      "note": "مغلق5:19"
     },
     {
       "id": "8e8a7b8f-75be-48a6-bd33-4c4d05f439a8",
@@ -3770,7 +3783,7 @@
       "id": "63ddc37d-8864-4abf-980d-efc20c8106e2",
       "start": "2026-11-17T15:00:00.000Z",
       "end": "2026-11-17T15:15:00.000Z",
-      "status": "Checked In",
+      "status": "Completed",
       "type": "اعادة تقييم",
       "doctor": "Dr Amgad Khedr",
       "branch": "BODYFIX Center",
@@ -3781,7 +3794,7 @@
       "id": "468c3e1b-760e-4bbd-a668-5d6529dc9f95",
       "start": "2026-11-17T15:00:00.000Z",
       "end": "2026-11-17T16:30:00.000Z",
-      "status": "Delayed",
+      "status": "In Progress",
       "type": "جلسة علاج طبيعي",
       "doctor": "Amr Mohsen",
       "branch": "BODYFIX Center",
@@ -3816,7 +3829,7 @@
       "id": "29dfc919-b9d9-4823-9aa3-c7b4b7763bed",
       "start": "2026-11-17T15:00:00.000Z",
       "end": "2026-11-17T15:15:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "حقن مونجارو",
       "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",
@@ -3839,12 +3852,13 @@
       "id": "1f326c42-72f9-490a-ab76-759e32919bdd",
       "start": "2026-11-17T15:00:00.000Z",
       "end": "2026-11-17T16:00:00.000Z",
-      "status": "Delayed",
+      "status": "In Progress",
       "type": "جلسة علاج طبيعي",
       "doctor": "Anas Abdelwahab",
       "branch": "BODYFIX Center",
       "patient": "عمار عبد الوهاب انعم قحطان",
-      "phone": "+966_501570052"
+      "phone": "+966_501570052",
+      "note": "مش بيرد5:18"
     },
     {
       "id": "18f733ce-1324-43db-ac0f-b1f626ffe266",
@@ -3879,7 +3893,8 @@
       "doctor": "Ibrahim",
       "branch": "BODYFIX Center",
       "patient": "احمد سامي لطفي مدني",
-      "phone": "+2_01111141779"
+      "phone": "+2_01111141779",
+      "note": "مش بيرد 5:17"
     },
     {
       "id": "055de799-458e-43a1-a953-c58b37a02da6",
@@ -3920,7 +3935,7 @@
       "id": "f44610bd-1492-4cb0-91e8-ffecbd5bab03",
       "start": "2026-11-17T14:30:00.000Z",
       "end": "2026-11-17T14:45:00.000Z",
-      "status": "Checked In",
+      "status": "Completed",
       "type": "اعادة تقييم",
       "doctor": "Dr Amgad Khedr",
       "branch": "BODYFIX Center",

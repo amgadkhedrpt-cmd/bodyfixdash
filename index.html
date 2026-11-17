@@ -12615,7 +12615,14 @@ function mcCairoDay(ms){ return new Date(ms).toLocaleDateString('sv-SE',{timeZon
 function mcMissFor(ln,today){ if(!MC.ep&&MC.calls) MC.ep=cfEpisodes(MC.calls).E; if(!MC.ep) return [];
   return MC.ep.filter(function(e){ if(e.s!=='miss'||e.ln!==ln||e.ph.length<9) return false; var pt=mcPt(e.ph), came=pt.last&&pt.last>=cfDay(e.t0);
     e._came=came&&e.tC==null?pt.last:''; return (e.tC==null&&(!came||pt.last===today))||(e.tC!=null&&cfDay(e.tC)===today); }); }
-function mcOpenFor(ln,today){ var L=mcMissFor(ln,today).filter(function(e){ return e.tC==null&&!e._came&&(PLAN_ST['mcall|'+ln+'|'+e.ph+'|'+cfDay(e.t0)]||{}).s!=='ref'; });
+/* 📤 محاولات الرجوع للرقم (من سجل المكالمات — أي خط): في اليوم الواحد لازم 3 مكالمات بينهم 30 دقيقة على الأقل (مش ورا بعض) */
+var MC_GAP=30*60e3, MC_PER_DAY=3, MC_DAYS=3;
+function mcTries(e,today){ var by={};
+  (MC.calls||[]).forEach(function(c){ if(c.ph===e.ph&&c.ty==='out'&&c.t>=e.t0&&(e.tC==null||c.t<e.tC)) (by[cfDay(c.t)]=by[cfDay(c.t)]||[]).push(c.t); });
+  var cnt={}, full=[]; Object.keys(by).sort().forEach(function(d){ var L=by[d].sort(function(a,b){ return a-b; }), n=0, last=-1e15;
+    L.forEach(function(t){ if(t-last>=MC_GAP){ n++; last=t; } }); cnt[d]=n; if(n>=MC_PER_DAY) full.push(d); });
+  return {cnt:cnt, full:full, today:cnt[today]||0, gone:full.length>=MC_DAYS&&full[MC_DAYS-1]<today, end:full.length>=MC_DAYS&&full[MC_DAYS-1]===today}; }
+function mcOpenFor(ln,today){ var L=mcMissFor(ln,today).filter(function(e){ var tr=mcTries(e,today); return e.tC==null&&!e._came&&!tr.gone&&!tr.end&&tr.today<MC_PER_DAY&&(PLAN_ST['mcall|'+ln+'|'+e.ph+'|'+cfDay(e.t0)]||{}).s!=='ref'; });
   return {n:L.length, nw:L.filter(function(e){ return !mcName(e.ph); }).length}; }
 function mcOpenHTML(ln,today){ var o=mcOpenFor(ln,today); return o.n?'<span style="color:var(--r);font-weight:700">📵 محتاج يترجعلهم '+o.n+' رقم'+(o.nw?' ('+o.nw+' منهم أرقام جديدة)':'')+' — تحت في «مكالمات فايتة — رجّعيلها»</span>':'<span style="color:var(--g)">📵 مفيش أرقام فايتة مستنية حد يرجعلها ✅</span>'; }
 function mcTasks(today,act){
@@ -12645,12 +12652,14 @@ function mcTasks(today,act){
       // كل رقم فاتنا ولسه ما حصلش بيننا كلام — مهما كان قديم (لحد ما نتكلم معاه / ييجي العيادة / 🚫 رفض بسبب) · اللي اتحل النهارده بيفضل باين ✅
       mcMissFor(ln,today)
         .sort(function(a,b){ return a.t0-b.t0; }).forEach(function(e){
-          var ph=cfPh0(e.ph), nm=mcName(e.ph), done=e.tC!=null||!!e._came, age=Math.round((Date.parse(today)-Date.parse(cfDay(e.t0)))/864e5);
+          var tr=mcTries(e,today); if(e.tC==null&&!e._came&&tr.gone) return;   // 3 أيام × 3 محاولات وما ردش → اتقفلت قبل كده
+          var ph=cfPh0(e.ph), nm=mcName(e.ph), real=e.tC!=null||!!e._came, done=real||tr.end||tr.today>=MC_PER_DAY, age=Math.round((Date.parse(today)-Date.parse(cfDay(e.t0)))/864e5);
           out.push({grp:['mcall'], _h:new Date(e.t0).getUTCHours(), _old:cfDay(e.t0)<today, key:'mcall|'+ln+'|'+e.ph+'|'+cfDay(e.t0), icon:'📵', kind:'اتصل وما اترد عليهوش — رجّعيله'+(nm?'':' · <b style="color:#f59e0b">رقم مش متسجل (ممكن مريض جديد)</b>'), name:nm||ph, phone:ph, br:br, line:ln,
-            sys:done?(e.tC==null?'جه العيادة':e.how==='we'?'رجعناله واتكلمنا':'هو اتصل تاني واتكلمنا'):'', what:done?(e.tC==null?'🏥 جه العيادة النهارده':(e.how==='we'?'📤 رجعناله ':'📥 اتصل تاني ')+cfFmt(e.tC)):'',
+            sys:real?(e.tC==null?'جه العيادة':e.how==='we'?'رجعناله واتكلمنا':'هو اتصل تاني واتكلمنا'):tr.end?'مش بيرد — '+MC_DAYS+' أيام × '+MC_PER_DAY+' محاولات':done?'📞 '+MC_PER_DAY+' محاولات النهارده وما ردش — بترجع بكره':'',
+            what:real?(e.tC==null?'🏥 جه العيادة النهارده':(e.how==='we'?'📤 رجعناله ':'📥 اتصل تاني ')+cfFmt(e.tC)):tr.end?('🔒 اتقفلت: '+tr.full.length+' أيام فيها '+MC_PER_DAY+' محاولات وما ردش'):done?('📞 حاولنا '+tr.today+' مرات النهارده (متباعدين) — محاولة يوم '+tr.full.length+' من '+MC_DAYS):'',
             lines:['📵 اتصل '+e.nI+' مرة · أول مرة '+cfFmt(e.t0)+(e.nI>1?' · آخر مرة '+cfFmt(e.last):'')+' · خط '+alEsc(ln)+(age>=1&&!done?' · <b style="color:'+(age>=3?'var(--r)':'#f59e0b')+'">من '+age+' يوم</b>':''),
-                   e.nO&&!done?'<span style="color:#f59e0b">📤 حاولنا نرجعله '+e.nO+' مرة وما ردش — حاولي تاني أو ابعتي واتساب</span>':'',
-                   done?'':'<span style="color:var(--mute);font-size:.58rem">بتتقفل لوحدها لما سجل المكالمات الجاي يترفع ويبان إنكم اتكلمتم، أو لو جه العيادة · لو رقم غلط / إعلانات / حاولتي 3 مرات وما ردش: «🚫 رفض» واكتبي السبب</span>']});
+                   !done?'<span style="color:#f59e0b">📤 النهارده: <b>'+tr.today+' من '+MC_PER_DAY+'</b> محاولات (بين كل محاولة والتانية نص ساعة على الأقل)'+(tr.full.length?' · أيام اتعمل فيها 3 محاولات: '+tr.full.length+' من '+MC_DAYS:'')+'</span>':'',
+                   done?'':'<span style="color:var(--mute);font-size:.58rem">كله بيتشاف من سجل المكالمات بس (الملحوظة لوحدها ما بتقفلهاش): بتتقفل لما يبان في السجل إنكم اتكلمتم أو لو جه العيادة · 3 مكالمات النهارده متباعدة نص ساعة وما ردش = النهارده اتحسب وترجع بكره · 3 أيام كده = بتتقفل «مش بيرد» · رقم غلط / إعلانات: «🚫 رفض» واكتبي السبب</span>']});
         });
     });
   });
@@ -13069,12 +13078,12 @@ var PLAN_DONE_RULE={
   aud:'🤖 الغلط يتصلّح على Medicolize (الخطوة تتقفل / الموعد يتصلّح) · ✋ «راجعته — مفيش خطأ» في «اختلاف في الخدمة» بس · أخطاء د. أمجد لوحدها ومش محسوبة',
   sudden:'🤖 اسم الموعد يتغيّر لـ«الغاء مفاجئ» على Medicolize + من تاني مرة: خطوة Completed النهارده (خصم الجلسة) · ولو الخصم مش ممكن: ✋ «لا يوجد باقة للخصم» أو «تم التنبيه — المرة الجاية خصم» (مرة واحدة للمريض) · أو ✋ «🙅 مش مفاجئ» بسبب مكتوب (بيقفلها على طول) · مفيش تأجيل ولا رفض',
   nopkg:'🤖 تتفتحله باقة أو تتحجزله إعادة تقييم على Medicolize · أو 🚫 رفض بسبب', nopkgnext:'🤖 تتفتحله باقة أو تتحجزله إعادة تقييم على Medicolize · أو 🚫 رفض بسبب',
-  mcall:'🤖 حد يتكلم مع الرقم (احنا رجعناله أو هو اتصل تاني — بيبان لما سجل المكالمات يترفع) أو ييجي العيادة · أو 🚫 رفض بسبب (رقم غلط / إعلانات)', mcallup:'🤖 يترفع ملف سجل المكالمات (الصبح · وبعد التسليم)'};
+  mcall:'🤖 حد يتكلم مع الرقم (احنا رجعناله أو هو اتصل تاني — بيبان لما سجل المكالمات يترفع) أو ييجي العيادة → بتتقفل خالص · 📞 3 مكالمات النهارده للرقم بين كل واحدة والتانية نص ساعة على الأقل (من السجل) وما ردش → بتتحسب النهارده وترجع بكره · 3 أيام كده وما ردش → بتتقفل خالص «مش بيرد» · أو 🚫 رفض بسبب (رقم غلط / إعلانات) · الملحوظة لوحدها ما بتقفلهاش', mcallup:'🤖 يترفع ملف سجل المكالمات (الصبح · وبعد التسليم)'};
 function planRuleHTML(g){ var r=PLAN_DONE_RULE[g]||PLAN_AUTO_G[g]; if(!r) return '';
   return '<div style="font-size:.6rem;margin:6px 0 4px;padding:5px 9px;border-radius:7px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);line-height:1.7">✅ <b>بتتحسب اتعملت لما:</b> '+alEsc(r).replace(/🤖/g,'<b>🤖</b>')+'</div>'; }
 /* ⬜ ليه المهمة لسه مفتوحة — بيتكتب على كل مهمة مش متقفلة (لو المهمة نفسها ما فيهاش «ناقص …») */
 var PLAN_WHY={invrev:'✅ لو الفاتورة صح — أو ملحوظة باللي حصل النهارده (بتتقفل النهارده وترجع بكره) — أو ⏭ أجّل', sudden:'اسم الموعد «الغاء مفاجئ» على Medicolize (ومن تاني مرة خصم الجلسة) — أو «🙅 مش مفاجئ» بسبب', aud:'الغلط يتصلّح على Medicolize (بتتقفل لوحدها مع الـ Sync) — ولو «اختلاف في الخدمة» وراجعتيه وطلع صح: «✅ راجعته — مفيش خطأ»', debtph:'يدفع اللي عليه (بتتشال لوحدها مع الـ Sync) — أو اكتبي ملحوظة باللي حصل: بتتقفل النهارده وترجع بكره للمتابعة',
-  mcall:'حد يتكلم مع الرقم (بيبان لما سجل المكالمات يترفع) — أو 🚫 رفض بسبب', mcallup:'ملف سجل المكالمات يترفع'};
+  mcall:'حد يتكلم مع الرقم — أو 3 مكالمات النهارده متباعدة نص ساعة (من السجل) — أو 🚫 رفض بسبب', mcallup:'ملف سجل المكالمات يترفع'};
 function planWhyOpen(t,state){ if(state!=='open'&&state!=='nr') return ''; if((t.lines||[]).some(function(l){ return /ناقص|لسه ما اترفعش/.test(String(l||'')); })) return '';
   var g=(t.grp||[])[0], why=PLAN_WHY[g]||(planIsAuto(t)?PLAN_AUTO_G[g]:planNoteCloses(t)?'ملحوظة باللي حصل في المكالمة':planManualOk(t)?'تدوسي ✅ اتعمل بعد ما تخلصيها':PLAN_NOTE_REF[g]?'الخدمة تتحجز على Medicolize — أو سبب الرفض في الملحوظة':'الشغل يتسجل على Medicolize (بيتشيك كل نص ساعة) — أو «🚫 رفض» بسبب');
   return '<div style="font-size:.58rem;margin-top:3px;color:var(--r)">⬜ لسه مفتوحة'+(state==='nr'?' (ما ردش)':'')+' — مستنية: '+why+'</div>'; }

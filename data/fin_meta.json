@@ -1,5 +1,5 @@
 {
- "at": "2026-11-17T15:34:37.947Z",
+ "at": "2026-11-17T15:43:23.372Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -90,17 +90,14 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
- "fallbacks": [
-  "createdAppointments: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   "
- ],
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 35,
+ "ph2_n": 36,
  "conf": {
-  "confirmed_now": 97,
-  "new": 1,
-  "cx_changed": 5
+  "confirmed_now": 101,
+  "new": 5,
+  "cx_changed": 2
  },
  "kinds": {
   "pay": {
@@ -362,7 +359,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 422,
+    "rows": 427,
     "cols": [
      "aid",
      "start",
@@ -431,7 +428,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16727,
+    "rows": 16728,
     "cols": [
      "name",
      "end",
@@ -591,7 +588,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 158,
+    "rows": 160,
     "cols": [
      "aid",
      "start",
@@ -662,7 +659,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 131972,
+    "rows": 131970,
     "cols": [
      "start",
      "status",
@@ -695,7 +692,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6414,
+    "rows": 6415,
     "cols": [
      "start",
      "status",
@@ -897,7 +894,7 @@
     "fu": 141,
     "mezo": 5,
     "dev": 32,
-    "physio": 36,
+    "physio": 37,
     "inj": 51,
     "exam": 20,
     "prod": 1
@@ -926,10 +923,10 @@
  },
  "hash": {
   "data/fin.enc": "cc122137daf65823",
-  "data/fin_c.enc": "fefae9d9a66ee3ad"
+  "data/fin_c.enc": "d3e952d2923820c2"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 71
+ "secs": 68
 }

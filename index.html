@@ -12772,6 +12772,8 @@ function planAnyPresent(t,g,o){ var br=t.br, R=PLAN_ROLES[br]||{}, out=[];
   Object.keys(planTeam().p).forEach(function(n){ var x=planTeam().p[n]; if(x.st==='cover'&&x.br===br&&out.indexOf(n)<0) out.push(n); });
   return out; }
 function planOutCount(br){ var P=planTeam().p, n=0; Object.keys(PLAN_ROLES[br]||{}).forEach(function(k){ var nm=PLAN_ROLES[br][k], x=P[nm]; if(x&&(x.st==='out'&&!x.sub||x.st==='cover')) n++; }); return n; }
+/* اختيار صريح للنهارده من خانة المسئولة (حتى لو متعلّم عليها غايبة في الفرع ده — مثلاً بتغطي في الفرع التاني) = هي المسئولة */
+function planAsgd(t,g,o){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; return !!(a&&a.by&&a.by===o); }
 function planCoverMap(){
   if(PLAN_CMAP) return PLAN_CMAP; if(PLAN_CMAP_BUSY) return null; PLAN_CMAP_BUSY=true;
   var M={}, load={}, items=[];
@@ -12782,7 +12784,7 @@ function planCoverMap(){
       if(o&&g!=='debt'&&planHere(o,br)&&planOutCount(br)>=1&&PLAN_SHARE.indexOf(g)>=0&&stOpen(t)){
         // يوم فيه غياب: مهام التليفون اللي ممكن تتقسم (التأكيد / المتابعة / الويتنج) بتدخل التوازن — صاحبتها أولى وبتاخد من الموجودين لو حملها عالي
         var cd0=planCoverCands(t,g,o); if(cd0.c.length){ items.push({k:k, t:t, o:o, c:[o].concat(cd0.c), open:true, own:true}); return; } }
-      if(!o||g==='debt'||planHere(o,br)){ M[k]={owner:o}; if(o&&stOpen(t)) load[o]=(load[o]||0)+1; return; }
+      if(!o||g==='debt'||planHere(o,br)||planAsgd(t,g,o)){ M[k]={owner:o}; if(o&&stOpen(t)) load[o]=(load[o]||0)+1; return; }
       var cv=planCoverOf(o,br); if(cv){ M[k]={owner:cv, from:o}; if(stOpen(t)) load[cv]=(load[cv]||0)+1; return; }
       var sb=(planTeam().p[o]||{}).sub; if(sb&&planHere(sb,br)){ M[k]={owner:sb, from:o}; if(stOpen(t)) load[sb]=(load[sb]||0)+1; return; }
       var cd=planCoverCands(t,g,o);
@@ -12801,7 +12803,7 @@ function planCoverMap(){
 }
 function planCoverInfo(t,g){
   var M=planCoverMap(); if(M&&M[t.key+'|'+g]) return M[t.key+'|'+g];
-  var o=planOwner0(t,g), br=t.br; if(!o||g==='debt'||planHere(o,br)) return {owner:o};
+  var o=planOwner0(t,g), br=t.br; if(!o||g==='debt'||planHere(o,br)||planAsgd(t,g,o)) return {owner:o};
   var cv=planCoverOf(o,br); if(cv) return {owner:cv, from:o};
   var sb=(planTeam().p[o]||{}).sub; if(sb&&planHere(sb,br)) return {owner:sb, from:o};
   var cd=planCoverCands(t,g,o); if(!cd.c.length&&PLAN_MUST.indexOf(g)>=0){ cd.c=planAnyPresent(t,g,o); if(!cd.c.length) return {owner:'', from:o, need:true}; }

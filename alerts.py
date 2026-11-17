@@ -1143,6 +1143,18 @@ def build_alerts(appointments, now=None, packages=None):
                 d += timedelta(days=1)
             cand.append(d)
         amgad_dokki_next = min(cand).isoformat() if cand else None
+        # اليوم اللي د. أمجد اختاره من الداشبورد (خطة اليوم — «يوم زيارتي للدقي»: الاتنين=0) بيغلب التلقائي
+        try:
+            import urllib.request as _ur, json as _js
+            _raw = _ur.urlopen("https://script.google.com/macros/s/AKfycbzy1UbUmQmVOLnrgP69vALV_RH8VlejQ5Npo9a9xS1u9Hhz5oRiPKF7GIgSVYAxCp_m/exec?action=getAll&callback=cb", timeout=40).read().decode("utf-8")
+            _w = str(((_js.loads(_raw[_raw.index("(") + 1:_raw.rindex(")")]) or {}).get("reasons") or {}).get("PLANCFG|amgday") or "").strip()
+            if _w.isdigit():
+                d = today
+                while d.weekday() != int(_w):
+                    d += timedelta(days=1)
+                amgad_dokki_next = d.isoformat()
+        except Exception as _e:
+            print(f"⚠️ amgday: {_e}")
         for appts in patients.values():
             ex = max((a for a in appts if is_ex(a) and a["status"] in ATTENDED and a["branch"] == "FIX ZONE"
                       and (today - timedelta(days=60)) <= a["start"].date() <= today), key=lambda a: a["start"], default=None)
@@ -1640,6 +1652,58 @@ def build_alerts(appointments, now=None, packages=None):
             if len(ph9) >= 8:
                 fu_notes[ph9] = {"d": lf["start"].date().isoformat(), "type": lf["type"], "note": (lf.get("note") or "").strip()[:250], "by": lf.get("by") or ""}
 
+    # ── 📋 زيارة د. أمجد للدقي: قايمة ثابتة لليوم ده (بتتجمع من كل sync — اللي يتحجز معاه يفضل باين ✅) ──
+    dokki_visit = None
+    try:
+        vd = amgad_dokki_next
+        if vd:
+            byp = defaultdict(list)
+            for v in patients.values():
+                for a in v:
+                    if a.get("pid"):
+                        byp[a["pid"]].append(a)
+            prev = {}
+            try:
+                old = _json.load(open("alerts.json", encoding="utf-8")).get("dokki_visit") or {}
+                if old.get("date") == vd:
+                    prev = {x["pid"]: x for x in old.get("items") or []}
+            except Exception:
+                pass
+            it = {}
+            def put(pid, name, phone, sec, info):
+                x = it.get(pid) or prev.get(pid) or {"pid": pid, "name": name, "phone": phone, "sec": [], "info": {}}
+                x = dict(x, sec=list(x.get("sec") or []), info=dict(x.get("info") or {}))
+                if sec not in x["sec"]:
+                    x["sec"].append(sec)
+                x["info"][sec] = info
+                it[pid] = x
+            for x in amgad_eval:
+                put(x["pid"], x["name"], x["phone"], "eval", {"kd": x["kashf"]["date"], "kdr": x["kashf"]["doctor"], "after": x["after"]})
+            for x in finished:
+                if x.get("branch") == "FIX ZONE" and not x.get("next"):
+                    put(x["pid"], x["name"], x["phone"], "fin", {"dr": x.get("doctor"), "since": x.get("days_since")})
+            for x in dropped:
+                if x.get("branch") == "FIX ZONE" and not x.get("next_appt"):
+                    put(x["pid"], x["name"], x["phone"], "drop", {"dr": x.get("doctor"), "since": x.get("days_since")})
+            for x in kashf_pending:
+                if x.get("branch") == "FIX ZONE" and not x.get("next_pt") and not x.get("sessions_after"):
+                    put(x["pid"], x["name"], x["phone"], "kashf", {"dr": x.get("doctor"), "since": x.get("days_since")})
+            for pid, x in prev.items():
+                if pid not in it:
+                    it[pid] = x
+            items = []
+            for pid, x in it.items():
+                ap = byp.get(pid) or []
+                live = [a for a in ap if a["start"].date() >= today and a["status"] in LIVE_TODAY and a["branch"] == "FIX ZONE"]
+                amg = min((a for a in live if is_amg(a)), key=lambda a: a["start"], default=None)
+                come = min((a for a in live if a["start"].date().isoformat() == vd), key=lambda a: a["start"], default=None)
+                x = dict(x, amg=(amg["start"].isoformat() if amg else (x.get("amg") if x.get("amg") and x["amg"][:10] < today.isoformat() else None)),
+                         come=({"t": come["start"].isoformat(), "dr": come["doctor"]} if come else None))
+                items.append(x)
+            dokki_visit = {"date": vd, "items": items}
+    except Exception as e:
+        print(f"⚠️ dokki_visit: {e}")
+
     starts = [a["start"].date() for v in patients.values() for a in v]
     return {
         "generated_at": now.isoformat(),
@@ -1667,7 +1731,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
-        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "amgad_dokki_usual": amgad_dokki_usual, "eval_pending": eval_pending,
+        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "dokki_visit": dokki_visit, "amgad_dokki_usual": amgad_dokki_usual, "eval_pending": eval_pending,
         "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),

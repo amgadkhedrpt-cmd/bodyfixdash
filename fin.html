@@ -437,14 +437,14 @@ const BK=[{k:'b1',t:'١–٥ جلسات'},{k:'b6',t:'٦ جلسات'},{k:'b7',t:'
 const bucket=s=>s<=5?'b1':s===6?'b6':s<=11?'b7':s===12?'b12':'b13';
 function vRet(){const P=Object.values(ptIndex()).filter(p=>!p.early),ks=monthsList(S.from,S.to);
   const rows=ks.map(k=>{const ps=P.filter(p=>p.k===k);const c={};BK.forEach(b=>c[b.k]=0);ps.forEach(p=>c[bucket(p.sess)]++);const n=ps.length;
-    return [ml(k),n,...BK.map(b=>n?`${c[b.k]} <span class="muted">(${pc(c[b.k]/n)})</span>`:'—'),n?fm(ps.reduce((s,p)=>s+p.sess,0)/n,1):'—',n?pc(ps.filter(p=>p.sess>=6).length/n):'—']});
+    return [ml(k),n,...BK.map(b=>n?`${c[b.k]} <span class="muted">(${pc(c[b.k]/n)})</span>`:'—'),n?fm(ps.reduce((s,p)=>s+p.sess,0)/n,1):'—',n?pc(ps.filter(p=>p.sess>=12).length/n):'—']});
   const th={};for(const p of P.filter(p=>p.k>=S.from&&p.k<=S.to)){const s=p.seq.slice().sort((a,b)=>a[0]<b[0]?-1:1);const d=(s.find(x=>!/follow|متابع|كشف|تقييم/i.test(tName(x[2])))||s[0]||[])[1]||'—';
-    const t=th[d]=th[d]||{n:0,s:0,six:0};t.n++;t.s+=p.sess;if(p.sess>=6)t.six++}
-  const thr=Object.entries(th).filter(x=>x[1].n>=3).sort((a,b)=>b[1].s/b[1].n-a[1].s/a[1].n);
+    const t=th[d]=th[d]||{n:0,s:0,six:0};t.n++;t.s+=p.sess;if(p.sess>=12)t.six++}
+  const thr=Object.entries(th).filter(x=>x[1].n>=3).sort((a,b)=>b[1].six/b[1].n-a[1].six/a[1].n);
   return `<div class="card"><h3>المرضى الجداد حسب عدد الجلسات اللي كملوها<small>كل شهر = مرضى بدأوا فيه</small></h3><div class="ch"><canvas id="cRet"></canvas></div></div>
-  <div class="card" style="margin-top:12px">${tableHTML(['شهر البداية',{t:'مرضى',n:1},...BK.map(b=>({t:b.t,n:1})),{t:'متوسط الجلسات',n:1},{t:'كمّلوا ٦+',n:1}],rows)}
+  <div class="card" style="margin-top:12px">${tableHTML(['شهر البداية',{t:'مرضى',n:1},...BK.map(b=>({t:b.t,n:1})),{t:'متوسط الجلسات',n:1},{t:'كمّلوا ١٢+',n:1}],rows)}
   <div class="note" style="margin-top:8px">الشهور الأخيرة لسه بتكمل — الأرقام بتزيد مع الوقت.</div></div>
-  <div class="card" style="margin-top:12px"><h3>الاستمرار حسب الأخصائي<small>أول جلسة علاج للمريض — ٣ مرضى أو أكتر</small></h3>${tableHTML(['الأخصائي',{t:'مرضى',n:1},{t:'متوسط الجلسات',n:1},{t:'كمّلوا ٦+',n:1}],thr.map(([d,t])=>[esc(d),t.n,fm(t.s/t.n,1),pc(t.six/t.n)]))}</div>`}
+  <div class="card" style="margin-top:12px"><h3>الاستمرار حسب الأخصائي<small>أول جلسة علاج للمريض — ٣ مرضى أو أكتر</small></h3>${tableHTML(['الأخصائي',{t:'مرضى',n:1},{t:'متوسط الجلسات',n:1},{t:'كمّلوا ١٢+',n:1}],thr.map(([d,t])=>[esc(d),t.n,fm(t.s/t.n,1),pc(t.six/t.n)]))}</div>`}
 function cRet(){const P=Object.values(ptIndex()).filter(p=>!p.early),ks=monthsList(S.from,S.to),c=SER();
   chart('cRet',{data:{labels:ks.map(mls),datasets:BK.map((b,i)=>bar(b.t,ks.map(k=>P.filter(p=>p.k===k&&bucket(p.sess)===b.k).length),c[i],{stack:'s',borderRadius:0}))},options:{scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true}}}})}
 

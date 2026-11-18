@@ -1,5 +1,5 @@
 {
- "at": "2026-11-18T13:00:22.717Z",
+ "at": "2026-11-18T13:16:56.607Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -93,11 +93,11 @@
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 48,
+ "ph2_n": 44,
  "conf": {
-  "confirmed_now": 129,
-  "new": 8,
-  "cx_changed": 2
+  "confirmed_now": 120,
+  "new": 0,
+  "cx_changed": 1
  },
  "kinds": {
   "pay": {
@@ -454,7 +454,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7949,
+    "rows": 7950,
     "cols": [
      "duration",
      "createdAt",
@@ -473,7 +473,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1374,
+    "rows": 1375,
     "cols": [
      "duration",
      "createdAt",
@@ -544,7 +544,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17572,
+    "rows": 17573,
     "cols": [
      "id",
      "referenceId",
@@ -565,7 +565,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 784,
+    "rows": 783,
     "cols": [
      "id",
      "referenceId",
@@ -588,7 +588,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 217,
+    "rows": 218,
     "cols": [
      "aid",
      "start",
@@ -659,7 +659,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 132083,
+    "rows": 132086,
     "cols": [
      "start",
      "status",
@@ -678,8 +678,10 @@
     "values": {
      "status": [
       "CANCELED",
+      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
+      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -921,10 +923,10 @@
  },
  "hash": {
   "data/fin.enc": "134c7412da643284",
-  "data/fin_c.enc": "3d16cd1eef8a4a04"
+  "data/fin_c.enc": "602f8c1777a17fb6"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 60
+ "secs": 61
 }

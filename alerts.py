@@ -1761,10 +1761,15 @@ def build_alerts(appointments, now=None, packages=None):
             r90 = [a for a in v if today - timedelta(days=90) <= a["start"].date() <= today]
             ns = sum(1 for a in r90 if "no" in a["status"] and "show" in a["status"])
             ca = sum(1 for a in r90 if "cancel" in a["status"])
-            if not fu and not ns and not ca:
-                continue
+            # آخر 4 مواعيد + أقرب 2 جايين (غير المتابعة) · بيشتغل مع مين = أكتر أخصائي حضر معاه آخر 30 يوم
+            real = [a for a in v if not _fu_kind(a["type"]) and (a["doctor"] or "").strip().lower() != "follow up"]
+            past = sorted((a for a in real if a["start"].date() <= today), key=lambda a: a["start"])[-4:]
+            nxt = sorted((a for a in real if a["start"].date() > today and a["status"] in LIVE_TODAY), key=lambda a: a["start"])[:2]
+            w30 = Counter(a["doctor"] for a in real if a["status"] in ATTENDED and today - timedelta(days=30) <= a["start"].date() <= today and a["doctor"])
+            ap = lambda a: [a["start"].isoformat()[:16], a["type"], a["doctor"], a["status"]]
             pt_extra[pid] = {"fu": [[a["start"].date().isoformat(), _fu_kind(a["type"]), (a.get("note") or "")[:200], a.get("by") or "", a["status"]] for a in fu],
-                             "ns": ns, "ca": ca}
+                             "ns": ns, "ca": ca, "ap": [ap(a) for a in reversed(past)], "nx": [ap(a) for a in nxt],
+                             "wk": [[d, n] for d, n in w30.most_common(2)]}
     except Exception as e:
         print(f"⚠️ pt_extra: {e}")
 

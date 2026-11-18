@@ -1649,9 +1649,33 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
                               "next": (str(n_.get("start")) if n_ else ""), "next_t": ((n_.get("type") or "") if n_ else "")})
         print(f"[{ts()}] 🧾 خدمات من غير فاتورة (30 يوم): {len(noinv)}")
     except Exception as e:
+        print(f"[{ts()}] ⚠️ noinv: {str(e)[:150]}")
+    # 🧾 جلسات اتعملت قبل الفاتورة: لكل فاتورة/باقة (operation) — تاريخ إنشاءها (أول خطوة اتعملت فيها) مقارنة بتاريخ أول جلسة اتقفلت منها
+    late_inv = []
+    try:
+        l_from = _cairo_date((now - timedelta(days=60)).isoformat())
+        by_op = defaultdict(list)
+        for x in rows:
+            oid = str(((x.get("operation") or {}).get("id")) or "")
+            if oid: by_op[oid].append(x)
+        for oid, lst in by_op.items():
+            cr = min((_cairo_date(x.get("createdAt")) for x in lst if x.get("createdAt")), default=None)
+            if not cr or cr < l_from: continue
+            done = sorted(((_cairo_date(x.get("end")), x) for x in lst if _step_kind(x.get("status"), has_done) == "done" and x.get("end")), key=lambda z: z[0] or "")
+            done = [z for z in done if z[0]]
+            if not done or done[0][0] >= cr: continue
+            f_d, f_x = done[0]
+            late_inv.append({"op": oid, "pid": str((f_x.get("patient") or {}).get("id") or ""), "p": _pname(f_x.get("patient")),
+                             "dr": ((f_x.get("doctor") or {}).get("name") or "").strip(), "s": ((f_x.get("operation") or {}).get("name") or f_x.get("name") or "").strip(),
+                             "b": ((f_x.get("branch") or {}).get("name") or ""), "inv_d": cr, "first_d": f_d,
+                             "days": (datetime.strptime(cr, "%Y-%m-%d") - datetime.strptime(f_d, "%Y-%m-%d")).days,
+                             "n_before": sum(1 for d_, _ in done if d_ < cr), "n": len(lst)})
+        late_inv.sort(key=lambda z: z["inv_d"], reverse=True)
+        print(f"[{ts()}] 🧾 فواتير اتعملت بعد أول جلسة (60 يوم): {len(late_inv)}")
+    except Exception as e:
         print(f"[{ts()}] ⚠️ خدمات من غير فاتورة: {str(e)[:150]}")
     out = {"last_updated": now.isoformat(), "from": d_from, "to": d_to, "lookback_days": STEPS_LOOKBACK,
-           "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts, "expect": expect, "noinv": noinv, "arr": arr,
+           "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts, "expect": expect, "noinv": noinv, "late_inv": late_inv, "arr": arr,
            "catalog": {"appt_types": dict(appt_types), "step_names": dict(step_names)}}
     os.makedirs("data", exist_ok=True)
     with open("data/audit.json", "w", encoding="utf-8") as fh:

@@ -13073,6 +13073,9 @@ function planAssign(gk, v, bkey){
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender();
 }
 /* آخر حاجة كل سكرتيرة عملتها النهارده في الخطة (زرار / ملحوظة / واتساب / تعيين) — بتوقيت جهازها */
+/* «١١:٥١ ص» + اليوم → وقت (توقيت القاهرة) */
+function planAtToMs(at,day){ var t=String(at||'').replace(/[٠-٩]/g,function(c){ return '٠١٢٣٤٥٦٧٨٩'.indexOf(c); }).split('،').pop(); var m=t.match(/(\d{1,2}):(\d{2})/); if(!m||!day) return 0;
+  var h=+m[1]%12; if(/م|PM/i.test(t)) h+=12; var ms=Date.parse(day+'T'+String(h).padStart(2,'0')+':'+m[2]+':00+02:00'); return isNaN(ms)?0:ms; }
 function planLastAct(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', L={};
   var put=function(n,t,sys){ n=planNormName(n); if(!n||n==='السيستم') return; if(!L[n]||t>L[n].t) L[n]={t:t,sys:sys}; };
   Object.keys(PLAN_ST).forEach(function(k){ var o=PLAN_ST[k]; if(!o||typeof o!=='object') return;
@@ -13091,7 +13094,10 @@ function planSecPanel(){
     var s=PLAN_ST[t.key]; if(s&&s.by&&(s.s==='done'||s.s==='nr')){ var hb=planNormName(s.by); (hand[hb]=hand[hb]||{})[t.key]=1; }
   }); });
   var names=Object.keys(own); Object.keys(hand).forEach(function(n){ if(names.indexOf(n)<0) names.push(n); });
-  var la=planLastAct(), nowMs=Date.now(), cH=+new Date().toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2), T0=planTeam();
+  var la=planLastAct(), nowMs=Date.now(), tdy=(ALERTS_DATA&&ALERTS_DATA.today)||'';
+  // المهام اللي السيستم قفلها قبل ما نبدأ نسجّل الوقت بالدقيقة: وقتها من «at» (الساعة) — عشان شغلها على Medicolize يتحسب
+  Object.keys(own).forEach(function(n){ Object.keys(own[n]).forEach(function(k){ var o=PLAN_ST[k]; if(!o||o.s!=='auto'||o.ts||o.d!==tdy) return; var t=planAtToMs(o.at,tdy); if(t&&t<=nowMs&&(!la[n]||t>la[n])){ la[n]=t; la[n+'|sys']=true; } }); });
+  var _unused=0, cH=+new Date().toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2), T0=planTeam();
   if(!names.length) return '<div style="background:var(--card);border:1px dashed var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:.6rem;color:var(--mute)">👩‍💼 اختاري المسئولة جنب كل مهمة (أو اسمك فوق = مسئولة عن الفرع كله) وهيظهر هنا الإنجاز لكل سكرتيرة</div>';
   var rows=names.map(function(n){
     var L=Object.keys(own[n]||{}).map(function(k){ return own[n][k]; }).filter(function(t){ return planState(t)!=='snz'; });

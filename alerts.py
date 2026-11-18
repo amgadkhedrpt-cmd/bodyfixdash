@@ -1707,10 +1707,9 @@ def build_alerts(appointments, now=None, packages=None):
                     size, done = ps.get("size") or 0, ps.get("done") or 0
                     if size < 6 or not (size - 2 <= done < size):
                         continue
-                    up = [a for a in ap0 if a["start"].date() > today and a["status"] in LIVE_TODAY]
-                    if not up or any(is_amg(a) for a in up):
-                        continue
-                    put(ap0[0]["pid"], last["name"], last["phone"], "end", {"done": done, "size": size, "dr": last["doctor"]})
+                    # كلهم يظهروا (حتى اللي مالوش ميعاد جاي، واللي اتحجز معاك بيظهر ✅) — آخر جلسة واللي قبلها لازم يتشافوا
+                    lpt = max((a for a in ap0 if a["status"] in ATTENDED and (a["doctor"] or "").strip().lower() != "follow up"), key=lambda a: a["start"], default=last)
+                    put(ap0[0]["pid"], lpt["name"], lpt["phone"], "end", {"done": done, "size": size, "dr": lpt["doctor"]})
                 except Exception:
                     pass
             for pid, x in prev.items():

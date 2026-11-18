@@ -13425,13 +13425,6 @@ function planRenderV2(all,mineT,ALLN){
     '<button onclick="planV2Set(0)" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">↩️ الشكل القديم</button></div>';
   if(PLAN_V2TAB==='visit'){ PLAN_VISIT_OPEN=true; return h+planVisitCard(); }
   if(PLAN_V2TAB==='mgr'){ var m=''; try{ m+=planSudAlerts(); }catch(e){} try{ m+=planTeamPanel(); }catch(e){} try{ m+=planSecPanel(); }catch(e){} try{ m+=planFuPanel(); }catch(e){} return h+m; }
-  // المهام حسب العيلة (المهمة بتروح لعيلة أول مجموعة فيها)
-  var F={}; PLAN_FAM.forEach(function(f){ F[f[0]]={open:[],done:[]}; });
-  L.forEach(function(t){ var s=planState(t); if(s==='snz') return; var f=F[planFamOf((t.grp||[])[0])]; (s==='done'?f.done:f.open).push(t); });
-  // مربعات فوق: كل عيلة اتعمل منها كام
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px">'+PLAN_FAM.map(function(f){ var o=F[f[0]], tot=o.open.length+o.done.length, pc=tot?Math.round(o.done.length*100/tot):100;
-    return '<div onclick="var e=document.getElementById(\'fam_'+f[0]+'\');if(e)e.scrollIntoView({behavior:\'smooth\'})" style="cursor:pointer;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px 11px"><div style="font-size:.62rem;color:var(--mute)">'+f[1]+' '+f[2]+'</div>'+
-      '<div style="font-size:1.1rem;font-weight:900">'+o.done.length+' <span style="font-size:.62rem;font-weight:600;color:var(--mute)">من '+tot+'</span></div><div style="height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:4px"><div style="height:100%;width:'+pc+'%;background:'+f[3]+'"></div></div></div>'; }).join('')+'</div>';
   // ⚠️ محتاج تتصرفي دلوقتي: حصّلي قبل ما يمشي + مراجعة الخصم (مقفولة بدوسة)
   var urg=''; try{ urg=planCashBanner()+planSudAlerts(); }catch(e){}
   if(urg) h+='<details style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:7px 11px;margin-bottom:10px"><summary style="cursor:pointer;font-weight:800;font-size:.68rem;color:var(--r)">⚠️ محتاج تتصرفي دلوقتي — دوسي تشوفي</summary>'+urg+'</details>';
@@ -13440,18 +13433,27 @@ function planRenderV2(all,mineT,ALLN){
     var nm=Object.keys(own).sort(function(a,b){ return own[b].n-own[a].n; });
     if(nm.length) h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:.62rem"><span style="color:var(--mute)">👩‍💼 الإنجاز:</span>'+nm.map(function(n){ var z=own[n], pc=z.n?Math.round(z.d*100/z.n):0, col=pc>=80?'var(--g)':pc>=40?'#f59e0b':'var(--r)';
       return '<span style="border:1px solid '+(n===PLAN_ME?col:'var(--brd)')+';border-radius:999px;padding:2px 9px'+(n===PLAN_ME?';font-weight:800':'')+'">'+alEsc(n)+' <b style="color:'+col+'">'+pc+'%</b> <span style="color:var(--mute)">'+z.d+'/'+z.n+'</span></span>'; }).join('')+'</div>'; }catch(e){}
-  PLAN_FAM.forEach(function(f){ var o=F[f[0]]; if(!o.open.length&&!o.done.length) return;
-    // جوه كل عيلة: عنوان كل مجموعة مهام (زي الشكل القديم) — أهم 3 ظاهرين والباقي بدوسة
-    var G={}, order=[]; o.open.concat(o.done).forEach(function(t){ var g=(t.grp||[])[0]||'other'; if(!G[g]){ G[g]={open:[],done:[]}; order.push(g); } (planState(t)==='done'?G[g].done:G[g].open).push(t); });
-    order.sort(function(a,b){ return G[b].open.length-G[a].open.length; });
-    h+='<div id="fam_'+f[0]+'" style="background:var(--card);border:1px solid var(--brd);border-inline-start:4px solid '+f[3]+';border-radius:12px;padding:9px 12px;margin-bottom:10px">'+
-      '<div style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:.8rem">'+f[1]+' '+f[2]+'<span style="margin-inline-start:auto;font-size:.64rem;font-weight:800;color:'+(o.open.length?f[3]:'var(--g)')+'">'+(o.open.length?o.open.length+' فاضل':'✅ خلصت')+'</span></div>'+
-      order.map(function(g){ var q=G[g], gt=PLAN_GT[g]||['•','أخرى'], id=f[0]+'|'+g, ex=!!PLAN_V2OPEN[id], tot=q.open.length+q.done.length, pc=tot?Math.round(q.done.length*100/tot):100;
-        return '<div style="margin-top:8px;border-top:1px solid var(--brd);padding-top:6px"><div style="display:flex;align-items:center;gap:8px;font-size:.7rem;font-weight:800">'+gt[0]+' '+gt[1]+
-          '<span style="margin-inline-start:auto;font-size:.6rem;font-weight:700;color:'+(q.open.length?'var(--r)':'var(--g)')+'">'+(q.open.length?q.open.length+' فاضل':'✅ خلصت')+' · '+pc+'%</span></div>'+
-          (q.open.length?planRuleHTML(g):'')+q.open.slice(0,3).map(planRow).join('')+
-          (q.open.length>3?'<details '+(ex?'open ':'')+'ontoggle="PLAN_V2OPEN[\''+id+'\']=this.open"><summary style="cursor:pointer;font-size:.6rem;color:var(--mute);padding:3px 0">+ '+(q.open.length-3)+' كمان</summary>'+q.open.slice(3).map(planRow).join('')+'</details>':'')+
-          (q.done.length?'<details><summary style="cursor:pointer;font-size:.56rem;color:var(--g);padding:2px 0">✅ اتعمل '+q.done.length+'</summary>'+q.done.map(planRow).join('')+'</details>':'')+'</div>'; }).join('')+'</div>'; });
+  // 🗂️ كل نوع مهام = كارت (الرقم الكبير = فاضل · البار = اتعمل · أحمر = مستعجل) — دوسة تفتح المرضى تحته بعرض الصف
+  var HOT={conf:1,conftoday:1,debt:1,sudden:1,late:1,mcall:1,nopkg:1,confsp:1};
+  var SECS=[['mgr','👔 محتاج المدير'],['morning','☀️ أول الشيفت'],['rec','🧾 عند الاستقبال'],['office','📋 شغل مكتب'],['evening','🌙 آخر اليوم']];
+  SECS.forEach(function(sc){ var arr=L.filter(function(t){ return t.sec===sc[0]&&planState(t)!=='snz'; }); if(!arr.length) return;
+    var G={}, order=[]; arr.forEach(function(t){ (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ if(me&&PLAN_ME&&planOwner(t,g)!==PLAN_ME) return; if(!G[g]){ G[g]={open:[],done:[]}; order.push(g); } (planState(t)==='done'?G[g].done:G[g].open).push(t); }); });
+    if(!order.length) return;
+    order.sort(function(a,b){ var A=G[a],B=G[b]; return (!A.open.length)-(!B.open.length)||(HOT[b]?1:0)-(HOT[a]?1:0)||B.open.length-A.open.length; });
+    var dn=arr.filter(function(t){ return planState(t)==='done'; }).length;
+    h+='<div style="display:flex;align-items:center;gap:8px;margin:14px 0 6px"><b style="font-size:.78rem">'+sc[1]+'</b><span style="font-size:.6rem;color:var(--mute)">'+dn+' من '+arr.length+'</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px">';
+    order.forEach(function(g){ var q=G[g], gt=PLAN_GT[g]||['•','أخرى'], id=sc[0]+'|'+g, op=!!PLAN_V2OPEN[id], tot=q.open.length+q.done.length, pc=tot?Math.round(q.done.length*100/tot):100, hot=HOT[g]&&q.open.length;
+      var t0=q.open[0]||q.done[0], own=t0?planOwner(t0,g):'';
+      h+='<div onclick="PLAN_V2OPEN[\''+id+'\']=!PLAN_V2OPEN[\''+id+'\'];planRender()" style="cursor:pointer;position:relative;background:var(--card);border:1px solid '+(op?'#2563eb':hot?'var(--r)':'var(--brd)')+';border-radius:12px;padding:9px 11px;'+(q.open.length?'':'opacity:.55')+'">'+
+        '<div style="position:absolute;top:7px;left:10px;font-size:1.15rem;font-weight:900;color:'+(q.open.length?(hot?'var(--r)':'#f59e0b'):'var(--g)')+'">'+(q.open.length||'✅')+'</div>'+
+        '<div style="font-size:1rem">'+gt[0]+'</div><div style="font-size:.66rem;font-weight:800;line-height:1.5;margin:2px 0;padding-left:28px">'+gt[1]+'</div>'+
+        '<div style="font-size:.56rem;color:var(--mute)">'+(own?alEsc(own)+' · ':'')+q.done.length+' من '+tot+'</div>'+
+        '<div style="height:5px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:6px"><div style="height:100%;width:'+pc+'%;background:'+(pc>=80?'var(--g)':hot?'var(--r)':'#f59e0b')+'"></div></div></div>';
+      if(op) h+='<div style="grid-column:1/-1;background:var(--card);border:1px solid #2563eb;border-radius:12px;padding:8px 11px"><div style="font-weight:800;font-size:.7rem">'+gt[0]+' '+gt[1]+' — '+q.open.length+' فاضل</div>'+
+        planRuleHTML(g)+q.open.slice(0,3).map(planRow).join('')+
+        (q.open.length>3?'<details><summary style="cursor:pointer;font-size:.6rem;color:var(--mute);padding:3px 0">+ '+(q.open.length-3)+' كمان</summary>'+q.open.slice(3).map(planRow).join('')+'</details>':'')+
+        (q.done.length?'<details><summary style="cursor:pointer;font-size:.56rem;color:var(--g);padding:2px 0">✅ اتعمل '+q.done.length+'</summary>'+q.done.map(planRow).join('')+'</details>':'')+'</div>'; });
+    h+='</div>'; });
   if(me&&!PLAN_ME) h='<div style="background:rgba(239,68,68,.1);border:1px solid var(--r);border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:.66rem;color:var(--r)">اختاري اسمك فوق عشان تشوفي مهامك بس — دلوقتي ظاهر كل المهام</div>'+h;
   return h; }
 function planRender(){

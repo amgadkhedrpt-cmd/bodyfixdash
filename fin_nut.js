@@ -263,7 +263,7 @@ function nPts(){const ks=nMonths(),byP=nPtsData(),{ops}=nutBuild(),P=Object.valu
    <div class="card"><h3>المرضى النشطين والكشوفات</h3><div class="ch"><canvas id="nM1"></canvas></div></div>
    <div class="card"><h3>توزيع الباقات<small>الهدف: نزوّد باقة 12</small></h3>${tableHTML(['الباقة',{t:'عدد',n:1},{t:'النسبة',n:1}],Object.entries(pd).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,v,pc(v/Object.values(pd).reduce((s,x)=>s+x,0))]))}<div class="muted" style="font-size:.75rem;margin-top:6px">من اسم العملية (4/8/12) — اللي مالوش رقم = فردي.</div></div>
    <div class="card"><h3>مصادر الإحالة<small>للي عملوا كشف في الفترة</small></h3>${tableHTML(['المصدر',{t:'مرضى',n:1}],Object.entries(src).sort((a,b)=>b[1]-a[1]))}</div></div>
-  <div class="card" style="margin-top:12px"><h3>وقفوا ومحتاجين مكالمة<small>آخر جلسة من 21 لـ 120 يوم</small></h3>${tableHTML(['المريض','رقم','آخر خدمة','آخر جلسة',{t:'جلسات',n:1}],drop.map(p=>[esc(p.n),esc(p.pid),esc(p.steps[p.steps.length-1].name),p.last,p.steps.length]),{h:400})}</div>`}
+  <div class="card" style="margin-top:12px"><h3>وقفوا ومحتاجين مكالمة<small>آخر جلسة من 21 لـ 120 يوم</small></h3>${tableHTML(['المريض','رقم','آخر خدمة','آخر جلسة',{t:'جلسات',n:1}],drop.map(p=>[ptL(p.n,p.pid),esc(p.pid),esc(p.steps[p.steps.length-1].name),p.last,p.steps.length]),{h:400})}</div>`}
 function cnPts(){const ks=nMonths(),byP=nPtsData(),P=Object.values(byP),{ops}=nutBuild(),c=SER();
   chart('nM1',{data:{labels:ks.map(mls),datasets:[bar('كشوفات',ks.map(k=>ops.filter(o=>o.k===k&&o.cat==='exam').length),c[1]),line('مرضى نشطين',ks.map(k=>P.filter(p=>p.months.has(k)).length),c[0])]}})}
 function nDev(){const ks=nMonths(),{ops}=nutBuild(),O=ops.filter(o=>o.cat==='dev');const DV=DEVT.map(d=>d[0]).concat(['أخرى']).filter(d=>O.some(o=>o.dev===d));
@@ -286,7 +286,7 @@ function nAlaa(){const k=S.to,M=nutMonth(k),C=NUT.cfg,A=C.alaaArchive||{};const 
    ${kpi('أرشيف نظام الـ50%: المستحق',A.due?fm(+A.due):'—',A.note||'')}${kpi('المدفوع منه',A.paid?fm(+A.paid):'—')}${kpi('الرصيد',A.bal?fm(+A.bal):'—',A.extra?'مع تقدير يونيو 2023 – مايو 2024: '+fm(+A.extra):'اكتبه من الإعدادات')}</div>
   <div class="card" style="margin-top:12px"><h3>حساب الشهر حسب الفئة<small>${ml(k)}</small></h3>${tableHTML(['الفئة',{t:'عدد',n:1},{t:'قبل الخصم',n:1},{t:'بعد الخصم (المدفوع)',n:1}],NCAT.map(c=>[c[1],M.byC[c[0]].n,M.byC[c[0]].tot,M.byC[c[0]].paid]).concat([Object.assign(['الإجمالي',NCAT.reduce((s,c)=>s+M.byC[c[0]].n,0),M.tot,M.rev],{_c:'tot'}),['المرتب',' ','',M.alaa==null?'—':M.alaa]]))}</div>
   <div class="grid g2" style="margin-top:12px"><div class="card"><h3>موعد مكتمل من غير خطوة عملية<small>${e1.length}</small></h3>${tableHTML(['المريض','رقم','اليوم'],e1.map(a=>[esc(NM[a.pid]||''),esc(a.pid),a.d]),{h:300})}</div>
-   <div class="card"><h3>خطوة كشف/متابعة من غير موعد مكتمل<small>${e2.length}</small></h3>${tableHTML(['المريض','الخدمة','اليوم'],e2.map(o=>[esc(o.pn),esc(o.name),o.d]),{h:300})}</div></div>
+   <div class="card"><h3>خطوة كشف/متابعة من غير موعد مكتمل<small>${e2.length}</small></h3>${tableHTML(['المريض','الخدمة','اليوم'],e2.map(o=>[ptL(o.pn,o.pid),esc(o.name),o.d]),{h:300})}</div></div>
   <div class="card" style="margin-top:12px"><h3>جلسات د. آلاء في الدقي<small>بتتعرض لوحدها ومش محسوبة في الهرم</small></h3>${dk.length?tableHTML(['الشهر',{t:'خطوات',n:1},{t:'المدفوع',n:1}],dk):'<span class="muted">مفيش في الفترة دي</span>'}</div>`}
 function cnAlaa(){}
 function nPrice(){const C=NUT.cfg;if(!C.priceDate)return `<div class="card">اكتب تاريخ تطبيق الأسعار الجديدة من «الإعدادات» علشان يظهر تقرير أثر الزيادة.</div>`;

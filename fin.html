@@ -124,6 +124,8 @@ details summary{cursor:pointer;font-weight:700}
 'use strict';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// 🔗 اسم المريض بيفتح ملفه على Medicolize
+const ptL=(n,pid)=>/^[0-9a-f-]{36}$/i.test(String(pid||''))?`<a href="https://my.medicolize.com/patient/${pid}" target="_blank" rel="noopener" title="افتح ملفه على Medicolize" style="color:inherit;text-decoration:underline dotted;text-underline-offset:3px">${esc(n)}</a>`:esc(n);
 const fm=(x,d=0)=>x==null||!isFinite(x)?'—':(x<0?'−':'')+Math.abs(x).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const pc=x=>x==null||!isFinite(x)?'—':(x*100).toFixed(1)+'%';
 const pad=n=>String(n).padStart(2,'0');
@@ -378,7 +380,7 @@ function vRev(){const P=D.pay.filter(p=>inB(p)&&inR(p)&&!p.bal);const I=D.inv.fi
    <div class="card"><h3>طرق الدفع</h3><div class="ch"><canvas id="cMeth"></canvas></div>${tableHTML(['الطريقة',{t:'المبلغ',n:1},{t:'النسبة',n:1}],byM.map(([k,v])=>[esc(k),v,pc(v/tot)]),{h:200})}</div>
    <div class="card"><h3>الإيرادات حسب الدكتور</h3><div class="ch"><canvas id="cDoc"></canvas></div></div>
    <div class="card"><h3>الإيرادات حسب أيام الأسبوع والساعة</h3><div class="ch sm"><canvas id="cWd"></canvas></div><div class="ch sm"><canvas id="cHr"></canvas></div></div>
-   <div class="card"><h3>أعلى ٢٥ مريض دفعوا</h3>${tableHTML(['المريض','رقم',{t:'المدفوع',n:1},{t:'عمليات',n:1}],topP.map(p=>[esc(p.n),esc(p.pid),p.amt,p.c]),{h:360})}</div>
+   <div class="card"><h3>أعلى ٢٥ مريض دفعوا</h3>${tableHTML(['المريض','رقم',{t:'المدفوع',n:1},{t:'عمليات',n:1}],topP.map(p=>[ptL(p.n,p.pid),esc(p.pid),p.amt,p.c]),{h:360})}</div>
    <div class="card"><h3>مين سجّل الدفع</h3>${tableHTML(['الموظف',{t:'المبلغ',n:1},{t:'النسبة',n:1}],byBy.map(([k,v])=>[esc(k),v,pc(v/tot)]),{h:360})}</div>
   </div>`}
 function cRev(){const P=D.pay.filter(p=>inB(p)&&inR(p)&&!p.bal),I=D.inv.filter(x=>inB(x)&&inR(x)),ks=monthsList(S.from,S.to),c=SER();
@@ -473,7 +475,7 @@ function vDebt(){const I=D.inv.filter(x=>inB(x)&&x.k<=S.to);const today=new Date
   const top=Object.values(byP).sort((a,b)=>b.rem-a.rem).slice(0,40);const tot=open.reduce((s,x)=>s+x.rem,0);
   return `<div class="grid g4">${kpi('إجمالي الباقي على المرضى',fm(tot),fm(Object.keys(byP).length)+' مريض')}${ag.map(a=>kpi('عمر الدين: '+a[0],fm(a[2]),fm(a[1])+' فاتورة')).join('')}</div>
   <div class="grid g2" style="margin-top:12px"><div class="card"><h3>الباقي حسب شهر الفاتورة</h3><div class="ch"><canvas id="cDebt"></canvas></div></div>
-  <div class="card"><h3>أكبر ٤٠ مديونية</h3>${tableHTML(['المريض','رقم',{t:'الباقي',n:1},{t:'فواتير',n:1},'أقدم فاتورة'],top.map(p=>[esc(p.n),esc(p.pid),p.rem,p.c,p.old]),{h:360})}</div></div>
+  <div class="card"><h3>أكبر ٤٠ مديونية</h3>${tableHTML(['المريض','رقم',{t:'الباقي',n:1},{t:'فواتير',n:1},'أقدم فاتورة'],top.map(p=>[ptL(p.n,p.pid),esc(p.pid),p.rem,p.c,p.old]),{h:360})}</div></div>
   <div class="note" style="margin-top:8px">الباقي = إجمالي الفاتورة − الخصم − المدفوع. الفواتير القديمة بتتحدث مرة كل يوم بالليل.</div>`}
 function cDebt(){const I=D.inv.filter(x=>inB(x)&&x.k<=S.to),ks=monthsList(D.months[0]||S.from,S.to);
   chart('cDebt',{type:'bar',data:{labels:ks.map(mls),datasets:[bar('الباقي',ks.map(k=>I.filter(x=>x.k===k).reduce((s,x)=>s+Math.max(0,x.total-x.disc-x.paid),0)),SER()[7])]},options:{plugins:{legend:{display:false}}}})}

@@ -124,7 +124,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   const gOk=OG.find(o=>o.t.startsWith('✅')),sus_=C.filter(c=>fin_(c)&&!c.atBook&&['tried','missonly','none'].includes(c.cat)),gS=oRow('',sus_);
   if(gOk&&gOk.n>=10&&gS.n>=10){const d=gS.r-gOk.r;L.push(`<b>الاعتذار والغياب:</b> اللي اتأكدوا بمكالمة حقيقية ${pc(gOk.r)} · اللي شاكين فيهم (من غير مكالمة اترد عليها) <b${d>0.05?' class="down"':''}>${pc(gS.r)}</b>${d>0.05?` — يعني التأكيد المشكوك فيه بيخلّي الموعد يضيع ${(gS.r/Math.max(gOk.r,0.01)).toFixed(1)} مرة أكتر. ده بيأكد إن التأكيد ده مش حقيقي (أو مش مفيد)`:d<-0.03?' — المشكوك فيهم مش بيغيبوا أكتر، فغالباً اتأكدوا بطريقة تانية (واتساب)':' — تقريباً نفس النسبة'}.`)}
   else if(J.length)L.push(`<span class="sub">مقارنة الاعتذار بين المؤكدين بمكالمة والمشكوك فيهم بتظهر لما يبقى فيه 10 مواعيد خلصوا على الأقل في كل مجموعة.</span>`);
-  const susLost=C.filter(c=>(c.res==='اعتذر'||c.res==='ما جاش')&&!c.atBook&&(['tried','missonly','none'].includes(c.cat)||c.bulk)).sort((a,b)=>b.aT-a.aT).map(c=>[cfFmt(c.aT),esc(c.pn),esc(c.type),c.res,cfFmt(c.cT),esc(c.who),(c.bulk?'⚡ بالجملة ':'')+(CF_CAT[c.cat]?CF_CAT[c.cat][0]:'')]);
+  const susLost=C.filter(c=>(c.res==='اعتذر'||c.res==='ما جاش')&&!c.atBook&&(['tried','missonly','none'].includes(c.cat)||c.bulk)).sort((a,b)=>b.aT-a.aT).map(c=>[cfFmt(c.aT),ptL(c.pn,c.pid),esc(c.type),c.res,cfFmt(c.cT),esc(c.who),(c.bulk?'⚡ بالجملة ':'')+(CF_CAT[c.cat]?CF_CAT[c.cat][0]:'')]);
   if(susLost.length)L.push(`<b class="down">${susLost.length} موعد اعتذر أو ما جاش وكان متعلّم عليه مؤكد من غير مكالمة حقيقية</b> — التفاصيل تحت في «🔴 اعتذروا أو ما جوش».`);
   if(X.bursts.length)L.push(`<b class="down">${X.bursts.length} مرة اتأكد فيها ${X.bursts.reduce((s,b)=>s+b.n,0)} موعد بالجملة</b> (5 أو أكتر في 3 دقايق) — مستحيل يكونوا مكالمات، غالباً اتعلّموا من غير اتصال أو بعد رسالة واتساب جماعية — التفاصيل تحت في «⚡ تأكيد بالجملة».`);
   if(chk.some(c=>!c.whoOk))L.push(`<span class="sub">* = المسئولة حسب التوزيع الأساسي (خطة اليوم بقت بتسجل مسئولة كل مريض من النهارده — الأيام الجاية هتبقى بالاسم الصح حتى لو حد غايب).</span>`);
@@ -135,8 +135,8 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   // حسب اليوم
   const dg={};chk.forEach(c=>{const d=cfDay(c.cT),z=dg[d]=dg[d]||{n:0,j:0,ok:0,bu:0};z.n++;if(c.bulk)z.bu++;if(['ok','tried','missonly','none'].includes(c.cat)){z.j++;if(c.cat==='ok')z.ok++}});
   const dRows=Object.keys(dg).sort().reverse().slice(0,31).map(d=>{const z=dg[d];return [d.slice(8,10)+'/'+d.slice(5,7)+' '+DAYS[new Date(d+'T12:00:00Z').getUTCDay()],z.n,z.bu,z.j?pc(z.ok/z.j):'—']});
-  const bRows=[];X.bursts.slice().sort((a,b)=>b.s-a.s).slice(0,40).forEach((b,bi)=>b.L.forEach((c,ci)=>bRows.push([ci?'':'⚡ '+cfFmt(b.s)+(b.e>b.s?'–'+cfFmt(b.e).slice(6):'')+' · '+b.n+' مواعيد',esc(c.pn),esc(c.type||''),cfFmt(c.aT),esc(c.who||''),c.res||''])));
-  const sus=chk.filter(c=>['none','tried','missonly'].includes(c.cat)||c.bulk).sort((a,b)=>b.cT-a.cT).slice(0,300).map(c=>[cfFmt(c.cT),esc(c.pn),cfFmt(c.aT)+' · '+esc(c.type),esc(c.who),
+  const bRows=[];X.bursts.slice().sort((a,b)=>b.s-a.s).slice(0,40).forEach((b,bi)=>b.L.forEach((c,ci)=>bRows.push([ci?'':'⚡ '+cfFmt(b.s)+(b.e>b.s?'–'+cfFmt(b.e).slice(6):'')+' · '+b.n+' مواعيد',ptL(c.pn,c.pid),esc(c.type||''),cfFmt(c.aT),esc(c.who||''),c.res||''])));
+  const sus=chk.filter(c=>['none','tried','missonly'].includes(c.cat)||c.bulk).sort((a,b)=>b.cT-a.cT).slice(0,300).map(c=>[cfFmt(c.cT),ptL(c.pn,c.pid),cfFmt(c.aT)+' · '+esc(c.type),esc(c.who),
     c.bulk?'⚡ بالجملة':'',CF_CAT[c.cat]?`<span style="color:${CF_CAT[c.cat][1]}">${CF_CAT[c.cat][0]}</span>`:'',(c.calls||[]).length?(c.calls.map(x=>(x.ty==='out'?'📤':x.ty==='in'?'📥':'📵')+cfFmt(x.t).slice(6)+(x.dur?' '+x.dur+'ث':'')).join(' ')):'',c.res]);
   CF.rep.conf={kpi:[['تأكيدات (من غير اللي اتحجزوا مؤكد)',chk.length],['اتأكدوا بالجملة',pc_(chk,c=>c.bulk)],['اتقارنوا بالمكالمات',J.length],['بمكالمة اترد عليها',J.length?pc_(J,c=>c.cat==='ok'):'—'],['من غير مكالمة اترد عليها',J.length?pc_(J,c=>c.cat!=='ok'):'—']],
     L,wRows,dRows,bRows,sus,g,J,chk,bursts:X.bursts,ogRows,susLost,gOk,gS};
@@ -196,7 +196,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    const resC=r=>r==='حضر'?'<span style="color:var(--good)">حضر</span>':(r==='اعتذر'||r==='ما جاش')?`<b class="down">${r}</b>`:esc(r||'—');
    const lead=c=>{const hrs=((c.atBook&&c.crT!=null?c.aT-c.crT:c.aT-c.cT))/36e5;return hrs>=48?Math.round(hrs/24)+' يوم':hrs>=1?Math.round(hrs)+' ساعة':Math.round(hrs*60)+' د'};
    const lists=LB.map(([t,f])=>{const a=C.filter(f).sort((x,y)=>y.aT-x.aT),dn=a.filter(fin_),ls=dn.filter(lost);
-     return a.length?`<details open style="margin-top:6px"><summary style="cursor:pointer;font-weight:700;font-size:.78rem">${t} — ${a.length} موعد${dn.length?` · ضاع ${ls.length} من ${dn.length} (${pc(ls.length/dn.length)})`:''}</summary>${tableHTML(['المريض','الموعد','اتأكد إمتى',{t:'قبلها بـ',n:1},'النتيجة','المسئولة'],a.slice(0,400).map(c=>[esc(c.pn),cfFmt(c.aT)+' · '+esc(c.type),cfFmt(c.atBook&&c.crT!=null?c.crT:c.cT)+(c.atBook?' (وقت الحجز)':'')+(c.bulk?' ⚡':''),lead(c),resC(c.res),esc(c.who||'')]),{h:360})}</details>`:''}).join('');
+     return a.length?`<details open style="margin-top:6px"><summary style="cursor:pointer;font-weight:700;font-size:.78rem">${t} — ${a.length} موعد${dn.length?` · ضاع ${ls.length} من ${dn.length} (${pc(ls.length/dn.length)})`:''}</summary>${tableHTML(['المريض','الموعد','اتأكد إمتى',{t:'قبلها بـ',n:1},'النتيجة','المسئولة'],a.slice(0,400).map(c=>[ptL(c.pn,c.pid),cfFmt(c.aT)+' · '+esc(c.type),cfFmt(c.atBook&&c.crT!=null?c.crT:c.cT)+(c.atBook?' (وقت الحجز)':'')+(c.bulk?' ⚡':''),lead(c),resC(c.res),esc(c.who||'')]),{h:360})}</details>`:''}).join('');
    CF.listsHTML=lists?`<div class="card" style="margin-top:12px"><h3>📋 الأسامي حسب إمتى اتأكد<small>دوس على أي مجموعة تفتح أساميها</small></h3>${lists}</div>`:'';
    const few=done.length<60?`<div class="sub" style="margin-top:6px">⚠️ لسه ${done.length} ميعاد بس خلصوا في الفترة دي — الأرقام هتتظبط كل ما الشهر يكمل.</div>`:'';
    const noDone=!CH_.length&&C.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات</h3><div class="sub">الرسومات بتتحسب من المواعيد اللي <b>عدّت</b> (جه / اعتذر / ما جاش) — ولا ميعاد من اللي في الفلتر ده عدّى لسه. وسّع «📅 يوم الموعد» لأيام فاتت (مثلاً من أول الشهر لحد امبارح).</div></div>`:'';
@@ -389,9 +389,9 @@ function cfLists(){if(CF.lists)return CF.lists;const now=cfWall(new Date().toISO
   if(CF.sheet)S3.forEach(c=>{c.who=cfWho(c)[0]});
   return {S1,S2,S3,d2,from}}
 function vLists(){const Q=cfLists(),w=c=>esc(c.who||'…'),ph=x=>`<span dir="ltr">${x}</span>`;
-  const t1=Q.S1.slice(0,300).map(c=>[cfFmt(c.aT),esc(c.pn),ph(cfPh0(c.ph||c.ph2)),cfFmt(c.cT),w(c),(c.bulk?'⚡ بالجملة · ':'')+(c.cat==='none'?'مفيش مكالمة':c.cat==='tried'?'اتصلوا وما ردش':c.cat==='missonly'?'فايتة بس':''),esc(c.res||'')]);
-  const t2=Q.S2.slice(0,300).map(z=>[esc(z.pn),ph(cfPh0(cfPh(z.ph))),z.n,z.ca,z.ns,pc((z.ca+z.ns)/(z.n||1)),Q.d2(z.lastC),Q.d2(z.next)]);
-  const t3=Q.S3.map(c=>[cfFmt(c.aT),esc(c.pn),ph(cfPh0(c.ph||c.ph2)),cfFmt(c.cT),cfDD(c)+' يوم',w(c)]);
+  const t1=Q.S1.slice(0,300).map(c=>[cfFmt(c.aT),ptL(c.pn,c.pid),ph(cfPh0(c.ph||c.ph2)),cfFmt(c.cT),w(c),(c.bulk?'⚡ بالجملة · ':'')+(c.cat==='none'?'مفيش مكالمة':c.cat==='tried'?'اتصلوا وما ردش':c.cat==='missonly'?'فايتة بس':''),esc(c.res||'')]);
+  const t2=Q.S2.slice(0,300).map(z=>[ptL(z.pn,z.pid),ph(cfPh0(cfPh(z.ph))),z.n,z.ca,z.ns,pc((z.ca+z.ns)/(z.n||1)),Q.d2(z.lastC),Q.d2(z.next)]);
+  const t3=Q.S3.map(c=>[cfFmt(c.aT),ptL(c.pn,c.pid),ph(cfPh0(c.ph||c.ph2)),cfFmt(c.cT),cfDD(c)+' يوم',w(c)]);
   const none='<div class="sub" style="margin:6px 0">مفيش.</div>';
   return `<div class="card" style="margin-top:12px;border-inline-start:4px solid var(--acc)"><h3>📋 قوايم للسكرتارية والمراجعة<small>كلها جوه «📋 ملف اتصالات للسكرتارية»</small></h3>
    <details open><summary><b>📞 أكّد تاني — مأكدين عليها من بدري (يومين أو أكتر قبل الميعاد)</b> <span class="sub">(${t3.length} · الـ7 أيام الجاية · للسكرتارية)</span></summary>${t3.length?tableHTML(['الميعاد','المريض','الرقم','اتعلّم مؤكد',{t:'قبلها بـ',n:1},'مين أكد'],t3,{h:320}):none}</details>

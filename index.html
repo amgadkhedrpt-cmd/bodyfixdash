@@ -11138,7 +11138,7 @@ function alertsOpenStreaks(fromNotes){
     var nx=x.next_appt?'<span style="background:rgba(245,158,11,.12);color:var(--am);border-radius:5px;padding:1px 6px;font-size:.56rem">📅 جاي: '+alEsc(alFmtDT(x.next_appt))+(x.next_status?' · '+alEsc(x.next_status):'')+'</span>'
                       :'<span style="background:rgba(255,255,255,.05);color:var(--mute);border-radius:5px;padding:1px 6px;font-size:.56rem">مالوش ميعاد جاي</span>';
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-right:3px solid var(--r);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+alSharedTag(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+alSharedTag(x)+'</b>'+
       (x.removed?'':alActedToday(x)?'<span style="font-size:.56rem;color:var(--g);border:1px solid var(--g);border-radius:6px;padding:0 5px;margin-inline-end:6px">✅ اتعمل النهارده</span>':'<span style="font-size:.56rem;color:var(--r);border:1px solid var(--r);border-radius:6px;padding:0 5px;margin-inline-end:6px">⬜ محدش عمل حاجة النهارده</span>')+
       (x.idle?'<span style="font-size:.62rem;font-weight:900;color:#a78bfa">😶 من '+x.days+' يوم من غير ميعاد</span></div>':x.streak?'<span style="font-size:.62rem;font-weight:900;color:var(--r)">'+x.streak+' مرات ورا بعض</span></div>':'</div>')+
       (x.removed?'<div style="margin-top:4px;font-size:.6rem;font-weight:800;color:var(--am)">🗑️ اتشال من شيت التثبيتات'+(x.removed_on?' — اتلاحظ '+alEsc(alFmtDay(x.removed_on)):'')+' · كان مثبّت:</div>':'')+
@@ -11220,7 +11220,7 @@ function alertsOpenNoNext(fromNotes){
   function row(x){
     var phone=(x.phone||'').replace(/_/g,'');
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b>'+
       '<span style="font-size:.6rem;color:var(--mute)">'+alEsc(alFmtDT(x.time).split(' · ')[1]||'')+'</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0 5px">'+alEsc(alDocAr(x.doctor)||x.doctor)+' · '+alEsc(x.type||'')+(x.status?' · <span style="color:var(--acc)">'+alEsc(x.status)+'</span>':'')+'</div>'+
       (phone?'<a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a>':'')+
@@ -11275,7 +11275,7 @@ function alertsOpenRecur(){
     var ms=(x.misses||[]).map(function(m){ return alFmtDay(m.date)+' '+(/no ?show/i.test(m.status)?'(ما جاش)':'(إلغاء)'); }).join(' · ');
     var fu=(x.future||[]).map(function(f){ var c=/confirm/i.test(f.status); return '<span style="border:1px solid '+(c?'var(--g)':'var(--brd)')+';border-radius:6px;padding:1px 6px;margin:2px;display:inline-block;color:'+(c?'var(--g)':'var(--txt)')+'">'+alEsc(alFmtDay(String(f.time).slice(0,10)))+' '+alEsc(String(f.time).slice(11,16))+' · '+alEsc(f.type)+' · '+alEsc(f.status)+'</span>'; }).join('');
     return '<div style="border:1px solid var(--brd);border-radius:10px;padding:9px 10px;margin-bottom:8px">'+
-      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:.72rem;flex:1">'+alEsc(x.name)+alSharedTag(x)+'</b>'+(function(){ var ph=(x.phone||'').replace(/_/g,''); return ph?'<a href="tel:'+alEsc(ph)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(ph)+'</a>':''; })()+'</div>'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:.72rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alSharedTag(x)+'</b>'+(function(){ var ph=(x.phone||'').replace(/_/g,''); return ph?'<a href="tel:'+alEsc(ph)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(ph)+'</a>':''; })()+'</div>'+
       '<div style="font-size:.62rem;margin-top:4px">عند <b><bdi>'+alEsc(x.doctor)+'</bdi></b> · <b style="color:var(--r)">'+x.lost+' مرات ورا بعض</b> ('+x.cancels+' إلغاء، '+x.noshows+' ما جاش) · آخر حضور '+(x.last_attended?alEsc(alFmtDay(x.last_attended)):'—')+'</div>'+
       '<div style="font-size:.6rem;color:var(--r);margin-top:3px">'+alEsc(ms)+'</div>'+
       '<div style="font-size:.62rem;margin-top:5px">📅 محجوزله <b>'+x.future_n+'</b> مواعيد جاية:</div><div style="font-size:.58rem">'+fu+'</div>'+
@@ -11336,7 +11336,7 @@ function alertsOpenSD(keep, fromNotes){
     if((x.prior_sudden||[]).length) prev.push('⚡ اعتذار مفاجئ قبل كده '+times(x.prior_sudden.length)+': '+x.prior_sudden.map(alFmtDay).join('، '));
     if(x.prior_noshow) prev.push('🚫 No Show قبل كده '+times(x.prior_noshow)+' (آخر 6 شهور)');
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-inline-start:3px solid '+(x._rep?'#ef4444':'var(--am)')+';border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b><span style="font-size:.56rem;color:var(--mute)">'+alEsc(alDocAr(x.doctor)||x.doctor||'')+'</span></div>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b><span style="font-size:.56rem;color:var(--mute)">'+alEsc(alDocAr(x.doctor)||x.doctor||'')+'</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:2px 0">'+alEsc(alFmtDT(x.date))+' · '+alEsc(x.type||'')+'</div>'+
       '<div style="font-size:.62rem">'+what+'</div>'+
       '<div style="font-size:.6rem;margin-top:3px;color:'+(x._rep?'#ef4444':'var(--g)')+';font-weight:700">'+(prev.length?prev.map(alEsc).join('<br>'):'🆕 أول مرة')+'</div>'+
@@ -11434,7 +11434,7 @@ function alertsOpenFU(cat, keepScroll, fromNotes){
         (x.note?'<div style="font-size:.62rem;background:rgba(255,255,255,.04);border-radius:6px;padding:4px 8px;margin-top:4px">📝 '+hl(x.note,x.times)+'</div>':'');
     }
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-inline-start:3px solid '+col+';border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b><span style="font-size:.56rem;color:var(--mute)">'+alEsc(alDocAr(x.doctor)||x.doctor||'')+'</span></div>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b><span style="font-size:.56rem;color:var(--mute)">'+alEsc(alDocAr(x.doctor)||x.doctor||'')+'</span></div>'+
       (FU_ISSUE[FU_F.cat]?(function(){ var a=fuActed(x);
         return a==='sys'?'<div style="font-size:.62rem;font-weight:800;color:var(--g);border:1px solid var(--g);border-radius:7px;padding:3px 8px;margin:3px 0">✅ اتصلحت على Medicolize '+alEsc(x.at||'')+': '+alEsc(x.what||'')+(x.by?' — <b>'+alEsc(x.by)+'</b>':'')+'</div>':
                a==='note'?'<div style="font-size:.62rem;font-weight:800;color:#f59e0b;border:1px solid #f59e0b;border-radius:7px;padding:3px 8px;margin:3px 0">💬 اتكتب تعليق النهارده بس — لسه ما اتصلحش على السيستم</div>':
@@ -11524,7 +11524,7 @@ function alertsOpenKashf(fromNotes){
     if(!x.sessions_after&&!x.next_pt) st.push('<b style="color:var(--r)">❌ ما حجزش ولا جلسة</b>');
     var col=(!x.sessions_after&&!x.next_pt)?'var(--r)':(!x.next_pt?'var(--am)':'#a855f7');
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-inline-start:3px solid '+col+';border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b>'+
       '<span style="font-size:.6rem;color:#a855f7;font-weight:800">🩺 كشف '+ago+'</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0">'+alEsc(alDocAr(x.doctor)||x.doctor)+' · '+alEsc(alFmtDay(x.kashf_date))+'</div>'+
       '<div style="font-size:.6rem;display:flex;flex-wrap:wrap;gap:8px;margin-bottom:5px">'+st.join('')+'</div>'+
@@ -11582,7 +11582,7 @@ function alertsOpenMissing(fromNotes){
     var why=parts.join(' · ')+' (آخر أسبوعين)';
     var nd=alDocAr(x.next_doctor)||x.next_doctor;
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-inline-start:3px solid #f43f5e;border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b>'+
       '<span style="font-size:.6rem;color:#f43f5e;font-weight:800">ميعاده العادي '+hTxt(x.usual_hour)+'</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0">'+alEsc(alDocAr(x.doctor)||x.doctor)+' · '+why+'</div>'+
       '<div style="font-size:.6rem;margin-bottom:5px">آخر حضور: '+alEsc(alFmtDay(x.last_attended))+' · <span style="color:var(--g)">حاجز: '+alEsc(alFmtDT(x.next_appt))+(nd?' مع '+alEsc(nd):'')+(x.next_status?' ('+alEsc(x.next_status)+')':'')+'</span></div>'+
@@ -11646,7 +11646,7 @@ function alertsOpenStop(fromNotes){
   function row(x){
     var t=alStopTxt(x), phone=(x.phone||'').replace(/_/g,'').replace(/^\+?2(?=0)/,'');
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-inline-start:3px solid '+(x._sys?'var(--g)':'#e11d48')+';border-radius:9px;padding:9px 11px;margin-bottom:6px'+(x._sys?';opacity:.75':'')+'">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+'</b>'+(x._sys?'<span style="font-size:.58rem;color:var(--g);font-weight:800">🤖 '+(x.had_future?'مواعيده الجاية اتلغت':'')+(x.had_future&&x._wasfx.length?' و':'')+(x._wasfx.length?'اتشال من الشيت':'')+'</span>':'')+'</div>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+'</b>'+(x._sys?'<span style="font-size:.58rem;color:var(--g);font-weight:800">🤖 '+(x.had_future?'مواعيده الجاية اتلغت':'')+(x.had_future&&x._wasfx.length?' و':'')+(x._wasfx.length?'اتشال من الشيت':'')+'</span>':'')+'</div>'+
       '<div style="font-size:.6rem;color:var(--txt);margin:3px 0">'+t.note+'</div>'+
       (x._sys?'':(t.fut?'<div style="font-size:.6rem;color:var(--r)">'+t.fut+'</div>':'')+(t.fix?'<div style="font-size:.6rem;color:var(--am)">'+t.fix+'</div>':''))+
       (phone?'<div style="margin-top:4px"><a href="tel:'+alEsc(phone)+'" style="background:rgba(16,185,129,.12);color:var(--g);border-radius:5px;padding:1px 7px;font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a></div>':'')+
@@ -11693,7 +11693,7 @@ function alertsOpenNoInv(fromNotes){
   function row(x){
     var phone=(x.phone||'').replace(/_/g,'').replace(/^\+?2(?=0)/,'');
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-inline-start:3px solid '+(x._sys?'var(--g)':'#f97316')+';border-radius:9px;padding:9px 11px;margin-bottom:6px'+(x._sys?';opacity:.75':'')+'">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+'</b>'+
       (x._sys?'<span style="font-size:.58rem;color:var(--g);font-weight:800">🤖 الفاتورة اتعملت'+(x.fixed?' '+alEsc(alFmtDay(x.fixed)):'')+'</span>':'')+'</div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0"><b style="color:var(--txt)">'+alEsc(x.svc)+'</b> · '+alEsc(alFmtDay(x.day))+' · '+alEsc(alDocAr(x.doctor)||x.doctor)+
         (x._sys?'':' · ميعاده الجاي: '+(x.next?'<b style="color:var(--txt)">'+alEsc(alFmtDay(x.next.slice(0,10)))+'</b>'+(x.next_t?' ('+alEsc(x.next_t)+')':''):'<b style="color:var(--r)">مالوش — كلّميه</b>'))+'</div>'+
@@ -11748,7 +11748,7 @@ function alertsOpenSvcGap(fromNotes){
   function row(x){
     var phone=(x.phone||'').replace(/_/g,'').replace(/^\+?2(?=0)/,'');
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-inline-start:3px solid #14b8a6;border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b>'+
       '<span style="font-size:.6rem;color:var(--mute)">'+alEsc(alFmtDT(x.time).split(' · ')[1]||'')+'</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0">'+alEsc(alDocAr(x.doctor)||x.doctor)+' · محجوز النهارده: <b style="color:var(--txt)">'+(x.today_svcs||[]).map(alEsc).join(' + ')+'</b>'+(x.status?' · <span style="color:var(--acc)">'+alEsc(x.status)+'</span>':'')+'</div>'+
       (x.missing||[]).map(mTxt).join('')+
@@ -11803,7 +11803,7 @@ function alertsOpenMilestones(fromNotes){
   function row(x){
     var phone=(x.phone||'').replace(/_/g,'');
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b>'+
       '<span style="background:#a78bfa;color:#fff;border-radius:7px;padding:1px 9px;font-size:.66rem;font-weight:900">الجلسة '+x.session_no+(x.size?' من '+x.size:'')+'</span>'+(alInSession(x)?'<span style="background:rgba(16,185,129,.15);color:var(--g);border-radius:7px;padding:1px 8px;font-size:.6rem;font-weight:800">🟢 في الجلسة</span>':'')+
       '<span style="font-size:.6rem;color:var(--mute)">'+alEsc(alFmtDT(x.time).split(' · ')[1]||'')+'</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0 5px">'+alEsc(alDocAr(x.doctor)||x.doctor)+(x.status?' · <span style="color:var(--acc)">'+alEsc(x.status)+'</span>':'')+
@@ -11909,7 +11909,7 @@ function amgDokkiList(){
   var L=(ALERTS_DATA&&ALERTS_DATA.amgad_eval)||[]; if(!L.length||alActiveBranches().every(function(b){return b.key!=='FIX ZONE';})) return '';
   return '<div style="font-weight:800;font-size:.72rem;color:#7c3aed;margin:16px 0 4px">📋 الدقي — مستنيين إعادة تقييم مع د. أمجد ('+L.length+') · زيارتك الجاية '+alEsc(planAmgDay())+'</div>'+
     L.map(function(x){ return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:7px 11px;margin-bottom:5px;font-size:.62rem">'+
-      '<b style="font-size:.68rem">'+alEsc(x.name)+'</b> — كشف مع '+alEsc(alDocAr(x.kashf.doctor)||x.kashf.doctor)+' يوم '+alEsc(alFmtDay(x.kashf.date))+(x.after?' · حضر '+x.after+' مرة بعده':'')+
+      '<b style="font-size:.68rem">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+'</b> — كشف مع '+alEsc(alDocAr(x.kashf.doctor)||x.kashf.doctor)+' يوم '+alEsc(alFmtDay(x.kashf.date))+(x.after?' · حضر '+x.after+' مرة بعده':'')+
       '<div style="color:var(--mute)">'+(x.next?'ميعاده الجاي '+alEsc(alFmtDay(String(x.next.time).slice(0,10)))+' مع '+alEsc(alDocAr(x.next.doctor)||x.next.doctor):'<span style="color:var(--r)">مالوش ميعاد جاي</span>')+'</div></div>'; }).join('');
 }
 /* 📋 زيارة د. أمجد للدقي — صفحة زي ورقة الزيارة: مين محتاج يتحجز معاه + ملحوظة لكل مريض (نفس ملحوظة المهمة) */
@@ -11920,6 +11920,14 @@ function planVisitWhy(x){ var I=x.info||{}, dc=function(n){ return alEsc(alDocAr
   if(I.kashf){ t.push('كشف من غير حجز'); l.push('🩺 عمل كشف وما حجزش جلسات — من '+(I.kashf.since||0)+' يوم'); }
   return {t:t.join(' · '), l:l.join('<br>')}; }
 /* 🔗 اسم المريض بيفتح ملفه على Medicolize */
+/* رقم التليفون ← رقم المريض على Medicolize (من كل قوايم التنبيهات) — للقوايم اللي مافيهاش pid */
+var PLAN_PIDPH=null, PLAN_PIDPH_AT='';
+function planPidByPh(ph){ var D=ALERTS_DATA; if(!D||!ph) return ''; if(!PLAN_PIDPH||PLAN_PIDPH_AT!==D.generated_at){ PLAN_PIDPH={}; PLAN_PIDPH_AT=D.generated_at;
+    var walk=function(v,d){ if(!v||d>4) return; if(Array.isArray(v)){ v.forEach(function(x){ walk(x,d+1); }); return; } if(typeof v!=='object') return;
+      if(v.pid&&v.phone){ var k=String(v.phone).replace(/\D/g,'').slice(-9); if(k.length>=8&&!PLAN_PIDPH[k]) PLAN_PIDPH[k]=v.pid; }
+      for(var kk in v) if(v[kk]&&typeof v[kk]==='object') walk(v[kk],d+1); };
+    walk(D,0); }
+  return PLAN_PIDPH[String(ph).replace(/\D/g,'').slice(-9)]||''; }
 function planPidOfKey(k){ var m=String(k||'').match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); return m?m[0]:''; }
 function planPtLink(name,pid){ var n=alEsc(name||''); if(!pid||!/^[0-9a-f-]{36}$/i.test(pid)) return n;
   return '<a href="https://my.medicolize.com/patient/'+pid+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="افتح ملفه على Medicolize" style="color:inherit;text-decoration:underline dotted;text-underline-offset:3px">'+n+'</a>'; }
@@ -11955,12 +11963,12 @@ function planVisitCard(){ var D=ALERTS_DATA, DV=D&&D.dokki_visit; if(!DV||!DV.da
     byT.map(function(L,i){ if(!L.length) return ''; var v=PLAN_VT[i], op=PLAN_VISIT_T[i]!=null?PLAN_VISIT_T[i]:i<=1;
       return '<details '+(op?'open ':'')+'ontoggle="PLAN_VISIT_T['+i+']=this.open" style="border-inline-start:3px solid '+v[3]+';padding:2px 8px;margin:6px 0"><summary style="cursor:pointer;font-size:.66rem;font-weight:800;color:'+v[3]+'">'+v[0]+' '+v[1]+' ('+L.length+') <span style="color:var(--mute);font-weight:400">— '+v[2]+'</span></summary>'+
         tb(['المريض',i===0?'جاي يوم الزيارة':'ميعاده الجاي','آخر حضور','الكشف','جلسات بعده','الحالة','ملحوظة'],L.map(function(x){ var e=x.info.eval||{}, w=i===0?x.come:x.nx;
-          return [planPtLink(x.name,x.pid),w?'<b>'+alEsc(i===0?planT(w.t):alFmtDay(String(w.t).slice(0,10))+' '+planT(w.t))+'</b> مع '+dc(w.dr):'<span style="color:var(--mute)">—</span>',planVLast(x,today),dc(e.kdr)+' '+alEsc(alFmtDay(e.kd||'')),e.after||0,st(x),nt(x)]; }))+'</details>'; }).join('')+'</details>';
+          return [planPtLink(x.name,x.pid||planPidByPh(x.phone)),w?'<b>'+alEsc(i===0?planT(w.t):alFmtDay(String(w.t).slice(0,10))+' '+planT(w.t))+'</b> مع '+dc(w.dr):'<span style="color:var(--mute)">—</span>',planVLast(x,today),dc(e.kdr)+' '+alEsc(alFmtDay(e.kd||'')),e.after||0,st(x),nt(x)]; }))+'</details>'; }).join('')+'</details>';
   var nx=(D.plan&&D.plan.tomorrow_confirm||[]).filter(function(x){ return x.branch==='FIX ZONE'&&String(x.time).slice(0,10)===DV.date; });
   if(nx.length){ var rk=nx.filter(function(x){ return x.why&&x.why.length; }).sort(function(a,b){ return a.time<b.time?-1:1; });
-    h+=sec('⚠️ ممكن ما ييجوش يوم الزيارة',rk.length,tb(['الساعة','المريض','ليه'],rk.map(function(x){ return [alEsc(planT(x.time)),planPtLink(x.name,x.pid),alEsc((x.why||[]).join('، '))]; }))+'<div style="font-size:.58rem;color:var(--mute);margin-top:3px">'+nx.filter(function(x){ return x.status!=='Confirmed'; }).length+' من '+nx.length+' مواعيد الدقي يوم الزيارة لسه ما اتأكدتش</div>'); }
+    h+=sec('⚠️ ممكن ما ييجوش يوم الزيارة',rk.length,tb(['الساعة','المريض','ليه'],rk.map(function(x){ return [alEsc(planT(x.time)),planPtLink(x.name,x.pid||planPidByPh(x.phone)),alEsc((x.why||[]).join('، '))]; }))+'<div style="font-size:.58rem;color:var(--mute);margin-top:3px">'+nx.filter(function(x){ return x.status!=='Confirmed'; }).length+' من '+nx.length+' مواعيد الدقي يوم الزيارة لسه ما اتأكدتش</div>'); }
   [['fin','🔁 خلّصوا الباقة ومجددوش ومالهمش ميعاد'],['drop','📉 وقفوا في نص العلاج ومالهمش ميعاد'],['kashf','🩺 عملوا كشف وما حجزوش جلسات']].forEach(function(z){ var L=has(z[0]).sort(function(a,b){ return (a.info[z[0]].since||0)-(b.info[z[0]].since||0); });
-    h+=sec(z[1],L.length,tb(['المريض','الأخصائي','من','آخر حضور','الحالة','ملحوظة'],L.map(function(x){ var i=x.info[z[0]]; return [planPtLink(x.name,x.pid),dc(i.dr),(i.since||0)+' يوم',planVLast(x,today),st(x),nt(x)]; }))); });
+    h+=sec(z[1],L.length,tb(['المريض','الأخصائي','من','آخر حضور','الحالة','ملحوظة'],L.map(function(x){ var i=x.info[z[0]]; return [planPtLink(x.name,x.pid||planPidByPh(x.phone)),dc(i.dr),(i.since||0)+' يوم',planVLast(x,today),st(x),nt(x)]; }))); });
   var dp=Object.keys((D.doc_perf||{}).docs||{}).filter(function(n){ return D.doc_perf.docs[n].branch==='FIX ZONE'; }), sd={};
   (D.sudden||[]).forEach(function(x){ if(x.branch==='FIX ZONE') sd[x.doctor]=(sd[x.doctor]||0)+1; });
   h+=sec('👥 نقط للكلام مع الفريق','',tb(['الأخصائي','جدّدوا من اللي خلّصوا','وقفوا (آخر 6 شهور)','اعتذار مفاجئ / No Show (الفترة الأخيرة)','كشف → حجزوا'],dp.map(function(n){ var v=D.doc_perf.docs[n]; return [dc(n),v.renew[1]+' من '+v.renew[0],v.drop[0],sd[n]||0,v.kashf[0]?v.kashf[1]+' من '+v.kashf[0]+' ('+Math.round(v.kashf[1]*100/v.kashf[0])+'%)':'—']; }))+
@@ -12004,7 +12012,7 @@ var PLAN_AUD_AMG=[];
 function planAudAmgHTML(){ var L=(PLAN_AUD_AMG||[]).filter(function(x){ return planBR().some(function(b){ return b.key===x.br; }); }); if(!L.length) return '';
   return '<div style="border:1px dashed var(--brd);border-radius:10px;padding:8px 10px;margin:8px 0;background:rgba(148,163,184,.06)"><b style="font-size:.66rem">👨‍⚕️ د. أمجد ('+L.length+') <span style="font-weight:400;color:var(--mute)">— لوحدهم ومش محسوبين في العدد</span></b>'+
     L.map(function(x){ var st=PLAN_ST[x.key]||{}, dn=st.s==='done';
-      return '<div style="font-size:.62rem;margin-top:6px;'+(dn?'opacity:.55':'')+'"><b>'+alEsc(x.p)+'</b> — '+alEsc(x.note)+' · '+alEsc(x.svc)+' · مواعيد '+x.ap+' / خطوات '+x.op+' '+
+      return '<div style="font-size:.62rem;margin-top:6px;'+(dn?'opacity:.55':'')+'"><b>'+planPtLink(x.p,x.pid||planPidByPh(x.ph))+'</b> — '+alEsc(x.note)+' · '+alEsc(x.svc)+' · مواعيد '+x.ap+' / خطوات '+x.op+' '+
         (dn?'<span style="color:var(--g)">✅ اتراجع — '+alEsc(st.by||'')+'</span>':'<button onclick="event.stopPropagation();planAudAmgOk(\''+String(x.key).replace(/'/g,"\\'")+'\')" style="background:rgba(16,185,129,.15);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:2px 8px;font-family:Cairo,sans-serif;font-size:.58rem;font-weight:700;cursor:pointer">✅ راجعته — مفيش خطأ</button>')+'</div>'; }).join('')+'</div>'; }
 function planAudAmgOk(key){ if(!PLAN_ME){ alert('اختاري اسمك الأول من خانة «السكرتيرة المسئولة» فوق'); return; }
   var o={s:'done', by:PLAN_ME, at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}), ts:new Date().toISOString()};
@@ -12040,17 +12048,17 @@ function planLateInfo(){
   if(!PLAN_LATE||!PLAN_LATE.length) return '';
   var L=PLAN_LATE.slice().sort(function(a,b){ return String(a.time).localeCompare(String(b.time)); });
   return '<details style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:8px 12px;margin-bottom:10px"><summary style="cursor:pointer;font-weight:800;font-size:.72rem">⏰ اتأخروا ربع ساعة من غير Check In ('+L.length+') <span style="font-weight:400;font-size:.58rem;color:var(--mute)">— للمعلومية بس، مش بتتحسب مهمة</span></summary>'+
-    '<div style="margin-top:6px;font-size:.62rem;line-height:1.9">'+L.map(function(x){ return '<div>• <b>'+alEsc(x.name)+'</b> <span style="color:var(--mute)">ميعاده '+alEsc(planT(x.time))+' مع '+alEsc(x.doctor||'')+' · دلوقتي: '+alEsc(x.status||'')+'</span>'+(x.note?' · 📝 '+alEsc(x.note):'')+'</div>'; }).join('')+'</div></details>';
+    '<div style="margin-top:6px;font-size:.62rem;line-height:1.9">'+L.map(function(x){ return '<div>• <b>'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+'</b> <span style="color:var(--mute)">ميعاده '+alEsc(planT(x.time))+' مع '+alEsc(x.doctor||'')+' · دلوقتي: '+alEsc(x.status||'')+'</span>'+(x.note?' · 📝 '+alEsc(x.note):'')+'</div>'; }).join('')+'</div></details>';
 }
 function planCashBanner(){
   if(typeof AUD_DATA==='undefined'||!AUD_DATA||!AUD_DATA.debts||!ALERTS_DATA) return '';
   var today=ALERTS_DATA.today||'', act=planBR().map(function(b){return b.key;}), OFF=audOffSvc(), P={};
   var came={}; (AUD_DATA.appts||[]).forEach(function(a){ if(a.d===today) came[a.pid]=1; });
   AUD_DATA.debts.forEach(function(r){ if(act.indexOf(r.b)<0||OFF[audN(r.s)]) return; if(r.d!==today&&!came[r.pid]) return;
-    var o=P[r.pid]||(P[r.pid]={n:r.p,b:r.b,rem:0,today:0,old:0,dr:r.dr}); o.rem+=(+r.rem||0); if(r.d===today) o.today=1; else o.old=1; });
+    var o=P[r.pid]||(P[r.pid]={n:r.p,pid:r.pid,b:r.b,rem:0,today:0,old:0,dr:r.dr}); o.rem+=(+r.rem||0); if(r.d===today) o.today=1; else o.old=1; });
   /* جاي النهارده والجلسة لسه متقفلتش على الخطوات: v = محسوب له جلسة النهارده (متوقع) · np = مالوش باقة */
   (AUD_DATA.expect||[]).forEach(function(r){ if(act.indexOf(r.b)<0||r.d!==today||r.nx||(r.np&&(r.ok||r.unp))) return;
-    var o=P[r.pid]||(P[r.pid]={n:r.p,b:r.b,rem:0,today:0,old:0,dr:r.dr}); if(r.v){ o.rem+=(+r.rem||0); o.v=1; } if(r.np){ o.np=1; (o.nps=o.nps||[]).push(r.s); } });
+    var o=P[r.pid]||(P[r.pid]={n:r.p,pid:r.pid,b:r.b,rem:0,today:0,old:0,dr:r.dr}); if(r.v){ o.rem+=(+r.rem||0); o.v=1; } if(r.np){ o.np=1; (o.nps=o.nps||[]).push(r.s); } });
   // 🟢 وصل (Check In / بيتعالج / خلص) أو ميعاده بعد ربع ساعة أو أقل → أخضر وفوق
   var ARR=AUD_DATA.arr||{}, nowMs=Date.now();
   var STL={OPEN:['مفتوح — لسه ما اتأكدش','var(--am)'],CONFIRMED:['مؤكد','var(--b,#3b82f6)'],CHECKEDIN:['وصل','var(--g)'],INPROGRESS:['بيتعالج','var(--g)'],COMPLETED:['خلص الجلسة','var(--g)'],DELAYED:['متأخر','var(--am)'],CANCELLED:['اتلغى','var(--r)'],CANCELED:['اتلغى','var(--r)'],NOSHOW:['ما جاش','var(--r)'],WAITING:['على الويتنج','var(--mute)']};
@@ -12065,7 +12073,7 @@ function planCashBanner(){
   return '<div style="background:rgba(239,68,68,.10);border:2px solid var(--r);border-radius:12px;padding:10px 12px;margin-bottom:10px">'+
     '<div style="font-weight:800;font-size:.8rem;color:var(--r)">💸 حصّلي قبل ما يمشي ('+L.length+')</div>'+
     Object.keys(byB).map(function(b){ var co=planCashOwner({br:b}); return '<div style="margin-top:6px;font-size:.68rem"><b>'+(b==='FIX ZONE'?'الدقي':'الهرم')+'</b>'+(co?' · على الخزنة: <b>'+alEsc(co)+'</b>':'')+
-      '<ul style="margin:3px 0;padding-inline-start:18px;line-height:1.8">'+byB[b].map(function(o){ return '<li'+(o.g?' style="background:rgba(16,185,129,.18);border-radius:6px;padding:0 6px"':'')+'>'+(o.g?'<b style="color:var(--g)">🟢 '+alEsc(o.g)+'</b> — ':'')+alEsc(o.n)+stTag(o)+(o.rem>=20?' — باقي <b>'+planMoney(o.rem)+' ج</b>'+(o.v&&!o.old&&!o.today?' <span style="color:var(--am)">(متوقع)</span>':''):'')+
+      '<ul style="margin:3px 0;padding-inline-start:18px;line-height:1.8">'+byB[b].map(function(o){ return '<li'+(o.g?' style="background:rgba(16,185,129,.18);border-radius:6px;padding:0 6px"':'')+'>'+(o.g?'<b style="color:var(--g)">🟢 '+alEsc(o.g)+'</b> — ':'')+planPtLink(o.n,o.pid||planPidByPh(o.ph))+stTag(o)+(o.rem>=20?' — باقي <b>'+planMoney(o.rem)+' ج</b>'+(o.v&&!o.old&&!o.today?' <span style="color:var(--am)">(متوقع)</span>':''):'')+
         (o.np?' — <b style="color:var(--am)">مالوش باقة لـ '+alEsc((o.nps||[]).join(' + '))+' · افتحيله باقة أو احجزيله إعادة تقييم</b>':'')+
         ' <span style="color:var(--mute)">('+[o.old?'عليه من قبل':'', o.today?'خدمة النهارده':'', o.v?'محسوب جلسة النهارده — لسه متقفلتش على الخطوات':'', o.np?'محجوز النهارده':''].filter(Boolean).join(' · ')+(o.dr?' · '+alEsc(o.dr):'')+')</span></li>'; }).join('')+'</ul></div>'; }).join('')+
     '<div style="font-size:.58rem;color:var(--mute)">🟢 = وصل أو ميعاده بعد ربع ساعة أو أقل · «متوقع» = اتحسبت جلسة النهارده من أول ما اتحجز/وصل، قبل ما الدكتور يقفلها · بيختفي لوحده أول ما الدفع يتسجل على Medicolize · آخر تحديث '+alEsc(upd)+' (كل نص ساعة)</div></div>';
@@ -13094,7 +13102,7 @@ function planFuToday(){
   var L=CT.filter(function(x){ return !PLAN_FUT_F||stOf(x)===PLAN_FUT_F; }).sort(function(a,b){ var o={none:0,half:1,done:2,booked:3}; return o[stOf(a)]-o[stOf(b)]||String(a.time).localeCompare(String(b.time)); });
   var lab={booked:['📅 حجز','var(--g)'],done:['✅ اتعملت صح','#10b981'],half:['⚠️ فيه مشكلة','var(--am)'],none:['⬜ ما اتعملش خالص','var(--r)']};
   var body='<div style="margin-top:6px">'+L.map(function(x){ var k=stOf(x), lb=lab[k];
-    return '<div style="border-top:1px solid var(--brd);padding:6px 2px;font-size:.62rem"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>'+alEsc(x.name)+'</b>'+
+    return '<div style="border-top:1px solid var(--brd);padding:6px 2px;font-size:.62rem"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+'</b>'+
       '<span style="color:var(--mute)">'+alEsc(x.type||'')+(x.step?' '+x.step:'')+' · '+alEsc(planT(x.time))+'</span><b style="color:'+lb[1]+'">'+lb[0]+'</b></div>'+
       '<div style="margin-top:2px">الموعد على Medicolize: <b style="color:'+(att(x)?'var(--g)':'var(--am)')+'">'+alEsc(x.status||'')+'</b>'+((x.times||[]).length?' · اتصالات: '+x.times.map(alEsc).join('، '):'')+'</div>'+
       (x.note?'<div style="color:#fbbf24;margin-top:2px">📝 '+alEsc(x.note)+'</div>':'<div style="color:var(--r);margin-top:2px">مفيش ملحوظة</div>')+
@@ -13132,7 +13140,7 @@ function planFuPanel(){
   h+='<div style="margin-top:4px">'+RL.slice().sort(function(a,b){ return String(b.ret_date).localeCompare(String(a.ret_date)); }).map(function(x){
     var rs=respOf(x), by=x.ret_by||'', diff=rs&&by&&first(rs)!==first(by);
     return '<div style="border-top:1px solid var(--brd);padding:6px 2px;font-size:.62rem">'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>'+alEsc(x.name)+'</b>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+'</b>'+
       (x.state==='came'?'<span style="color:var(--g);font-weight:800">✅ جه '+alEsc(alFmtDay(String(x.ret_date).slice(0,10)))+'</span>':'<span style="color:var(--am);font-weight:800">📅 حاجز '+alEsc(alFmtDay(String(x.ret_date).slice(0,10)))+' ('+alEsc(x.ret_status||'')+')</span>')+
       '<span style="color:var(--mute)">· اتتابع '+alEsc(alFmtDay(String(x.fu_date).slice(0,10)))+' ('+alEsc(x.fu_type||'')+(x.fu_count>1?' × '+x.fu_count:'')+')</span></div>'+
       '<div style="margin-top:2px">👤 مسئولة المتابعة: <b>'+(rs?alEsc(rs):'<span style="color:var(--mute)">لسه مفيش بيانات</span>')+'</b> · 📲 حجز الميعاد: <b style="color:'+(diff?'#f59e0b':'var(--txt)')+'">'+(by?alEsc(by):'<span style="color:var(--mute)">—</span>')+'</b>'+(diff?' <span style="color:#f59e0b">(حد تاني رجّعه)</span>':'')+'</div>'+
@@ -13428,7 +13436,7 @@ function evrInner(){
       L.map(function(x){
         var tag=x.status==='renewed'?'<span style="color:var(--g);font-weight:800">✅ جدد</span>':x.status==='no'?'<span style="color:var(--r);font-weight:800">❌ ما جددش</span>':'<span style="color:var(--am);font-weight:800">⏳ لسه بدري</span>';
         return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:8px 10px;margin-bottom:6px;font-size:.62rem">'+
-          '<div style="display:flex;gap:8px;align-items:center"><b style="flex:1">'+alEsc(x.name)+'</b>'+tag+'</div>'+
+          '<div style="display:flex;gap:8px;align-items:center"><b style="flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+'</b>'+tag+'</div>'+
           '<div style="color:var(--mute);margin-top:3px">كان شغال مع <b style="color:var(--txt)">'+alEsc(evrDoc(x.doctor))+'</b> · خلص باقة '+x.size+' يوم '+alEsc(alFmtDay(x.end))+
           ' · '+alEsc(x.eval.type)+' '+alEsc(alFmtDay(x.eval.date))+(x.status==='renewed'?' · كمّل مع <b style="color:var(--g)">'+alEsc(evrDoc(x.renew_doc))+'</b> '+alEsc(alFmtDay(x.renew_date)):'')+'</div>'+
           (x.eval.note?'<div style="margin-top:3px">📝 '+alEsc(x.eval.note)+'</div>':'')+'</div>';
@@ -13472,7 +13480,7 @@ function alertsOpenEvalDue(fromNotes){
     var when=x.next?'📅 '+(x.day==='today'?'النهارده':alEsc(alFmtDay(String(x.next.time).slice(0,10))))+' '+alEsc(new Date(x.next.time).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}))+' مع '+alEsc(alDocAr(x.next.doctor)||x.next.doctor)+(x._br==='FIX ZONE'&&k?' · <b>يتحجز '+alEsc(planAmgDay())+'</b>':'')
       :'<b style="color:var(--r)">📵 مالوش ميعاد — كلمه</b>';
     return '<div style="border-bottom:1px solid var(--brd);padding:6px 2px">'+
-      '<div style="font-size:.66rem;cursor:pointer" onclick="var e=document.getElementById(\''+id+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'"><b>'+alEsc(x.name)+'</b>'+alWho(x)+' — '+why+'</div>'+
+      '<div style="font-size:.66rem;cursor:pointer" onclick="var e=document.getElementById(\''+id+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'"><b>'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+'</b>'+alWho(x)+' — '+why+'</div>'+
       '<div style="font-size:.6rem;margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="flex:1">'+when+'</span>'+
         (phone?'<a href="tel:'+alEsc(phone)+'" style="color:var(--g);font-size:.58rem;text-decoration:none" dir="ltr">📞 '+alEsc(phone)+'</a>':'')+'</div>'+
       '<div id="'+id+'" style="display:none;margin-top:4px">'+alNoteBox(x)+'</div></div>';
@@ -13489,7 +13497,7 @@ function alertsOpenEvalDue(fromNotes){
     var phone=(x.phone||'').replace(/_/g,''), t=new Date(x.session);
     var hh=t.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b>'+
       (x.kashf_other?'<span style="background:#7c3aed;color:#fff;border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">إعادة تقييم مع د. أمجد</span>':'')+
       (x.n>=6?'<span style="background:#ec4899;color:#fff;border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">جلسة '+x.n+' من غير تقييم</span>':'')+'</div>'+
       (x.kashf_other?'<div style="font-size:.62rem;color:#7c3aed;font-weight:700;margin-top:3px">🩺 كشف مع '+alEsc(alDocAr(x.kashf_other.doctor)||x.kashf_other.doctor)+' يوم '+alEsc(alFmtDay(x.kashf_other.date))+' — لازم إعادة تقييم مع د. أمجد'+(x.kashf_other.after?' <span style="color:var(--r)">(حضر '+x.kashf_other.after+' مرة بعد الكشف من غيرها)</span>':' أول ما ييجي')+'</div>':'')+
@@ -13535,7 +13543,7 @@ function alertsOpenFinished(fromNotes){
   function row(x){
     var phone=(x.phone||'').replace(/_/g,'');
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b>'+
       '<span style="background:'+(x.days_since<=14?'#f59e0b':'var(--brd)')+';color:'+(x.days_since<=14?'#111':'var(--txt)')+';border-radius:7px;padding:1px 9px;font-size:.62rem;font-weight:800">من '+x.days_since+' يوم</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0 5px">آخر جلسة (رقم '+(x.size||12)+') يوم '+alEsc(alFmtDay(x.last_session))+' · '+alEsc(alDocAr(x.doctor)||x.doctor)+
         ' · خلص '+(x.pkg_src==='inv'?alPkgName(x.packages)+' ('+x.size+' جلسات)':(x.packages===1?'باقة واحدة':x.packages===2?'باقتين':x.packages+' باقات')+' — تقديري')+' · إجمالي '+x.total+' جلسة'+
@@ -13771,7 +13779,7 @@ function alertsOpenSudden(fromNotes){
     var fx=fidx.length?alFindFixed(x.name,fidx):[];
     var fxb=fx.length?'<span style="background:rgba(124,58,237,.14);color:#a78bfa;border-radius:5px;padding:1px 7px;font-size:.56rem">📌 مثبّت · '+alEsc(fx[0].doctor)+' الساعة '+alEsc(alSlotTxt(fx[0].slot))+'</span>':'';
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b>'+
       '<span style="font-size:.6rem;color:var(--mute)">'+alEsc(alFmtDT(x.start).split(' · ')[1]||'')+'</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0 5px">'+alEsc(alDocAr(x.doctor)||x.doctor)+' · '+alEsc(x.type||'')+' · '+(x._br==='FIX ZONE'?'الدقي':'الهرم')+'</div>'+
       '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">'+badge+fxb+
@@ -13814,7 +13822,7 @@ function alertsOpenDropped(fromNotes){
     var st=x.last_status?'<span style="background:rgba(239,68,68,.1);color:var(--r);border-radius:5px;padding:1px 6px;font-size:.56rem">آخر ميعاد: '+alEsc(AL_STATUS_AR[x.last_status]||x.last_status)+' '+alEsc(alFmtDay(x.last_status_date))+'</span>':'';
     var nx=x.next_appt?'<span style="background:rgba(245,158,11,.12);color:var(--am);border-radius:5px;padding:1px 6px;font-size:.56rem">📅 جاي: '+alEsc(alFmtDT(x.next_appt))+(x.next_status?' · '+alEsc(x.next_status):'')+'</span>':'';
     return '<div style="background:var(--sur);border:1px solid var(--brd);border-radius:9px;padding:9px 11px;margin-bottom:6px">'+
-      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+alEsc(x.name)+alWho(x)+'</b>'+
+      '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:.7rem;flex:1">'+planPtLink(x.name,x.pid||planPidByPh(x.phone))+alWho(x)+'</b>'+
       '<span style="font-size:.62rem;font-weight:900;color:'+(x.next_appt?'var(--am)':'var(--r)')+'">'+x.days_since+' يوم</span></div>'+
       '<div style="font-size:.6rem;color:var(--mute);margin:3px 0 5px">'+alEsc(docAr)+' · آخر حضور '+alEsc(alFmtDay(x.last_attended))+' · '+x.attended_days_2w+' أيام في أسبوعين</div>'+
       (x.pt_total!=null?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px">'+

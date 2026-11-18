@@ -11920,13 +11920,33 @@ function planVisitWhy(x){ var I=x.info||{}, dc=function(n){ return alEsc(alDocAr
   if(I.kashf){ t.push('كشف من غير حجز'); l.push('🩺 عمل كشف وما حجزش جلسات — من '+(I.kashf.since||0)+' يوم'); }
   return {t:t.join(' · '), l:l.join('<br>')}; }
 /* 🔗 اسم المريض بيفتح ملفه على Medicolize */
+/* 🔗 في أي حتة في الصفحة: أي اسم مريض مكتوب لوحده (زي جدول الأسبوع / الدكاترة / بحث مريض) بيتحول لينك لملفه على Medicolize
+   الاسم بيتعرف من كل البيانات المحمّلة (التنبيهات + المواعيد + المراجعة) — لو الاسم متكرر لمريضين مش بيتحول عشان ما نفتحش ملف غلط */
+function ptNorm(n){ return String(n||'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[ً-ْ]/g,'').replace(/\s+/g,' ').trim(); }
+var PT_NAMEMAP=null, PT_NAMEMAP_SIG='';
+function ptNameMap(){ var sig=[(typeof ALERTS_DATA!=='undefined'&&ALERTS_DATA&&ALERTS_DATA.generated_at)||'',(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.last_updated)||'',(typeof MED_DATA!=='undefined'&&MED_DATA&&(MED_DATA.last_updated||MED_DATA.total))||''].join('|');
+  if(PT_NAMEMAP&&sig===PT_NAMEMAP_SIG) return PT_NAMEMAP; var M={}, put=function(n,pid){ var k=ptNorm(n); if(k.length<6||!/^[0-9a-f-]{36}$/i.test(String(pid||''))) return; if(M[k]&&M[k]!==pid) M[k]='x'; else M[k]=pid; };
+  var walk=function(v,d){ if(!v||d>5) return; if(Array.isArray(v)){ for(var i=0;i<v.length;i++) walk(v[i],d+1); return; } if(typeof v!=='object') return;
+    if(v.pid) put(v.name||v.p||v.pn,v.pid); if(v.id&&v.firstName) put(v.firstName+' '+(v.lastName||''),v.id);
+    for(var k in v){ var c=v[k]; if(c&&typeof c==='object') walk(c,d+1); } };
+  try{ ((typeof ALERTS_DATA!=='undefined'&&ALERTS_DATA&&ALERTS_DATA.pt_index)||[]).forEach(function(r){ if(r&&r[15]) put(r[0],r[15]); }); }catch(e){}
+  try{ walk(typeof ALERTS_DATA!=='undefined'?ALERTS_DATA:null,0); walk(typeof AUD_DATA!=='undefined'?AUD_DATA:null,0); walk(typeof MED_DATA!=='undefined'?MED_DATA:null,0); }catch(e){}
+  PT_NAMEMAP=M; PT_NAMEMAP_SIG=sig; return M; }
+var PT_LINK_T=null;
+function ptLinkScan(){ PT_LINK_T=null; var M=ptNameMap(); if(!M) return;
+  var tw=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null), hits=[], n;
+  while((n=tw.nextNode())){ var t=n.nodeValue; if(!t||t.length<6||t.length>60) continue; var el=n.parentElement; if(!el||el.closest('a,input,textarea,select,option,button,script,style,[data-nopt]')) continue;
+    var pid=M[ptNorm(t)]; if(pid&&pid!=='x') hits.push([n,pid]); }
+  hits.forEach(function(h){ var a=document.createElement('a'); a.href='https://my.medicolize.com/patient/'+h[1]; a.target='_blank'; a.rel='noopener'; a.title='افتح ملفه على Medicolize';
+    a.style.cssText='color:inherit;text-decoration:underline dotted;text-underline-offset:3px'; a.onclick=function(e){ e.stopPropagation(); }; a.textContent=h[0].nodeValue; h[0].parentNode.replaceChild(a,h[0]); }); }
+try{ new MutationObserver(function(){ if(!PT_LINK_T) PT_LINK_T=setTimeout(ptLinkScan,400); }).observe(document.documentElement,{childList:true,subtree:true}); }catch(e){}
 /* رقم التليفون ← رقم المريض على Medicolize (من كل قوايم التنبيهات) — للقوايم اللي مافيهاش pid */
 var PLAN_PIDPH=null, PLAN_PIDPH_AT='';
 function planPidByPh(ph){ var D=ALERTS_DATA; if(!D||!ph) return ''; if(!PLAN_PIDPH||PLAN_PIDPH_AT!==D.generated_at){ PLAN_PIDPH={}; PLAN_PIDPH_AT=D.generated_at;
     var walk=function(v,d){ if(!v||d>4) return; if(Array.isArray(v)){ v.forEach(function(x){ walk(x,d+1); }); return; } if(typeof v!=='object') return;
       if(v.pid&&v.phone){ var k=String(v.phone).replace(/\D/g,'').slice(-9); if(k.length>=8&&!PLAN_PIDPH[k]) PLAN_PIDPH[k]=v.pid; }
       for(var kk in v) if(v[kk]&&typeof v[kk]==='object') walk(v[kk],d+1); };
-    walk(D,0); }
+    walk(D,0); (D.pt_index||[]).forEach(function(r){ var k=String(r[1]||'').replace(/\D/g,'').slice(-9); if(r[15]&&k.length>=8&&!PLAN_PIDPH[k]) PLAN_PIDPH[k]=r[15]; }); }
   return PLAN_PIDPH[String(ph).replace(/\D/g,'').slice(-9)]||''; }
 function planPidOfKey(k){ var m=String(k||'').match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); return m?m[0]:''; }
 function planPtLink(name,pid){ var n=alEsc(name||''); if(!pid||!/^[0-9a-f-]{36}$/i.test(pid)) return n;

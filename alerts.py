@@ -955,6 +955,7 @@ def build_alerts(appointments, now=None, packages=None):
             upcoming[0]["start"].isoformat() if upcoming else "", upcoming[0]["doctor"] if upcoming else ref["doctor"],
             upcoming[0]["status"].title() if upcoming else "",
             ps["size"], ps["done"], ps["pkg_no"], ps["src"], inf["referral"], inf["age"], ps["start"],
+            ref.get("pid") or "",   # [15] رقم المريض على Medicolize — لينك ملفه
         ])
     pt_index.sort(key=lambda r: r[0])
 

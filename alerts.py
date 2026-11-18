@@ -185,6 +185,8 @@ def _norm(a):
         "pupd": _parse_dt(pupd),
         "cancel_at": _parse_dt(a.get("cancel_at")),
         "by": str(a.get("by") or "").strip(),
+        "ub": str(a.get("ub") or "").strip(),
+        "upd": _parse_dt(a.get("upd")),
         "reason": str(a.get("reason") or "").strip(),
         "room": str(a.get("room") or "").strip(),
     }
@@ -1622,6 +1624,7 @@ def build_alerts(appointments, now=None, packages=None):
     # 💸 ملحوظات الدفع المكتوبة على المريض في Medicolize (ملحوظة الموعد آخر 45 يوم + تفاصيل المريض) → بتظهر في مهام التحصيل وأداة التحصيل
     PAY_RE = re.compile(r"دفع|هيدفع|يدفع|دافع|فلوس|باقي|متبقي|تحصيل|حصل|فاتور|انستا|insta|فودافون|كاش|تحويل|خصم|رصيد|مبلغ|جنيه")
     pay_notes, soon, fu_notes, appt_notes = {}, [], {}, {}
+    note_today = {}   # 📝 ملحوظة اتكتبت/اتعدّلت النهارده على أي موعد للمريض في Medicolize → المهام اللي بتتقفل بملحوظة تتقفل بيها
     for v in patients_all.values():
         pid_ = next((a["pid"] for a in v if a.get("pid")), "")
         if not pid_:
@@ -1638,6 +1641,11 @@ def build_alerts(appointments, now=None, packages=None):
             L.append({"d": "", "note": pn[:200], "by": "تفاصيل المريض"})
         if L:
             pay_notes[pid_] = L[:3]
+        for x in v:
+            nt_ = (x.get("note") or "").strip()
+            up_ = x.get("upd")
+            if nt_ and up_ and up_.astimezone(CAIRO).date() == today and (pid_ not in note_today or up_.isoformat() > note_today[pid_][2]):
+                note_today[pid_] = [nt_[:200], x.get("ub") or "", up_.isoformat()]
         # 📝 ملحوظة كل موعد (آخر 3 أسابيع → أسبوعين قدام) — بتظهر في سهم «مواعيده آخر أسبوعين»
         for x in v:
             nt_ = (x.get("note") or "").strip()
@@ -1865,7 +1873,7 @@ def build_alerts(appointments, now=None, packages=None):
         "eval_renew": eval_renew,
         "eval_due": eval_due,
         "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "dokki_visit": dokki_visit, "dup_pts": dup_pts, "pt_extra": pt_extra, "amgad_dokki_usual": amgad_dokki_usual, "eval_pending": eval_pending,
-        "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes),
+        "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes, note_today=note_today),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),
         "doc_perf": perf,

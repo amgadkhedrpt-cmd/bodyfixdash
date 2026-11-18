@@ -13081,6 +13081,7 @@ function planAssign(gk, v, bkey){
 /* 👤 مين عمل المهمة فعلاً: زرار/ملحوظة في الخطة = اللي داسته · اتقفلت من Medicolize = اسم اللي عمل الحاجة هناك (حجز / تعديل الميعاد / قفل خطوة / دفع) */
 var PLAN_ACTK={conf:'upd',conftoday:'upd',confsp:'upd',late:'upd',sudden:'upd',waittoday:'upd',waitnext:'upd',waitnut:'upd',stale:'step',aud:'step',noinv:'step',debt:'pay',debtph:'pay',invrev:'pay',invfix:'pay'};
 function planActor(t){ var st=PLAN_ST[t.key]||{}; if(st.s==='done'||st.s==='nr'||st.s==='ref') return planNormName(st.by||'');
+  if(!st.s&&planMedNoteOk(t)){ var mn=planMedNote(t); if(mn&&mn[1]) return planNormName(mn[1]); }
   var A=(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.acts)||null; if(!A) return ''; var pid=t.pid||planPidOfKey(t.key), L=(A[pid]||[]).slice(); if(!L.length) return '';
   var SN=planNamesAll().map(planNormName), sec=L.filter(function(a){ return SN.indexOf(planNormName(a[2]||''))>=0; }); if(sec.length) L=sec;   // السكرتاريه الأول (مش الأخصائي اللي قفل الجلسة)
   var want=PLAN_ACTK[(t.grp||[])[0]]||'book', m=L.filter(function(a){ return a[1]===want; }); if(!m.length&&want==='book') m=L.filter(function(a){ return a[1]==='upd'; }); if(!m.length) m=L;
@@ -13325,6 +13326,10 @@ var PLAN_WHY={dup:'الملفات تتدمج على Medicolize — أو 🚫 ر�
 function planWhyOpen(t,state){ if(state!=='open'&&state!=='nr') return ''; if((t.lines||[]).some(function(l){ return /ناقص|لسه ما اترفعش/.test(String(l||'')); })) return '';
   var g=(t.grp||[])[0], why=PLAN_WHY[g]||(planIsAuto(t)?PLAN_AUTO_G[g]:planNoteCloses(t)?'ملحوظة باللي حصل في المكالمة':planManualOk(t)?'تدوسي ✅ اتعمل بعد ما تخلصيها':PLAN_NOTE_REF[g]?'الخدمة تتحجز على Medicolize — أو سبب الرفض في الملحوظة':'الشغل يتسجل على Medicolize (بيتشيك كل نص ساعة) — أو «🚫 رفض» بسبب');
   return '<div style="font-size:.58rem;margin-top:3px;color:var(--r)">⬜ لسه مفتوحة'+(state==='nr'?' (ما ردش)':'')+' — مستنية: '+why+'</div>'; }
+/* 📝 ملحوظة اتكتبت النهارده على Medicolize لنفس المريض (على أي موعد ليه) — بتقفل المهام اللي بتتقفل بملحوظة، من غير ما السكرتيرة تكتبها تاني في الخطة */
+var PLAN_MEDNOTE_G={fix:1};
+function planMedNote(t){ var N=(ALERTS_DATA&&ALERTS_DATA.plan&&ALERTS_DATA.plan.note_today)||null; if(!N) return null; var pid=t.pid||planPidOfKey(t.key); return pid&&N[pid]?N[pid]:null; }
+function planMedNoteOk(t){ var g=(t.grp||[])[0]; return !!(planMedNote(t)&&(planNoteCloses(t)||PLAN_NOTE_DAY[g]||PLAN_NOTE_ANY[g]||PLAN_MEDNOTE_G[g])); }
 function planState(t){
   var st=PLAN_ST[t.key]||{}, today=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   if(st.s!=='done'&&!t.sys&&planIsPosted(t)) return 'snz';
@@ -13335,7 +13340,8 @@ function planState(t){
   if(st.s==='ref') return 'done';   // رفض بسبب = اتقفلت (بتتعد لوحدها في المراجعة)
   if(!st.s&&String(st.note||'').trim()&&planNoteCloses(t)&&String(t.key||'').indexOf(today+'|')===0) return 'done';   // اتكتبت ملحوظة النهارده = اتعاملت معاها
   if(PLAN_NOTE_DAY[(t.grp||[])[0]]&&st.s!=='nr'&&String(st.note||'').trim()&&String(st.nts||'').slice(0,10)===today) return 'done';   // ملحوظة النهارده = اتعاملت معاها النهارده بس — ترجع بكره
-  if(!st.s&&PLAN_NOTE_ANY[(t.grp||[])[0]]&&String(st.note||'').trim()) return 'done';   // الملحوظة بتقفلها خالص
+  if(!st.s&&PLAN_NOTE_ANY[(t.grp||[])[0]]&&String(st.note||'').trim()) return 'done';
+  if(!st.s&&planMedNoteOk(t)) return 'done';   // 📝 اتكتبت ملحوظة النهارده على Medicolize   // الملحوظة بتقفلها خالص
   if(!st.s&&planNoteIsRef(t)) return 'done';   // عرض خدمة: الملحوظة = سبب إنه مش عايزها → 🚫 رفض
   return 'open';
 }
@@ -13393,6 +13399,7 @@ var PLAN_OPEN={};
 var PLAN_CALLG={visit:1,nonextrev:1,call:1,debtph:1,idle:1,drop:1,streak:1,recur:1,conf:1,confsp:1,miss:1,nonext:1,evalamg:1,evalamgd:1,waitnext:1,waitnut:1,waittoday:1,conftoday:1,late:1};
 function planTog(h){ PLAN_OPEN[h]=!PLAN_OPEN[h]; var e=document.getElementById('px_'+h); if(e) e.style.display=PLAN_OPEN[h]?'block':'none'; }
 function planRow(t){
+  var mn=planMedNote(t); if(mn) t=Object.assign({},t,{lines:(t.lines||[]).concat(['<span style="font-size:.6rem;color:#a78bfa">📝 ملحوظة النهارده على Medicolize'+(mn[1]?' ('+alEsc(mn[1])+')':'')+': '+alEsc(mn[0])+(planMedNoteOk(t)?' — <b>اتحسبت اتعملت</b>':'')+'</span>'])});
   var st=PLAN_ST[t.key]||{}, h=planHash(t.key), state=planState(t), phone=(t.phone||'').replace(/_/g,''), k=t.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   var ci0=(t.grp&&t.grp[0])?planCoverInfo(t,t.grp[0]):{};
   if(ci0.from){ t=Object.assign({},t,{lines:[ci0.need?'<span style="color:var(--r);font-size:.62rem;font-weight:800">⚠️ '+alEsc(ci0.from)+' غايبة ومفيش حد مناسب يمسكها — المهمة دي ما ينفعش تتأجل: اختار حد يغطي من «👥 الفريق النهارده»</span>':ci0.share?'<span style="color:#38bdf8;font-size:.6rem">⚖️ اتنقلت من '+alEsc(ci0.from)+' ← '+alEsc(ci0.owner)+' لتخفيف الحمل (فيه غياب النهارده)</span>':ci0.post?'<span style="color:#f59e0b;font-size:.6rem">⏸ متأجل بسبب غياب '+alEsc(ci0.from)+'</span>':'<span style="color:#38bdf8;font-size:.6rem">🔁 منقولة من '+alEsc(ci0.from)+' (غايبة) ← '+alEsc(ci0.owner)+'</span>'].concat(t.lines||[])}); }

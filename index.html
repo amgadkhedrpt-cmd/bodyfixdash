@@ -12083,8 +12083,13 @@ function planVisitCard(){ var D=ALERTS_DATA, DV=planVisitDV(); if(!DV||!DV.date|
 function planVDayCounts(I,DV,key){   // جملة واحدة: يوم الزيارة ده مناسب؟ كام بييجوا أصلاً · كام محتاج ينقل جلسة · ولو فيه يوم أحسن بفرق كبير
   var isDone=function(x){ return x.amg||String((PLAN_ST[key(x)]||{}).note||'').trim(); };
   // النهارده يوم الزيارة: «مناسب ولا لأ» ملوش لازمة — المهم اتحجز كام وفاضل كام
-  if(planVDays((ALERTS_DATA||{}).today||'',DV.date)===0){ var dn=I.filter(isDone).length;
-    return '<div style="font-size:.66rem;margin:8px 0 2px;padding:7px 10px;border-radius:8px;background:rgba(124,58,237,.1)">📋 <b>النهارده يوم الزيارة:</b> اتحجز معاك أو اتكتب ملحوظة <b>'+dn+'</b> من '+I.length+' · فاضل <b style="color:'+(I.length-dn?'var(--r)':'var(--g)')+'">'+(I.length-dn)+'</b></div>'; }
+  if(planVDays((ALERTS_DATA||{}).today||'',DV.date)===0){ var c={k:0,e:0,l:0,o:0,n:0,r:0};
+    I.forEach(function(x){ if(x.amg){ var t=String(x.amgt||''); if(/الجلس[هة] الأخير|الجلس[هة] الاخير|اخر جلس|آخر جلس/.test(t)) c.l++; else if(/كشف/.test(t)) c.k++; else if(/تقييم/.test(t)) c.e++; else c.o++; }
+      else if(String((PLAN_ST[key(x)]||{}).note||'').trim()) c.n++; else c.r++; });
+    var b=function(n,t,col){ return '<span style="white-space:nowrap">'+t+' <b style="color:'+col+'">'+n+'</b></span>'; };
+    return '<div style="font-size:.66rem;margin:8px 0 2px;padding:7px 10px;border-radius:8px;background:rgba(124,58,237,.1);line-height:1.9">📋 <b>النهارده يوم الزيارة</b> ('+I.length+' مريض): '+
+      [b(c.k,'🩺 اتحجز معاك كشف','var(--g)'),b(c.e,'🔎 تقييم','var(--g)'),b(c.l,'🔚 تقييم الجلسة الأخيرة','var(--g)'),c.o?b(c.o,'📅 ميعاد تاني','var(--g)'):'',b(c.n,'📝 اتكتب ملحوظة','#a78bfa'),b(c.r,'⬜ فاضل',c.r?'var(--r)':'var(--g)')].filter(Boolean).join(' · ')+
+      (I.some(function(x){ return x.amg&&!x.amgt; })?'<div style="font-size:.54rem;color:var(--mute)">نوع الحجز (كشف/تقييم) بيتحدد من السحب الجاي للي اتحجزوا قبله</div>':'')+'</div>'; }
   // «مناسب ولا لأ» بيتحسب على كل المستنيين (حتى اللي اتحجزوا) — عشان الحكم ما يتغيّرش كل ما حد يتحجز
   var L=I;
   var calc=function(w){ var r={yes:0,move:0,me:0}; L.forEach(function(x){ var D=planVDaysOf(x); if(!D.length&&!x.come) return;

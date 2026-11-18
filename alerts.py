@@ -1724,6 +1724,7 @@ def build_alerts(appointments, now=None, packages=None):
                 nxa = min((a for a in live if a["start"].date() > today), key=lambda a: a["start"], default=None)
                 lst = max((a["start"] for a in ap if a["status"] in ATTENDED and a["start"].date() <= today), default=None)
                 x = dict(x, amg=(amg["start"].isoformat() if amg else (x.get("amg") if x.get("amg") and x["amg"][:10] < today.isoformat() else None)),
+                         amgt=(amg["type"] if amg else (x.get("amgt") if x.get("amg") and x["amg"][:10] < today.isoformat() else None)),
                          come=({"t": come["start"].isoformat(), "dr": come["doctor"]} if come else None),
                          nx=({"t": nxa["start"].isoformat(), "dr": nxa["doctor"]} if nxa else None),
                          up=[[a["start"].isoformat(), a["doctor"]] for a in sorted((a for a in live if a["start"].date() > today), key=lambda a: a["start"])[:6]],

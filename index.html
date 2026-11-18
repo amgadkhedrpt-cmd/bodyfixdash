@@ -13435,15 +13435,23 @@ function planRenderV2(all,mineT,ALLN){
   // ⚠️ محتاج تتصرفي دلوقتي: حصّلي قبل ما يمشي + مراجعة الخصم (مقفولة بدوسة)
   var urg=''; try{ urg=planCashBanner()+planSudAlerts(); }catch(e){}
   if(urg) h+='<details style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:7px 11px;margin-bottom:10px"><summary style="cursor:pointer;font-weight:800;font-size:.68rem;color:var(--r)">⚠️ محتاج تتصرفي دلوقتي — دوسي تشوفي</summary>'+urg+'</details>';
+  // 👩‍💼 نسبة إنجاز كل سكرتيرة (سطر واحد) — التفاصيل في تاب المدير
+  try{ var own={}; all.forEach(function(t){ var s0=planState(t); if(s0==='snz') return; (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planNormName(planOwner(t,g)); if(!o) return; var z=own[o]=own[o]||{n:0,d:0,k:{}}; if(z.k[t.key]) return; z.k[t.key]=1; z.n++; if(s0==='done') z.d++; }); });
+    var nm=Object.keys(own).sort(function(a,b){ return own[b].n-own[a].n; });
+    if(nm.length) h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:.62rem"><span style="color:var(--mute)">👩‍💼 الإنجاز:</span>'+nm.map(function(n){ var z=own[n], pc=z.n?Math.round(z.d*100/z.n):0, col=pc>=80?'var(--g)':pc>=40?'#f59e0b':'var(--r)';
+      return '<span style="border:1px solid '+(n===PLAN_ME?col:'var(--brd)')+';border-radius:999px;padding:2px 9px'+(n===PLAN_ME?';font-weight:800':'')+'">'+alEsc(n)+' <b style="color:'+col+'">'+pc+'%</b> <span style="color:var(--mute)">'+z.d+'/'+z.n+'</span></span>'; }).join('')+'</div>'; }catch(e){}
   PLAN_FAM.forEach(function(f){ var o=F[f[0]]; if(!o.open.length&&!o.done.length) return;
-    var ex=!!PLAN_V2OPEN[f[0]], top=o.open.slice(0,3), rest=o.open.slice(3);
-    var grpN={}; o.open.forEach(function(t){ var g=(t.grp||[])[0]; grpN[g]=(grpN[g]||0)+1; });
+    // جوه كل عيلة: عنوان كل مجموعة مهام (زي الشكل القديم) — أهم 3 ظاهرين والباقي بدوسة
+    var G={}, order=[]; o.open.concat(o.done).forEach(function(t){ var g=(t.grp||[])[0]||'other'; if(!G[g]){ G[g]={open:[],done:[]}; order.push(g); } (planState(t)==='done'?G[g].done:G[g].open).push(t); });
+    order.sort(function(a,b){ return G[b].open.length-G[a].open.length; });
     h+='<div id="fam_'+f[0]+'" style="background:var(--card);border:1px solid var(--brd);border-inline-start:4px solid '+f[3]+';border-radius:12px;padding:9px 12px;margin-bottom:10px">'+
       '<div style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:.8rem">'+f[1]+' '+f[2]+'<span style="margin-inline-start:auto;font-size:.64rem;font-weight:800;color:'+(o.open.length?f[3]:'var(--g)')+'">'+(o.open.length?o.open.length+' فاضل':'✅ خلصت')+'</span></div>'+
-      (o.open.length?'<div style="font-size:.56rem;color:var(--mute);margin:2px 0 4px">'+Object.keys(grpN).map(function(g){ return ((PLAN_GT[g]||['•',g])[1]).split('—')[0].trim()+' '+grpN[g]; }).join(' · ')+'</div>':'')+
-      top.map(planRow).join('')+
-      (rest.length?'<details '+(ex?'open ':'')+'ontoggle="PLAN_V2OPEN[\''+f[0]+'\']=this.open"><summary style="cursor:pointer;font-size:.62rem;color:var(--mute);padding:4px 0">+ '+rest.length+' كمان</summary>'+rest.map(planRow).join('')+'</details>':'')+
-      (o.done.length?'<details><summary style="cursor:pointer;font-size:.58rem;color:var(--g);padding:3px 0">✅ اتعمل '+o.done.length+'</summary>'+o.done.map(planRow).join('')+'</details>':'')+'</div>'; });
+      order.map(function(g){ var q=G[g], gt=PLAN_GT[g]||['•','أخرى'], id=f[0]+'|'+g, ex=!!PLAN_V2OPEN[id], tot=q.open.length+q.done.length, pc=tot?Math.round(q.done.length*100/tot):100;
+        return '<div style="margin-top:8px;border-top:1px solid var(--brd);padding-top:6px"><div style="display:flex;align-items:center;gap:8px;font-size:.7rem;font-weight:800">'+gt[0]+' '+gt[1]+
+          '<span style="margin-inline-start:auto;font-size:.6rem;font-weight:700;color:'+(q.open.length?'var(--r)':'var(--g)')+'">'+(q.open.length?q.open.length+' فاضل':'✅ خلصت')+' · '+pc+'%</span></div>'+
+          (q.open.length?planRuleHTML(g):'')+q.open.slice(0,3).map(planRow).join('')+
+          (q.open.length>3?'<details '+(ex?'open ':'')+'ontoggle="PLAN_V2OPEN[\''+id+'\']=this.open"><summary style="cursor:pointer;font-size:.6rem;color:var(--mute);padding:3px 0">+ '+(q.open.length-3)+' كمان</summary>'+q.open.slice(3).map(planRow).join('')+'</details>':'')+
+          (q.done.length?'<details><summary style="cursor:pointer;font-size:.56rem;color:var(--g);padding:2px 0">✅ اتعمل '+q.done.length+'</summary>'+q.done.map(planRow).join('')+'</details>':'')+'</div>'; }).join('')+'</div>'; });
   if(me&&!PLAN_ME) h='<div style="background:rgba(239,68,68,.1);border:1px solid var(--r);border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:.66rem;color:var(--r)">اختاري اسمك فوق عشان تشوفي مهامك بس — دلوقتي ظاهر كل المهام</div>'+h;
   return h; }
 function planRender(){

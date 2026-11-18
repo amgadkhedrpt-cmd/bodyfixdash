@@ -1678,6 +1678,11 @@ def build_alerts(appointments, now=None, packages=None):
                 x["info"][sec] = info
                 it[pid] = x
             for x in amgad_eval:
+                if not x["after"] and not x.get("next"):   # كشف بس وما جاش ولا جلسة ومالوش ميعاد → محتاج يبدأ علاج، مش تقييم
+                    put(x["pid"], x["name"], x["phone"], "kashf", {"dr": x["kashf"]["doctor"], "since": (today - date.fromisoformat(x["kashf"]["date"])).days})
+                    it[x["pid"]]["sec"] = [z for z in it[x["pid"]]["sec"] if z != "eval"]
+                    it[x["pid"]]["info"].pop("eval", None)
+                    continue
                 put(x["pid"], x["name"], x["phone"], "eval", {"kd": x["kashf"]["date"], "kdr": x["kashf"]["doctor"], "after": x["after"]})
             for x in finished:
                 if x.get("branch") == "FIX ZONE" and not x.get("next"):
@@ -1697,8 +1702,12 @@ def build_alerts(appointments, now=None, packages=None):
                 live = [a for a in ap if a["start"].date() >= today and a["status"] in LIVE_TODAY and a["branch"] == "FIX ZONE"]
                 amg = min((a for a in live if is_amg(a)), key=lambda a: a["start"], default=None)
                 come = min((a for a in live if a["start"].date().isoformat() == vd), key=lambda a: a["start"], default=None)
+                nxa = min((a for a in live if a["start"].date() > today), key=lambda a: a["start"], default=None)
+                lst = max((a["start"] for a in ap if a["status"] in ATTENDED and a["start"].date() <= today), default=None)
                 x = dict(x, amg=(amg["start"].isoformat() if amg else (x.get("amg") if x.get("amg") and x["amg"][:10] < today.isoformat() else None)),
-                         come=({"t": come["start"].isoformat(), "dr": come["doctor"]} if come else None))
+                         come=({"t": come["start"].isoformat(), "dr": come["doctor"]} if come else None),
+                         nx=({"t": nxa["start"].isoformat(), "dr": nxa["doctor"]} if nxa else None),
+                         last=(lst.date().isoformat() if lst else None))
                 items.append(x)
             dokki_visit = {"date": vd, "items": items}
     except Exception as e:

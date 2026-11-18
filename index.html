@@ -11919,7 +11919,15 @@ function planVisitWhy(x){ var I=x.info||{}, dc=function(n){ return alEsc(alDocAr
   if(I.drop){ t.push('وقف'); l.push('📉 وقف في نص العلاج — من '+(I.drop.since||0)+' يوم (مع '+dc(I.drop.dr)+')'); }
   if(I.kashf){ t.push('كشف من غير حجز'); l.push('🩺 عمل كشف وما حجزش جلسات — من '+(I.kashf.since||0)+' يوم'); }
   return {t:t.join(' · '), l:l.join('<br>')}; }
-var PLAN_VISIT_OPEN=false;
+var PLAN_VISIT_OPEN=false, PLAN_VISIT_T={};
+var PLAN_VT=[['🟢','جايين يوم الزيارة','يتحجزلهم معاك وهم عند الاستقبال','#10b981'],['🟢','ليهم ميعاد خلال 3 أيام','مكالمة: «تعالى يوم الزيارة تتقيّم مع د. أمجد»','#10b981'],
+  ['🟡','بيحضروا ومالهمش ميعاد قريب','مكالمة','#f59e0b'],['🟡','وقفوا من أسبوعين أو أقل','مكالمة — لسه قريبين','#f59e0b'],['🟠','وقفوا من أكتر من أسبوعين','أصعب — مكالمة لو فيه وقت','#f97316']];
+function planVDays(a,b){ return Math.round((new Date(String(b).slice(0,10)+'T12:00:00')-new Date(String(a).slice(0,10)+'T12:00:00'))/864e5); }
+/* سهولة إن المريض ييجي يوم الزيارة: 0 جاي أصلاً · 1 ليه ميعاد خلال 3 أيام · 2 بيحضر · 3 وقف ≤ أسبوعين · 4 وقف أكتر */
+function planVisitTier(x,today){ var I=x.info||{}; if(x.come) return 0; if(x.nx&&planVDays(today,x.nx.t)<=3) return 1;
+  if(I.drop) return (I.drop.since||0)<=14?3:4; if(x.nx) return 2; if(x.last) return planVDays(x.last,today)<=14?2:4; return 2; }
+function planVLast(x,today){ if(!x.last) return '<span style="color:var(--mute)">—</span>'; var n=planVDays(x.last,today);
+  return '<span style="color:'+(n<=7?'var(--g)':n<=14?'#f59e0b':'var(--r)')+'">'+(n<=0?'النهارده':n===1?'امبارح':'من '+n+' يوم')+'</span>'; }
 function planVisitNote(key,v){ var cur=PLAN_ST[key]||{}; v=String(v||'').trim(); if((cur.note||'')===v) return;
   var o=Object.assign({},cur,{note:v, nby:PLAN_ME||'Amgad', nts:new Date().toISOString()}); PLAN_ST[key]=o;
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planSaveRaw('PLAN|'+key, JSON.stringify(o)); }
@@ -11935,12 +11943,18 @@ function planVisitCard(){ var D=ALERTS_DATA, DV=D&&D.dokki_visit; if(!DV||!DV.da
   var done=I.filter(function(x){ return x.amg||String((PLAN_ST[key(x)]||{}).note||'').trim(); }).length;
   var sec=function(t,n,b){ return '<div style="margin-top:12px"><div style="font-weight:800;font-size:.7rem;margin-bottom:4px">'+t+' <span style="background:#ec4899;color:#fff;border-radius:9px;padding:0 8px;font-size:.6rem">'+n+'</span></div>'+b+'</div>'; };
   var h='';
-  h+=sec('🩺 تقييم د. أمجد — كشفوا مع دكتور تاني ومحدش قيّمهم',ev.length,tb(['المريض','جاي يوم الزيارة','الكشف','جلسات بعده','الحالة','ملحوظة'],ev.map(function(x){ var e=x.info.eval||{}; return [alEsc(x.name),x.come?'<b>'+alEsc(planT(x.come.t))+'</b> مع '+dc(x.come.dr):'<span style="color:var(--mute)">—</span>',dc(e.kdr)+' '+alEsc(alFmtDay(e.kd||'')),e.after||0,st(x),nt(x)]; })));
+  var byT=[[],[],[],[],[]]; ev.forEach(function(x){ byT[planVisitTier(x,today)].push(x); });
+  h+='<div style="margin-top:12px;font-weight:800;font-size:.7rem">🩺 تقييم د. أمجد — كشفوا مع دكتور تاني ومحدش قيّمهم <span style="background:#ec4899;color:#fff;border-radius:9px;padding:0 8px;font-size:.6rem">'+ev.length+'</span> <span style="font-size:.58rem;color:var(--mute);font-weight:400">— مترتبين من الأسهل للأصعب</span></div>'+
+    '<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+byT.map(function(L,i){ var v=PLAN_VT[i]; return L.length?'<span style="font-size:.6rem;font-weight:700;border-radius:10px;padding:2px 9px;color:'+v[3]+';border:1px solid '+v[3]+'">'+v[0]+' '+v[1]+' '+L.length+'</span>':''; }).join('')+'</div>'+
+    byT.map(function(L,i){ if(!L.length) return ''; var v=PLAN_VT[i], op=PLAN_VISIT_T[i]!=null?PLAN_VISIT_T[i]:i<=1;
+      return '<details '+(op?'open ':'')+'ontoggle="PLAN_VISIT_T['+i+']=this.open" style="border-inline-start:3px solid '+v[3]+';padding:2px 8px;margin:6px 0"><summary style="cursor:pointer;font-size:.66rem;font-weight:800;color:'+v[3]+'">'+v[0]+' '+v[1]+' ('+L.length+') <span style="color:var(--mute);font-weight:400">— '+v[2]+'</span></summary>'+
+        tb(['المريض',i===0?'جاي يوم الزيارة':'ميعاده الجاي','آخر حضور','الكشف','جلسات بعده','الحالة','ملحوظة'],L.map(function(x){ var e=x.info.eval||{}, w=i===0?x.come:x.nx;
+          return [alEsc(x.name),w?'<b>'+alEsc(i===0?planT(w.t):alFmtDay(String(w.t).slice(0,10))+' '+planT(w.t))+'</b> مع '+dc(w.dr):'<span style="color:var(--mute)">—</span>',planVLast(x,today),dc(e.kdr)+' '+alEsc(alFmtDay(e.kd||'')),e.after||0,st(x),nt(x)]; }))+'</details>'; }).join('');
   var nx=(D.plan&&D.plan.tomorrow_confirm||[]).filter(function(x){ return x.branch==='FIX ZONE'&&String(x.time).slice(0,10)===DV.date; });
   if(nx.length){ var rk=nx.filter(function(x){ return x.why&&x.why.length; }).sort(function(a,b){ return a.time<b.time?-1:1; });
     h+=sec('⚠️ ممكن ما ييجوش يوم الزيارة',rk.length,tb(['الساعة','المريض','ليه'],rk.map(function(x){ return [alEsc(planT(x.time)),alEsc(x.name),alEsc((x.why||[]).join('، '))]; }))+'<div style="font-size:.58rem;color:var(--mute);margin-top:3px">'+nx.filter(function(x){ return x.status!=='Confirmed'; }).length+' من '+nx.length+' مواعيد الدقي يوم الزيارة لسه ما اتأكدتش</div>'); }
   [['fin','🔁 خلّصوا الباقة ومجددوش ومالهمش ميعاد'],['drop','📉 وقفوا في نص العلاج ومالهمش ميعاد'],['kashf','🩺 عملوا كشف وما حجزوش جلسات']].forEach(function(z){ var L=has(z[0]).sort(function(a,b){ return (a.info[z[0]].since||0)-(b.info[z[0]].since||0); });
-    h+=sec(z[1],L.length,tb(['المريض','الأخصائي','من','الحالة','ملحوظة'],L.map(function(x){ var i=x.info[z[0]]; return [alEsc(x.name),dc(i.dr),(i.since||0)+' يوم',st(x),nt(x)]; }))); });
+    h+=sec(z[1],L.length,tb(['المريض','الأخصائي','من','آخر حضور','الحالة','ملحوظة'],L.map(function(x){ var i=x.info[z[0]]; return [alEsc(x.name),dc(i.dr),(i.since||0)+' يوم',planVLast(x,today),st(x),nt(x)]; }))); });
   var dp=Object.keys((D.doc_perf||{}).docs||{}).filter(function(n){ return D.doc_perf.docs[n].branch==='FIX ZONE'; }), sd={};
   (D.sudden||[]).forEach(function(x){ if(x.branch==='FIX ZONE') sd[x.doctor]=(sd[x.doctor]||0)+1; });
   h+=sec('👥 نقط للكلام مع الفريق','',tb(['الأخصائي','جدّدوا من اللي خلّصوا','وقفوا (آخر 6 شهور)','اعتذار مفاجئ / No Show (الفترة الأخيرة)','كشف → حجزوا'],dp.map(function(n){ var v=D.doc_perf.docs[n]; return [dc(n),v.renew[1]+' من '+v.renew[0],v.drop[0],sd[n]||0,v.kashf[0]?v.kashf[1]+' من '+v.kashf[0]+' ('+Math.round(v.kashf[1]*100/v.kashf[0])+'%)':'—']; }))+
@@ -12421,10 +12435,10 @@ function planTasks(useAll){
   var amgN=planAmgNext(), amgGap=amgN?Math.round((new Date(amgN+'T12:00:00')-new Date(today+'T12:00:00'))/864e5):99;
   // 📋 زيارة د. أمجد للدقي: كل مريض محتاج يتحجز معاه يوم الزيارة (تقييم / خلّص الباقة / وقف / كشف من غير حجز) — بتتقفل لما يتحجز معاه أو تتكتب ملحوظة
   var DV=D.dokki_visit, dvGap=DV&&DV.date?Math.round((new Date(DV.date+'T12:00:00')-new Date(today+'T12:00:00'))/864e5):99;
-  if(act.indexOf('FIX ZONE')>=0&&DV&&dvGap>=0&&dvGap<=3) (DV.items||[]).forEach(function(x){ var w=planVisitWhy(x);
-    add('office',{grp:['visit'], key:'visit|'+DV.date+'|'+x.pid, icon:'📋', kind:'احجزه مع د. أمجد يوم زيارة الدقي '+alEsc(alFmtDay(DV.date))+' — '+w.t, name:x.name, phone:x.phone||'', br:'FIX ZONE',
+  if(act.indexOf('FIX ZONE')>=0&&DV&&dvGap>=0&&dvGap<=3) (DV.items||[]).map(function(x){ return [planVisitTier(x,today),x]; }).sort(function(a,b){ return a[0]-b[0]; }).forEach(function(z){ var x=z[1], w=planVisitWhy(x), v=PLAN_VT[z[0]];
+    add('office',{grp:['visit'], key:'visit|'+DV.date+'|'+x.pid, icon:'📋', kind:'<b style="color:'+v[3]+'">'+v[0]+(z[0]<=1?' سهل':z[0]>=4?' صعب':'')+'</b> · احجزه مع د. أمجد يوم زيارة الدقي '+alEsc(alFmtDay(DV.date))+' — '+w.t, name:x.name, phone:x.phone||'', br:'FIX ZONE',
       sys:x.amg?'اتحجز مع د. أمجد':'', what:x.amg?('📅 اتحجز مع د. أمجد '+alFmtDay(String(x.amg).slice(0,10))+' '+planT(x.amg)):'',
-      lines:[w.l, x.come?'📅 جاي يوم الزيارة '+alEsc(planT(x.come.t))+' مع '+alEsc(doc(x.come.dr))+' — احجزله مع د. أمجد في نفس اليوم':'']});
+      lines:[w.l, x.come?'📅 جاي يوم الزيارة '+alEsc(planT(x.come.t))+' مع '+alEsc(doc(x.come.dr))+' — احجزله مع د. أمجد في نفس اليوم':x.nx?'📅 ميعاده الجاي '+alEsc(alFmtDay(String(x.nx.t).slice(0,10)))+' '+alEsc(planT(x.nx.t))+' مع '+alEsc(doc(x.nx.dr)):'<span style="color:var(--r)">مالوش ميعاد جاي</span>', 'آخر حضور: '+planVLast(x,today)+' · '+v[0]+' '+v[1]]});
   });
   if(!DV&&act.indexOf('FIX ZONE')>=0&&amgGap>=0&&amgGap<=3) (D.amgad_eval||[]).forEach(function(x){ if(evd[x.pid]||!recent(x.kashf&&x.kashf.date)) return;
     add('office',{grp:['evalamgd'], key:'evalamg|'+x.pid, icon:'🩺', kind:'احجز إعادة تقييم مع د. أمجد '+planAmgDay(), name:x.name, phone:x.phone||'', br:'FIX ZONE',

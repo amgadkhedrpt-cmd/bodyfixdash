@@ -37,6 +37,41 @@ H = lambda x: str(x if x is not None else "").replace("&", "&amp;").replace("<",
 money = lambda v: f"{int(round(v or 0)):,}"
 
 
+
+def link_patients(html, alerts):
+    """🔗 أسامي المرضى في الإيميل تبقى لينك لملفهم على Medicolize — الاسم بيتعرف من بيانات التنبيهات (لو الاسم متكرر لمريضين مش بيتحول)."""
+    import html as _h
+    M = {}
+    def put(n, pid):
+        n = (n or "").strip()
+        if len(n.split()) < 2 or not re.fullmatch(r"[0-9a-f-]{36}", str(pid or "")):
+            return
+        M[n] = pid if M.get(n, pid) == pid else "x"
+    def walk(v, d=0):
+        if d > 5 or v is None:
+            return
+        if isinstance(v, list):
+            for x in v: walk(x, d + 1)
+        elif isinstance(v, dict):
+            if v.get("pid"): put(v.get("name") or v.get("p") or v.get("pn"), v["pid"])
+            for x in v.values():
+                if isinstance(x, (list, dict)): walk(x, d + 1)
+    walk(alerts)
+    for r in (alerts or {}).get("pt_index") or []:
+        if len(r) > 15 and r[15]: put(r[0], r[15])
+    names = sorted((n for n, p in M.items() if p != "x"), key=len, reverse=True)
+    if not names:
+        return html
+    esc = {_h.escape(n, quote=False): M[n] for n in names}
+    rx = re.compile("|".join(re.escape(k) for k in sorted(esc, key=len, reverse=True)))
+    out, pos = [], 0
+    for m in re.finditer(r"<a\b.*?</a>|<[^>]+>", html, re.S):   # منغيّرش جوه التاجز ولا جوه لينك موجود
+        seg = html[pos:m.start()]
+        out.append(rx.sub(lambda z: f'<a href="https://my.medicolize.com/patient/{esc[z.group(0)]}" style="color:inherit">{z.group(0)}</a>', seg))
+        out.append(m.group(0)); pos = m.end()
+    out.append(rx.sub(lambda z: f'<a href="https://my.medicolize.com/patient/{esc[z.group(0)]}" style="color:inherit">{z.group(0)}</a>', html[pos:]))
+    return "".join(out)
+
 def norm(s):
     s = str(s or "").strip()
     s = re.sub("[أإآٱ]", "ا", s).replace("ى", "ي").replace("ة", "ه").replace("ـ", "")
@@ -135,6 +170,10 @@ def main():
         html = html.replace("<!--PLAN-->", plan_section(today_s))
     except Exception as e:
         print(f"digest plan: {e}")
+    try:
+        html = link_patients(html, alerts)
+    except Exception as e:
+        print(f"digest links: {e}")
     user, pw = os.environ.get("GMAIL_USER", ""), os.environ.get("GMAIL_APP_PASS", "")
     to = os.environ.get("DIGEST_TO", "").strip() or user
     if os.environ.get("DIGEST_PREVIEW"):

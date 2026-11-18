@@ -1714,6 +1714,62 @@ def build_alerts(appointments, now=None, packages=None):
     except Exception as e:
         print(f"⚠️ dokki_visit: {e}")
 
+    # ── 🔍 ملفات مريض مكررة على Medicolize: نفس رقم التليفون (أو نفس الاسم بالظبط) على أكتر من ملف ──
+    dup_pts = []
+    try:
+        byp2 = defaultdict(list)
+        for v in patients_all.values() if patients_all else patients.values():
+            for a in v:
+                if a.get("pid"):
+                    byp2[a["pid"]].append(a)
+        info2 = {}
+        for pid, ap in byp2.items():
+            last = max(ap, key=lambda a: a["start"])
+            att = [a for a in ap if a["status"] in ATTENDED]
+            info2[pid] = {"pid": pid, "name": last["name"], "phone": (last["phone"] or "").replace("+2_", "").replace("_", ""),
+                          "n": len(att), "last": (max(a["start"] for a in att).date().isoformat() if att else ""),
+                          "br": last["branch"], "recent": any(a["start"].date() >= today - timedelta(days=120) for a in ap)}
+        nm = lambda n: _re.sub(r"\s+", " ", (n or "").replace("أ", "ا").replace("إ", "ا").replace("آ", "ا").replace("ى", "ي").replace("ة", "ه")).strip()
+        groups = defaultdict(set)
+        for pid, x in info2.items():
+            ph = "".join(ch for ch in x["phone"] if ch.isdigit())[-9:]
+            if len(ph) >= 8:
+                groups[("phone", ph)].add(pid)
+            if len(nm(x["name"])) >= 8:
+                groups[("name", nm(x["name"]))].add(pid)
+        seen_sets = set()
+        for (kind, key), pids in groups.items():
+            if len(pids) < 2 or not any(info2[p]["recent"] for p in pids):
+                continue
+            fs = frozenset(pids)
+            if fs in seen_sets:
+                continue
+            seen_sets.add(fs)
+            dup_pts.append({"kind": kind, "pts": sorted((info2[p] for p in pids), key=lambda x: x["last"], reverse=True)})
+        dup_pts.sort(key=lambda g: (g["kind"] != "phone", -max(x["n"] for x in g["pts"])))
+        print(f"🔍 ملفات مكررة: {len(dup_pts)}")
+    except Exception as e:
+        print(f"⚠️ dup_pts: {e}")
+
+    # ── ℹ️ ملخص المريض: سجل المتابعات (آخر 6) + الغياب/الاعتذار آخر 90 يوم — للي ليهم باقة/ميعاد بس ──
+    pt_extra = {}
+    try:
+        want = {r[15] for r in pt_index if len(r) > 15 and r[15]}
+        for v in patients.values():
+            if not v or v[0].get("pid") not in want:
+                continue
+            pid = v[0]["pid"]
+            fu = sorted((a for a in v if _fu_kind(a["type"]) and a["start"].date() <= today + timedelta(days=30)), key=lambda a: a["start"])[-6:]
+            r90 = [a for a in v if today - timedelta(days=90) <= a["start"].date() <= today]
+            ns = sum(1 for a in r90 if "no" in a["status"] and "show" in a["status"])
+            ca = sum(1 for a in r90 if "cancel" in a["status"])
+            if not fu and not ns and not ca:
+                continue
+            pt_extra[pid] = {"fu": [[a["start"].date().isoformat(), _fu_kind(a["type"]), (a.get("note") or "")[:200], a.get("by") or "", a["status"]] for a in fu],
+                             "ns": ns, "ca": ca}
+    except Exception as e:
+        print(f"⚠️ pt_extra: {e}")
+
     starts = [a["start"].date() for v in patients.values() for a in v]
     return {
         "generated_at": now.isoformat(),
@@ -1741,7 +1797,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
-        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "dokki_visit": dokki_visit, "amgad_dokki_usual": amgad_dokki_usual, "eval_pending": eval_pending,
+        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "dokki_visit": dokki_visit, "dup_pts": dup_pts, "pt_extra": pt_extra, "amgad_dokki_usual": amgad_dokki_usual, "eval_pending": eval_pending,
         "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),

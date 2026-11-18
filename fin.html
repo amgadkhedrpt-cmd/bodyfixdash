@@ -124,6 +124,12 @@ details summary{cursor:pointer;font-weight:700}
 'use strict';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// 📊 ملفات الـ Excel: أي خانة فيها اسم مريض معروف بتبقى لينك لملفه على Medicolize (بنعدّل aoa_to_sheet أول ما مكتبة Excel تتحمّل)
+let _ptM=null,_ptD=null;
+function ptMap(){if(_ptM&&_ptD===D)return _ptM;const M={},put=(n,p)=>{n=String(n||'').trim();if(n.length<6||!/^[0-9a-f-]{36}$/i.test(String(p||'')))return;M[n]=M[n]&&M[n]!==p?'x':p};
+  try{const d=D||{};['apt','inv','pay'].forEach(k=>(d[k]||[]).forEach(a=>put(a.pn,a.pid)))}catch(e){}_ptM=M;_ptD=D;return M}
+function xlPt(ws){try{const M=ptMap();for(const k in ws){if(k[0]==='!')continue;const c=ws[k];if(c&&c.t==='s'){const p=M[String(c.v).trim()];if(p&&p!=='x')c.l={Target:'https://my.medicolize.com/patient/'+p,Tooltip:'افتح ملفه على Medicolize'}}}}catch(e){}return ws}
+setInterval(()=>{if(window.XLSX&&XLSX.utils&&!XLSX.__pt){const f=XLSX.utils.aoa_to_sheet;XLSX.utils.aoa_to_sheet=function(){return xlPt(f.apply(this,arguments))};XLSX.__pt=1}},1000);
 // 🔗 اسم المريض بيفتح ملفه على Medicolize
 const ptL=(n,pid)=>/^[0-9a-f-]{36}$/i.test(String(pid||''))?`<a href="https://my.medicolize.com/patient/${pid}" target="_blank" rel="noopener" title="افتح ملفه على Medicolize" style="color:inherit;text-decoration:underline dotted;text-underline-offset:3px">${esc(n)}</a>`:esc(n);
 const fm=(x,d=0)=>x==null||!isFinite(x)?'—':(x<0?'−':'')+Math.abs(x).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});

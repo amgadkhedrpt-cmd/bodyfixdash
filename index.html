@@ -11965,13 +11965,19 @@ function ptInfo(pid){ var D=ALERTS_DATA||{}, r=(D.pt_index||[]).filter(function(
   var h='<div style="font-weight:900;font-size:.85rem;margin-bottom:8px">ℹ️ '+alEsc(nm||'المريض')+'</div>'+
     (r?row('📞 التليفون','<span dir="ltr">'+alEsc(r[1]||'')+'</span>')+row('📦 الباقة',r[8]?('جلسة '+(r[9]||0)+' من '+r[8]+(r[10]>1?' · باقة رقم '+r[10]:'')):'—')+row('✅ حضر',(r[2]||0)+' جلسة'+(r[3]?' · من '+alEsc(alFmtDay(r[3])):''))+
       row('🕒 آخر حضور',r[4]?alEsc(alFmtDay(String(r[4]).slice(0,10))):'—')+row('📅 ميعاده الجاي',r[5]?alEsc(alFmtDay(String(r[5]).slice(0,10)))+' '+alEsc(planT(r[5]))+' مع '+alEsc(alDocAr(r[6])||r[6]||'')+(r[7]?' · '+alEsc(r[7]):''):'<span style="color:var(--r)">مالوش ميعاد جاي</span>'):'')+
+    (function(){ // لو السحب لسه ما جابش «بيشتغل مع / آخر المواعيد» → من مواعيد الحضور اللي في بيانات المراجعة (آخر 35 يوم)
+      var mine=(AU.appts||[]).filter(function(a){ return a.pid===pid&&a.dr&&!/follow/i.test(a.dr); }).sort(function(a,b){ return a.d<b.d?1:-1; });
+      if(!X.wk&&AU.appts){ var td=(D.today||''), c={}; mine.forEach(function(a){ if(planVDays(a.d,td)<=30) c[a.dr]=(c[a.dr]||0)+1; }); X.wk=Object.keys(c).sort(function(a,b){ return c[b]-c[a]; }).slice(0,2).map(function(k){ return [k,c[k]]; }); }
+      if(!X.ap&&AU.appts) X.ap=mine.slice(0,4).map(function(a){ return [a.d,a.s,a.dr,'completed']; });
+      return ''; })()+
     (function(){ var wk=(X.wk||[]).map(function(w){ return '<b>'+alEsc(alDocAr(w[0])||w[0])+'</b> ('+w[1]+' جلسة)'; }).join('، ');
       var fx=[]; try{ if(nm) fx=alFindFixed(nm, alFixedIndex()); }catch(e){}
       var sheets=(typeof DR_HARAM_STATIC!=='undefined'&&DR_HARAM_STATIC.length)||(typeof DR_DOKKI_STATIC!=='undefined'&&DR_DOKKI_STATIC.length);
-      return row('👨‍⚕️ بيشتغل مع',wk||'<span style="color:var(--mute)">ما حضرش آخر 30 يوم</span>')+
+      var auOk=typeof AUD_DATA!=='undefined'&&AUD_DATA;
+      return row('👨‍⚕️ بيشتغل مع',wk||(auOk?'<span style="color:var(--mute)">ما حضرش آخر 30 يوم</span>':'<span style="color:var(--mute)">⏳ بيحمّل…</span>'))+
         row('📌 مثبت مع',fx.length?fx.map(function(f){ return '<b>'+alEsc(alDocAr(f.doctor)||f.doctor)+'</b> · الساعة '+alEsc(alSlotTxt(f.slot))+' · '+(f.branch==='FIX ZONE'?'الدقي':'الهرم'); }).join('<br>'):(sheets?'<span style="color:#f59e0b">مش متثبت في شيت الدكاترة</span>':'<span style="color:var(--mute)">⏳ بيحمّل شيت الدكاترة…</span>')); })()+
     (function(){ var ST={completed:'✅ حضر','checked in':'✅ وصل','checkedin':'✅ وصل','in progress':'✅ جوه','no show':'🚫 No Show',canceled:'❌ اتلغى',cancelled:'❌ اتلغى',open:'Open',confirmed:'مؤكد'};
-      var ln=function(a){ return '<div style="font-size:.62rem;padding:2px 0">'+alEsc(alFmtDay(String(a[0]).slice(0,10)))+' '+alEsc(planT(a[0]))+' · '+alEsc(a[1]||'')+' · '+alEsc(alDocAr(a[2])||a[2]||'')+' · <span style="color:var(--mute)">'+alEsc(ST[String(a[3]||'').toLowerCase()]||a[3]||'')+'</span></div>'; };
+      var ln=function(a){ return '<div style="font-size:.62rem;padding:2px 0">'+alEsc(alFmtDay(String(a[0]).slice(0,10)))+(String(a[0]).length>10?' '+alEsc(planT(a[0])):'')+' · '+alEsc(a[1]||'')+' · '+alEsc(alDocAr(a[2])||a[2]||'')+' · <span style="color:var(--mute)">'+alEsc(ST[String(a[3]||'').toLowerCase()]||a[3]||'')+'</span></div>'; };
       return row('🗓️ آخر المواعيد',(X.ap||[]).length?(X.ap||[]).map(ln).join(''):'—')+((X.nx||[]).length?row('📅 الجاية',(X.nx||[]).map(ln).join('')):''); })()+
     row('💸 عليه فلوس',debt>=20?'<b style="color:var(--r)">'+planMoney(debt)+' ج</b>':'<span style="color:var(--g)">لأ</span>')+
     row('🚫 آخر 90 يوم',(X.ns||0)+' No Show · '+(X.ca||0)+' اعتذار')+
@@ -11984,6 +11990,9 @@ function ptInfo(pid){ var D=ALERTS_DATA||{}, r=(D.pt_index||[]).filter(function(
   m.onclick=function(e){ if(e.target===m) m.remove(); }; document.body.appendChild(m);
   // شيت الدكاترة (مين مثبت مع مين) لسه ما اتحمّلش → نحمّله ونفتح الملخص تاني
   var sh=(typeof DR_HARAM_STATIC!=='undefined'&&DR_HARAM_STATIC.length)||(typeof DR_DOKKI_STATIC!=='undefined'&&DR_DOKKI_STATIC.length);
+  // بيانات المراجعة (مواعيد الحضور) لسه ما اتحمّلتش → نحمّلها ونفتح الملخص تاني
+  if((typeof AUD_DATA==='undefined'||!AUD_DATA)&&typeof audAutoLoad==='function'&&!ptInfo._au){ ptInfo._au=1; try{ audAutoLoad(); }catch(e){}
+    var tries=0, iv=setInterval(function(){ if(typeof AUD_DATA!=='undefined'&&AUD_DATA){ clearInterval(iv); ptInfo._au=0; if(document.getElementById('ptInfoM')) ptInfo(pid); } else if(++tries>30){ clearInterval(iv); ptInfo._au=0; } },500); }
   if(!sh&&!ptInfo._ld&&typeof fetchDRFromSheet==='function'){ ptInfo._ld=1; var left=2, fin=function(){ if(--left>0) return; ptInfo._ld=0; if(document.getElementById('ptInfoM')) ptInfo(pid); };
     fetchDRFromSheet('haram',fin); fetchDRFromSheet('dokki',fin); } }
 var PLAN_VISIT_OPEN=false, PLAN_VISIT_T={};

@@ -75,6 +75,7 @@ CANCEL_FIELD = None  # وقت الإلغاء (عشان نعرف اعتذر قب�
 REASON_FIELD = None  # سبب الإلغاء / الاعتذار (لو Medicolize بيسجّله في خانة لوحدها)
 REASON_CANDIDATES = ["cancelReason", "cancellationReason", "cancelationReason", "canceledReason", "cancelledReason",
                      "reason", "cancelNote", "cancellationNote", "statusReason", "rejectReason"]
+UB_FIELD = None      # مين آخر حد عدّل الميعاد (updatedBy{name}) + updatedAt — عشان نعرف مين أكّد/غيّر الحالة
 BY_FIELD = None      # مين عمل الميعاد على Medicolize (createdBy{name}) — عشان نعرف مين رجّع المريض من المتابعة
 CANCEL_CANDIDATES = ["canceledAt", "cancelledAt", "cancelDate", "cancellationDate", "statusUpdatedAt", "statusChangedAt", "updatedAt"]
 CANCEL_PROBE = {}
@@ -93,6 +94,8 @@ def gql_query_with_note():
         q = q.replace("phoneNumber birthDate __typename}", "phoneNumber birthDate " + extra + " __typename}", 1)
     if BY_FIELD:
         q = q.replace("type other ", "type other " + BY_FIELD + " ", 1)
+    if UB_FIELD:
+        q = q.replace("type other ", "type other updatedAt " + UB_FIELD + " ", 1)
     if REASON_FIELD and REASON_FIELD not in (NOTE_FIELD, CANCEL_FIELD):
         q = q.replace("type other ", "type other " + REASON_FIELD + " ", 1)
     if ROOM_FIELD:
@@ -163,6 +166,9 @@ def parse_flat_array(flat):
             room_v   = _flat_text(flat, appt_obj.get(ROOM_FIELD.split("{")[0])) if ROOM_FIELD else ""
             by_obj   = resolve_obj(flat, appt_obj.get(BY_FIELD.split("{")[0])) if BY_FIELD else None
             by_name  = (by_obj or {}).get("name") if isinstance(by_obj, dict) else None
+            ub_obj   = resolve_obj(flat, appt_obj.get(UB_FIELD.split("{")[0])) if UB_FIELD else None
+            ub_name  = (ub_obj or {}).get("name") if isinstance(ub_obj, dict) else None
+            upd_at   = resolve_val(flat, appt_obj.get('updatedAt')) if UB_FIELD else None
             doctor_obj  = resolve_obj(flat, appt_obj.get('doctor'))
             branch_obj  = resolve_obj(flat, appt_obj.get('branch'))
             patient_obj = resolve_obj(flat, appt_obj.get('patient'))
@@ -189,6 +195,8 @@ def parse_flat_array(flat):
                 "note":      (note_v.strip()[:300] if isinstance(note_v, str) and note_v.strip() else None),
                 "cancel_at": cancel_v if isinstance(cancel_v, str) else None,
                 "by":        by_name if isinstance(by_name, str) else None,
+                "ub":        ub_name if isinstance(ub_name, str) else None,
+                "upd":       upd_at if isinstance(upd_at, str) else None,
                 "reason":    (reason_v.strip()[:300] if isinstance(reason_v, str) and reason_v.strip() else None),
                 "room":      (room_v[:40] or None),
                 "doctor":  {"name": doctor_obj.get('name'), "color": doctor_obj.get('color')},
@@ -538,6 +546,17 @@ async def detect_note_field(page, cookie_str, extra_headers):
         except Exception as e:
             print(f"   ℹ️ {f}: {str(e)[:80]}")
     print(f"   👤 خانة مين عمل الميعاد: {BY_FIELD or 'مش موجودة'}")
+    global UB_FIELD
+    for f in ("updatedBy{name}", "lastUpdatedBy{name}", "modifiedBy{name}"):
+        q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
+             "{createdAppointments(orderBy:$orderBy skip:$skip take:$take rangeDate:$rangeDate){id updatedAt " + f + "}}")
+        try:
+            d = await gql_call(page, cookie_str, extra_headers, q, {"orderBy": "createdAt", "skip": 0, "take": 10, "rangeDate": rng})
+            gql_dec(d, "createdAppointments")
+            UB_FIELD = f; break
+        except Exception as e:
+            print(f"   ℹ️ {f}: {str(e)[:80]}")
+    print(f"   ✏️ خانة آخر حد عدّل الميعاد: {UB_FIELD or 'مش موجودة'}")
     global ROOM_FIELD
     for f in ROOM_CANDIDATES:
         q = ("query Q($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
@@ -1351,6 +1370,14 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
         except Exception as e:
             print(f"[{ts()}] ℹ️ step field '{f}': {str(e)[:120]}")
     q = STEPS_Q % (op_fields or "")
+    # ✏️ مين قفل الخطوة (updatedBy) + إمتى — عشان نعرف مين عمل الكومبليت
+    for f in ("updatedAt updatedBy{name}", "updatedAt lastUpdatedBy{name}"):
+        try:
+            q2 = STEPS_Q % ((op_fields or "") + " " + f)
+            await gql_call(page, cookie_str, extra_headers, q2, {"orderBy": "createdAt", "skip": 0, "take": 5, "rangeDate": rng})
+            q = q2; print(f"[{ts()}] ✏️ خانة مين قفل الخطوة: {f}"); break
+        except Exception as e:
+            print(f"[{ts()}] ℹ️ step field '{f}': {str(e)[:100]}")
     rows, skip = [], 0
     while True:
         d = await gql_call(page, cookie_str, extra_headers, q,
@@ -1418,6 +1445,9 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
                       "dr": ((x.get("doctor") or {}).get("name") or "").strip(), "s": (x.get("name") or "").strip(),
                       "b": ((x.get("branch") or {}).get("name") or ""), "st": str(x.get("status") or ""),
                       "u": 1 if pv == "unpaid" else 0, "c": 1 if pv == "covered" else 0})
+        _ub = ((x.get("updatedBy") or x.get("lastUpdatedBy") or {}) or {}).get("name") if isinstance(x.get("updatedBy") or x.get("lastUpdatedBy"), dict) else None
+        if _ub and x.get("updatedAt"):
+            steps[-1]["ub"] = _ub; steps[-1]["ua"] = x.get("updatedAt")
     arr = {}   # مواعيد النهارده: أول ميعاد لكل مريض + حالته — عشان «حصّلي قبل ما يمشي» يعلّم على اللي وصل أو ميعاده قرّب (أخضر)
     for a in appointments or []:
         if _cairo_date(a.get("start")) != d_to: continue
@@ -1650,7 +1680,34 @@ async def sync_steps(page, cookie_str, extra_headers, appointments, packages=Non
         print(f"[{ts()}] 🧾 خدمات من غير فاتورة (30 يوم): {len(noinv)}")
     except Exception as e:
         print(f"[{ts()}] ⚠️ خدمات من غير فاتورة: {str(e)[:150]}")
-    out = {"last_updated": now.isoformat(), "from": d_from, "to": d_to, "lookback_days": STEPS_LOOKBACK,
+    # 👤 مين عمل إيه النهارده على Medicolize (لكل مريض): حجز ميعاد · تعديل ميعاد (تأكيد/حالة) · قفل خطوة · دفع — عشان الإنجاز يتحسب للي عملت فعلاً
+    acts = defaultdict(list)
+    try:
+        for a in appointments or []:
+            pid_ = str((a.get("patient") or {}).get("id") or "")
+            if not pid_: continue
+            if a.get("by") and _cairo_date(a.get("createdAt")) == d_to:
+                acts[pid_].append([str(a.get("createdAt")), "book", a["by"]])
+            if a.get("ub") and _cairo_date(a.get("upd")) == d_to:
+                acts[pid_].append([str(a.get("upd")), "upd", a["ub"]])
+        for x in rows:
+            ub = ((x.get("updatedBy") or x.get("lastUpdatedBy") or {}) if isinstance(x.get("updatedBy") or x.get("lastUpdatedBy"), dict) else {}).get("name")
+            if ub and _cairo_date(x.get("updatedAt")) == d_to:
+                acts[str((x.get("patient") or {}).get("id") or "")].append([str(x.get("updatedAt")), "step", ub])
+        me_ = gql_dec(await gql_call(page, cookie_str, extra_headers, "{me{branches{id name}}}", {}), "me") or {}
+        PQ = ("query P($branchId:ID,$orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!)"
+              "{payments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate){id createdAt createdBy{name} patient{id}}}")
+        prng = [(now - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00.000Z"), (now + timedelta(days=1)).strftime("%Y-%m-%dT23:59:59.999Z")]
+        for b in me_.get("branches") or []:
+            lst = gql_dec(await gql_call(page, cookie_str, extra_headers, PQ, {"branchId": b["id"], "orderBy": "createdAt-desc", "skip": 0, "take": 500, "rangeDate": prng}), "payments") or []
+            for y in lst:
+                by_ = ((y.get("createdBy") or {}) or {}).get("name"); pid_ = str((y.get("patient") or {}).get("id") or "")
+                if by_ and pid_ and _cairo_date(y.get("createdAt")) == d_to:
+                    acts[pid_].append([str(y.get("createdAt")), "pay", by_])
+        print(f"[{ts()}] 👤 مين عمل إيه النهارده: {sum(len(v) for v in acts.values())} حاجة لـ {len(acts)} مريض")
+    except Exception as e:
+        print(f"[{ts()}] ⚠️ acts: {str(e)[:150]}")
+    out = {"last_updated": now.isoformat(), "from": d_from, "to": d_to, "lookback_days": STEPS_LOOKBACK, "acts": dict(acts),
            "statuses": dict(statuses), "appts": appts, "steps": steps, "debts": debts, "expect": expect, "noinv": noinv, "arr": arr,
            "catalog": {"appt_types": dict(appt_types), "step_names": dict(step_names)}}
     os.makedirs("data", exist_ok=True)
@@ -1858,7 +1915,7 @@ async def main():
                 json.dump({
                     "last_updated": now_str,
                     "total": len(appointments),
-                    "appointments": [{**{k: v for k, v in a.items() if k not in ("note", "cancel_at", "by", "reason")}, "patient": {k: v for k, v in (a.get("patient") or {}).items() if k not in ("birthDate", "pnote", "pupd")}} for a in appointments[:500]],   # تاريخ الميلاد ما يتنشرش
+                    "appointments": [{**{k: v for k, v in a.items() if k not in ("note", "cancel_at", "by", "reason", "ub", "upd")}, "patient": {k: v for k, v in (a.get("patient") or {}).items() if k not in ("birthDate", "pnote", "pupd")}} for a in appointments[:500]],   # تاريخ الميلاد ما يتنشرش
                     "analysis": analysis
                 }, f, ensure_ascii=False, indent=2)
 

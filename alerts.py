@@ -1735,8 +1735,6 @@ def build_alerts(appointments, now=None, packages=None):
             ph = "".join(ch for ch in x["phone"] if ch.isdigit())[-9:]
             if len(ph) >= 8:
                 groups[("phone", ph)].add(pid)
-            if len(nm(x["name"])) >= 8:
-                groups[("name", nm(x["name"]))].add(pid)
         seen_sets = set()
         for (kind, key), pids in groups.items():
             if len(pids) < 2 or not any(info2[p]["recent"] for p in pids):

@@ -1754,7 +1754,16 @@ def build_alerts(appointments, now=None, packages=None):
         nm = lambda n: _re.sub(r"\s+", " ", (n or "").replace("أ", "ا").replace("إ", "ا").replace("آ", "ا").replace("ى", "ي").replace("ة", "ه")).strip()
         # الاسم لازم يبقى قريب: نفس الاسم، أو أول اسمين زي بعض وواحد منهم بداية التاني / فيهم 3 أسامي مشتركة
         #   نفس الرقم + الاسم قريب (أول اسم زي بعض و2 مشتركين) = يطلع · نفس الرقم + أسامي بعيدة (أسرة واحدة بتستخدم رقم واحد) = ما يطلعش
-        tk = {pid: nm(x["name"]).split() for pid, x in info2.items()}
+        def _tok(n):   # «عبد الله» / «ابو بكر» = اسم واحد
+            out, w = [], nm(n).split()
+            i = 0
+            while i < len(w):
+                if w[i] in ("عبد", "ابو", "أبو", "بن", "ابن", "ال") and i + 1 < len(w):
+                    out.append(w[i] + " " + w[i + 1]); i += 2
+                else:
+                    out.append(w[i]); i += 1
+            return out
+        tk = {pid: _tok(x["name"]) for pid, x in info2.items()}
         phk = {pid: "".join(ch for ch in x["phone"] if ch.isdigit())[-9:] for pid, x in info2.items()}
         def similar(a, b):
             A, B = tk[a], tk[b]
@@ -1763,10 +1772,12 @@ def build_alerts(appointments, now=None, packages=None):
             same_ph = len(phk[a]) >= 8 and phk[a] == phk[b]
             if A == B:
                 return same_ph or len(A) >= 3          # اسم من كلمتين بس متكرر بأرقام مختلفة = غالباً ناس مختلفين
-            com = len(set(A) & set(B))
-            if A[:2] == B[:2] and (A[:len(B)] == B or B[:len(A)] == A or com >= 3) and (same_ph or min(len(A), len(B)) >= 3):
+            # اسم بداية التاني بالترتيب (زي «سارة احمد» و«سارة احمد علي») — 3 أسامي على الأقل لو الأرقام مختلفة
+            pre = A[:len(B)] == B or B[:len(A)] == A
+            if pre and (same_ph or min(len(A), len(B)) >= 3):
                 return True
-            return same_ph and A[0] == B[0] and com >= 2
+            # نفس الرقم + أول اسمين زي بعض (غلطة كتابة في الباقي، زي «جبرنا/جبران»)
+            return same_ph and A[:2] == B[:2]
         cand = defaultdict(set)
         for pid in info2:
             if len(phk[pid]) >= 8:

@@ -12525,8 +12525,8 @@ function planTasks(useAll){
       lines:[(k?'كشف مع '+alEsc(alDocAr(k.doctor)||k.doctor)+' يوم '+alEsc(alFmtDay(k.date))+(k.after?' · حضر '+k.after+' مرة بعده':''):'')+(k&&x.n6!=null?' · ':'')+(x.n6!=null?x.n6+' جلسات من غير تقييم':'')]});
   });
   // 🔍 ملفات مريض مكررة على Medicolize (نفس التليفون / نفس الاسم) — على المشرفة · بتختفي لما الملفات تتدمج
-  (D.dup_pts||[]).filter(function(gp){ return gp.kind==='phone'; }).forEach(function(gp){ var P=gp.pts||[], br=(P[0]||{}).br||'BODYFIX Center'; if(act.indexOf(br)<0&&act.indexOf((P[1]||{}).br)<0) return;
-    add('office',{grp:['dup'], key:'dup|'+P.map(function(x){ return x.pid; }).sort().join('|'), icon:'🔍', kind:'نفس المريض على أكتر من ملف (نفس رقم التليفون) — ادمجيهم على Medicolize', name:(P[0]||{}).name||'', pid:(P[0]||{}).pid, br:act.indexOf(br)>=0?br:(P[1]||{}).br,
+  (D.dup_pts||[]).forEach(function(gp){ var P=gp.pts||[], br=(P[0]||{}).br||'BODYFIX Center'; if(act.indexOf(br)<0&&act.indexOf((P[1]||{}).br)<0) return;
+    add('office',{grp:['dup'], key:'dup|'+P.map(function(x){ return x.pid; }).sort().join('|'), icon:'🔍', kind:'نفس المريض على أكتر من ملف ('+(gp.kind==='phone'?'نفس الرقم والاسم قريب':'الاسم متشابه')+') — ادمجيهم على Medicolize', name:(P[0]||{}).name||'', pid:(P[0]||{}).pid, br:act.indexOf(br)>=0?br:(P[1]||{}).br,
       lines:P.map(function(x,i){ return '📁 ملف '+(i+1)+': '+planPtLink(x.name,x.pid)+' · '+alEsc(x.phone||'')+' · حضر '+(x.n||0)+' جلسة'+(x.last?' · آخر حضور '+alEsc(alFmtDay(x.last)):'')+' · '+alEsc(x.br==='FIX ZONE'?'الدقي':'الهرم'); })}); });
   // 🧾 فاتورة محتاجة تتعدل (الخزنة كتبت كده في شيت التحصيلات) — على مسئولة الفواتير · بتتقفل لما المتبقي على المريض يقل في Medicolize
   if(PLAN_COLROWS){ var curRem={}; if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.debts) AUD_DATA.debts.forEach(function(r){ curRem[r.pid]=(curRem[r.pid]||0)+(+r.rem||0); });

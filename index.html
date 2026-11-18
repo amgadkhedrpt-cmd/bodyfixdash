@@ -13274,7 +13274,7 @@ var PLAN_DONE_RULE={dup:'🤖 الملفات تتدمج على Medicolize (ال�
   conftoday:'🤖 الميعاد يبقى Confirmed أو Cancelled أو المريض يوصل',
   waittoday:'🤖 الميعاد يتنقل من الويتنج أو يتلغى · أو ✋ ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnext:'🤖 الميعاد يتنقل من الويتنج أو يتلغى · أو ✋ ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه', waitnut:'🤖 الميعاد يتنقل من الويتنج أو يتلغى · أو ✋ ملحوظة النهارده لو مفيش ميعاد فاضي يناسبه',
   late:'🤖 تتكتب ملحوظة على الموعد في Medicolize (هيوصل إمتى / ما ردش) — للمعلومية',
-  miss:'🤖 يتحجزله ميعاد أو ييجي', kashf:'🤖 يحجز جلسة', kashf0:'🤖 يحجز جلسة', fix:'🤖 اسمه يظهر في شيت تثبيت الدكتور',
+  miss:'🤖 يتحجزله ميعاد أو ييجي · أو ✋ «🗓️ مش بييجي كل يوم» · أو 📝 ملحوظة باللي حصل', kashf:'🤖 يحجز جلسة', kashf0:'🤖 يحجز جلسة', fix:'🤖 اسمه يظهر في شيت تثبيت الدكتور',
   drop:'🤖 يتحجزله ميعاد · أو ✋ ملحوظة باللي حصل (أو 🚫 رفض بسبب)', idle:'🤖 يتحجزله ميعاد · أو ✋ ملحوظة (ولو قال هييجي يوم وما جاش ترجع تتفتح)',
   streak:'🤖 يتشال من شيت التثبيت · أو ✋ ملحوظة باللي حصل', recur:'🤖 أول مواعيده الجاية تبقى Confirmed · أو ✋ ملحوظة باللي حصل',
   stop:'🤖 مواعيده الجاية تتلغى + يتشال من شيت التثبيت · أو ✋ «مش هيوقف جلسات» لو هيكمل',
@@ -13321,7 +13321,7 @@ function planHowBar(gk,A){ var c={}; A.forEach(function(t){ var h=planHow(t); if
   var cur=PLAN_HOW_F[gk]||'', ch=function(v,txt,col){ var on=cur===v; return '<span onclick="PLAN_HOW_F[\''+gk+'\']=\''+(on?'':v)+'\';planRender()" style="cursor:pointer;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:12px;color:'+(on?'#fff':col)+';border:1px solid '+col+';background:'+(on?col:'transparent')+'">'+txt+'</span>'; };
   var keys=['todo','sys','man','ref','nr'].filter(function(k){ return c[k]; }); if(keys.length<2&&!cur) return '';
   return '<div style="display:flex;gap:5px;flex-wrap:wrap;padding:4px 2px 8px">'+ch('','الكل '+(A.length),'var(--mute)')+keys.map(function(k){ var L=PLAN_HOW_L[k]; return ch(k,L[0]+' '+L[1]+' '+c[k],L[2]); }).join('')+'</div>'; }
-var PLAN_NOTE_OK={debtph:1, drop:1, idle:1, streak:1, recur:1};
+var PLAN_NOTE_OK={debtph:1, drop:1, idle:1, streak:1, recur:1, miss:1};
 /* مكالمات المتابعة: بتتقفل من Medicolize بس (الموعد Completed بملحوظة أو اتصالين بوقتهم + الحجز الجاي) — مفيش قفل ولا «ما ردش» من الداشبورد */
 var PLAN_SYS_ONLY={call:1, mcallup:1, sudden:1};
 var PLAN_NO_NR={mcall:1, mcallup:1, sudden:1, noinv:1, invfix:1, invrev:1, aud:1, stale:1};   // مهام تسجيل على السيستم — مش مكالمة، فمالهاش «ما ردش»
@@ -13398,10 +13398,15 @@ function planRow(t){
       (phone?'<div dir="ltr" style="font-size:.6rem;color:var(--g);margin-top:4px;text-align:right">'+alEsc(phone)+'</div>':'')+
       '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">'+
         (live?(auto?'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">🤖 بتتقفل لوحدها لما '+alEsc(PLAN_AUTO_G[(t.grp||[])[0]]||'')+(sysOnly&&(t.grp||[])[0]==='call'?' — اكتبي المكالمات في ملحوظة الموعد على Medicolize':'')+'</span>':manOk?btn('done',(t.grp||[])[0]==='aud'?'✅ راجعته — مفيش خطأ':'✅ اتعمل','rgba(16,185,129,.15)'):'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">'+(PLAN_NOTE_REF[(t.grp||[])[0]]?'🤖 بتتقفل لما الخدمة تتحجز على Medicolize — ولو مش عايزها اكتبي السبب في الملحوظة (بتتحسب 🚫 رفض)':'🤖 بتتقفل لما الشغل يتسجل على Medicolize — أو «🚫 رفض» لو المريض رفض')+'</span>')+(isCall||sysOnly||PLAN_NO_NR[(t.grp||[])[0]]?'':btn('nr','📞 ما ردش','rgba(245,158,11,.12)'))+((t.grp||[])[0]==='stop'?'<button onclick="event.stopPropagation();planStopNo(\''+k+'\')" style="background:rgba(167,139,250,.14);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">✋ مش هيوقف جلسات</button>':
-         planNoteCloses(t)||sysOnly?'':'<button onclick="event.stopPropagation();planRef(\''+k+'\')" style="background:rgba(249,115,22,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🚫 رفض</button>')+((t.grp||[])[0]==='sudden'?'':btn('later','⏭ أجّل','transparent')):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
+         planNoteCloses(t)||sysOnly?'':'<button onclick="event.stopPropagation();planRef(\''+k+'\')" style="background:rgba(249,115,22,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🚫 رفض</button>')+((t.grp||[])[0]==='sudden'?'':(t.grp||[])[0]==='miss'?'<button onclick="event.stopPropagation();planMissNo(\''+k+'\')" style="background:rgba(16,185,129,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🗓️ مش بييجي كل يوم</button>':btn('later','⏭ أجّل','transparent')):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
         '<input id="pn_'+h+'" value="'+alEsc(st.note||'')+'" placeholder="💬 ملحوظة…" onchange="planNote(\''+k+'\')" onkeydown="if(event.key===\'Enter\')this.blur()" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--brd);border-radius:7px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.62rem;padding:5px 8px">'+
         '<span id="pst_'+h+'" style="font-size:.56rem;color:var(--mute)"></span></div></div></div>';
 }
+/* 🙋 «بييجي بانتظام ومالوش ميعاد النهارده»: زرار «مش بييجي كل يوم» = اتعملت (زي الملحوظة) */
+function planMissNo(key){ if(!PLAN_ME){ alert('اختاري اسمك الأول من خانة «السكرتيرة المسئولة» فوق'); return; }
+  var cur=PLAN_ST[key]||{}, tk=PLAN_TASKIDX[key]||{}, n='مش بييجي كل يوم'+(String(cur.note||'').trim()?' — '+cur.note:'');
+  var o=Object.assign(planMeta(tk),cur,{s:'done', by:PLAN_ME, note:n, nby:PLAN_ME, what:'✋ '+n, at:new Date().toLocaleString('ar-EG',{hour:'numeric',minute:'2-digit',day:'numeric',month:'numeric'}), ts:new Date().toISOString()});
+  PLAN_ST[key]=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender(); planSaveRaw('PLAN|'+key, JSON.stringify(o)); }
 function planClearView(){ PLAN_VIEW=''; try{ localStorage.setItem('planView',''); }catch(e){} planRender(); }
 /* ═══ 🆕 الشكل الجديد لخطة اليوم (تجريبي — اختياري لكل جهاز، والقديم زي ما هو بزرار) ═══
    4 عناوين حسب اللي بيأثر على المكان: 💰 فلوس · 🔁 استمرار المرضى · 📅 الحضور · 🧾 السيستم مظبوط — أهم 3 ظاهرين والباقي بدوسة */

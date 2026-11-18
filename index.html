@@ -12468,16 +12468,17 @@ function planTasks(useAll){
       var sy='', wh='';
       if(g==='renew'){ var eb=renew[x.pid]&&renew[x.pid].eval_booked;   // اتحجز «تقييم الجلسه الأخيره» النهارده أو بعد كده → اتعملت
         if(eb){ sy='اتحجز تقييم الجلسة الأخيرة'; wh='تقييم الجلسة الأخيرة '+alFmtDay(String(eb).slice(0,10))+' '+planT(eb); } else if(evT){ sy='اتحجز تقييم الجلسة الأخيرة'; wh=evT+' النهارده'; } }
-      add('rec',{grp:[g], sys:sy, what:wh, key:today+'|rec|'+g+'|'+x.pid, icon:arrived?'🟢':'🕐', kind:kindR+(g==='nonext'&&x.room?' · 🚪 '+alEsc(x.room):''), name:x.name, phone:x.phone, br:brOf(x), lines:R, note0:x.note, time:x.time, room:x.room||'', doctor:x.doctor});
+      add(g==='svc'?'morning':'rec',{grp:[g], sys:sy, what:wh, key:today+'|rec|'+g+'|'+x.pid,   // 🧩 الخدمة الناقصة: أول الشيفت (تتعرض/تتحجز قبل ما ييجي)
+ icon:arrived?'🟢':'🕐', kind:kindR+(g==='nonext'&&x.room?' · 🚪 '+alEsc(x.room):''), name:x.name, phone:x.phone, br:brOf(x), lines:R, note0:x.note, time:x.time, room:x.room||'', doctor:x.doctor});
     });
   });
-  var recDone={}; T.rec.forEach(function(t){ recDone[t.key]=t; });
+  var recDone={}; T.rec.concat(T.morning).forEach(function(t){ recDone[t.key]=t; });
   [['eval','🩺 ✅ اتحجزله تقييم على السيستم','اتحجز تقييم'],['nonext','📅 ✅ اتحجزله ميعاد جاي على السيستم','اتحجزله ميعاد'],
    ['svc','🧩 ✅ الخدمة الناقصة اتحجزت على السيستم','اتحجزت الخدمة'],['debt','💸 ✅ اتدفع الباقي على Medicolize','اتحصّل']].forEach(function(z){
     (RES[z[0]]||[]).forEach(function(x){
       var k=today+'|rec|'+z[0]+'|'+x.pid, ex=recDone[k];
       if(ex){ ex.sys=z[2]; ex.what=x.what||''; return; }
-      add('rec',{grp:[z[0]], sys:z[2], what:x.what||'', key:k, icon:'🟢', kind:alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)), name:x.name, phone:x.phone, br:brOf(x), lines:['<span style="color:var(--g)">'+z[1]+(x.what?' — '+alEsc(x.what):'')+'</span>'], time:x.time});
+      add(z[0]==='svc'?'morning':'rec',{grp:[z[0]], sys:z[2], what:x.what||'', key:k, icon:'🟢', kind:alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)), name:x.name, phone:x.phone, br:brOf(x), lines:['<span style="color:var(--g)">'+z[1]+(x.what?' — '+alEsc(x.what):'')+'</span>'], time:x.time});
     });
   });
   // ⏰ اتأخر ربع ساعة من غير Check In — للمعلومية بس (مش مهمة ومش بتتعد) → بتتعرض في مربع لوحدها فوق

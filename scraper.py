@@ -1802,10 +1802,11 @@ async def main():
         raise ValueError("Secrets not set")
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(
-            headless=HEADLESS,
-            args=["--no-sandbox","--disable-setuid-sandbox","--disable-dev-shm-usage","--disable-gpu"]
-        )
+        _args = ["--no-sandbox","--disable-setuid-sandbox","--disable-dev-shm-usage","--disable-gpu"]
+        try:   # Chrome متسطّب جاهز على GitHub — بيوفّر 4 دقايق تسطيب Chromium في كل سحب
+            browser = await pw.chromium.launch(channel="chrome", headless=HEADLESS, args=_args)
+        except Exception:
+            browser = await pw.chromium.launch(headless=HEADLESS, args=_args)
         async def _attempt(use_state):
             ctx = await browser.new_context(
                 viewport={"width": 1400, "height": 900},

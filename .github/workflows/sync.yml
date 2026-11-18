@@ -52,7 +52,9 @@ jobs:
         run: pip install playwright cryptography
 
       - name: Install Chromium
-        run: python -m playwright install --with-deps chromium
+        # Chrome جاهز على السيرفر → مفيش تسطيب (كان بياخد 4 دقايق كل سحب) · لو مش موجود بس بنسطّب Chromium
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then google-chrome --version; echo "using preinstalled Chrome"; else python -m playwright install --with-deps chromium; fi
 
       - name: Restore Medicolize session
         uses: actions/cache@v4

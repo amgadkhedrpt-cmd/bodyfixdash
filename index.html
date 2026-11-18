@@ -12935,11 +12935,8 @@ function planLastAct(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', L={};
     [[o.ts,o.by],[o.nts,o.nby||o.by]].forEach(function(z){ if(!z[0]||!z[1]) return; var t=Date.parse(z[0]); if(!t) return;
       if(new Date(t).toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})!==td) return; var n=planNormName(z[1]); if(!L[n]||t>L[n]) L[n]=t; }); });
   return L; }
-var PLAN_LOAD_AT=0, PLAN_SYNC_G=null;
-/* ⚡ جنب المجموعة: سحب فوري من Medicolize — ولما يخلص المجموعة بتتحدث ويطلع كام اتقفل */
-function planGroupSync(gk,open){ if(!PLAN_SYNC_G||PLAN_SYNC_G.gk!==gk) PLAN_SYNC_G={gk:gk, open:open, at:Date.now()};
-  if(typeof bfSyncNow==='function') bfSyncNow();
-  mcToast('⏳ بيشيّك على Medicolize دلوقتي — المجموعة هتتحدث لوحدها لما يخلص (من 3 لـ 5 دقايق)'); planRender(); }
+var PLAN_LOAD_AT=0;
+
 function planSecPanel(){
   var D=ALERTS_DATA; if(!D) return '';
   var T=planTasks(true); if(!T) return '';
@@ -13154,7 +13151,7 @@ var PLAN_DONE_RULE={visit:'🤖 يتحجز للمريض ميعاد مع د. أم
   nopkg:'🤖 تتفتحله باقة أو تتحجزله إعادة تقييم على Medicolize · أو 🚫 رفض بسبب', nopkgnext:'🤖 تتفتحله باقة أو تتحجزله إعادة تقييم على Medicolize · أو 🚫 رفض بسبب',
   mcall:'🤖 حد يتكلم مع الرقم (احنا رجعناله أو هو اتصل تاني — بيبان لما سجل المكالمات يترفع) أو ييجي العيادة → بتتقفل خالص · 📞 3 مكالمات النهارده للرقم بين كل واحدة والتانية نص ساعة على الأقل (من السجل) وما ردش → بتتحسب النهارده وترجع بكره · 3 أيام كده وما ردش → بتتقفل خالص «مش بيرد» · أو 🚫 رفض بسبب (رقم غلط / إعلانات) · الملحوظة لوحدها ما بتقفلهاش', mcallup:'🤖 يترفع ملف سجل المكالمات (الصبح · وبعد التسليم)'};
 function planRuleHTML(g){ var r=PLAN_DONE_RULE[g]||PLAN_AUTO_G[g]; if(!r) return '';
-  return '<div style="font-size:.6rem;margin:6px 0 4px;padding:5px 9px;border-radius:7px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);line-height:1.7">✅ <b>بتتحسب اتعملت لما:</b> '+alEsc(r).replace(/🤖/g,'<b>🤖</b>')+(/🤖/.test(r)?'<div style="color:var(--mute)">⚡ خلّصتي على Medicolize ومستنية تتقفل؟ دوسي «⚡ شيّك» جنب اسم المجموعة — بيشيّك في 3–5 دقايق بدل ما تستني السحب الجاي (كل نص ساعة)</div>':'')+'</div>'; }
+  return '<div style="font-size:.6rem;margin:6px 0 4px;padding:5px 9px;border-radius:7px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);line-height:1.7">✅ <b>بتتحسب اتعملت لما:</b> '+alEsc(r).replace(/🤖/g,'<b>🤖</b>')+(/🤖/.test(r)?'<div style="color:var(--mute)">⚡ خلّصتي على Medicolize ومستنية تتقفل؟ دوسي «⚡ تحديث فوري» اللي فوق بدل ما تستني السحب الجاي</div>':'')+'</div>'; }
 /* ⬜ ليه المهمة لسه مفتوحة — بيتكتب على كل مهمة مش متقفلة (لو المهمة نفسها ما فيهاش «ناقص …») */
 var PLAN_WHY={visit:'يتحجز مع د. أمجد على Medicolize — أو ملحوظة باللي حصل', invrev:'✅ لو الفاتورة صح — أو ملحوظة باللي حصل النهارده (بتتقفل النهارده وترجع بكره) — أو ⏭ أجّل', sudden:'اسم الموعد «الغاء مفاجئ» على Medicolize (ومن تاني مرة خصم الجلسة) — أو «🙅 مش مفاجئ» بسبب', aud:'الغلط يتصلّح على Medicolize (بتتقفل لوحدها مع الـ Sync) — ولو «اختلاف في الخدمة» وراجعتيه وطلع صح: «✅ راجعته — مفيش خطأ»', debtph:'يدفع اللي عليه (بتتشال لوحدها مع الـ Sync) — أو اكتبي ملحوظة باللي حصل: بتتقفل النهارده وترجع بكره للمتابعة',
   mcall:'حد يتكلم مع الرقم — أو 3 مكالمات النهارده متباعدة نص ساعة (من السجل) — أو 🚫 رفض بسبب', mcallup:'ملف سجل المكالمات يترفع'};
@@ -13334,11 +13331,7 @@ function planRender(){
             var mvTag=ci1.from?'<span title="'+alEsc(ci1.from)+' غايبة النهارده" style="font-size:.6rem;color:'+(ci1.post?'#f59e0b':'#38bdf8')+';border:1px solid currentColor;border-radius:7px;padding:2px 6px;margin-inline-start:4px">'+(ci1.post?'⏸ متأجل ('+alEsc(ci1.from)+' غايبة)':'🔁 '+alEsc(ci1.from)+' ← <b>'+alEsc(ci1.owner)+'</b>')+'</span>':'';
             return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value,\''+bb.key+'\')" title="المسئولة عن المهمة دي في '+bb.label+'" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:'+(many?'120':'110')+'px">'+
               '<option value="">👤 '+(many?bb.label+'…':'المسئولة…')+'</option>'+(function(L){ if(cur&&L.indexOf(cur)<0) L.push(cur); planBR().concat([{key:'BODYFIX Center'},{key:'FIX ZONE'}]).forEach(function(ob){ if(ob.key!==bb.key) planNames(ob.key).forEach(function(n){ if(L.indexOf(n)<0) L.push(n); }); }); return L; })(planNames(bb.key).slice()).map(function(n){ var away=!planHere(n,bb.key); return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>'+(many?bb.label+': ':'')+alEsc(n)+(away?' (غايبة هنا — هتاخدها برضه)':'')+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option><option value="__del">➖ شيل اسم</option></select>'+(a&&a.by?'<span style="font-size:.54rem;color:#f59e0b;margin-inline-start:3px" title="التغيير ده للنهارده بس — بكره يرجع للأساس">⏱ النهارده بس</span>':'')+mvTag; }).join(''); })())+
-        (function(){ var sg=PLAN_SYNC_G&&PLAN_SYNC_G.gk===gk?PLAN_SYNC_G:null;
-          if(sg&&!bfSyncBusy&&Date.parse((ALERTS_DATA||{}).generated_at||'')>sg.at){ var cl=Math.max(0,sg.open-open.length); PLAN_SYNC_G=null;
-            setTimeout(function(){ mcToast('✅ اتشيّك على Medicolize — «'+gt[1]+'»: اتقفل '+cl+' · فاضل '+open.length,'ok'); },50); sg=null; }
-          if(allDone||!A.some(function(t){ return planIsAuto(t); })) return '';   // بس للمهام اللي بتتقفل لوحدها من Medicolize
-          return '<button onclick="event.stopPropagation();planGroupSync(\''+gk+'\','+open.length+')" title="خلّصتي المهام دي على Medicolize؟ دوسي هنا يشيّك دلوقتي ويقفلها بدل ما تستني السحب الجاي (3–5 دقايق)" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:2px 7px;font-size:.6rem;cursor:pointer">'+(sg&&bfSyncBusy?'⏳ بيشيّك':'⚡ شيّك')+'</button>'; })()+
+
         (allDone?'<span style="color:var(--g);font-size:.64rem;font-weight:800">✅ خلصت</span>':'<span style="background:'+(hot?'var(--r)':'#ec4899')+';color:#fff;border-radius:10px;padding:1px 10px;font-size:.68rem;font-weight:900">'+open.length+'</span>')+
         '<span style="width:60px;height:6px;background:var(--bg);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:'+pc+'%;background:var(--g)"></span></span>'+
         '<b style="font-size:.66rem;min-width:34px;text-align:center;color:'+(pc>=80?'var(--g)':pc>=40?'var(--am)':'var(--r)')+'">'+pc+'%</b>'+

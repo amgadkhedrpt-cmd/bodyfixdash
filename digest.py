@@ -391,7 +391,10 @@ def plan_from_page():
     root = os.path.abspath(".")
     try:
         with sync_playwright() as p:
-            b = p.chromium.launch()
+            try:
+                b = p.chromium.launch(channel="chrome")
+            except Exception:
+                b = p.chromium.launch()
             pg = b.new_page()
             # شيت التحصيلات (مين على الخزنة + ملحوظات الفواتير) — نفس الإعداد اللي الصفحة بتاخده من الجهاز
             if os.environ.get("SHEET_URL") and os.environ.get("SHEET_KEY"):

@@ -1730,22 +1730,51 @@ def build_alerts(appointments, now=None, packages=None):
                           "n": len(att), "last": (max(a["start"] for a in att).date().isoformat() if att else ""),
                           "br": last["branch"], "recent": any(a["start"].date() >= today - timedelta(days=120) for a in ap)}
         nm = lambda n: _re.sub(r"\s+", " ", (n or "").replace("أ", "ا").replace("إ", "ا").replace("آ", "ا").replace("ى", "ي").replace("ة", "ه")).strip()
-        groups = defaultdict(set)
-        for pid, x in info2.items():
-            ph = "".join(ch for ch in x["phone"] if ch.isdigit())[-9:]
-            if len(ph) >= 8:
-                groups[("phone", ph)].add(pid)
-            if len(nm(x["name"])) >= 8:
-                groups[("name", nm(x["name"]))].add(pid)
-        seen_sets = set()
-        for (kind, key), pids in groups.items():
+        # الاسم لازم يبقى قريب: نفس الاسم، أو أول اسمين زي بعض وواحد منهم بداية التاني / فيهم 3 أسامي مشتركة
+        #   نفس الرقم + الاسم قريب (أول اسم زي بعض و2 مشتركين) = يطلع · نفس الرقم + أسامي بعيدة (أسرة واحدة بتستخدم رقم واحد) = ما يطلعش
+        tk = {pid: nm(x["name"]).split() for pid, x in info2.items()}
+        phk = {pid: "".join(ch for ch in x["phone"] if ch.isdigit())[-9:] for pid, x in info2.items()}
+        def similar(a, b):
+            A, B = tk[a], tk[b]
+            if len(A) < 2 or len(B) < 2:
+                return False
+            same_ph = len(phk[a]) >= 8 and phk[a] == phk[b]
+            if A == B:
+                return same_ph or len(A) >= 3          # اسم من كلمتين بس متكرر بأرقام مختلفة = غالباً ناس مختلفين
+            com = len(set(A) & set(B))
+            if A[:2] == B[:2] and (A[:len(B)] == B or B[:len(A)] == A or com >= 3) and (same_ph or min(len(A), len(B)) >= 3):
+                return True
+            return same_ph and A[0] == B[0] and com >= 2
+        cand = defaultdict(set)
+        for pid in info2:
+            if len(phk[pid]) >= 8:
+                cand[("p", phk[pid])].add(pid)
+            if len(tk[pid]) >= 2:
+                cand[("n", " ".join(tk[pid][:2]))].add(pid)
+        par = {}
+        def f(x):
+            while par.get(x, x) != x:
+                x = par[x]
+            return x
+        linked = set()
+        for (k, _), pids in cand.items():
+            L = list(pids)
+            for i1 in range(len(L)):
+                for i2 in range(i1 + 1, len(L)):
+                    a, b = L[i1], L[i2]
+                    if similar(a, b):
+                        ra, rb = f(a), f(b)
+                        if ra != rb:
+                            par[ra] = rb
+                        linked.update((a, b))
+        cl = defaultdict(list)
+        for pid in linked:
+            cl[f(pid)].append(pid)
+        for root, pids in cl.items():
             if len(pids) < 2 or not any(info2[p]["recent"] for p in pids):
                 continue
-            fs = frozenset(pids)
-            if fs in seen_sets:
-                continue
-            seen_sets.add(fs)
-            dup_pts.append({"kind": kind, "pts": sorted((info2[p] for p in pids), key=lambda x: x["last"], reverse=True)})
+            same = len({phk[p] for p in pids}) == 1 and len(phk[pids[0]]) >= 8
+            dup_pts.append({"kind": "phone" if same else "name", "pts": sorted((info2[p] for p in pids), key=lambda x: x["last"], reverse=True)})
         dup_pts.sort(key=lambda g: (g["kind"] != "phone", -max(x["n"] for x in g["pts"])))
         print(f"🔍 ملفات مكررة: {len(dup_pts)}")
     except Exception as e:
@@ -1763,10 +1792,15 @@ def build_alerts(appointments, now=None, packages=None):
             r90 = [a for a in v if today - timedelta(days=90) <= a["start"].date() <= today]
             ns = sum(1 for a in r90 if "no" in a["status"] and "show" in a["status"])
             ca = sum(1 for a in r90 if "cancel" in a["status"])
-            if not fu and not ns and not ca:
-                continue
+            # آخر 4 مواعيد + أقرب 2 جايين (غير المتابعة) · بيشتغل مع مين = أكتر أخصائي حضر معاه آخر 30 يوم
+            real = [a for a in v if not _fu_kind(a["type"]) and (a["doctor"] or "").strip().lower() != "follow up"]
+            past = sorted((a for a in real if a["start"].date() <= today), key=lambda a: a["start"])[-4:]
+            nxt = sorted((a for a in real if a["start"].date() > today and a["status"] in LIVE_TODAY), key=lambda a: a["start"])[:2]
+            w30 = Counter(a["doctor"] for a in real if a["status"] in ATTENDED and today - timedelta(days=30) <= a["start"].date() <= today and a["doctor"])
+            ap = lambda a: [a["start"].isoformat()[:16], a["type"], a["doctor"], a["status"]]
             pt_extra[pid] = {"fu": [[a["start"].date().isoformat(), _fu_kind(a["type"]), (a.get("note") or "")[:200], a.get("by") or "", a["status"]] for a in fu],
-                             "ns": ns, "ca": ca}
+                             "ns": ns, "ca": ca, "ap": [ap(a) for a in reversed(past)], "nx": [ap(a) for a in nxt],
+                             "wk": [[d, n] for d, n in w30.most_common(2)]}
     except Exception as e:
         print(f"⚠️ pt_extra: {e}")
 

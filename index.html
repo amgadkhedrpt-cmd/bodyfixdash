@@ -13074,9 +13074,11 @@ function planAssign(gk, v, bkey){
 }
 /* آخر حاجة كل سكرتيرة عملتها النهارده في الخطة (زرار / ملحوظة / واتساب / تعيين) — بتوقيت جهازها */
 function planLastAct(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', L={};
+  var put=function(n,t,sys){ n=planNormName(n); if(!n||n==='السيستم') return; if(!L[n]||t>L[n].t) L[n]={t:t,sys:sys}; };
   Object.keys(PLAN_ST).forEach(function(k){ var o=PLAN_ST[k]; if(!o||typeof o!=='object') return;
-    [[o.ts,o.by],[o.nts,o.nby||o.by]].forEach(function(z){ if(!z[0]||!z[1]) return; var t=Date.parse(z[0]); if(!t) return;
-      if(new Date(t).toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})!==td) return; var n=planNormName(z[1]); if(!L[n]||t>L[n]) L[n]=t; }); });
+    [[o.ts,o.s==='auto'?o.own:o.by,o.s==='auto'],[o.nts,o.nby||o.by,0]].forEach(function(z){ if(!z[0]||!z[1]) return; var t=Date.parse(z[0]); if(!t) return;
+      if(new Date(t).toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})!==td) return; put(z[1],t,z[2]); }); });
+  Object.keys(L).forEach(function(n){ var v=L[n]; L[n]=v.t; L[n+'|sys']=v.sys; });
   return L; }
 var PLAN_LOAD_AT=0;
 
@@ -13102,14 +13104,14 @@ function planSecPanel(){
       '<td style="text-align:center">'+sysD+'</td><td style="text-align:center">'+Object.keys(hand[n]||{}).length+'</td>'+
       (function(){ var t=la[n], out=(T0.p[n]||{}).st==='out'&&!(T0.p[n]||{}).sub, mins=t?Math.round((nowMs-t)/6e4):null, work=cH>=10&&cH<23;
         var red=!out&&work&&(mins===null?cH>=11:mins>=60);
-        return '<td style="text-align:center;white-space:nowrap;'+(red?'color:#fff;background:var(--r);border-radius:6px;font-weight:800':'')+'">'+(out?'<span style="color:var(--mute)">غايبة</span>':t?new Date(t).toLocaleTimeString('ar-EG',{timeZone:'Africa/Cairo',hour:'numeric',minute:'2-digit'})+'<div style="font-size:.52rem;'+(red?'':'color:var(--mute)')+'">'+(mins<1?'دلوقتي':'من '+(mins>=60?Math.floor(mins/60)+' س ':'')+(mins%60)+' د')+'</div>':'ما عملتش حاجة النهارده')+'</td>'; })()+'</tr>';
+        return '<td style="text-align:center;white-space:nowrap;'+(red?'color:#fff;background:var(--r);border-radius:6px;font-weight:800':'')+'">'+(out?'<span style="color:var(--mute)">غايبة</span>':t?new Date(t).toLocaleTimeString('ar-EG',{timeZone:'Africa/Cairo',hour:'numeric',minute:'2-digit'})+'<div style="font-size:.52rem;'+(red?'':'color:var(--mute)')+'">'+(mins<1?'دلوقتي':'من '+(mins>=60?Math.floor(mins/60)+' س ':'')+(mins%60)+' د')+(la[n+'|sys']?' · 🤖 على Medicolize':'')+'</div>':'ما عملتش حاجة في الخطة النهارده')+'</td>'; })()+'</tr>';
   }).join('');
   return '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><b style="font-size:.72rem">👩‍💼 الإنجاز لكل سكرتيرة — النهارده</b><span style="flex:1"></span>'+
       '<span style="font-size:.54rem;color:var(--mute)">'+(PLAN_LOAD_AT?'الجدول ده اتحدث '+new Date(PLAN_LOAD_AT).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit',second:'2-digit'})+' · بيتحدث لوحده كل دقيقة':'')+'</span>'+
       '<button onclick="planLoad();this.textContent=\'⏳\'" style="background:rgba(14,165,233,.15);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer" title="بيحدّث نسبة الإنجاز وآخر حاجة عملتها كل واحدة بس — مش بيسحب من Medicolize">🔄 حدّث الإنجاز</button></div>'+
       '<div style="font-size:.54rem;color:var(--mute);margin:-3px 0 6px">«🔄 حدّث الإنجاز» = بيجيب آخر اللي السكرتاريه عملوه في الخطة (ثواني) — مش بيسحب بيانات جديدة من Medicolize</div>'+
-    '<table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr style="color:var(--mute);font-size:.56rem"><th style="text-align:right;padding:3px">السكرتيرة</th><th>مهامها اتعمل</th><th>نسبة الإنجاز</th><th>منهم على Medicolize</th><th>قفلتها بزرار ✅/📞</th><th>آخر حاجة عملتها</th></tr>'+rows+'</table>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr style="color:var(--mute);font-size:.56rem"><th style="text-align:right;padding:3px">السكرتيرة</th><th>مهامها اتعمل</th><th>نسبة الإنجاز</th><th>منهم على Medicolize</th><th>قفلتها بزرار ✅/📞</th><th title="زرار أو ملحوظة في الخطة · أو 🤖 مهمة ليها اتقفلت من شغلها على Medicolize (وقت ما السحب شافها)">آخر حاجة عملتها</th></tr>'+rows+'</table>'+
     '<div style="font-size:.54rem;color:var(--mute);margin-top:5px">مهامها = المهام المتعيّنة عليها جنب كل مهمة + مهام الفرع اللي مش متعيّنة لحد لو هي اختارت اسمها فوق · «حصّل فلوس» على اللي على الخزنة وقت ميعاد المريض · «على Medicolize» = اتعملت على السيستم واتقفلت لوحدها (حجز / تأكيد / ملحوظة …) وده شغلها برضه</div></div>';
 }
 
@@ -13131,7 +13133,7 @@ function planMeta(t){ var g=(t.grp&&t.grp[0])||''; return {name:t.name||'', kind
 function planAutoSave(all){
   if(!PLAN_LOADED) return; var n=0, at=new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
   all.forEach(function(t){ if(n>=40||!t.sys) return; var st=PLAN_ST[t.key]; if(st&&(st.s==='auto'||st.s==='done')) return;
-    var o=Object.assign(planMeta(t),{s:'auto', by:'السيستم', at:at, what:String(t.what||t.sys).replace(/<[^>]+>/g,'')});
+    var o=Object.assign(planMeta(t),{s:'auto', by:'السيستم', at:at, ts:new Date().toISOString(), own:planNormName(planOwner(t,(t.grp||[])[0])||''), what:String(t.what||t.sys).replace(/<[^>]+>/g,'')});   // ts/own = إمتى السيستم شاف الشغل اتعمل على Medicolize ومين صاحبته
     if(st&&st.note) o.note=st.note;
     PLAN_ST[t.key]=o; planSaveRaw('PLAN|'+t.key, JSON.stringify(o)); n++; });
   if(n) try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}

@@ -1727,7 +1727,9 @@ def build_alerts(appointments, now=None, packages=None):
                 x = dict(x, amg=(amg["start"].isoformat() if amg else (x.get("amg") if x.get("amg") and x["amg"][:10] < today.isoformat() else None)),
                          come=({"t": come["start"].isoformat(), "dr": come["doctor"]} if come else None),
                          nx=({"t": nxa["start"].isoformat(), "dr": nxa["doctor"]} if nxa else None),
-                         last=(lst.date().isoformat() if lst else None))
+                         last=(lst.date().isoformat() if lst else None),
+                         days=sorted({a["start"].weekday() for a in ap if a["status"] in ATTENDED and a["branch"] == "FIX ZONE"
+                                      and today - timedelta(days=35) <= a["start"].date() <= today}))   # أيامه المعتادة (الاتنين=0)
                 items.append(x)
             dokki_visit = {"date": vd, "items": items}
     except Exception as e:

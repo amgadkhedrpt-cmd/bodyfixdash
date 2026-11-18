@@ -13082,6 +13082,7 @@ function planAssign(gk, v, bkey){
 var PLAN_ACTK={conf:'upd',conftoday:'upd',confsp:'upd',late:'upd',sudden:'upd',waittoday:'upd',waitnext:'upd',waitnut:'upd',stale:'step',aud:'step',noinv:'step',debt:'pay',debtph:'pay',invrev:'pay',invfix:'pay'};
 function planActor(t){ var st=PLAN_ST[t.key]||{}; if(st.s==='done'||st.s==='nr'||st.s==='ref') return planNormName(st.by||'');
   var A=(typeof AUD_DATA!=='undefined'&&AUD_DATA&&AUD_DATA.acts)||null; if(!A) return ''; var pid=t.pid||planPidOfKey(t.key), L=(A[pid]||[]).slice(); if(!L.length) return '';
+  var SN=planNamesAll().map(planNormName), sec=L.filter(function(a){ return SN.indexOf(planNormName(a[2]||''))>=0; }); if(sec.length) L=sec;   // السكرتاريه الأول (مش الأخصائي اللي قفل الجلسة)
   var want=PLAN_ACTK[(t.grp||[])[0]]||'book', m=L.filter(function(a){ return a[1]===want; }); if(!m.length&&want==='book') m=L.filter(function(a){ return a[1]==='upd'; }); if(!m.length) m=L;
   m.sort(function(a,b){ return a[0]<b[0]?1:-1; }); return planNormName(m[0][2]||''); }
 /* «١١:٥١ ص» + اليوم → وقت (توقيت القاهرة) */

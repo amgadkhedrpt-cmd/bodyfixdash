@@ -1694,6 +1694,25 @@ def build_alerts(appointments, now=None, packages=None):
             for x in kashf_pending:
                 if x.get("branch") == "FIX ZONE" and not x.get("next_pt") and not x.get("sessions_after"):
                     put(x["pid"], x["name"], x["phone"], "kashf", {"dr": x.get("doctor"), "since": x.get("days_since")})
+            # 🔚 آخر الباقة في الدقي: فاضله جلسة أو اتنين في باقته وبييجي (ليه ميعاد جاي) ومحدش حجزله مع د. أمجد → قيّمه قبل ما يخلّص عشان يجدد
+            for v in patients.values():
+                try:
+                    ap0 = [a for a in v if a.get("pid")]
+                    if not ap0:
+                        continue
+                    last = max(ap0, key=lambda a: a["start"])
+                    if last["branch"] != "FIX ZONE":
+                        continue
+                    ps = pkg_state(ap0, upto_incl=True)
+                    size, done = ps.get("size") or 0, ps.get("done") or 0
+                    if size < 6 or not (size - 2 <= done < size):
+                        continue
+                    up = [a for a in ap0 if a["start"].date() > today and a["status"] in LIVE_TODAY]
+                    if not up or any(is_amg(a) for a in up):
+                        continue
+                    put(ap0[0]["pid"], last["name"], last["phone"], "end", {"done": done, "size": size, "dr": last["doctor"]})
+                except Exception:
+                    pass
             for pid, x in prev.items():
                 if pid not in it:
                     it[pid] = x

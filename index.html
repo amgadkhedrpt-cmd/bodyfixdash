@@ -11915,6 +11915,7 @@ function amgDokkiList(){
 /* 📋 زيارة د. أمجد للدقي — صفحة زي ورقة الزيارة: مين محتاج يتحجز معاه + ملحوظة لكل مريض (نفس ملحوظة المهمة) */
 function planVisitWhy(x){ var I=x.info||{}, dc=function(n){ return alEsc(alDocAr(n)||n||''); }, t=[], l=[];
   if(I.eval){ t.push('إعادة تقييم'); l.push('🩺 كشف مع '+dc(I.eval.kdr)+' يوم '+alEsc(alFmtDay(I.eval.kd))+(I.eval.after?' · حضر '+I.eval.after+' جلسة بعده':'')+' — ومحدش قيّمه'); }
+  if(I.end){ t.push('آخر الباقة'); l.push('🔚 جلسة '+(I.end.done||0)+' من '+(I.end.size||0)+' — قرّب يخلّص الباقة (مع '+dc(I.end.dr)+'): تقييم مع د. أمجد قبل ما يخلّص عشان يكمّل'); }
   if(I.fin){ t.push('خلّص الباقة'); l.push('🔁 خلّص الباقة ومجددش — من '+(I.fin.since||0)+' يوم (مع '+dc(I.fin.dr)+')'); }
   if(I.drop){ t.push('وقف'); l.push('📉 وقف في نص العلاج — من '+(I.drop.since||0)+' يوم (مع '+dc(I.drop.dr)+')'); }
   if(I.kashf){ t.push('كشف من غير حجز'); l.push('🩺 عمل كشف وما حجزش جلسات — من '+(I.kashf.since||0)+' يوم'); }
@@ -12031,6 +12032,11 @@ function planVisitCard(){ var D=ALERTS_DATA, DV=D&&D.dokki_visit; if(!DV||!DV.da
   var nx=(D.plan&&D.plan.tomorrow_confirm||[]).filter(function(x){ return x.branch==='FIX ZONE'&&String(x.time).slice(0,10)===DV.date; });
   if(nx.length){ var rk=nx.filter(function(x){ return x.why&&x.why.length; }).sort(function(a,b){ return a.time<b.time?-1:1; });
     h+=sec('⚠️ ممكن ما ييجوش يوم الزيارة',rk.length,tb(['الساعة','المريض','ليه'],rk.map(function(x){ return [alEsc(planT(x.time)),planPtLink(x.name,x.pid||planPidByPh(x.phone)),alEsc((x.why||[]).join('، '))]; }))+'<div style="font-size:.58rem;color:var(--mute);margin-top:3px">'+nx.filter(function(x){ return x.status!=='Confirmed'; }).length+' من '+nx.length+' مواعيد الدقي يوم الزيارة لسه ما اتأكدتش</div>'); }
+  var en=has('end').sort(function(a,b){ return planVisitTier(a,today)-planVisitTier(b,today)||((b.info.end.done/b.info.end.size)-(a.info.end.done/a.info.end.size)); });
+  if(en.length){ var enOp=PLAN_VISIT_T.en!=null?PLAN_VISIT_T.en:true;
+    h+='<details '+(enOp?'open ':'')+'ontoggle="PLAN_VISIT_T.en=this.open" style="margin-top:12px"><summary style="cursor:pointer;font-weight:800;font-size:.7rem">🔚 آخر الباقة — قيّمهم قبل ما يخلّصوا <span style="background:#ec4899;color:#fff;border-radius:9px;padding:0 8px;font-size:.6rem">'+en.length+'</span> <span style="font-size:.58rem;color:var(--mute);font-weight:400">— فاضلهم جلسة أو اتنين · التقييم معاك بيخلّيهم يجددوا</span></summary>'+
+      tb(['المريض','الباقة','الأخصائي','جاي إمتى','آخر حضور','الحالة','ملحوظة'],en.map(function(x){ var e=x.info.end||{}, w=x.come||x.nx;
+        return [planPtLink(x.name,x.pid),'<b>'+(e.done||0)+' من '+(e.size||0)+'</b>',dc(e.dr),w?(x.come?'<b style="color:var(--g)">يوم الزيارة '+alEsc(planT(w.t))+'</b>':alEsc(alFmtDay(String(w.t).slice(0,10))+' '+planT(w.t)))+' مع '+dc(w.dr):'—',planVLast(x,today),st(x),nt(x)]; }))+'</details>'; }
   [['fin','🔁 خلّصوا الباقة ومجددوش ومالهمش ميعاد'],['drop','📉 وقفوا في نص العلاج ومالهمش ميعاد'],['kashf','🩺 عملوا كشف وما حجزوش جلسات']].forEach(function(z){ var L=has(z[0]).sort(function(a,b){ return (a.info[z[0]].since||0)-(b.info[z[0]].since||0); });
     h+=sec(z[1],L.length,tb(['المريض','الأخصائي','من','آخر حضور','الحالة','ملحوظة'],L.map(function(x){ var i=x.info[z[0]]; return [planPtLink(x.name,x.pid||planPidByPh(x.phone)),dc(i.dr),(i.since||0)+' يوم',planVLast(x,today),st(x),nt(x)]; }))); });
   var dp=Object.keys((D.doc_perf||{}).docs||{}).filter(function(n){ return D.doc_perf.docs[n].branch==='FIX ZONE'; }), sd={};

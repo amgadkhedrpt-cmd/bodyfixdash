@@ -1,6 +1,8 @@
 {
- "at": "2026-11-18T17:36:22.458Z",
- "errors": [],
+ "at": "2026-11-18T17:58:26.609Z",
+ "errors": [
+  "ops all 2026-09: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (K"
+ ],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
  "pay_pages": {
@@ -90,14 +92,18 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
+ "fallbacks": [
+  "createdOperationSteps: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   ",
+  "createdOperationSteps: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   "
+ ],
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 64,
+ "ph2_n": 63,
  "conf": {
-  "confirmed_now": 135,
+  "confirmed_now": 132,
   "new": 3,
-  "cx_changed": 1
+  "cx_changed": 4
  },
  "kinds": {
   "pay": {
@@ -120,7 +126,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20748,
+    "rows": 20749,
     "cols": [
      "id",
      "type",
@@ -359,7 +365,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 662,
+    "rows": 665,
     "cols": [
      "aid",
      "start",
@@ -544,7 +550,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17581,
+    "rows": 17582,
     "cols": [
      "id",
      "referenceId",
@@ -565,7 +571,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 786,
+    "rows": 787,
     "cols": [
      "id",
      "referenceId",
@@ -588,7 +594,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 248,
+    "rows": 252,
     "cols": [
      "aid",
      "start",
@@ -659,7 +665,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 132161,
+    "rows": 132203,
     "cols": [
      "start",
      "status",
@@ -922,23 +928,10 @@
  },
  "hash": {
   "data/fin.enc": "134c7412da643284",
-  "data/fin_c.enc": "782a903f36b4c4d5"
+  "data/fin_c.enc": "4da3ee8ee13b9772"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 64,
- "skipped_at": "2026-11-18T17:50:13.606Z",
- "today_hash": "d920e690847c7367",
- "today_at": "2026-11-18T17:50:13.606Z",
- "today_n": {
-  "pay": {
-   "haram": 25,
-   "dokki": 1
-  },
-  "apt": {
-   "haram": 207,
-   "dokki": 52
-  }
- }
+ "secs": 64
 }

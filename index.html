@@ -14856,10 +14856,12 @@ async function bfSyncNow(){
   var H={'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json'};
   try{
     var j=await (await fetch(BF_REPO_API+'/runs?per_page=3',{headers:H,cache:'no-store'})).json();
-    var run=(j.workflow_runs||[]).filter(function(x){ return x.status!=='completed'; }).pop();
+    var saved=0; try{ saved=Number(localStorage.getItem('bf_sync_started'))||0; }catch(e){}
+    // العدّاد بيرجع بس لو التحديث اتداس من الجهاز ده (مش أي سحب شغال — السحب الأوتوماتيك كل نص ساعة أو سحب حد تاني)
+    if(!saved||Date.now()-saved>20*60000){ try{ localStorage.removeItem('bf_sync_started'); }catch(e){} return; }
+    var run=(j.workflow_runs||[]).filter(function(x){ return x.status!=='completed'&&new Date(x.created_at).getTime()>=saved-60000; }).pop();
     if(!run){ try{ localStorage.removeItem('bf_sync_started'); }catch(e){} return; }
     var st=new Date(run.run_started_at||run.created_at).getTime();
-    var saved=0; try{ saved=Number(localStorage.getItem('bf_sync_started'))||0; }catch(e){}
     if(saved && saved<st && st-saved<10*60000) st=saved;
     bfStartTimer(st, run.status==='in_progress'?'running':'queued');
     bfWatch(H, new Date(run.created_at).getTime()-1000);

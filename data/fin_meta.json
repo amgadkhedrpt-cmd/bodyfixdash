@@ -1,6 +1,9 @@
 {
- "at": "2026-11-18T20:57:57.189Z",
- "errors": [],
+ "at": "2026-11-18T21:11:58.943Z",
+ "errors": [
+  "pay own query: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0",
+  "exp own query: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0"
+ ],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
  "pay_pages": {
@@ -90,23 +93,27 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
+ "fallbacks": [
+  "payments: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   ",
+  "expensePayments: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   "
+ ],
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
  "ph2_n": 61,
  "conf": {
   "confirmed_now": 126,
-  "new": 1,
-  "cx_changed": 3
+  "new": 0,
+  "cx_changed": 0
  },
  "docerr": {
   "overrides": 6,
   "override_error": null,
-  "appts": 3239,
-  "steps": 3225,
+  "appts": 3142,
+  "steps": 3129,
   "day": "2026-11-18",
-  "open_now": 27,
-  "added": 1
+  "open_now": 26,
+  "added": 0
  },
  "kinds": {
   "pay": {
@@ -153,7 +160,47 @@
      "invoice.patient.lastName",
      "patient",
      "appointment",
-     "transaction"
+     "transaction",
+     "claimed",
+     "chart",
+     "tax",
+     "signed",
+     "invoice.tax",
+     "invoice.taxPercent",
+     "invoice.balance",
+     "invoice.discountPercent",
+     "invoice.diagnosticFee",
+     "invoice.insurance",
+     "invoice.subtotal",
+     "invoice.pendingPayment",
+     "invoice.pendingPaymentPercent",
+     "invoice.paidInFull",
+     "invoice.balanceInvoice",
+     "invoice.eInvoiceStatus",
+     "invoice.insuranceEInvoiceStatus",
+     "invoice.patient.birthDate",
+     "invoice.patient.balance",
+     "invoice.patient.phoneNumber",
+     "invoice.patient.firstPaymentDate",
+     "invoice.patient.referralDetails",
+     "invoice.patient.insuranceUnlimited",
+     "invoice.patient.approvalRequired",
+     "invoice.patient.insured",
+     "invoice.patient.createdAt",
+     "invoice.branch.name",
+     "invoice.doctor.name",
+     "referralSource.name",
+     "referralSource.color",
+     "branch.name",
+     "updatedAt",
+     "invoice.patient.patientId",
+     "invoice.patient.patientTags[].name",
+     "appointment.start",
+     "appointment.status",
+     "appointment.room",
+     "invoice.details",
+     "updatedBy.name",
+     "refundedBy.name"
     ],
     "missing": []
    },
@@ -233,7 +280,14 @@
      "createdAt",
      "createdBy.name",
      "transaction",
-     "createdBy"
+     "createdBy",
+     "expense.paid",
+     "expense.amount",
+     "expense.createdBy.name",
+     "updatedAt",
+     "other",
+     "updatedBy.name",
+     "expense.other"
     ],
     "missing": []
    },
@@ -929,10 +983,10 @@
  },
  "hash": {
   "data/fin.enc": "20d1cfa805860875",
-  "data/fin_c.enc": "72daa55535af0232"
+  "data/fin_c.enc": "a94f895db83c5276"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 111
+ "secs": 101
 }

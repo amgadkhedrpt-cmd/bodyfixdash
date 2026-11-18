@@ -12958,7 +12958,7 @@ function planBrOfName(name){ for(var b in PLAN_ROLES) if(planRoleOf(name,b)) ret
 /* موجودة في الفرع ده النهارده؟ (غايبة أو بتغطي في الفرع التاني = لأ) */
 function planHere(name, br){ var P=planTeam().p, p=P[name]; if(!p||p.st==='in'||!p.st) return true; if(p.st==='cover') return p.br===br;
   // متختارة تغطي مكان حد في الفرع ده («مهامها كلها ← فلانة») = موجودة هنا حتى لو متعلّم عليها غايبة في فرعها
-  for(var n in P){ var x=P[n]; if(x&&x.sub===name&&n!==name&&(planBrOfName(n)===br||planRoleOf(n,br))) return true; }
+  for(var n in P){ var x=P[n]; if(x&&x.sub&&planNormName(x.sub)===planNormName(name)&&n!==name&&(planBrOfName(n)===br||planRoleOf(n,br))) return true; }
   return false; }
 function planAM(br){ var T=planTeam(), am=T.am[br]; if(am&&planHere(am,br)) return am; var def=PLAN_ROLES[br]&&(PLAN_ROLES[br].F||PLAN_ROLES[br].DM); return def&&planHere(def,br)?def:''; }
 /* اللي بتغطي مكان فلانة في الفرع ده */
@@ -12999,7 +12999,7 @@ function planCoverMap(){
         var cd0=planCoverCands(t,g,o); if(cd0.c.length){ items.push({k:k, t:t, o:o, c:[o].concat(cd0.c), open:true, own:true}); return; } }
       if(!o||g==='debt'||planHere(o,br)||planAsgd(t,g,o)){ M[k]={owner:o}; if(o&&stOpen(t)) load[o]=(load[o]||0)+1; return; }
       var cv=planCoverOf(o,br); if(cv){ M[k]={owner:cv, from:o}; if(stOpen(t)) load[cv]=(load[cv]||0)+1; return; }
-      var sb=(planTeam().p[o]||{}).sub; if(sb&&planHere(sb,br)){ M[k]={owner:sb, from:o}; if(stOpen(t)) load[sb]=(load[sb]||0)+1; return; }
+      var sb=(planTeam().p[o]||{}).sub; if(sb) sb=planNormName(sb); if(sb&&planHere(sb,br)){ M[k]={owner:sb, from:o}; if(stOpen(t)) load[sb]=(load[sb]||0)+1; return; }
       var cd=planCoverCands(t,g,o);
       if(!cd.c.length&&PLAN_MUST.indexOf(g)>=0){ cd.c=planAnyPresent(t,g,o); if(!cd.c.length){ M[k]={owner:'', from:o, need:true}; return; } }
       if(!cd.c.length){ M[k]={owner:'', from:o, post:true}; return; }
@@ -13018,7 +13018,7 @@ function planCoverInfo(t,g){
   var M=planCoverMap(); if(M&&M[t.key+'|'+g]) return M[t.key+'|'+g];
   var o=planOwner0(t,g), br=t.br; if(!o||g==='debt'||planHere(o,br)||planAsgd(t,g,o)) return {owner:o};
   var cv=planCoverOf(o,br); if(cv) return {owner:cv, from:o};
-  var sb=(planTeam().p[o]||{}).sub; if(sb&&planHere(sb,br)) return {owner:sb, from:o};
+  var sb=(planTeam().p[o]||{}).sub; if(sb) sb=planNormName(sb); if(sb&&planHere(sb,br)) return {owner:sb, from:o};
   var cd=planCoverCands(t,g,o); if(!cd.c.length&&PLAN_MUST.indexOf(g)>=0){ cd.c=planAnyPresent(t,g,o); if(!cd.c.length) return {owner:'', from:o, need:true}; }
   return cd.c.length?{owner:cd.c[0], from:o}:{owner:'', from:o, post:true};
 }
@@ -13109,7 +13109,9 @@ function planSecPanel(){
     var dn=L.filter(function(t){ return planState(t)==='done'; }).length, pc=L.length?Math.round(dn*100/L.length):null;
     var sysD=L.filter(function(t){ return planState(t)==='done'&&(PLAN_ST[t.key]||{}).s!=='done'; }).length;
     var col=pc===null?'var(--mute)':pc>=80?'var(--g)':pc>=40?'var(--am)':'var(--r)';
-    return '<tr style="border-top:1px solid var(--brd)"><td style="padding:6px 4px;font-weight:800">'+alEsc(n)+(n===PLAN_ME?' <span style="color:var(--mute);font-weight:400">(إنتي)</span>':'')+'</td>'+
+    var subOf=Object.keys(T0.p).filter(function(m){ var x=T0.p[m]; return x&&x.sub&&planNormName(x.sub)===n&&m!==n; }), outMe=(T0.p[n]||{}).st==='out';
+    return '<tr style="border-top:1px solid var(--brd)"><td style="padding:6px 4px;font-weight:800">'+alEsc(n)+(n===PLAN_ME?' <span style="color:var(--mute);font-weight:400">(إنتي)</span>':'')+
+      (subOf.length?'<div style="font-size:.54rem;font-weight:600;color:'+(outMe?'var(--r)':'#38bdf8')+'">'+(outMe?'⚠️ غايبة بس متختارة بديلة لـ':'🔁 بتغطي مكان ')+alEsc(subOf.join('، '))+(outMe?' — لو غايبة فعلاً غيّري البديلة في «👥 الفريق النهارده»':'')+'</div>':'')+'</td>'+
       '<td style="text-align:center">'+(pc===null?'—':dn+' / '+L.length)+'</td>'+
       '<td style="text-align:center;min-width:90px">'+(pc===null?'<span style="color:var(--mute)">مفيش مهام عليها</span>':'<b style="color:'+col+';font-size:.78rem">'+pc+'%</b><div style="height:5px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:'+pc+'%;background:'+col+'"></div></div>')+'</td>'+
       '<td style="text-align:center">'+sysD+'</td><td style="text-align:center">'+Object.keys(hand[n]||{}).length+'</td>'+

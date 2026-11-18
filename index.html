@@ -13403,6 +13403,49 @@ function planRow(t){
         '<span id="pst_'+h+'" style="font-size:.56rem;color:var(--mute)"></span></div></div></div>';
 }
 function planClearView(){ PLAN_VIEW=''; try{ localStorage.setItem('planView',''); }catch(e){} planRender(); }
+/* ═══ 🆕 الشكل الجديد لخطة اليوم (تجريبي — اختياري لكل جهاز، والقديم زي ما هو بزرار) ═══
+   4 عناوين حسب اللي بيأثر على المكان: 💰 فلوس · 🔁 استمرار المرضى · 📅 الحضور · 🧾 السيستم مظبوط — أهم 3 ظاهرين والباقي بدوسة */
+var PLAN_V2=false; try{ PLAN_V2=localStorage.getItem('planV2')==='1'; }catch(e){}
+var PLAN_V2TAB='mine', PLAN_V2OPEN={};
+function planV2Set(on){ PLAN_V2=!!on; try{ localStorage.setItem('planV2',on?'1':'0'); }catch(e){} planRender(); }
+function planV2Toggle(){ return '<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button onclick="planV2Set(1)" style="background:rgba(124,58,237,.15);border:1px solid #7c3aed;color:#c4b5fd;border-radius:8px;padding:4px 12px;font-family:Cairo,sans-serif;font-size:.62rem;font-weight:800;cursor:pointer">🆕 جرّب الشكل الجديد</button></div>'; }
+var PLAN_FAM=[
+  ['money','💰','فلوس','#10b981',['debt','debtph','invrev','invfix','nopkg','nopkgnext','noinv']],
+  ['keep','🔁','استمرار المرضى','#f59e0b',['renew','visit','drop','streak','recur','idle','stop','call','fix','kashf','kashf0','eval','evalamg','evalamgd','nonext','nonextrev','miss','svc','mgr']],
+  ['come','📅','الحضور','#38bdf8',['conf','confsp','conftoday','late','sudden','waittoday','waitnext','waitnut']],
+  ['sys','🧾','السيستم مظبوط','#a78bfa',[]]];
+function planFamOf(g){ for(var i=0;i<PLAN_FAM.length-1;i++) if(PLAN_FAM[i][4].indexOf(g)>=0) return PLAN_FAM[i][0]; return 'sys'; }
+function planRenderV2(all,mineT,ALLN){
+  var me=PLAN_V2TAB==='mine', L=me?(PLAN_ME?all.filter(function(t){ return (t.grp&&t.grp.length?t.grp:['other']).some(function(g){ return planOwner(t,g)===PLAN_ME; }); }):mineT):mineT;
+  var tab=function(id,t){ var on=PLAN_V2TAB===id; return '<span onclick="PLAN_V2TAB=\''+id+'\';planRender()" style="cursor:pointer;border:1px solid '+(on?'#2563eb':'var(--brd)')+';background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border-radius:9px;padding:5px 13px;font-size:.66rem;font-weight:'+(on?800:600)+'">'+t+'</span>'; };
+  var opts=ALLN.map(function(n){ return '<option'+(n===PLAN_ME?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('');
+  var h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:10px;position:sticky;top:0;z-index:5">'+
+    '<b style="font-size:.82rem">📋 خطة اليوم</b>'+planDataAge()+tab('mine','📋 مهامي'+(PLAN_ME?' ('+alEsc(PLAN_ME)+')':''))+tab('mgr','👔 المدير')+(planVisitCard()?tab('visit','📋 زيارة الدقي'):'')+
+    '<span style="flex:1"></span><select id="planMeSel" onchange="planSetMe(this.value)" style="background:var(--bg);border:1px solid '+(PLAN_ME?'var(--brd)':'var(--r)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.64rem"><option value="">— اختاري اسمك —</option>'+opts+'</select>'+
+    '<button onclick="planV2Set(0)" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">↩️ الشكل القديم</button></div>';
+  if(PLAN_V2TAB==='visit'){ PLAN_VISIT_OPEN=true; return h+planVisitCard(); }
+  if(PLAN_V2TAB==='mgr'){ var m=''; try{ m+=planSudAlerts(); }catch(e){} try{ m+=planTeamPanel(); }catch(e){} try{ m+=planSecPanel(); }catch(e){} try{ m+=planFuPanel(); }catch(e){} return h+m; }
+  // المهام حسب العيلة (المهمة بتروح لعيلة أول مجموعة فيها)
+  var F={}; PLAN_FAM.forEach(function(f){ F[f[0]]={open:[],done:[]}; });
+  L.forEach(function(t){ var s=planState(t); if(s==='snz') return; var f=F[planFamOf((t.grp||[])[0])]; (s==='done'?f.done:f.open).push(t); });
+  // مربعات فوق: كل عيلة اتعمل منها كام
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px">'+PLAN_FAM.map(function(f){ var o=F[f[0]], tot=o.open.length+o.done.length, pc=tot?Math.round(o.done.length*100/tot):100;
+    return '<div onclick="var e=document.getElementById(\'fam_'+f[0]+'\');if(e)e.scrollIntoView({behavior:\'smooth\'})" style="cursor:pointer;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px 11px"><div style="font-size:.62rem;color:var(--mute)">'+f[1]+' '+f[2]+'</div>'+
+      '<div style="font-size:1.1rem;font-weight:900">'+o.done.length+' <span style="font-size:.62rem;font-weight:600;color:var(--mute)">من '+tot+'</span></div><div style="height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:4px"><div style="height:100%;width:'+pc+'%;background:'+f[3]+'"></div></div></div>'; }).join('')+'</div>';
+  // ⚠️ محتاج تتصرفي دلوقتي: حصّلي قبل ما يمشي + مراجعة الخصم (مقفولة بدوسة)
+  var urg=''; try{ urg=planCashBanner()+planSudAlerts(); }catch(e){}
+  if(urg) h+='<details style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:7px 11px;margin-bottom:10px"><summary style="cursor:pointer;font-weight:800;font-size:.68rem;color:var(--r)">⚠️ محتاج تتصرفي دلوقتي — دوسي تشوفي</summary>'+urg+'</details>';
+  PLAN_FAM.forEach(function(f){ var o=F[f[0]]; if(!o.open.length&&!o.done.length) return;
+    var ex=!!PLAN_V2OPEN[f[0]], top=o.open.slice(0,3), rest=o.open.slice(3);
+    var grpN={}; o.open.forEach(function(t){ var g=(t.grp||[])[0]; grpN[g]=(grpN[g]||0)+1; });
+    h+='<div id="fam_'+f[0]+'" style="background:var(--card);border:1px solid var(--brd);border-inline-start:4px solid '+f[3]+';border-radius:12px;padding:9px 12px;margin-bottom:10px">'+
+      '<div style="display:flex;align-items:center;gap:8px;font-weight:900;font-size:.8rem">'+f[1]+' '+f[2]+'<span style="margin-inline-start:auto;font-size:.64rem;font-weight:800;color:'+(o.open.length?f[3]:'var(--g)')+'">'+(o.open.length?o.open.length+' فاضل':'✅ خلصت')+'</span></div>'+
+      (o.open.length?'<div style="font-size:.56rem;color:var(--mute);margin:2px 0 4px">'+Object.keys(grpN).map(function(g){ return ((PLAN_GT[g]||['•',g])[1]).split('—')[0].trim()+' '+grpN[g]; }).join(' · ')+'</div>':'')+
+      top.map(planRow).join('')+
+      (rest.length?'<details '+(ex?'open ':'')+'ontoggle="PLAN_V2OPEN[\''+f[0]+'\']=this.open"><summary style="cursor:pointer;font-size:.62rem;color:var(--mute);padding:4px 0">+ '+rest.length+' كمان</summary>'+rest.map(planRow).join('')+'</details>':'')+
+      (o.done.length?'<details><summary style="cursor:pointer;font-size:.58rem;color:var(--g);padding:3px 0">✅ اتعمل '+o.done.length+'</summary>'+o.done.map(planRow).join('')+'</details>':'')+'</div>'; });
+  if(me&&!PLAN_ME) h='<div style="background:rgba(239,68,68,.1);border:1px solid var(--r);border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:.66rem;color:var(--r)">اختاري اسمك فوق عشان تشوفي مهامك بس — دلوقتي ظاهر كل المهام</div>'+h;
+  return h; }
 function planRender(){
   PLAN_CMAP=null;
   var box=document.getElementById('planBox'); if(!box) return;
@@ -13512,6 +13555,8 @@ function planRender(){
      sec('evening','🌙 آخر اليوم','قبل ما تقفلي'+(hr>=21?' — <b style="color:var(--r)">الساعة عدت 9</b>':''),T.evening,hr>=21);
   if(!all.length) h+='<div style="padding:30px;text-align:center;color:var(--mute)">مفيش مهام النهارده 🎉</div>';
   else if(PLAN_VIEW&&!mineT.length) h+='<div style="padding:24px;text-align:center;color:var(--mute)">مفيش مهام متعيّنة على '+alEsc(PLAN_VIEW)+' النهارده — المهام بتتعيّن من «👤 المسئولة» جنب كل مهمة، أو لو هي اختارت اسمها فوق بتبقى مسئولة عن مهام الفرع اللي مش متعيّنة لحد<br><button onclick="planClearView()" style="margin-top:10px;background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:6px 14px;font-family:Cairo,sans-serif">عرض مهام كل السكرتيرات</button></div>';
+  if(PLAN_V2){ try{ h=planRenderV2(all,mineT,ALLN); }catch(e){ h='<div style="color:var(--r);padding:10px">⚠️ الشكل الجديد فيه مشكلة — رجعنا للقديم ('+alEsc(e.message)+')</div>'+h; } }
+  else h=planV2Toggle()+h;
   var sc=window.scrollY; box.innerHTML=h; window.scrollTo(0,sc);
   if(PLAN_ME&&PLAN_LOADED) setTimeout(function(){ try{ planCardShow(0); }catch(e){} },400);
 }

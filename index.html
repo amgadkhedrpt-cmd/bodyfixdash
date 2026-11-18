@@ -11965,14 +11965,10 @@ function planVisitCard(){ var D=ALERTS_DATA, DV=D&&D.dokki_visit; if(!DV||!DV.da
   (D.sudden||[]).forEach(function(x){ if(x.branch==='FIX ZONE') sd[x.doctor]=(sd[x.doctor]||0)+1; });
   h+=sec('👥 نقط للكلام مع الفريق','',tb(['الأخصائي','جدّدوا من اللي خلّصوا','وقفوا (آخر 6 شهور)','اعتذار مفاجئ / No Show (الفترة الأخيرة)','كشف → حجزوا'],dp.map(function(n){ var v=D.doc_perf.docs[n]; return [dc(n),v.renew[1]+' من '+v.renew[0],v.drop[0],sd[n]||0,v.kashf[0]?v.kashf[1]+' من '+v.kashf[0]+' ('+Math.round(v.kashf[1]*100/v.kashf[0])+'%)':'—']; }))+
     '');
-  // 🧾 الجلسات اللي اتعملت قبل الفاتورة: تاريخ إنشاء الفاتورة/الباقة مقارنة بتاريخ أول جلسة اتقفلت منها (آخر 60 يوم) + اللي لسه مالهاش فاتورة خالص
-  var AU=(typeof AUD_DATA!=='undefined'&&AUD_DATA)||{}, ni=(D.noinv||[]).filter(function(x){ return x.b==='FIX ZONE'&&!x.sys; }),
-      li=(AU.late_inv||[]).filter(function(x){ return x.b==='FIX ZONE'; }).sort(function(a,b){ return b.days-a.days; });
-  if(ni.length||li.length) h+=sec('🧾 جلسات اتعملت من غير فاتورة',(ni.length+li.length)||'',
-    (ni.length?'<div style="font-size:.64rem;font-weight:800;color:var(--r);margin:4px 0">🔴 لسه مالهاش فاتورة لحد دلوقتي ('+ni.length+')</div>'+tb(['المريض','الجلسة','يومها','الأخصائي'],ni.map(function(x){ return [planPtLink(x.p,x.pid),alEsc(x.s||''),alEsc(alFmtDay(x.d))+' <span style="color:var(--mute)">(من '+planVDays(x.d,today)+' يوم)</span>',dc(x.dr)]; })):'')+
-    (li.length?'<div style="font-size:.64rem;font-weight:800;color:#f59e0b;margin:8px 0 4px">⏰ الفاتورة اتعملت بعد أول جلسة — آخر 60 يوم ('+li.length+')</div>'+tb(['المريض','الفاتورة / الباقة','أول جلسة','الفاتورة اتعملت','اتأخرت','جلسات قبل الفاتورة','الأخصائي'],li.map(function(x){
-      return [planPtLink(x.p,x.pid),alEsc(x.s||''),alEsc(alFmtDay(x.first_d)),alEsc(alFmtDay(x.inv_d)),'<b style="color:'+(x.days>=7?'var(--r)':'#f59e0b')+'">'+x.days+' يوم</b>',x.n_before+' من '+x.n,dc(x.dr)]; })):'')+
-    '<div style="font-size:.56rem;color:var(--mute);margin-top:4px">بنقارن تاريخ إنشاء الفاتورة على Medicolize بتاريخ أول جلسة اتقفلت منها — لو الجلسة قبل الفاتورة يبقى المريض اتعالج من غير فاتورة الأيام دي</div>');
+  // 🧾 جلسات اتعملت ولسه مالهاش فاتورة لحد دلوقتي بس (اللي اتعملها فاتورة بعد كده ما بتظهرش)
+  var ni=(D.noinv||[]).filter(function(x){ return x.b==='FIX ZONE'&&!x.sys; }).sort(function(a,b){ return a.d<b.d?-1:1; });
+  if(ni.length) h+=sec('🧾 جلسات اتعملت ومالهاش فاتورة',ni.length,tb(['المريض','الجلسة','يومها','الأخصائي'],ni.map(function(x){ return [planPtLink(x.p,x.pid),alEsc(x.s||''),alEsc(alFmtDay(x.d))+' <span style="color:var(--mute)">(من '+planVDays(x.d,today)+' يوم)</span>',dc(x.dr)]; }))+
+    '<div style="font-size:.56rem;color:var(--mute);margin-top:4px">جلسة اتعلّم عليها حضر على Medicolize ومالهاش فاتورة لحد دلوقتي · أول ما الفاتورة تتعمل بتختفي</div>');
   return '<details '+(PLAN_VISIT_OPEN?'open ':'')+'ontoggle="PLAN_VISIT_OPEN=this.open" style="background:var(--card);border:2px solid #7c3aed;border-radius:12px;padding:10px 12px;margin-bottom:10px"><summary style="cursor:pointer;font-weight:800;font-size:.76rem;color:#a78bfa">📋 زيارة د. أمجد للدقي — '+alEsc(alFmtDay(DV.date))+(gap===0?' (النهارده)':gap===1?' (بكره)':'')+' · اتحجز/اتكتب ملحوظة '+done+' من '+I.length+'</summary>'+
     '<div style="font-size:.58rem;color:var(--mute);margin-top:4px">'+planAmgSel()+' · القايمة بتتجمع لحد يوم الزيارة واللي يتحجز معاك بيفضل باين ✅ · السكرتاريه عندها مهمة «📋 زيارة د. أمجد للدقي» لكل مريض — بتتقفل لما يتحجز معاك أو تتكتب ملحوظة</div>'+h+'</details>'; }
 /* يوم زيارة د. أمجد للدقي: اللي متثبت يدوي (PLANCFG|amgday — يوم في الأسبوع، الاتنين=0) · وإلا المعتاد من المواعيد اللي فاتت */

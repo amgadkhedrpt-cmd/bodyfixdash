@@ -12333,7 +12333,7 @@ function planTasks(useAll){
       frTxt='<span style="color:var(--r);font-weight:800">⛔ الملحوظة بتطلب ساعة وفيها ميعاد فاضي — احجزه بدل الويتنج:</span> '+Object.keys(byH).sort().map(function(h){ h=+h; return '<b style="color:var(--g)">'+wfFmtH(h)+'</b>'+(asked.indexOf(h)>=0?' <span style="color:var(--am)">(اللي في الملحوظة)</span>':(h===own?' <span style="color:var(--mute)">(ساعة ميعاده)</span>':''))+' مع '+byH[h].slice(0,3).map(alEsc).join('، '); }).join(' · ')+
         (x.note_today?'<br><span style="font-size:.58rem;color:var(--mute)">الملحوظة لوحدها مش كفاية طول ما فيه ميعاد فاضي — المهمة بتتقفل لما يتنقل من الويتنج</span>':''); }
     var noteOk=x.note_today&&!fr.length;
-    add('morning',{grp:[g], sys:noteOk?'اتكتبت ملحوظة النهارده':'', what:noteOk?'📝 '+x.note:'', key:k, icon:'⏳', kind:alEsc(x.type)+' '+(x.day==='today'?'النهارده':alEsc(alFmtDay(String(x.time).slice(0,10))))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)),
+    add(g==='waitnut'?'rec':'morning',{grp:[g], sys:noteOk?'اتكتبت ملحوظة النهارده':'', what:noteOk?'📝 '+x.note:'', key:k, icon:'⏳', kind:alEsc(x.type)+' '+(x.day==='today'?'النهارده':alEsc(alFmtDay(String(x.time).slice(0,10))))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)),
       name:x.name, phone:x.phone, br:brOf(x), time:x.time,
       lines:[x.note?(x.note_today?'📝 ':'<span style="color:var(--am)">📝 ملحوظة قديمة (مش النهارده): </span>')+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة</span>', frTxt, frTxt?'':sug]});
   });
@@ -12437,7 +12437,7 @@ function planTasks(useAll){
   sysAdd('morning','waittoday','waittoday','اتنقل من الويتنج','⏳',function(x){return 'waittoday|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)); });
   (RES.waitnext||[]).forEach(function(x){ x._nut=planIsNut(x); });
   var RESn=(RES.waitnext||[]).filter(function(x){ return x._nut; }); RES.waitnext=(RES.waitnext||[]).filter(function(x){ return !x._nut; }); RES.waitnut=RESn;
-  sysAdd('morning','waitnut','waitnut','اتنقل من الويتنج','💜',function(x){return 'waitnext|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
+  sysAdd('rec','waitnut','waitnut','اتنقل من الويتنج','💜',function(x){return 'waitnext|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
   sysAdd('morning','waitnext','waitnext','اتنقل من الويتنج','⏳',function(x){return 'waitnext|'+x.key;},function(x){ return alEsc(x.type||'')+' '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' مع '+alEsc(doc(x.doctor)); });
   // 🧾 عند الاستقبال
   var by=function(arr,f){ var m={}; (arr||[]).forEach(function(x){ if(f(x)) m[x.pid]=x; }); return m; };
@@ -12651,7 +12651,7 @@ function planTasks(useAll){
     AUD_DATA.expect.forEach(function(r){ if(!r.np||act.indexOf(r.b)<0) return; var nx=!!r.nx; if(!nx&&r.d!==today) return;
       var k=(nx?'nopkgnext|':'nopkg|')+r.d+'|'+r.pid+'|'+r.s; if(npSeen[k]) return; npSeen[k]=1;
       var ok=!!r.ok, how=r.pkg?'اتفتحتله باقة':r.ev?'اتحجزله إعادة تقييم':'اتحل على Medicolize';
-      add(nx?'office':'rec',{grp:[nx?'nopkgnext':'nopkg'], key:k, icon:'💳', name:r.p, phone:r.ph, br:r.b, time:r.t, doctor:r.dr,
+      add(nx?'office':'morning',{grp:[nx?'nopkgnext':'nopkg'], key:k, icon:'💳', name:r.p, phone:r.ph, br:r.b, time:r.t, doctor:r.dr,
         kind:r.kashf?'🩺 الكشف اتعمل النهارده'+(r.t?' '+alEsc(planT(r.t)):'')+' ('+alEsc(r.s)+') — مالوش باقة، افتحيله باقة':(nx?'جاي '+alEsc(alFmtDay(r.d))+' ':'جاي النهارده ')+(r.t?alEsc(planT(r.t))+' ':'')+'— مالوش باقة لـ '+alEsc(r.s),
         sys:ok?how:'', what:ok?(r.pkg?'💳 باقة جديدة':'🩺 إعادة تقييم'):'',
         lines:[(nx?'ميعاده '+alEsc(alFmtDay(r.d))+' ومالوش باقة لـ <b>'+alEsc(r.s)+'</b> — ':'مالوش باقة لـ <b>'+alEsc(r.s)+'</b> — ')+'كلّميه و<b>افتحيله باقة جديدة</b>، ولو محتاج <b>إعادة تقييم</b> احجزيله تقييم',

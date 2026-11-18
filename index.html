@@ -13433,6 +13433,7 @@ function planRenderV2(all,mineT,ALLN){
     var nm=Object.keys(own).sort(function(a,b){ return own[b].n-own[a].n; });
     if(nm.length) h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:.62rem"><span style="color:var(--mute)">👩‍💼 الإنجاز:</span>'+nm.map(function(n){ var z=own[n], pc=z.n?Math.round(z.d*100/z.n):0, col=pc>=80?'var(--g)':pc>=40?'#f59e0b':'var(--r)';
       return '<span style="border:1px solid '+(n===PLAN_ME?col:'var(--brd)')+';border-radius:999px;padding:2px 9px'+(n===PLAN_ME?';font-weight:800':'')+'">'+alEsc(n)+' <b style="color:'+col+'">'+pc+'%</b> <span style="color:var(--mute)">'+z.d+'/'+z.n+'</span></span>'; }).join('')+'</div>'; }catch(e){}
+  if(typeof AUD_DATA!=='undefined'&&!AUD_DATA) h+='<div style="font-size:.62rem;color:#f59e0b;padding:6px 10px;border:1px dashed #f59e0b;border-radius:8px;margin-bottom:8px">⏳ لسه بيحمّل مهام الفلوس والتحصيل والكومبليت والفلوس القديمة… هتظهر لوحدها خلال ثواني</div>';
   // 🗂️ كل نوع مهام = كارت (الرقم الكبير = فاضل · البار = اتعمل · أحمر = مستعجل) — دوسة تفتح المرضى تحته بعرض الصف
   var HOT={conf:1,conftoday:1,debt:1,sudden:1,late:1,mcall:1,nopkg:1,confsp:1};
   var SECS=[['mgr','👔 محتاج المدير'],['morning','☀️ أول الشيفت'],['rec','🧾 عند الاستقبال'],['office','📋 شغل مكتب'],['evening','🌙 آخر اليوم']];

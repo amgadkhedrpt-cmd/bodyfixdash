@@ -12014,6 +12014,12 @@ function planVHow(x,vd){ var w=planVWd(vd), D=planVDaysOf(x), wn=WD_AR[w];
   if(!D.length) return '<span style="color:var(--mute)">مالوش أيام ثابتة آخر 5 أسابيع</span>';
   var dn=D.map(function(i){ return WD_AR[i]; }).join('/');
   return D.indexOf(w)>=0?'<span style="color:var(--g)">🟢 بييجي '+wn+' أصلاً ('+dn+') — احجزي التقييم مع جلسته</span>':'<span style="color:#f59e0b">🔄 بييجي '+dn+' — انقلي جلسته الجاية لـ'+wn+' واحجزي التقييم معاها (من غير ما ييجي يوم زيادة)</span>'; }
+/* يوم الزيارة اللي اخترته من «يوم زيارتي للدقي» بيتطبق على طول (من غير ما نستنى السحب):
+   «جاي يوم الزيارة» بيتحسب من مواعيده الجاية (up) — والقايمة نفسها بتتبني من جديد لليوم ده مع السحب الجاي */
+function planVisitDV(){ var D=ALERTS_DATA, DV=D&&D.dokki_visit; if(!DV||!DV.date) return DV; var vd=planAmgNext()||DV.date; if(vd===DV.date) return DV;
+  return Object.assign({},DV,{date:vd, sdate:DV.date, items:(DV.items||[]).map(function(x){ var c=null;
+    (x.up||[]).concat(x.nx?[[x.nx.t,x.nx.dr]]:[]).forEach(function(u){ if(!c&&String(u[0]).slice(0,10)===vd) c={t:u[0],dr:u[1]}; });
+    return Object.assign({},x,{come:c, amg:x.amg}); })}); }
 /* 🚫 مش هيقدر ييجي يوم الزيارة: بيتقفل للزيارة دي ويطلع في الزيارة الجاية بعلامة «اتأجل» */
 function planVisitCant(key){ var cur=PLAN_ST[key]||{}, o=Object.assign({},cur,{note:'مش هيقدر ييجي يوم الزيارة — الزيارة الجاية', cant:1, nby:PLAN_ME||'Amgad', nts:new Date().toISOString()});
   PLAN_ST[key]=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planSaveRaw('PLAN|'+key, JSON.stringify(o)); planRender(); }
@@ -12024,7 +12030,7 @@ function planVLast(x,today){ if(!x.last) return '<span style="color:var(--mute)"
 function planVisitNote(key,v){ var cur=PLAN_ST[key]||{}; v=String(v||'').trim(); if((cur.note||'')===v) return;
   var o=Object.assign({},cur,{note:v, nby:PLAN_ME||'Amgad', nts:new Date().toISOString()}); PLAN_ST[key]=o;
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planSaveRaw('PLAN|'+key, JSON.stringify(o)); }
-function planVisitCard(){ var D=ALERTS_DATA, DV=D&&D.dokki_visit; if(!DV||!DV.date||!(DV.items||[]).length) return '';
+function planVisitCard(){ var D=ALERTS_DATA, DV=planVisitDV(); if(!DV||!DV.date||!(DV.items||[]).length) return '';
   if(alActiveBranches().every(function(b){ return b.key!=='FIX ZONE'; })) return '';
   var today=D.today||'', gap=Math.round((new Date(DV.date+'T12:00:00')-new Date(today+'T12:00:00'))/864e5); if(gap<0||gap>7) return '';
   var dc=function(n){ return alEsc(alDocAr(n)||n||''); }, key=function(x){ return 'visit|'+DV.date+'|'+x.pid; };
@@ -12064,7 +12070,7 @@ function planVisitCard(){ var D=ALERTS_DATA, DV=D&&D.dokki_visit; if(!DV||!DV.da
   if(ni.length) h+=sec('🧾 جلسات اتعملت ومالهاش فاتورة',ni.length,tb(['المريض','الجلسة','يومها','الأخصائي'],ni.map(function(x){ return [planPtLink(x.p,x.pid),alEsc(x.s||''),alEsc(alFmtDay(x.d))+' <span style="color:var(--mute)">(من '+planVDays(x.d,today)+' يوم)</span>',dc(x.dr)]; }))+
     '<div style="font-size:.56rem;color:var(--mute);margin-top:4px">جلسة اتعلّم عليها حضر على Medicolize ومالهاش فاتورة لحد دلوقتي · أول ما الفاتورة تتعمل بتختفي</div>');
   return '<details '+(PLAN_VISIT_OPEN?'open ':'')+'ontoggle="PLAN_VISIT_OPEN=this.open" style="background:var(--card);border:2px solid #7c3aed;border-radius:12px;padding:10px 12px;margin-bottom:10px"><summary style="cursor:pointer;font-weight:800;font-size:.76rem;color:#a78bfa">📋 زيارة د. أمجد للدقي — '+alEsc(alFmtDay(DV.date))+(gap===0?' (النهارده)':gap===1?' (بكره)':'')+' · اتحجز/اتكتب ملحوظة '+done+' من '+I.length+'</summary>'+
-    '<div style="font-size:.58rem;color:var(--mute);margin-top:4px">'+planAmgSel()+' · القايمة بتتجمع لحد يوم الزيارة واللي يتحجز معاك بيفضل باين ✅ · السكرتاريه عندها مهمة «📋 زيارة د. أمجد للدقي» لكل مريض — بتتقفل لما يتحجز معاك أو تتكتب ملحوظة</div>'+planVDayCounts(I,DV,key)+h+'</details>'; }
+    '<div style="font-size:.58rem;color:var(--mute);margin-top:4px">'+planAmgSel()+' · القايمة بتتجمع لحد يوم الزيارة واللي يتحجز معاك بيفضل باين ✅ · السكرتاريه عندها مهمة «📋 زيارة د. أمجد للدقي» لكل مريض — بتتقفل لما يتحجز معاك أو تتكتب ملحوظة</div>'+(DV.sdate?'<div style="font-size:.6rem;margin-top:6px;padding:5px 9px;border-radius:7px;background:rgba(245,158,11,.1);color:#f59e0b">🔄 غيّرت يوم الزيارة لـ'+alEsc(alFmtDay(DV.date))+' — «جاي يوم الزيارة» والترتيب اتحدثوا، والقايمة كلها هتتبني لليوم ده مع السحب الجاي (أو دوس ⚡ تحديث فوري)</div>':'')+planVDayCounts(I,DV,key)+h+'</details>'; }
 /* مستنيين يتحجزوا حسب أيامهم المعتادة — عشان تختار يوم الزيارة */
 function planVDayCounts(I,DV,key){ var c={}, nod=0; I.forEach(function(x){ if(x.amg||String((PLAN_ST[key(x)]||{}).note||'').trim()) return; var D=planVDaysOf(x); if(!D.length){ nod++; return; } D.forEach(function(d){ c[d]=(c[d]||0)+1; }); });
   var w=planVWd(DV.date), ks=Object.keys(c).map(Number).sort(function(a,b){ return c[b]-c[a]; }); if(!ks.length) return '';
@@ -12543,7 +12549,7 @@ function planTasks(useAll){
   // الدقي: بتظهر بس قبل زيارة د. أمجد بـ 3 أيام أو أقل (مش كل يوم) — باقي الأيام القايمة في «محتاجين تقييم»
   var amgN=planAmgNext(), amgGap=amgN?Math.round((new Date(amgN+'T12:00:00')-new Date(today+'T12:00:00'))/864e5):99;
   // 📋 زيارة د. أمجد للدقي: كل مريض محتاج يتحجز معاه يوم الزيارة (تقييم / خلّص الباقة / وقف / كشف من غير حجز) — بتتقفل لما يتحجز معاه أو تتكتب ملحوظة
-  var DV=D.dokki_visit, dvGap=DV&&DV.date?Math.round((new Date(DV.date+'T12:00:00')-new Date(today+'T12:00:00'))/864e5):99;
+  var DV=planVisitDV(), dvGap=DV&&DV.date?Math.round((new Date(DV.date+'T12:00:00')-new Date(today+'T12:00:00'))/864e5):99;
   if(act.indexOf('FIX ZONE')>=0&&DV&&dvGap>=0&&dvGap<=3) (DV.items||[]).map(function(x){ return [planVisitTier(x,today),x]; }).sort(function(a,b){ return a[0]-b[0]; }).forEach(function(z){ var x=z[1], w=planVisitWhy(x), v=PLAN_VT[z[0]];
     add('office',{grp:['visit'], key:'visit|'+DV.date+'|'+x.pid, icon:'📋', kind:'<b style="color:'+v[3]+'">'+v[0]+(z[0]<=1?' سهل':z[0]>=4?' صعب':'')+'</b> · احجزه مع د. أمجد يوم زيارة الدقي '+alEsc(alFmtDay(DV.date))+' — '+w.t, name:x.name, phone:x.phone||'', br:'FIX ZONE',
       sys:x.amg?'اتحجز مع د. أمجد':'', what:x.amg?('📅 اتحجز مع د. أمجد '+alFmtDay(String(x.amg).slice(0,10))+' '+planT(x.amg)):'',

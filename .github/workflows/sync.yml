@@ -126,8 +126,11 @@ jobs:
           git add alerts.json 2>/dev/null || true
           git add packages.json 2>/dev/null || true
           git diff --staged --quiet || git commit -m "🔄 sync appointments $(date -u '+%Y-%m-%d %H:%M') UTC"
-          git pull --rebase=false -X ours origin main
-          git push origin main
+          # لو حد رفع تعديل في نفس اللحظة: نجيبه ونحاول تاني (لحد 5 مرات) بدل ما بيانات السحب تضيع
+          for i in 1 2 3 4 5; do
+            git pull --rebase=false -X ours origin main && git push origin main && break
+            echo "push retry $i"; sleep $((i*5))
+          done
 
       - name: Report result
         if: always()

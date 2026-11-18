@@ -13106,7 +13106,8 @@ function planSecPanel(){
   }); });
   var names=Object.keys(own); Object.keys(hand).forEach(function(n){ if(names.indexOf(n)<0) names.push(n); });
   var did={}, seenK={}; ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){ if(seenK[t.key]||planState(t)!=='done') return; seenK[t.key]=1; var a=planActor(t); if(a) did[a]=(did[a]||0)+1; }); });
-  Object.keys(did).forEach(function(n){ if(names.indexOf(n)<0&&n!=='السيستم') names.push(n); });
+  // اللي بيظهروا في الجدول = السكرتاريه بس (الأخصائيين بيعدّلوا مواعيد على Medicolize كمان — ما يتحسبوش هنا)
+  var SECN=planNamesAll().map(planNormName); Object.keys(did).forEach(function(n){ if(names.indexOf(n)<0&&SECN.indexOf(n)>=0) names.push(n); });
   var la=planLastAct(), nowMs=Date.now(), tdy=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   // المهام اللي السيستم قفلها قبل ما نبدأ نسجّل الوقت بالدقيقة: وقتها من «at» (الساعة) — عشان شغلها على Medicolize يتحسب
   Object.keys(own).forEach(function(n){ Object.keys(own[n]).forEach(function(k){ var o=PLAN_ST[k]; if(!o||o.s!=='auto'||o.ts||o.d!==tdy) return; var t=planAtToMs(o.at,tdy); if(t&&t<=nowMs&&(!la[n]||t>la[n])){ la[n]=t; la[n+'|sys']=true; } }); });

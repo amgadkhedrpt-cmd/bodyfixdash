@@ -12083,7 +12083,7 @@ function planOpen(){
   planShiftsLoad(); planRender(); [6000,15000,30000].forEach(function(ms){ setTimeout(function(){ var t=document.getElementById('tab-plan'); if(t&&t.classList.contains('active')) planRender(); },ms); });
   if(!PLAN_LOADED) planLoad();
   if(typeof AUD_DATA!=='undefined'&&!AUD_DATA&&typeof audAutoLoad==='function'){ audAutoLoad(); var t=setInterval(function(){ if(AUD_DATA){ clearInterval(t); planRender(); } },1500); setTimeout(function(){clearInterval(t);},30000); }
-  if(!PLAN_TIMER) PLAN_TIMER=setInterval(function(){ var tab=document.getElementById('tab-plan'); if(tab&&tab.classList.contains('active')) planLoad(); },120000);
+  if(!PLAN_TIMER) PLAN_TIMER=setInterval(function(){ var tab=document.getElementById('tab-plan'); if(tab&&tab.classList.contains('active')) planLoad(); },60000);
 }
 function planLoad(){
   try{ planShiftsLoad(); }catch(e){}
@@ -12104,7 +12104,7 @@ function planLoad(){
       if(k.indexOf('CARD|')===0){ var ca=k.split('|'); if(ca.length<4) return; var cd=ca[1], cn=ca[2], ci=+ca[3], cc=PLAN_CARDS[cn];
         if(!cc||cd>cc.d) cc=PLAN_CARDS[cn]={d:cd,p:{}}; if(cd===cc.d) cc.p[ci]=v; return; }
     });
-    PLAN_ST=st; PLAN_LOADED=true; try{ localStorage.setItem('planSt',JSON.stringify(st)); localStorage.setItem('planNamesBr',JSON.stringify(PLAN_NAMES_BR)); }catch(e){}
+    PLAN_ST=st; PLAN_LOADED=true; PLAN_LOAD_AT=Date.now(); try{ localStorage.setItem('planSt',JSON.stringify(st)); localStorage.setItem('planNamesBr',JSON.stringify(PLAN_NAMES_BR)); }catch(e){}
     fin(); var typing=document.activeElement&&document.getElementById('planBox')&&document.getElementById('planBox').contains(document.activeElement)&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if(!typing) planRender();
   };
@@ -12929,6 +12929,17 @@ function planAssign(gk, v, bkey){
     PLAN_ST[k]=o; planSaveRaw('PLAN|'+k, JSON.stringify(o)); });
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender();
 }
+/* آخر حاجة كل سكرتيرة عملتها النهارده في الخطة (زرار / ملحوظة / واتساب / تعيين) — بتوقيت جهازها */
+function planLastAct(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', L={};
+  Object.keys(PLAN_ST).forEach(function(k){ var o=PLAN_ST[k]; if(!o||typeof o!=='object') return;
+    [[o.ts,o.by],[o.nts,o.nby||o.by]].forEach(function(z){ if(!z[0]||!z[1]) return; var t=Date.parse(z[0]); if(!t) return;
+      if(new Date(t).toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})!==td) return; var n=planNormName(z[1]); if(!L[n]||t>L[n]) L[n]=t; }); });
+  return L; }
+var PLAN_LOAD_AT=0, PLAN_SYNC_G=null;
+/* ⚡ جنب المجموعة: سحب فوري من Medicolize — ولما يخلص المجموعة بتتحدث ويطلع كام اتقفل */
+function planGroupSync(gk,open){ if(!PLAN_SYNC_G||PLAN_SYNC_G.gk!==gk) PLAN_SYNC_G={gk:gk, open:open, at:Date.now()};
+  if(typeof bfSyncNow==='function') bfSyncNow();
+  mcToast('⏳ بيشيّك على Medicolize دلوقتي — المجموعة هتتحدث لوحدها لما يخلص (من 3 لـ 5 دقايق)'); planRender(); }
 function planSecPanel(){
   var D=ALERTS_DATA; if(!D) return '';
   var T=planTasks(true); if(!T) return '';
@@ -12938,6 +12949,7 @@ function planSecPanel(){
     var s=PLAN_ST[t.key]; if(s&&s.by&&(s.s==='done'||s.s==='nr')){ var hb=planNormName(s.by); (hand[hb]=hand[hb]||{})[t.key]=1; }
   }); });
   var names=Object.keys(own); Object.keys(hand).forEach(function(n){ if(names.indexOf(n)<0) names.push(n); });
+  var la=planLastAct(), nowMs=Date.now(), cH=+new Date().toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2), T0=planTeam();
   if(!names.length) return '<div style="background:var(--card);border:1px dashed var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:.6rem;color:var(--mute)">👩‍💼 اختاري المسئولة جنب كل مهمة (أو اسمك فوق = مسئولة عن الفرع كله) وهيظهر هنا الإنجاز لكل سكرتيرة</div>';
   var rows=names.map(function(n){
     var L=Object.keys(own[n]||{}).map(function(k){ return own[n][k]; }).filter(function(t){ return planState(t)!=='snz'; });
@@ -12947,11 +12959,16 @@ function planSecPanel(){
     return '<tr style="border-top:1px solid var(--brd)"><td style="padding:6px 4px;font-weight:800">'+alEsc(n)+(n===PLAN_ME?' <span style="color:var(--mute);font-weight:400">(إنتي)</span>':'')+'</td>'+
       '<td style="text-align:center">'+(pc===null?'—':dn+' / '+L.length)+'</td>'+
       '<td style="text-align:center;min-width:90px">'+(pc===null?'<span style="color:var(--mute)">مفيش مهام عليها</span>':'<b style="color:'+col+';font-size:.78rem">'+pc+'%</b><div style="height:5px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:'+pc+'%;background:'+col+'"></div></div>')+'</td>'+
-      '<td style="text-align:center">'+sysD+'</td><td style="text-align:center">'+Object.keys(hand[n]||{}).length+'</td></tr>';
+      '<td style="text-align:center">'+sysD+'</td><td style="text-align:center">'+Object.keys(hand[n]||{}).length+'</td>'+
+      (function(){ var t=la[n], out=(T0.p[n]||{}).st==='out'&&!(T0.p[n]||{}).sub, mins=t?Math.round((nowMs-t)/6e4):null, work=cH>=10&&cH<23;
+        var red=!out&&work&&(mins===null?cH>=11:mins>=60);
+        return '<td style="text-align:center;white-space:nowrap;'+(red?'color:#fff;background:var(--r);border-radius:6px;font-weight:800':'')+'">'+(out?'<span style="color:var(--mute)">غايبة</span>':t?new Date(t).toLocaleTimeString('ar-EG',{timeZone:'Africa/Cairo',hour:'numeric',minute:'2-digit'})+'<div style="font-size:.52rem;'+(red?'':'color:var(--mute)')+'">'+(mins<1?'دلوقتي':'من '+(mins>=60?Math.floor(mins/60)+' س ':'')+(mins%60)+' د')+'</div>':'ما عملتش حاجة النهارده')+'</td>'; })()+'</tr>';
   }).join('');
   return '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
-    '<div style="font-weight:800;font-size:.72rem;margin-bottom:6px">👩‍💼 الإنجاز لكل سكرتيرة — النهارده</div>'+
-    '<table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr style="color:var(--mute);font-size:.56rem"><th style="text-align:right;padding:3px">السكرتيرة</th><th>مهامها اتعمل</th><th>نسبة الإنجاز</th><th>منهم على Medicolize</th><th>قفلتها بزرار ✅/📞</th></tr>'+rows+'</table>'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><b style="font-size:.72rem">👩‍💼 الإنجاز لكل سكرتيرة — النهارده</b><span style="flex:1"></span>'+
+      '<span style="font-size:.54rem;color:var(--mute)">'+(PLAN_LOAD_AT?'اتحدث '+new Date(PLAN_LOAD_AT).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit',second:'2-digit'})+' · بيتحدث لوحده كل دقيقة':'')+'</span>'+
+      '<button onclick="planLoad();this.textContent=\'⏳\'" style="background:rgba(14,165,233,.15);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 10px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">🔄 حدّث دلوقتي</button></div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr style="color:var(--mute);font-size:.56rem"><th style="text-align:right;padding:3px">السكرتيرة</th><th>مهامها اتعمل</th><th>نسبة الإنجاز</th><th>منهم على Medicolize</th><th>قفلتها بزرار ✅/📞</th><th>آخر حاجة عملتها</th></tr>'+rows+'</table>'+
     '<div style="font-size:.54rem;color:var(--mute);margin-top:5px">مهامها = المهام المتعيّنة عليها جنب كل مهمة + مهام الفرع اللي مش متعيّنة لحد لو هي اختارت اسمها فوق · «حصّل فلوس» على اللي على الخزنة وقت ميعاد المريض · «على Medicolize» = اتعملت على السيستم واتقفلت لوحدها (حجز / تأكيد / ملحوظة …) وده شغلها برضه</div></div>';
 }
 
@@ -12963,7 +12980,7 @@ function planSuddenMsg(name, br, noshow, second){
     'يسعدنا نحددلك ميعاد جديد — ابعتلنا الوقت المناسب ليك 🙏';
 }
 function planWa(k){
-  var o={s:'wa', by:PLAN_ME||'', at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
+  var o={s:'wa', by:PLAN_ME||'', ts:new Date().toISOString(), at:new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'})};
   PLAN_ST[k+'|wa']=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   planSaveRaw('PLAN|'+k+'|wa', JSON.stringify(o)); setTimeout(planRender,300);
 }
@@ -13316,6 +13333,11 @@ function planRender(){
             var mvTag=ci1.from?'<span title="'+alEsc(ci1.from)+' غايبة النهارده" style="font-size:.6rem;color:'+(ci1.post?'#f59e0b':'#38bdf8')+';border:1px solid currentColor;border-radius:7px;padding:2px 6px;margin-inline-start:4px">'+(ci1.post?'⏸ متأجل ('+alEsc(ci1.from)+' غايبة)':'🔁 '+alEsc(ci1.from)+' ← <b>'+alEsc(ci1.owner)+'</b>')+'</span>':'';
             return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value,\''+bb.key+'\')" title="المسئولة عن المهمة دي في '+bb.label+'" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:'+(many?'120':'110')+'px">'+
               '<option value="">👤 '+(many?bb.label+'…':'المسئولة…')+'</option>'+(function(L){ if(cur&&L.indexOf(cur)<0) L.push(cur); planBR().concat([{key:'BODYFIX Center'},{key:'FIX ZONE'}]).forEach(function(ob){ if(ob.key!==bb.key) planNames(ob.key).forEach(function(n){ if(L.indexOf(n)<0) L.push(n); }); }); return L; })(planNames(bb.key).slice()).map(function(n){ var away=!planHere(n,bb.key); return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>'+(many?bb.label+': ':'')+alEsc(n)+(away?' (غايبة هنا — هتاخدها برضه)':'')+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option><option value="__del">➖ شيل اسم</option></select>'+(a&&a.by?'<span style="font-size:.54rem;color:#f59e0b;margin-inline-start:3px" title="التغيير ده للنهارده بس — بكره يرجع للأساس">⏱ النهارده بس</span>':'')+mvTag; }).join(''); })())+
+        (function(){ var sg=PLAN_SYNC_G&&PLAN_SYNC_G.gk===gk?PLAN_SYNC_G:null;
+          if(sg&&!bfSyncBusy&&Date.parse((ALERTS_DATA||{}).generated_at||'')>sg.at){ var cl=Math.max(0,sg.open-open.length); PLAN_SYNC_G=null;
+            setTimeout(function(){ mcToast('✅ اتشيّك على Medicolize — «'+gt[1]+'»: اتقفل '+cl+' · فاضل '+open.length,'ok'); },50); sg=null; }
+          if(allDone) return '';
+          return '<button onclick="event.stopPropagation();planGroupSync(\''+gk+'\','+open.length+')" title="يشيّك على Medicolize دلوقتي بدل ما يستنى السحب الجاي (بياخد 3–5 دقايق)" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:2px 7px;font-size:.6rem;cursor:pointer">'+(sg&&bfSyncBusy?'⏳':'⚡')+'</button>'; })()+
         (allDone?'<span style="color:var(--g);font-size:.64rem;font-weight:800">✅ خلصت</span>':'<span style="background:'+(hot?'var(--r)':'#ec4899')+';color:#fff;border-radius:10px;padding:1px 10px;font-size:.68rem;font-weight:900">'+open.length+'</span>')+
         '<span style="width:60px;height:6px;background:var(--bg);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:'+pc+'%;background:var(--g)"></span></span>'+
         '<b style="font-size:.66rem;min-width:34px;text-align:center;color:'+(pc>=80?'var(--g)':pc>=40?'var(--am)':'var(--r)')+'">'+pc+'%</b>'+

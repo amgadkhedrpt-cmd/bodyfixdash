@@ -1597,8 +1597,8 @@ $('#sOff').addEventListener('click', () => { if (confirm('تفصل الجهاز 
 $('#sUp').addEventListener('click', uploadLocal);
 $('#sLink').addEventListener('click', async () => {
   const c = sheetCfg(); if (!c){ $('#syncState').textContent = 'احفظ الإعدادات الأول.'; return; }
-  const link = location.origin + location.pathname + '#s=' + encodeURIComponent(c.url) + '&k=' + encodeURIComponent(c.key) + (branch !== 'all' ? '&b=' + branch : '');
-  try { await navigator.clipboard.writeText(link); $('#syncState').textContent = 'اتنسخ اللينك ✓ — ابعته للسكرتارية في رسالة خاصة، ويفتحوه مرة واحدة على كل جهاز.'; }
+  const link = location.origin + location.pathname.replace(/collect\.html$/, '') + '#s=' + encodeURIComponent(c.url) + '&k=' + encodeURIComponent(c.key) + (branch !== 'all' ? '&b=' + branch : '');
+  try { await navigator.clipboard.writeText(link); $('#syncState').textContent = 'اتنسخ اللينك ✓ — بيفتح الداشبورد كله ويربطه. ابعته للسكرتارية في رسالة خاصة، ويفتحوه مرة واحدة على كل جهاز.'; }
   catch(e){ prompt('انسخ اللينك ده:', link); }
 });
 $('#setBtn').addEventListener('click', () => { renderCollectors(); renderSync(); $('#delDay').textContent = `🗑 امسح بيانات ${day()} — ${BR_NAME[branch]}`; $('#undoSys').textContent = `↩ رجّع تسجيل الموظفين — ${day()} — ${BR_NAME[branch]}`; $('#setDlg').showModal(); });

@@ -14845,6 +14845,10 @@ function bfSyncMsg(t,kind){
   m.style.borderColor=kind==='bad'?'rgba(239,68,68,.4)':kind==='ok'?'rgba(16,185,129,.4)':'rgba(6,182,212,.3)';
   m.style.background=kind==='bad'?'rgba(239,68,68,.08)':kind==='ok'?'rgba(16,185,129,.08)':'rgba(6,182,212,.1)';
 }
+/* 🔗 لينك ربط الجهاز (#s=…&k=…) بيتفتح على الداشبورد نفسه → يتحفظ للموقع كله (التحصيل + التحديث الفوري + الخطة) */
+(function(){ try{ var h=new URLSearchParams(location.hash.slice(1)); if(h.get('s')&&h.get('k')&&/^https:\/\/script\.google\.com\//.test(h.get('s'))){
+  localStorage.setItem('bf_sheet_cfg',JSON.stringify({url:h.get('s'),key:h.get('k')})); if(h.get('b')) localStorage.setItem('bf_branch',h.get('b'));
+  history.replaceState(null,'',location.pathname+location.search); setTimeout(function(){ alert('✅ الجهاز ده اتربط بالداشبورد — التحصيل والتحديث الفوري هيشتغلوا.'); },800); } }catch(e){} })();
 function bfSheetCfg(){ try{ return JSON.parse(localStorage.getItem('bf_sheet_cfg')||'null'); }catch(e){ return null; } }
 /* نفس مفتاح GitHub اللي أداة التحصيل حافظاه في الشيت — فمش محتاج تحطه تاني */
 async function bfGhToken(){

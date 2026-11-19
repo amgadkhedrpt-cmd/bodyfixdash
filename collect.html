@@ -177,6 +177,9 @@ button.chip{cursor:pointer;font-family:inherit;color:inherit}button.chip:hover{b
 .hist .hd{font-weight:800;color:var(--warn);margin-inline-end:6px;white-space:nowrap}
 .hist .hw{opacity:.75;font-size:12px}
 .tag.post{background:var(--bad-soft);color:var(--bad)}
+.tag.wrong{background:#ede9fe;color:#5b21b6;border-color:#c4b5fd}
+.wrongline{margin-top:8px;font-size:12.5px;font-weight:700;color:#5b21b6;background:#ede9fe;border-radius:10px;padding:6px 10px}
+.wrongline:empty{display:none}
 .tag.renew{background:#ede4ff;color:#5b21b6;font-weight:800}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .tag.renew{background:#2e1f52;color:#d8c8ff} }
 .btn.posted{background:var(--warn-soft);color:var(--warn);border-color:transparent}
@@ -243,6 +246,7 @@ button.chip{cursor:pointer;font-family:inherit;color:inherit}button.chip:hover{b
       <div class="stat"><em>الباقي</em><b id="sLeft">0</b></div>
       <div class="stat"><em>مرضى (اتحصّل منهم)</em><b id="sCnt">0</b></div>
     </div>
+    <div class="wrongline" id="wrongLine"></div>
   </section>
   <section class="shifts" id="shifts">
     <div class="sh-h"><div><h2>🧾 مين على الخزنة</h2><div class="hint">كل سكرتيرة تسجّل استلامها وتسليمها للخزنة — النسبة = اتحصّل كام من المرضى اللي مواعيدهم جت في شيفتها.</div></div>
@@ -425,6 +429,20 @@ const BR_NAME = {haram:'الهرم', dokki:'الدقي', all:'الفرعين'};
 let branch = (() => { try { return localStorage.getItem('bf_branch') || 'haram'; } catch(e){ return 'haram'; } })();
 let colsBy = {haram: DEFAULT_COLS.slice(), dokki: []};
 const brOfRow = r => r.branch || 'haram';
+/* 🚫 «الفلوس دي تتشال»: السكرتيرة كتبت سبب إن الفلوس دي مش هتتحصّل → تتشال من المطلوب وتروح لداليا تراجعها
+   بتفضل متشالة لحد ما داليا تشيل الفاتورة على Medicolize (المتبقي يقل) أو تدوس «↩️ ترجع مطلوبة» من خطة اليوم */
+let wrongs = new Map();
+function wrongOf(r){
+  if (r.wrong && r.wrong.amt > 0) return r.wrongBack ? null : {...r.wrong, d: r.wrong.d || day(), own: true};
+  const br = brOfRow(r); const w = wrongs.get(pidKey(br, r.pid)) || wrongs.get(nmKey(br, r.name));
+  return w && !w.back ? w : null;
+}
+function wrongOpen(r){
+  const w = wrongOf(r); if (!w) return 0;
+  const cur = r.manual ? (Number(r.due)||0) : (Number(r.systemRem)||0), at = w.rem != null ? Number(w.rem) : cur;
+  return Math.max(0, Number(w.amt) - Math.max(0, at - cur));   /* المتبقي على السيستم قلّ = الفاتورة اتعدلت */
+}
+const effDue = r => Math.max(0, (Number(r.due)||0) - wrongOpen(r));
 /* a patient who owes nothing and paid nothing has nothing to collect: never listed or counted (comes back by itself if the system adds an amount) */
 const zeroRow = r => !r.manual && !(Number(r.due) > 0) && !(Number(r.collected) > 0);
 const inBranch = r => !r.deleted && (branch === 'all' || brOfRow(r) === branch);
@@ -500,7 +518,7 @@ function subscribeDay(){
     Object.entries(all).forEach(([k,v]) => rows.set(k, normRow({id:k, ...v})));
     render();
   }
-  hist = new Map(); histFor = ''; posts = new Map();
+  hist = new Map(); histFor = ''; posts = new Map(); wrongs = new Map();
   setTimeout(() => loadHistory().catch(() => {}), 600);
 }
 
@@ -550,6 +568,7 @@ async function loadHistory(){
   const per = new Map();               /* patient key -> [{d, note, by}] since the last time they were fully paid */
   const pp = new Map();                /* patient key -> {name,pid,br,due,phone,posts:[{d,by,auto}],note} since last full payment */
   const alias = new Map();             /* name key <-> pid key so manual rows join the same patient */
+  const wl = new Map();                /* patient key -> last «الفلوس دي تتشال» from a previous day */
   const keyOf = r => { const br = brOfRow(r); const pk = pidKey(br, r.pid), nk = nmKey(br, r.name);
     if (pk && nk && !alias.has(nk)) alias.set(nk, pk);
     return pk || alias.get(nk) || nk; };
@@ -567,6 +586,7 @@ async function loadHistory(){
         continue;
       }
       const k = keyOf(r); if (!k) continue;
+      if (r.wrong && r.wrong.amt > 0) wl.set(k, {...r.wrong, d, id: r.id, back: r.wrongBack || null});
       const note = String(r.note||'').trim();
       const list = per.get(k) || [];
       if (note && !AUTO_NOTE.test(note) && !list.some(x => x.d === d && x.note === note)) list.push({d, note, by: r.noteBy || r.collector || ''});
@@ -589,6 +609,7 @@ async function loadHistory(){
     }
   }
   hist = new Map([...per].filter(([, v]) => v.length));
+  wrongs = wl; for (const [nk, pk] of alias) if (wrongs.has(pk) && !wrongs.has(nk)) wrongs.set(nk, wrongs.get(pk));
   posts = new Map([...pp].filter(([, v]) => v.posts.length));
   for (const [nk, pk] of alias) if (posts.has(pk) && !posts.has(nk)) posts.set(nk, posts.get(pk));
   for (const [nk, pk] of alias) if (hist.has(pk) && !hist.has(nk)) hist.set(nk, hist.get(pk));
@@ -994,7 +1015,7 @@ function renderRecon(){
 /* ---------------- actions ---------------- */
 function rowState(r){
   if (r.cancelled) return 'cancel';
-  const c = Number(r.collected)||0, d = Number(r.due)||0;
+  const c = Number(r.collected)||0, d = effDue(r);
   if (c > 0 && c >= d) return 'done';
   if (c > 0) return 'part';
   return 'open';
@@ -1015,6 +1036,19 @@ function toggleCancel(id){
   saveRow(id, {cancelled: !r.cancelled, cancelledAt: !r.cancelled ? nowISO() : '', ...(r.cancelled ? {} : {keepOpen:false})});
 }
 
+function toggleWrong(id){
+  const r = rows.get(id); if (!r) return;
+  if (r.wrong && !r.wrongBack){ if (confirm(`ترجّع الـ ${fmt(r.wrong.amt)} ج مطلوبة من «${r.name}» وتلغي المراجعة عند داليا؟`)) saveRow(id, {wrong: null}); return; }
+  if (!me){ showMsg('اختار اسمك فوق في «👤 مين على الجهاز؟» الأول.', 'warn'); return; }
+  const why = (prompt(`ليه الفلوس دي تتشال من على «${r.name}»؟\n(مثلاً: مش هيعمل الخدمة دي خلاص / دفعها قبل كده / الفاتورة مكررة)`) || '').trim();
+  if (!why) return;
+  if (why.length < 5){ alert('اكتبي السبب بوضوح عشان داليا تراجعه.'); return; }
+  const dueN = Number(r.due)||0;
+  const a = prompt(`المبلغ اللي يتشال (المطلوب كله ${fmt(dueN)} ج):`, String(dueN)); if (a == null) return;
+  const amt = Math.round(Number(String(a).replace(/[^0-9.]/g,''))||0);
+  if (!(amt > 0) || amt > dueN + TOL){ alert('المبلغ لازم يكون أكبر من صفر ومش أكتر من المطلوب.'); return; }
+  saveRow(id, {wrong: {amt, why, by: me, at: nowISO(), d: day(), rem: r.manual ? dueN : (Number(r.systemRem)||0)}, wrongBack: null});
+}
 function softDel(id, r){ return saveRow(id, {deleted:true, cancelled:true, deletedAt:nowISO(), note: (r.note ? r.note + ' · ' : '') + 'اتمسح (اترفع بالغلط)'}); }
 function deleteRow(id){
   const r = rows.get(id); if (!r) return;
@@ -1096,7 +1130,7 @@ function goneFromSync(r){
 }
 function dueState(r){
   if (r.cancelled || r.deleted) return null;
-  if (!(Number(r.due) > 0) || (Number(r.collected)||0) >= Number(r.due)) return null;
+  if (!(effDue(r) > 0) || (Number(r.collected)||0) >= effDue(r)) return null;
   if (day() !== todayStr()) return null;
   const w = apptWindow(r); if (!w) return null;
   const now = Date.now();
@@ -1126,9 +1160,9 @@ function shiftOfRow(r){
 }
 function eodLists(){
   const d = day(); const list = [...rows.values()];
-  const noNoteList = list.filter(r => inView(r) && !r.cancelled && Number(r.due) > 0 && (Number(r.collected)||0) < Number(r.due) - TOL
+  const noNoteList = list.filter(r => inView(r) && !r.cancelled && effDue(r) > 0 && (Number(r.collected)||0) < effDue(r) - TOL
     && timeCame(r) && !String(r.note||'').trim() && !r.postponed)
-    .map(r => ({name: r.name, pid: r.pid||'', br: brOfRow(r), left: Number(r.due) - (Number(r.collected)||0), part: (Number(r.collected)||0) > 0, shift: shiftOfRow(r), at: (apptWindow(r)||{}).st}));
+    .map(r => ({name: r.name, pid: r.pid||'', br: brOfRow(r), left: effDue(r) - (Number(r.collected)||0), part: (Number(r.collected)||0) > 0, shift: shiftOfRow(r), at: (apptWindow(r)||{}).st}));
   const todayBy = new Map(); for (const r of list) if (!r.deleted){ const br = brOfRow(r); [pidKey(br, r.pid), nmKey(br, r.name)].forEach(k => k && todayBy.set(k, r)); }
   const seen = new Set(), broken = [];
   for (const [, P] of posts){
@@ -1186,7 +1220,7 @@ function openEod(){ $('#eodBody').innerHTML = eodHtml(eodLists()); $('#eodDlg').
 /* patients not collected (or partly) with no note today, no previous notes, not postponed */
 function noNote(r){
   const st = rowState(r);
-  if (!(st === 'open' || st === 'part') || !(Number(r.due) > 0)) return false;
+  if (!(st === 'open' || st === 'part') || !(effDue(r) > 0)) return false;
   return !String(r.note||'').trim() && !r.postponed && !histOf(r);
 }
 /* collection rate only for patients whose appointment already started (today) */
@@ -1196,7 +1230,8 @@ function nowStats(){
   for (const r of rows.values()){
     if (!inView(r) || r.cancelled) continue;
     const w = apptWindow(r); if (!w || w.st > now) continue;
-    n++; req += Number(r.due)||0; const c = Number(r.collected)||0; col += c; if (c > 0) nc++;
+    if (wrongOpen(r) > 0 && !(effDue(r) > 0) && !(Number(r.collected) > 0)) continue;
+    n++; req += effDue(r); const c = Number(r.collected)||0; col += c; if (c > 0) nc++;
   }
   if (!n){
     let first = 0;
@@ -1236,7 +1271,8 @@ function shiftStats(sh, list, d){
     if (r.collector === sh.name && c > 0 && r.collectedAt){ const t = new Date(r.collectedAt).getTime(); if (t >= a && t < b) own += c; }
     const w = apptWindow(r); const st = w ? w.st : (r.createdAt ? new Date(r.createdAt).getTime() : NaN);
     if (!(st >= a && st < b)) continue;
-    n++; req += Number(r.due)||0;
+    if (wrongOpen(r) > 0 && !(effDue(r) > 0) && !(c > 0)) continue;
+    n++; req += effDue(r);
     const okT = !r.collectedAt || new Date(r.collectedAt).getTime() <= b + 15*60000;
     if (c > 0 && okT){ col += c; nc++; }
   }
@@ -1298,14 +1334,16 @@ $('#shList').addEventListener('click', e => {
 
 /* ---------------- render ---------------- */
 function totals(){
-  let req=0, col=0, n=0, nc=0; const by = {};
+  let req=0, col=0, n=0, nc=0; const by = {}, wr = {n:0, v:0};
   for (const r of rows.values()){
     if (!inView(r) || r.cancelled) continue;
-    n++; req += Number(r.due)||0;
-    const c = Number(r.collected)||0; col += c;
+    const c = Number(r.collected)||0, wo = wrongOpen(r);
+    if (wo > 0){ wr.n++; wr.v += Math.min(wo, Number(r.due)||0); }
+    if (wo > 0 && !(effDue(r) > 0) && !(c > 0)) continue;
+    n++; req += effDue(r); col += c;
     if (c>0){ nc++; const k=r.collector||'—'; by[k]=(by[k]||{n:0,v:0}); by[k].n++; by[k].v+=c; }
   }
-  return {req, col, n, nc, by};
+  return {req, col, n, nc, by, wr};
 }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 let renderScheduled = false, listDeferred = false;
@@ -1320,6 +1358,7 @@ function renderInner(){
   $('#pct').innerHTML = `${p}<span>%</span>`; $('#barI').style.width = Math.min(100,p)+'%';
   $('#sReq').textContent = fmt(t.req); $('#sCol').textContent = fmt(t.col);
   $('#sLeft').textContent = fmt(Math.max(0,t.req-t.col)); $('#sCnt').textContent = `${t.n} (${t.nc})`;
+  $('#wrongLine').textContent = t.wr.n ? `⏸ عند داليا للمراجعة (فلوس متسجلة بالخطأ): ${fmt(t.wr.v)} ج — ${t.wr.n} مريض · مش محسوبين في المطلوب` : '';
   const dsAll = [...rows.values()].filter(inView).map(dueState).filter(Boolean);
   const nG = dsAll.filter(x => x.k==='green').length, nO = dsAll.filter(x => x.k==='orange').length, nR = dsAll.filter(x => x.k==='red').length;
   const on = f => filter === f ? ' on' : '';
@@ -1342,7 +1381,7 @@ function renderInner(){
   list = list.filter(r => {
     const st = rowState(r);
     if (filter==='open' && !(st==='open'||st==='part')) return false;
-    if (filter==='here' && !(Number(r.due) > 0 && (st==='open'||st==='part') && timeCame(r))) return false;
+    if (filter==='here' && !(effDue(r) > 0 && (st==='open'||st==='part') && timeCame(r))) return false;
     if (filter==='done' && st!=='done') return false;
     if (filter==='cancel' && st!=='cancel') return false;
     if (filter==='due'){ if (!dueState(r)) return false; }
@@ -1374,19 +1413,22 @@ function renderInner(){
   $('#list').innerHTML = list.length ? list.map((r, idx) => (idx === nowAt ? `<div class="nowsep"><span>⏱ دلوقتي ${t12(nowISO())} — اللي تحت لسه ميعادهم ما جاش</span></div>` : '') + (() => {
     const st = rowState(r);
     const svc = (r.services||[]).map(s => `${esc(s.type)}${s.time?` (${t12(s.time)})`:''}`).join(' + ') || '—';
-    const tags = (r.flags||[]).map(f => `<span class="tag ${f.includes('جديد')?'p':''}">${esc(f)}</span>`).join('') + (() => { const rn = renewOf(r); return rn ? `<span class="tag renew">🔄 الجلسة ${rn.session_no} من ${rn.size||12} — ${rn.session_no>=(rn.size||12)?'آخر جلسة في الباقة':'باقي جلسة واحدة'}: اعرض عليه التجديد${rn.pkg_src==='est'?' (تقديري)':''}</span>` : ''; })() + (r.manual?'<span class="tag m">يدوي</span>':'') + (r.sysAdjusted?'<span class="tag">✎ من السيستم</span>':'') + (() => { const pc = postCount(r); return pc.n >= 1 ? `<span class="tag post">🔁 أجّل ${timesAr(pc.n)}${r.postponed ? (r.payBy ? ` — وعد يدفع ${dayLbl(r.payBy)}` : ' — وعد يدفع الجلسة الجاية') : ''}</span>` : ''; })() + (() => { const P = postOf(r); if (!P || r.postponed) return ''; const due = P.payBy || (P.payNext ? day() : ''); return due && due <= day() && !(Number(r.due) > 0 && (Number(r.collected)||0) >= Number(r.due) - TOL) ? `<span class="tag warnx">📅 كان واعد يدفع ${P.payBy ? dayLbl(P.payBy) : 'الجلسة دي'} (وعد ${dayLbl(P.promD)})</span>` : ''; })() + (() => { if (goneFromSync(r)) return `<span class="tag gone">اختفى من آخر تحديث — غالبًا دفع في السيستم</span>`; if (r.autoParked && r.cancelled) return '<span class="tag out">⏸ اتشال من مواعيد النهارده في السيستم (Waiting/ملغي) — مش محسوب</span>'; const pr = presence(r); return pr==='out' ? '<span class="tag out">❌ ملغي في السيستم</span>' : pr==='in' ? '<span class="tag in">✅ وصل (السيستم)</span>' : ''; })() + (branch==='all' ? `<span class="tag br">${BR_NAME[brOfRow(r)]}</span>` : '') + (() => { const m = sysMismatch(r); return m ? `<span class="tag warnx">${esc(m)}</span>` : ''; })();
+    const tags = (r.flags||[]).map(f => `<span class="tag ${f.includes('جديد')?'p':''}">${esc(f)}</span>`).join('') + (() => { const rn = renewOf(r); return rn ? `<span class="tag renew">🔄 الجلسة ${rn.session_no} من ${rn.size||12} — ${rn.session_no>=(rn.size||12)?'آخر جلسة في الباقة':'باقي جلسة واحدة'}: اعرض عليه التجديد${rn.pkg_src==='est'?' (تقديري)':''}</span>` : ''; })() + (r.manual?'<span class="tag m">يدوي</span>':'') + (r.sysAdjusted?'<span class="tag">✎ من السيستم</span>':'') + (() => { const pc = postCount(r); return pc.n >= 1 ? `<span class="tag post">🔁 أجّل ${timesAr(pc.n)}${r.postponed ? (r.payBy ? ` — وعد يدفع ${dayLbl(r.payBy)}` : ' — وعد يدفع الجلسة الجاية') : ''}</span>` : ''; })() + (() => { const P = postOf(r); if (!P || r.postponed) return ''; const due = P.payBy || (P.payNext ? day() : ''); return due && due <= day() && !(Number(r.due) > 0 && (Number(r.collected)||0) >= Number(r.due) - TOL) ? `<span class="tag warnx">📅 كان واعد يدفع ${P.payBy ? dayLbl(P.payBy) : 'الجلسة دي'} (وعد ${dayLbl(P.promD)})</span>` : ''; })() + (() => { if (goneFromSync(r)) return `<span class="tag gone">اختفى من آخر تحديث — غالبًا دفع في السيستم</span>`; if (r.autoParked && r.cancelled) return '<span class="tag out">⏸ اتشال من مواعيد النهارده في السيستم (Waiting/ملغي) — مش محسوب</span>'; const pr = presence(r); return pr==='out' ? '<span class="tag out">❌ ملغي في السيستم</span>' : pr==='in' ? '<span class="tag in">✅ وصل (السيستم)</span>' : ''; })() + (branch==='all' ? `<span class="tag br">${BR_NAME[brOfRow(r)]}</span>` : '') + (() => { const w = wrongOf(r), wo = wrongOpen(r);
+      if (r.wrong && r.wrongBack) return `<span class="tag warnx">↩️ ${esc(r.wrongBack.by||'داليا')} راجعتها: الـ ${fmt(r.wrong.amt)} ج مطلوبة تاني</span>`;
+      if (!w || !(wo > 0)) return '';
+      return `<span class="tag wrong">⏸ ${fmt(wo)} ج متشالة من المطلوب — عند داليا للمراجعة: «${esc(w.why||'')}»${w.by ? ` — <bdi>${esc(w.by)}</bdi>` : ''}${w.d && w.d !== day() ? ` (${dayLbl(w.d)})` : ''}</span>`; })() + (() => { const m = sysMismatch(r); return m ? `<span class="tag warnx">${esc(m)}</span>` : ''; })();
     const stamp = (Number(r.collected)>0) ? `<div class="stamp">✔ حصّلها: <bdi>${esc(r.collector||'—')}</bdi> · ${t12(r.collectedAt)} · ${fmt(r.collected)} ج</div>` : '';
     const ds = dueState(r);
     return `<article class="row ${st} ${ds ? ds.k : ''}" data-id="${esc(r.id)}">
       <div class="r1">
         <div><div class="nm">${esc(r.name)}<small>${esc(r.pid||'')}</small></div><div class="svc">${svc}</div>${tags?`<div class="tags">${tags}</div>`:''}${ds?`<span class="due ${ds.k}">${esc(ds.txt)}</span>`:''}</div>
-        <div class="amt"><b>${fmt(r.due)}</b><small>المطلوب${r.manual?'':` · في السيستم ${fmt(r.systemRem)}`}</small></div>
+        <div class="amt"><b>${fmt(effDue(r))}</b>${wrongOpen(r) > 0 ? `<small style="text-decoration:line-through">${fmt(r.due)}</small>` : ''}<small>المطلوب${r.manual?'':` · في السيستم ${fmt(r.systemRem)}`}</small></div>
       </div>
       <div class="r2">
         <div><label>المطلوب النهارده</label><input class="field" type="number" min="0" step="1" inputmode="numeric" data-k="due" value="${Number(r.due)||0}" ${r.cancelled?'disabled':''}></div>
         <div><label>المحصّل</label><input class="field" type="number" min="0" step="1" inputmode="numeric" data-k="collected" value="${pendingAmt.has(r.id) ? pendingAmt.get(r.id) : (Number(r.collected)||'')}" placeholder="0" ${r.cancelled?'disabled':''}></div>
         <div><label>المسؤول</label><select class="field ${pendingAmt.has(r.id)?'need':''}" data-k="collector" ${r.cancelled?'disabled':''}>${opts(r.collector, brOfRow(r))}</select></div>
-        <div class="cbtn" style="display:flex;gap:6px">${(!r.cancelled && rowState(r) !== 'done') ? `<button class="btn ghost ${r.postponed?'posted':''}" style="flex:1" data-act="post" title="المريض قال هيدفع المرة الجاية">${r.postponed ? '↺ أجّل النهارده ✓' : '⏳ أجّل للمرة الجاية'}</button>` : ''}<button class="btn ghost" style="flex:1" data-act="cancel">${r.cancelled?'↺ رجّع الموعد':'✕ الموعد اتلغى'}</button><button class="btn ghost" data-act="del" title="مسح (اترفع بالغلط)" aria-label="مسح">🗑</button></div>
+        <div class="cbtn" style="display:flex;gap:6px">${(!r.cancelled && rowState(r) !== 'done') ? `<button class="btn ghost ${r.postponed?'posted':''}" style="flex:1" data-act="post" title="المريض قال هيدفع المرة الجاية">${r.postponed ? '↺ أجّل النهارده ✓' : '⏳ أجّل للمرة الجاية'}</button>` : ''}${(!r.cancelled && Number(r.due) > 0 && !(Number(r.collected) > 0)) ? (r.wrong && !r.wrongBack ? `<button class="btn ghost" style="flex:1" data-act="wrong" title="الغي «الفلوس دي تتشال»">↺ الغي «تتشال»</button>` : (!wrongOf(r) && !r.wrongBack ? `<button class="btn ghost" style="flex:1;color:#5b21b6" data-act="wrong" title="المريض مش هيدفع الفلوس دي لسبب مقنع — تتشال من المطلوب وتروح لداليا تراجعها">🚫 الفلوس دي تتشال</button>` : '')) : ''}<button class="btn ghost" style="flex:1" data-act="cancel">${r.cancelled?'↺ رجّع الموعد':'✕ الموعد اتلغى'}</button><button class="btn ghost" data-act="del" title="مسح (اترفع بالغلط)" aria-label="مسح">🗑</button></div>
       </div>
       ${(() => { const h = histOf(r); const paid = Number(r.due) > 0 && (Number(r.collected)||0) >= Number(r.due) - TOL; if (!h || paid) return '';
         return `<div class="hist"><b>📝 ملاحظات الأيام اللي فاتت (${h.length}) — لحد ما يسدد كله</b><ul>${h.slice().reverse().map(x => `<li><span class="hd">${dayLbl(x.d)}</span>${esc(x.note)}${x.by?` <span class="hw">— <bdi>${esc(x.by)}</bdi></span>`:''}</li>`).join('')}</ul></div>`; })()}
@@ -1431,6 +1473,7 @@ $('#list').addEventListener('focusout', () => { setTimeout(() => { const ae = do
 $('#list').addEventListener('click', e => {
   const b = e.target.closest('[data-act="cancel"]'); if (b) { toggleCancel(b.closest('.row').dataset.id); return; }
   const pb = e.target.closest('[data-act="post"]'); if (pb) { togglePost(pb.closest('.row').dataset.id); return; }
+  const wb = e.target.closest('[data-act="wrong"]'); if (wb) { toggleWrong(wb.closest('.row').dataset.id); return; }
   const d = e.target.closest('[data-act="del"]'); if (d) deleteRow(d.closest('.row').dataset.id);
 });
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {

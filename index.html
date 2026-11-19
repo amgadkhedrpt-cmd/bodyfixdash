@@ -14917,9 +14917,9 @@ async function bfSyncNow(){
   if(bfSyncBusy) return;
   var t=await bfGhToken();
   if(!t){
-    t=(prompt('عشان زرار التحديث الفوري يشتغل، الصق مفتاح GitHub (github_pat_…) مرة واحدة بس — هيتحفظ لكل الأجهزة:')||'').trim();
-    if(!t) return;
-    await bfSaveToken(t);
+    // الجهاز ده مش متوصّل بشيت التحصيل (اللي فيه المفتاح) — ما نطلبش مفتاح من السكرتارية
+    alert('⚡ التحديث الفوري مش متوصّل على الجهاز ده.\nالبيانات بتتحدث لوحدها كل نص ساعة.\nعشان الزرار يشتغل: افتحي «لينك ربط الجهاز» اللي د. أمجد بيبعته مرة واحدة على الجهاز ده.');
+    return;
   }
   var H={'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json'};
   var clicked=Date.now();

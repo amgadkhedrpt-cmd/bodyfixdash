@@ -438,7 +438,7 @@ function wrongOf(r){
   return w && !w.back ? w : null;
 }
 function wrongOpen(r){
-  const w = wrongOf(r); if (!w) return 0;
+  const w = wrongOf(r); if (!w || !w.own) return 0;   /* بيتشال من المطلوب يوم ما اتكتب بس — المرات الجاية بيظهر كامل لحد ما داليا تتأكد */
   const cur = r.manual ? (Number(r.due)||0) : (Number(r.systemRem)||0), at = w.rem != null ? Number(w.rem) : cur;
   return Math.max(0, Number(w.amt) - Math.max(0, at - cur));   /* المتبقي على السيستم قلّ = الفاتورة اتعدلت */
 }
@@ -1415,6 +1415,7 @@ function renderInner(){
     const svc = (r.services||[]).map(s => `${esc(s.type)}${s.time?` (${t12(s.time)})`:''}`).join(' + ') || '—';
     const tags = (r.flags||[]).map(f => `<span class="tag ${f.includes('جديد')?'p':''}">${esc(f)}</span>`).join('') + (() => { const rn = renewOf(r); return rn ? `<span class="tag renew">🔄 الجلسة ${rn.session_no} من ${rn.size||12} — ${rn.session_no>=(rn.size||12)?'آخر جلسة في الباقة':'باقي جلسة واحدة'}: اعرض عليه التجديد${rn.pkg_src==='est'?' (تقديري)':''}</span>` : ''; })() + (r.manual?'<span class="tag m">يدوي</span>':'') + (r.sysAdjusted?'<span class="tag">✎ من السيستم</span>':'') + (() => { const pc = postCount(r); return pc.n >= 1 ? `<span class="tag post">🔁 أجّل ${timesAr(pc.n)}${r.postponed ? (r.payBy ? ` — وعد يدفع ${dayLbl(r.payBy)}` : ' — وعد يدفع الجلسة الجاية') : ''}</span>` : ''; })() + (() => { const P = postOf(r); if (!P || r.postponed) return ''; const due = P.payBy || (P.payNext ? day() : ''); return due && due <= day() && !(Number(r.due) > 0 && (Number(r.collected)||0) >= Number(r.due) - TOL) ? `<span class="tag warnx">📅 كان واعد يدفع ${P.payBy ? dayLbl(P.payBy) : 'الجلسة دي'} (وعد ${dayLbl(P.promD)})</span>` : ''; })() + (() => { if (goneFromSync(r)) return `<span class="tag gone">اختفى من آخر تحديث — غالبًا دفع في السيستم</span>`; if (r.autoParked && r.cancelled) return '<span class="tag out">⏸ اتشال من مواعيد النهارده في السيستم (Waiting/ملغي) — مش محسوب</span>'; const pr = presence(r); return pr==='out' ? '<span class="tag out">❌ ملغي في السيستم</span>' : pr==='in' ? '<span class="tag in">✅ وصل (السيستم)</span>' : ''; })() + (branch==='all' ? `<span class="tag br">${BR_NAME[brOfRow(r)]}</span>` : '') + (() => { const w = wrongOf(r), wo = wrongOpen(r);
       if (r.wrong && r.wrongBack) return `<span class="tag warnx">↩️ ${esc(r.wrongBack.by||'داليا')} راجعتها: الـ ${fmt(r.wrong.amt)} ج مطلوبة تاني</span>`;
+      if (w && !w.own) return `<span class="tag wrong">📝 «${esc(w.why||'')}»${w.by ? ` — <bdi>${esc(w.by)}</bdi>` : ''} (${dayLbl(w.d)}) · لسه عند داليا للمراجعة — المبلغ محسوب كامل لحد ما تتأكد</span>`;
       if (!w || !(wo > 0)) return '';
       return `<span class="tag wrong">⏸ ${fmt(wo)} ج متشالة من المطلوب — عند داليا للمراجعة: «${esc(w.why||'')}»${w.by ? ` — <bdi>${esc(w.by)}</bdi>` : ''}${w.d && w.d !== day() ? ` (${dayLbl(w.d)})` : ''}</span>`; })() + (() => { const m = sysMismatch(r); return m ? `<span class="tag warnx">${esc(m)}</span>` : ''; })();
     const stamp = (Number(r.collected)>0) ? `<div class="stamp">✔ حصّلها: <bdi>${esc(r.collector||'—')}</bdi> · ${t12(r.collectedAt)} · ${fmt(r.collected)} ج</div>` : '';

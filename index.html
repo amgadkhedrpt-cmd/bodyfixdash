@@ -12209,11 +12209,14 @@ function planShiftBr(x){ return x&&x.branch==='dokki'?'FIX ZONE':'BODYFIX Center
 /* أسامي الفرع = المتسجلة للفرع + اللي مسجّلين شيفت خزنة النهارده في نفس الفرع */
 function planNames(bkey){
   var out=(PLAN_NAMES_BR[bkey]||[]).slice();
-  (PLAN_SHIFTS||[]).forEach(function(x){ var n=String(x.name||'').trim(); if(n&&planShiftBr(x)===bkey&&out.indexOf(n)<0) out.push(n); });
+  // الخزنة بتتسجل بالاسم الكامل («Nada Abdel Razik») → نفس اسم الخطة («Nada») عشان ما يتكررش
+  (PLAN_SHIFTS||[]).forEach(function(x){ var n=String(x.name||'').trim(); if(n&&typeof planNormName==='function') n=planNormName(n); if(n&&planShiftBr(x)===bkey&&out.indexOf(n)<0) out.push(n); });
   // أصحاب الأدوار في الفرع (الدقي: الصباحي / المسائي) + اللي جاية تغطي أو شغالة من الفرع ده النهارده
   var R=(typeof PLAN_ROLES!=='undefined'&&PLAN_ROLES[bkey])||{}; Object.keys(R).forEach(function(k){ var n=R[k]; if(n&&out.indexOf(n)<0) out.push(n); });
-  try{ var P=planTeam().p; Object.keys(P).forEach(function(n){ var x=P[n]; if(x&&(x.st==='cover'||x.st==='away')&&x.br===bkey&&out.indexOf(n)<0) out.push(n); }); }catch(e){}
-  return out;
+  var here={}; try{ var P=planTeam().p; Object.keys(P).forEach(function(n){ var x=P[n]; if(x&&(x.st==='cover'||x.st==='away')&&x.br===bkey){ here[n]=1; if(out.indexOf(n)<0) out.push(n); } }); }catch(e){}
+  // سكرتيرات الفرع التاني (أصحاب أدوار هناك) ما يظهروش هنا — إلا لو جايين يغطوا النهارده
+  var oth={}; if(typeof PLAN_ROLES!=='undefined') Object.keys(PLAN_ROLES).forEach(function(b){ if(b===bkey) return; var Ro=PLAN_ROLES[b]||{}; Object.keys(Ro).forEach(function(k){ if(Ro[k]) oth[Ro[k]]=1; }); });
+  return out.filter(function(n){ return here[n]||R[n]||!oth[n]||Object.keys(R).some(function(k){ return R[k]===n; }); });
 }
 function planNamesAll(){ var out=[]; planBR().forEach(function(b){ planNames(b.key).forEach(function(n){ if(out.indexOf(n)<0) out.push(n); }); }); return out; }
 function planAddName(n, bkey){
@@ -12852,7 +12855,9 @@ function planOwner0(t,g){
   if(g==='trcall') return PLAN_INV_OWNER_DEF;
   if(g==='invfix'){ var tdi=(ALERTS_DATA&&ALERTS_DATA.today)||'', ai=PLAN_ST['asg|'+tdi+'|'+t.sec+'|invfix|'+t.br]; return ai&&ai.by?ai.by:((PLAN_ROLES['BODYFIX Center']||{}).L||PLAN_INV_OWNER_DEF); }
   if(g==='debtph'){ if(PLAN_PHCOL[t.br]) return PLAN_PHCOL[t.br]; }
-  if(g==='debt'){ var co=planCashOwner(t); if(co) return co; } var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by;
+  if(g==='debt'){ var co=planCashOwner(t); if(co) return co;
+    var tdd=(ALERTS_DATA&&ALERTS_DATA.today)||'', ad=PLAN_ST['asg|'+tdd+'|'+t.sec+'|debt|'+t.br]; if(ad&&ad.by) return ad.by;
+    var Rd=PLAN_ROLES[t.br]||{}, dd=t.br==='FIX ZONE'?(Rd.DM||Rd.DE):(Rd.F||Rd.L); if(dd) return dd; }   /* مش معروف مين على الخزنة → مسئولة الصبح */ var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return a.by;
   var bn=planBaseOwner(t,g); if(bn) return bn;   // الأساس: كل نوع مهمة ليه دور ثابت (والتغيير من الخانة جنب المهمة للنهارده بس)
   var r=PLAN_ST['resp|'+td+'|'+t.br]; return r&&r.by?r.by:''; }
 

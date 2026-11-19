@@ -15,3 +15,11 @@ jobs:
           SHEET_KEY: ${{ secrets.SHEET_KEY }}
           SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
         run: python calls_probe.py
+      - name: Check what the dashboard shows
+        env:
+          SHEET_KEY: ${{ secrets.SHEET_KEY }}
+          SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
+        run: |
+          pip install -q playwright
+          if ! command -v google-chrome >/dev/null 2>&1; then python -m playwright install --with-deps chromium; fi
+          python calls_probe_ui.py

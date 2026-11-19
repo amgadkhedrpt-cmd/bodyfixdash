@@ -12210,6 +12210,9 @@ function planShiftBr(x){ return x&&x.branch==='dokki'?'FIX ZONE':'BODYFIX Center
 function planNames(bkey){
   var out=(PLAN_NAMES_BR[bkey]||[]).slice();
   (PLAN_SHIFTS||[]).forEach(function(x){ var n=String(x.name||'').trim(); if(n&&planShiftBr(x)===bkey&&out.indexOf(n)<0) out.push(n); });
+  // أصحاب الأدوار في الفرع (الدقي: الصباحي / المسائي) + اللي جاية تغطي أو شغالة من الفرع ده النهارده
+  var R=(typeof PLAN_ROLES!=='undefined'&&PLAN_ROLES[bkey])||{}; Object.keys(R).forEach(function(k){ var n=R[k]; if(n&&out.indexOf(n)<0) out.push(n); });
+  try{ var P=planTeam().p; Object.keys(P).forEach(function(n){ var x=P[n]; if(x&&(x.st==='cover'||x.st==='away')&&x.br===bkey&&out.indexOf(n)<0) out.push(n); }); }catch(e){}
   return out;
 }
 function planNamesAll(){ var out=[]; planBR().forEach(function(b){ planNames(b.key).forEach(function(n){ if(out.indexOf(n)<0) out.push(n); }); }); return out; }

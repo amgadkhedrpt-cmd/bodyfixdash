@@ -13005,11 +13005,26 @@ var PLAN_NO_H=['confsp'];
 /* اللي ينفع يتنقل لـ عيادة 1 (Mariam) لما حد يغيب: التأكيدات والمكالمات البسيطة بس — أي مهمة فيها هندلة للمريض (تجديد، تقييم، حجز، شكاوى، خصم، فلوس، ويتنج…) لأ */
 var PLAN_H_OK=['conf','conftoday','call','drop','late','nonext','svc'];                              // Mariam (عيادة 1) ما تستلمش تأكيد التغذية
 var PLAN_EVE_G=['stale','kashf0'];                     // مهام آخر اليوم — ما تروحش للي جاية الصبح
-function planTeam(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var o=PLAN_ST['team|'+td]||{}; o.p=o.p||{}; o.am=o.am||{}; return o; }
+/* الحضور: كل شخص بيتحفظ لوحده (PLAN|teamp|<اليوم>|<الاسم>) عشان تعديل حد ما يمسحش اللي غيره كتبه — وفوقه السجل القديم المجمّع */
+var PLAN_TEAM_C=null;
+function planTeam(){ var C=PLAN_TEAM_C; if(C&&C.ref===PLAN_ST&&Date.now()-C.t<400) return {p:Object.assign({},C.o.p), am:Object.assign({},C.o.am), by:C.o.by, at:C.o.at}; var o=planTeam0(); PLAN_TEAM_C={ref:PLAN_ST, t:Date.now(), o:o}; return {p:Object.assign({},o.p), am:Object.assign({},o.am), by:o.by, at:o.at}; }
+function planTeam0(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', b=PLAN_ST['team|'+td]||{}, o={p:Object.assign({},b.p||{}), am:Object.assign({},b.am||{}), by:b.by||'', at:b.at||''};
+  var pp='teamp|'+td+'|', pa='teamam|'+td+'|';
+  Object.keys(PLAN_ST).forEach(function(k){ var v=PLAN_ST[k]; if(!v) return;
+    if(k.indexOf(pp)===0){ var n=k.slice(pp.length); if(v.st==='in') delete o.p[n]; else o.p[n]=v.p||v; if(v.ts&&v.ts>(o._ts||'')){ o._ts=v.ts; o.by=v.by||o.by; o.at=v.at||o.at; } }
+    else if(k.indexOf(pa)===0){ o.am[k.slice(pa.length)]=v.v||''; } });
+  return o; }
+function planTeamSave(T, names){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', at=new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}), ts=new Date().toISOString();
+  names.forEach(function(n){ var x=T.p[n]||{st:'in'}, k='teamp|'+td+'|'+n, o={st:x.st||'in', p:x, by:PLAN_ME||'', at:at, ts:ts}; PLAN_ST[k]=o; planSaveRaw('PLAN|'+k, JSON.stringify(o)); });
+  var W={p:T.p, am:T.am, by:PLAN_ME||'', at:at}; PLAN_ST['team|'+td]=W; PLAN_TEAM_C=null; planSaveRaw('PLAN|team|'+td, JSON.stringify(W));
+  try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender(); }
+/* 🚗 في الفرع التاني وشغلها معاها: مهام التليفون والسيستم تفضل عندها · شغل الاستقبال بس (التحصيل وهو موجود / عرض التجديد…) يتنقل لحد في الفرع */
+var PLAN_AWAY_LOCAL=['debt','late','renew','eval','svc'];
+function planAwayOk(t,g,o){ var x=planTeam().p[o]; return !!(x&&x.st==='away'&&t.sec!=='rec'&&PLAN_AWAY_LOCAL.indexOf(g)<0); }
 function planRoleOf(name, br){ var R=PLAN_ROLES[br]||{}; for(var k in R) if(R[k]===name) return k; return ''; }
 function planBrOfName(name){ for(var b in PLAN_ROLES) if(planRoleOf(name,b)) return b; return ''; }
 /* موجودة في الفرع ده النهارده؟ (غايبة أو بتغطي في الفرع التاني = لأ) */
-function planHere(name, br){ var P=planTeam().p, p=P[name]; if(!p||p.st==='in'||!p.st) return true; if(p.st==='cover') return p.br===br;
+function planHere(name, br){ var P=planTeam().p, p=P[name]; if(!p||p.st==='in'||!p.st) return true; if(p.st==='cover'||p.st==='away') return p.br===br;
   // متختارة تغطي مكان حد في الفرع ده («مهامها كلها ← فلانة») = موجودة هنا حتى لو متعلّم عليها غايبة في فرعها
   for(var n in P){ var x=P[n]; if(x&&x.sub===name&&n!==name&&(planBrOfName(n)===br||planRoleOf(n,br))) return true; }
   return false; }
@@ -13050,7 +13065,7 @@ function planCoverMap(){
       if(o&&g!=='debt'&&planHere(o,br)&&planOutCount(br)>=1&&PLAN_SHARE.indexOf(g)>=0&&stOpen(t)){
         // يوم فيه غياب: مهام التليفون اللي ممكن تتقسم (التأكيد / المتابعة / الويتنج) بتدخل التوازن — صاحبتها أولى وبتاخد من الموجودين لو حملها عالي
         var cd0=planCoverCands(t,g,o); if(cd0.c.length){ items.push({k:k, t:t, o:o, c:[o].concat(cd0.c), open:true, own:true}); return; } }
-      if(!o||g==='debt'||planHere(o,br)||planAsgd(t,g,o)){ M[k]={owner:o}; if(o&&stOpen(t)) load[o]=(load[o]||0)+1; return; }
+      if(!o||g==='debt'||planHere(o,br)||planAsgd(t,g,o)||planAwayOk(t,g,o)){ M[k]={owner:o}; if(o&&stOpen(t)) load[o]=(load[o]||0)+1; return; }
       var cv=planCoverOf(o,br); if(cv){ M[k]={owner:cv, from:o}; if(stOpen(t)) load[cv]=(load[cv]||0)+1; return; }
       var sb=(planTeam().p[o]||{}).sub; if(sb&&planHere(sb,br)){ M[k]={owner:sb, from:o}; if(stOpen(t)) load[sb]=(load[sb]||0)+1; return; }
       var cd=planCoverCands(t,g,o);
@@ -13069,7 +13084,7 @@ function planCoverMap(){
 }
 function planCoverInfo(t,g){
   var M=planCoverMap(); if(M&&M[t.key+'|'+g]) return M[t.key+'|'+g];
-  var o=planOwner0(t,g), br=t.br; if(!o||g==='debt'||planHere(o,br)||planAsgd(t,g,o)) return {owner:o};
+  var o=planOwner0(t,g), br=t.br; if(!o||g==='debt'||planHere(o,br)||planAsgd(t,g,o)||planAwayOk(t,g,o)) return {owner:o};
   var cv=planCoverOf(o,br); if(cv) return {owner:cv, from:o};
   var sb=(planTeam().p[o]||{}).sub; if(sb&&planHere(sb,br)) return {owner:sb, from:o};
   var cd=planCoverCands(t,g,o); if(!cd.c.length&&PLAN_MUST.indexOf(g)>=0){ cd.c=planAnyPresent(t,g,o); if(!cd.c.length) return {owner:'', from:o, need:true}; }
@@ -13078,20 +13093,20 @@ function planCoverInfo(t,g){
 function planOwner(t,g){ return planCoverInfo(t,g).owner||''; }
 function planIsPosted(t){ var g=(t.grp||[])[0]; return !!(g&&planCoverInfo(t,g).post); }
 function planTeamSet(name, st, br, forN){
-  var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var T=planTeam();
+  var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var T=planTeam(), ch=[name];
+  if(st==='away'){ var ob0=planBrOfName(name); T.p[name]={st:'away', br:ob0==='FIX ZONE'?'BODYFIX Center':'FIX ZONE'}; planTeamSave(T, ch); return; }
   if(st==='cover'){ var ob=planBrOfName(name), other=ob==='FIX ZONE'?'BODYFIX Center':'FIX ZONE';
     var L=Object.keys(PLAN_ROLES[other]||{}).map(function(k){ return PLAN_ROLES[other][k]; });
     var f=prompt('بتغطي في '+(other==='FIX ZONE'?'الدقي':'الهرم')+' مكان مين؟\n'+L.join(' · ')); if(!f||L.indexOf(f.trim())<0){ planRender(); return; }
-    T.p[name]={st:'cover', br:other, for:f.trim()}; if(!T.p[f.trim()]||T.p[f.trim()].st==='in') T.p[f.trim()]={st:'out'}; }
+    T.p[name]={st:'cover', br:other, for:f.trim()}; if(!T.p[f.trim()]||T.p[f.trim()].st==='in'){ T.p[f.trim()]={st:'out'}; ch.push(f.trim()); } }
   else if(st==='sub'){ var all=[]; Object.keys(PLAN_ROLES).forEach(function(b){ Object.keys(PLAN_ROLES[b]).forEach(function(k){ var n=PLAN_ROLES[b][k]; if(n!==name&&all.indexOf(n)<0) all.push(n); }); });
     var sbn=prompt('مين بتغطي مكان '+name+' النهارده؟ (اكتبي الاسم — من الفريق أو حد زيادة)\n'+all.join(' · ')); if(!sbn||!sbn.trim()){ planRender(); return; }
     T.p[name]={st:'out', sub:sbn.trim()}; }
-  else T.p[name]={st:st};
-  T.by=PLAN_ME||''; T.at=new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
-  PLAN_ST['team|'+td]=T; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
-  planSaveRaw('PLAN|team|'+td, JSON.stringify(T)); planRender();
+  else { if(st==='in') delete T.p[name]; else T.p[name]={st:st}; }
+  planTeamSave(T, ch);
 }
-function planTeamAM(br, v){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var T=planTeam(); T.am[br]=v; PLAN_ST['team|'+td]=T; planSaveRaw('PLAN|team|'+td, JSON.stringify(T)); planRender(); }
+function planTeamAM(br, v){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', k='teamam|'+td+'|'+br, o={v:v, by:PLAN_ME||'', ts:new Date().toISOString()}; PLAN_ST[k]=o; PLAN_TEAM_C=null; planSaveRaw('PLAN|'+k, JSON.stringify(o));
+  var T=planTeam(); T.am[br]=v; planTeamSave(T, []); }
 function planTeamPanel(){
   var T=planTeam(), brs=planBR(), moved=0, posted=0, needN=0;
   try{ var TT=planTasks(true); ['mgr','morning','rec','office','evening'].forEach(function(s){ TT[s].forEach(function(t){ var g=(t.grp||[])[0], ci=g?planCoverInfo(t,g):{}; if(brs.some(function(b){return b.key===t.br;})){ if(ci.post) posted++; else if(ci.need) needN++; else if(ci.from) moved++; } }); }); }catch(e){}
@@ -13099,13 +13114,13 @@ function planTeamPanel(){
     var R=PLAN_ROLES[b.key]||{}, names=Object.keys(R).map(function(k){ return [k,R[k]]; });
     Object.keys(T.p).forEach(function(n){ var x=T.p[n]; if(x.st==='cover'&&x.br===b.key) names.push(['cv',n]); });
     var cells=names.map(function(z){ var n=z[1], x=T.p[n]||{st:'in'}, cv=z[0]==='cv';
-      var col=cv?'#38bdf8':x.st==='out'?'var(--r)':x.st==='cover'?'#f59e0b':'var(--g)';
-      var lbl=cv?'🔁 جاية تغطي مكان '+alEsc(x.for):x.st==='out'?'🔴 غايبة':x.st==='cover'?'🔁 في '+(x.br==='FIX ZONE'?'الدقي':'الهرم')+' مكان '+alEsc(x.for):'✅ موجودة';
+      var col=cv?'#38bdf8':x.st==='out'?'var(--r)':x.st==='cover'?'#f59e0b':x.st==='away'?'#a78bfa':'var(--g)';
+      var lbl=cv?'🔁 جاية تغطي مكان '+alEsc(x.for):x.st==='out'?'🔴 غايبة':x.st==='cover'?'🔁 في '+(x.br==='FIX ZONE'?'الدقي':'الهرم')+' مكان '+alEsc(x.for):x.st==='away'?'🚗 في '+(x.br==='FIX ZONE'?'الدقي':'الهرم')+' — شغلها معاها':'✅ موجودة';
       return '<div style="border:1px solid var(--brd);border-inline-start:3px solid '+col+';border-radius:8px;padding:5px 8px;min-width:150px">'+
         '<b style="font-size:.66rem">'+alEsc(n)+'</b> <span style="font-size:.54rem;color:var(--mute)">'+(cv?'من الفرع التاني':alEsc(PLAN_ROLE_LBL[z[0]]||''))+'</span><br>'+
         (cv?'<span style="font-size:.58rem;color:'+col+'">'+lbl+'</span>':
         '<select onchange="planTeamSet(\''+alEsc(n)+'\',this.value)" style="margin-top:3px;background:var(--bg);border:1px solid var(--brd);color:'+col+';border-radius:6px;padding:2px 4px;font-family:Cairo,sans-serif;font-size:.58rem">'+
-          [['in','✅ موجودة'],['out','🔴 غايبة (المهام تتوزع)'],['sub','🔴 غايبة وفيه حد بيغطي مكانها'],['cover','🔁 بتغطي في الفرع التاني']].map(function(o){ var cur=x.sub?'sub':(x.st||'in'); return '<option value="'+o[0]+'"'+(cur===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'+(x.st==='cover'?'<div style="font-size:.54rem;color:'+col+'">'+lbl+'</div>':'')+(x.sub?'<div style="font-size:.56rem;color:#38bdf8">↩️ مهامها كلها ← <b>'+alEsc(x.sub)+'</b></div>':''))+'</div>'; }).join('');
+          [['in','✅ موجودة'],['out','🔴 غايبة (المهام تتوزع)'],['sub','🔴 غايبة وفيه حد بيغطي مكانها'],['cover','🔁 بتغطي في الفرع التاني'],['away','🚗 في الفرع التاني (شغلها معاها)']].map(function(o){ var cur=x.sub?'sub':(x.st||'in'); return '<option value="'+o[0]+'"'+(cur===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'+(x.st==='cover'?'<div style="font-size:.54rem;color:'+col+'">'+lbl+'</div>':'')+(x.sub?'<div style="font-size:.56rem;color:#38bdf8">↩️ مهامها كلها ← <b>'+alEsc(x.sub)+'</b></div>':''))+'</div>'; }).join('');
     var am=planAM(b.key), pool=names.map(function(z){return z[1];}).filter(function(n){ return planHere(n,b.key); });
     var amSel='<label style="font-size:.58rem;color:var(--mute)">☀️ اللي جاية الصبح <select onchange="planTeamAM(\''+b.key+'\',this.value)" style="background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:6px;padding:2px 4px;font-family:Cairo,sans-serif;font-size:.58rem">'+
       '<option value="">—</option>'+pool.map(function(n){ return '<option'+(n===am?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('')+'</select></label>';

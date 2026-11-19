@@ -63,3 +63,50 @@ for ph, L in by.items():
 print("\nMISSED, STILL NO TALK (per line / day of the miss) — open (of them we tried calling back):")
 for k in sorted(openN): print(f"  {k[0]} {k[1]}: {openN[k]} (tried {tried[k]})")
 print("\nlatest call in data:", day(max(c['t'] for c in calls)) if calls else None, "· total calls", len(calls))
+
+# ── من أول الشهر: كل «فاتتنا» اتقفلت بإيه؟ (نفس قواعد الداشبورد) ──
+import re
+def cph(s):
+    d = re.sub(r"\D", "", str(s or ""))
+    return d[-10:] if len(d) >= 10 else ("0" + d if len(d) == 9 else d)
+last_visit = {}
+try:
+    A = json.load(open("alerts.json", encoding="utf-8"))
+    for r in A.get("pt_index") or []:
+        p = cph(r[1]); v = str(r[4] or "")[:10]
+        if p and v > last_visit.get(p, ""): last_visit[p] = v
+except Exception as e: print("pt_index", e)
+utcday = lambda t: dt.datetime.fromtimestamp(t / 1000, dt.timezone.utc).strftime("%Y-%m-%d")
+today = now.strftime("%Y-%m-%d"); M1 = now.strftime("%Y-%m-01")
+E = []
+for ph, L in by.items():
+    e = None
+    for c in L:
+        if c["dur"] > 0 and c["ty"] != "miss":
+            if e: e["tC"] = c["t"]; E.append(e); e = None
+            continue
+        if not e: e = {"ph": ph, "t0": c["t"], "s": "out" if c["ty"] == "out" else "miss", "ln": c["ln"], "tC": None}
+    if e: E.append(e)
+GAP = 30 * 60e3
+res = defaultdict(int); ages = defaultdict(int)
+for e in E:
+    if e["s"] != "miss" or len(str(e["ph"])) < 9 or utcday(e["t0"]) < M1: continue
+    lv = last_visit.get(cph(e["ph"]), "")
+    if e["tC"] is not None: res["اتكلمنا (هو أو احنا)"] += 1; continue
+    if lv and lv >= utcday(e["t0"]): res["جه العيادة بعدها"] += 1; continue
+    byd = defaultdict(list)
+    for c in by[e["ph"]]:
+        if c["ty"] == "out" and c["t"] >= e["t0"]: byd[utcday(c["t"])].append(c["t"])
+    full = []
+    for d_ in sorted(byd):
+        n, lt = 0, -1e18
+        for t in sorted(byd[d_]):
+            if t - lt >= GAP: n += 1; lt = t
+        if n >= 3: full.append(d_)
+    if len(full) >= 3 and full[2] < today: res["اتقفلت: 3 أيام × 3 محاولات"] += 1; continue
+    res["لسه مفتوحة"] += 1
+    ages[(e["ln"], utcday(e["t0"]))] += 1
+print("\nFROM", M1, "— missed calls (unique episodes) closed by:")
+for k, v in res.items(): print(f"  {k}: {v}")
+print("still open by line/day:"); 
+for k in sorted(ages): print(f"  {k[0]} {k[1]}: {ages[k]}")

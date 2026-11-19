@@ -1850,6 +1850,54 @@ def analyze(appointments):
 
 AUTH_CTX = {}
 
+async def audit_range(page, cookie_str, extra_headers, appointments, f, t):
+    """📅 مراجعة كومبليت لفترة قديمة (بيتطلب من تاب المراجعة) → data/audit_range.json
+    المواعيد Completed في الفترة + الخطوات اللي اتقفلت فيها (بتاريخ القفل — مهما كانت الباقة اتفتحت امتى) + Planned اتعملت فيها"""
+    ts = lambda: datetime.now().strftime("%H:%M:%S")
+    appts = []
+    for a in appointments or []:
+        if str(a.get("status_en") or "").upper() != "COMPLETED" and a.get("status") != "Completed":
+            continue
+        dd = _cairo_date(a.get("start"))
+        if not dd or dd < f or dd > t:
+            continue
+        appts.append({"d": dd, "pid": str((a.get("patient") or {}).get("id") or ""), "p": _pname(a.get("patient")),
+                      "dr": ((a.get("doctor") or {}).get("name") or "").strip(), "s": (a.get("type") or "").strip(),
+                      "b": ((a.get("branch") or {}).get("name") or "")})
+    f0 = (datetime.fromisoformat(f) - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00.000Z")
+    t0 = (datetime.fromisoformat(t) + timedelta(days=1)).strftime("%Y-%m-%dT23:59:59.999Z")
+    q = STEPS_Q % ""
+    q_end = q.replace("$rangeDate:[DateTime!]!)", "$rangeDate:[DateTime!]!,$filters:Filter)", 1).replace("rangeDate:$rangeDate)", "rangeDate:$rangeDate filters:$filters)", 1)
+    rows, ids = [], set()
+    for qq, extra in ((q_end, {"filters": {"rangeDateKey": "end"}}), (q, {})):
+        skip = 0
+        while True:
+            d = await gql_call(page, cookie_str, extra_headers, qq, {"orderBy": "createdAt", "skip": skip, "take": 500, "rangeDate": [f0, t0], **extra})
+            lst = gql_dec(d, "createdOperationSteps") or []
+            for x in lst:
+                if isinstance(x, dict) and x.get("id") not in ids:
+                    rows.append(x); ids.add(x.get("id"))
+            if len(lst) < 500 or skip > 80000:
+                break
+            skip += 500
+            await asyncio.sleep(0.2)
+    steps = []
+    for x in rows:
+        dd = _cairo_date(x.get("end") or x.get("createdAt"))
+        if not dd or dd < f or dd > t:
+            continue
+        steps.append({"d": dd, "pid": str((x.get("patient") or {}).get("id") or ""), "p": _pname(x.get("patient")),
+                      "dr": ((x.get("doctor") or {}).get("name") or "").strip(), "s": (x.get("name") or "").strip(),
+                      "b": ((x.get("branch") or {}).get("name") or ""), "st": str(x.get("status") or ""), "u": 0, "c": 0})
+    statuses = collections.Counter(s_["st"] for s_ in steps)
+    out = {"last_updated": datetime.now(timezone.utc).isoformat(), "req": f + "," + t, "from": f, "to": t,
+           "statuses": dict(statuses), "appts": appts, "steps": steps}
+    os.makedirs("data", exist_ok=True)
+    with open("data/audit_range.json", "w", encoding="utf-8") as fh:
+        json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
+    print(f"[{ts()}] ✅ audit_range.json {f} → {t}: {len(appts)} موعد Completed · {len(steps)} خطوة")
+
+
 async def main():
     print("=" * 55)
     print("   BODYFIX — Medicolize Sync")
@@ -1892,6 +1940,11 @@ async def main():
                 os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
                 await context.storage_state(path=SESSION_FILE)
                 print("   💾 Session saved for next run")
+            rng_req = os.environ.get("AUDIT_RANGE", "").strip()
+            if rng_req and appointments:   # 📅 سحب مراجعة فترة قديمة بس (من تاب المراجعة) — مش السحب العادي
+                f_, t_ = [x.strip() for x in rng_req.split(",")][:2]
+                await audit_range(page, AUTH_CTX.get("cookie", ""), AUTH_CTX.get("headers"), appointments, f_, t_)
+                return
             if not appointments:
                 # ما نكتبش ملفات فاضية فوق الداتا السليمة — نخلي الـ run يفشل باللون الأحمر
                 raise RuntimeError("Medicolize رجع 0 مواعيد — غالبًا اللوجين فشل أو الـ API اتغير")

@@ -13027,9 +13027,9 @@ function planTeamSave(T, names){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', at
   names.forEach(function(n){ var x=T.p[n]||{st:'in'}, k='teamp|'+td+'|'+n, o={st:x.st||'in', p:x, by:PLAN_ME||'', at:at, ts:ts}; PLAN_ST[k]=o; planSaveRaw('PLAN|'+k, JSON.stringify(o)); });
   var W={p:T.p, am:T.am, by:PLAN_ME||'', at:at}; PLAN_ST['team|'+td]=W; PLAN_TEAM_C=null; planSaveRaw('PLAN|team|'+td, JSON.stringify(W));
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender(); }
-/* 🚗 في الفرع التاني وشغلها معاها: مهام التليفون والسيستم تفضل عندها · شغل الاستقبال بس (التحصيل وهو موجود / عرض التجديد…) يتنقل لحد في الفرع */
+/* 🚗 في الفرع التاني وشغلها معاها (أو بتغطي مكان حد هناك): مهام التليفون والسيستم تفضل عندها · شغل الاستقبال بس (التحصيل وهو موجود / عرض التجديد…) يتنقل لحد في الفرع */
 var PLAN_AWAY_LOCAL=['debt','late','renew','eval','svc'];
-function planAwayOk(t,g,o){ var x=planTeam().p[o]; return !!(x&&x.st==='away'&&t.sec!=='rec'&&PLAN_AWAY_LOCAL.indexOf(g)<0); }
+function planAwayOk(t,g,o){ var x=planTeam().p[o]; return !!(x&&(x.st==='away'||x.st==='cover')&&t.sec!=='rec'&&PLAN_AWAY_LOCAL.indexOf(g)<0); }
 function planRoleOf(name, br){ var R=PLAN_ROLES[br]||{}; for(var k in R) if(R[k]===name) return k; return ''; }
 function planBrOfName(name){ for(var b in PLAN_ROLES) if(planRoleOf(name,b)) return b; return ''; }
 /* موجودة في الفرع ده النهارده؟ (غايبة أو بتغطي في الفرع التاني = لأ) */
@@ -13061,7 +13061,7 @@ function planAnyPresent(t,g,o){ var br=t.br, R=PLAN_ROLES[br]||{}, out=[];
   Object.keys(R).forEach(function(rk){ var n=R[rk]; if(!n||n===o||!planHere(n,br)) return; if(rk==='H'&&PLAN_H_OK.indexOf(g)<0) return; if((t.sec==='evening'||PLAN_EVE_G.indexOf(g)>=0)&&n===planAM(br)) return; out.push(n); });
   Object.keys(planTeam().p).forEach(function(n){ var x=planTeam().p[n]; if(x.st==='cover'&&x.br===br&&out.indexOf(n)<0) out.push(n); });
   return out; }
-function planOutCount(br){ var P=planTeam().p, n=0; Object.keys(PLAN_ROLES[br]||{}).forEach(function(k){ var nm=PLAN_ROLES[br][k], x=P[nm]; if(x&&(x.st==='out'&&!x.sub||x.st==='cover')) n++; }); return n; }
+function planOutCount(br){ var P=planTeam().p, n=0; Object.keys(PLAN_ROLES[br]||{}).forEach(function(k){ var nm=PLAN_ROLES[br][k], x=P[nm]; if(x&&x.st==='out'&&!x.sub) n++; });   /* اللي بتغطي في الفرع التاني شغلها معاها — مش غايبة */ return n; }
 /* اختيار صريح للنهارده من خانة المسئولة (حتى لو متعلّم عليها غايبة في الفرع ده — مثلاً بتغطي في الفرع التاني) = هي المسئولة */
 function planAsgd(t,g,o){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; return !!(a&&a.by&&a.by===o); }
 function planCoverMap(){
@@ -14845,6 +14845,10 @@ function bfSyncMsg(t,kind){
   m.style.borderColor=kind==='bad'?'rgba(239,68,68,.4)':kind==='ok'?'rgba(16,185,129,.4)':'rgba(6,182,212,.3)';
   m.style.background=kind==='bad'?'rgba(239,68,68,.08)':kind==='ok'?'rgba(16,185,129,.08)':'rgba(6,182,212,.1)';
 }
+/* 🔗 لينك ربط الجهاز (#s=…&k=…) بيتفتح على الداشبورد نفسه → يتحفظ للموقع كله (التحصيل + التحديث الفوري + الخطة) */
+(function(){ try{ var h=new URLSearchParams(location.hash.slice(1)); if(h.get('s')&&h.get('k')&&/^https:\/\/script\.google\.com\//.test(h.get('s'))){
+  localStorage.setItem('bf_sheet_cfg',JSON.stringify({url:h.get('s'),key:h.get('k')})); if(h.get('b')) localStorage.setItem('bf_branch',h.get('b'));
+  history.replaceState(null,'',location.pathname+location.search); setTimeout(function(){ alert('✅ الجهاز ده اتربط بالداشبورد — التحصيل والتحديث الفوري هيشتغلوا.'); },800); } }catch(e){} })();
 function bfSheetCfg(){ try{ return JSON.parse(localStorage.getItem('bf_sheet_cfg')||'null'); }catch(e){ return null; } }
 /* نفس مفتاح GitHub اللي أداة التحصيل حافظاه في الشيت — فمش محتاج تحطه تاني */
 async function bfGhToken(){
@@ -14917,9 +14921,9 @@ async function bfSyncNow(){
   if(bfSyncBusy) return;
   var t=await bfGhToken();
   if(!t){
-    t=(prompt('عشان زرار التحديث الفوري يشتغل، الصق مفتاح GitHub (github_pat_…) مرة واحدة بس — هيتحفظ لكل الأجهزة:')||'').trim();
-    if(!t) return;
-    await bfSaveToken(t);
+    // الجهاز ده مش متوصّل بشيت التحصيل (اللي فيه المفتاح) — ما نطلبش مفتاح من السكرتارية
+    alert('⚡ التحديث الفوري مش متوصّل على الجهاز ده.\nالبيانات بتتحدث لوحدها كل نص ساعة.\nعشان الزرار يشتغل: افتحي «لينك ربط الجهاز» اللي د. أمجد بيبعته مرة واحدة على الجهاز ده.');
+    return;
   }
   var H={'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json'};
   var clicked=Date.now();

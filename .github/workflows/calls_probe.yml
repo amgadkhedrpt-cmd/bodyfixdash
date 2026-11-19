@@ -1,0 +1,17 @@
+name: Calls Probe (manual check)
+# فحص بإيدك: سجل المكالمات اترفع امتى ولسه فيه فايتة ما اترجعلهاش كام — أعداد بس في اللوج
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Check calls log
+        env:
+          SHEET_KEY: ${{ secrets.SHEET_KEY }}
+          SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
+        run: python calls_probe.py

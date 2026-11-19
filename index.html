@@ -10346,7 +10346,8 @@ function alMatchDoc(docEn){
   return found;
 }
 /* الفرع من شيت الدكاترة، ولو الدكتور مش موجود ناخد فرع الميعاد */
-function alBranchOf(docEn, apptBranch){ var m=alMatchDoc(docEn); return m?m.branch:(apptBranch||''); }
+/* فرع الميعاد نفسه (من Medicolize) هو الأساس — فرع الدكتور من الشيت بس لو الميعاد مالوش فرع (دكتور زي د. آلاء بيشتغل في الفرعين) */
+function alBranchOf(docEn, apptBranch){ if(apptBranch==='BODYFIX Center'||apptBranch==='FIX ZONE') return apptBranch; var m=alMatchDoc(docEn); return m?m.branch:(apptBranch||''); }
 function alActiveBranches(){
   var b=(typeof GF!=='undefined'&&GF.branch)?GF.branch:'all';
   return AL_BRANCHES.filter(function(x){ return b==='all'||x.key===b; });

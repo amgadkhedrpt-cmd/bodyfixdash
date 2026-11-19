@@ -14934,6 +14934,7 @@ function bfWatch(H, sinceMs){
       var run=(j.workflow_runs||[]).filter(function(x){ return new Date(x.created_at).getTime()>=sinceMs; }).pop();
       if(run){
         var st=new Date(run.run_started_at||run.created_at).getTime();
+        if(run.status==='completed'&&run.conclusion==='cancelled'){ sinceMs=new Date(run.created_at).getTime()+1; if(tries<80) bfPollT=setTimeout(poll,3000); return; }   // اتلغى عشان فيه سحب تاني بعده → نستنى اللي بعده
         if(run.status==='completed'){
           var took=bfClock(new Date(run.updated_at).getTime()-st);
           bfStop();
@@ -14949,10 +14950,12 @@ function bfWatch(H, sinceMs){
     else { bfStop(); bfSyncMsg('السحب أخد وقت أطول من العادي — اعمل Refresh بعد شوية.'); }
   })();
 }
+var bfSyncLock=0;
 async function bfSyncNow(){
-  if(bfSyncBusy) return;
+  if(bfSyncBusy||Date.now()-bfSyncLock<20000) return;   // دوسة واحدة بس — الدوسات المتكررة كانت بتبدأ 3 سحبات في نفس الثانية
+  bfSyncLock=Date.now();
   var t=await bfGhToken();
-  if(!t){
+  if(!t){ bfSyncLock=0;
     // الجهاز ده مش متوصّل بشيت التحصيل (اللي فيه المفتاح) — ما نطلبش مفتاح من السكرتارية
     alert('⚡ التحديث الفوري مش متوصّل على الجهاز ده.\nالبيانات بتتحدث لوحدها كل نص ساعة.\nعشان الزرار يشتغل: افتحي «لينك ربط الجهاز» اللي د. أمجد بيبعته مرة واحدة على الجهاز ده.');
     return;
@@ -15015,8 +15018,8 @@ async function bfLastLoad(){
       var j=await (await fetch(BF_REPO_API+'/runs?status=success&per_page=1',{headers:HH,cache:'no-store'})).json();
       var r=(j.workflow_runs||[])[0];
       try{
-        var j2=await (await fetch(BF_REPO_API+'/runs?status=completed&per_page=1',{headers:HH,cache:'no-store'})).json();
-        var l=(j2.workflow_runs||[])[0];
+        var j2=await (await fetch(BF_REPO_API+'/runs?status=completed&per_page=10',{headers:HH,cache:'no-store'})).json();
+        var l=(j2.workflow_runs||[]).filter(function(x){ return x.conclusion!=='cancelled'; })[0];   // «اتلغى» = سحب مكرر اتشال — مش فشل
         bfLastFail=(l&&l.conclusion!=='success')?new Date(l.updated_at).getTime():0;
       }catch(e){}
       if(r){ bfSetLast(new Date(r.updated_at).getTime()); return; }

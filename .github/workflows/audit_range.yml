@@ -1,0 +1,63 @@
+name: Audit Range
+
+# 📅 مراجعة كومبليت لفترة قديمة — بيشتغل بس لما حد يختار تاريخ أقدم من 35 يوم في تاب «مراجعة الكومبليت»
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'من (YYYY-MM-DD)'
+        required: true
+      to:
+        description: 'لحد (YYYY-MM-DD)'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: medicolize-sync          # نفس طابور السحب العادي — دخول واحد على Medicolize في المرة
+  cancel-in-progress: false
+
+jobs:
+  range:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-playwright-${{ runner.os }}
+      - name: Install dependencies
+        run: pip install playwright cryptography
+      - name: Install Chromium
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then google-chrome --version; else python -m playwright install --with-deps chromium; fi
+      - name: Restore Medicolize session
+        uses: actions/cache@v4
+        with:
+          path: .session
+          key: medicolize-session-${{ github.run_id }}
+          restore-keys: medicolize-session-
+      - name: Pull the range
+        env:
+          MEDICOLIZE_URL:  ${{ secrets.MEDICOLIZE_URL }}
+          MEDICOLIZE_USER: ${{ secrets.MEDICOLIZE_USER }}
+          MEDICOLIZE_PASS: ${{ secrets.MEDICOLIZE_PASS }}
+          GMAIL_USER:      ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
+          AUDIT_RANGE: ${{ github.event.inputs.from }},${{ github.event.inputs.to }}
+        run: python scraper.py
+      - name: Commit & push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/audit_range.json
+          git diff --staged --quiet || git commit -m "📅 audit range ${{ github.event.inputs.from }} → ${{ github.event.inputs.to }}"
+          for i in 1 2 3 4 5; do
+            git pull --rebase=false -X ours origin main && git push origin main && break
+            echo "push retry $i"; sleep $((i*5))
+          done

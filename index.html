@@ -3857,7 +3857,8 @@ function audAutoLoad(force){
 }
 function audAutoInit(){
   var d=AUD_DATA, f=document.getElementById('audFrom'), t=document.getElementById('audTo');
-  f.min=t.min=d.from; f.max=t.max=d.to;
+  var y1=new Date(Date.now()-364*864e5), y1s=y1.getFullYear()+'-'+String(y1.getMonth()+1).padStart(2,'0')+'-'+String(y1.getDate()).padStart(2,'0');
+  f.min=t.min=y1s; f.max=t.max=d.to;   // قبل d.from = سحب فترة قديمة عند الطلب (audit_range)
   if(!f.value){ var y=new Date(Date.now()-864e5), ys=y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
     if(ys<d.from) ys=d.from; if(ys>d.to) ys=d.to; f.value=ys; t.value=ys; }
   var sel=document.getElementById('audSt'), sts=Object.keys(d.statuses||{}).filter(Boolean);
@@ -3866,11 +3867,37 @@ function audAutoInit(){
   if(typeof CURRENT_BRANCH!=='undefined'){ var b=String(CURRENT_BRANCH||'').toLowerCase(); if(b.indexOf('haram')>=0) document.getElementById('audBr').value='BODYFIX Center'; else if(b.indexOf('dokki')>=0) document.getElementById('audBr').value='FIX ZONE'; }
   audAutoRun();
 }
+/* 📅 فترة أقدم من بيانات المزامنة (35 يوم): بنسحبها من Medicolize عند الطلب بس — data/audit_range.json */
+var AUD_RANGE=null, AUD_RANGE_POLL=null;
+function audRangeFetch(cb){ var bases=(typeof MED_URLS!=='undefined'?MED_URLS:[]).map(function(u){ return u.summary.replace(/summary\.json$/,'data/audit_range.json'); });
+  (function tryAt(i){ if(i>=bases.length){ cb(null); return; } fetch(bases[i]+'?t='+Date.now(),{cache:'no-store'}).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){ cb(j); }).catch(function(){ tryAt(i+1); }); })(0); }
+async function audRangeRequest(f,t){
+  var info=document.getElementById('audAutoInfo'), tk=(typeof bfGhToken==='function')?await bfGhToken():'';
+  if(!tk){ info.innerHTML='⚠️ الجهاز ده مش مربوط — افتح «لينك ربط الجهاز» الأول عشان تقدر تسحب فترة قديمة.'; return; }
+  var H={'Authorization':'Bearer '+tk,'Accept':'application/vnd.github+json','Content-Type':'application/json'};
+  info.innerHTML='⏳ بيبدأ سحب الفترة '+_aud_fmtDate(f)+' → '+_aud_fmtDate(t)+'…';
+  try{ var r=await fetch('https://api.github.com/repos/amgadkhedrpt-cmd/bodyfixdash/actions/workflows/audit_range.yml/dispatches',{method:'POST',headers:H,body:JSON.stringify({ref:'main',inputs:{from:f,to:t}})});
+    if(r.status!==204) throw new Error('HTTP '+r.status); }catch(e){ info.innerHTML='❌ ما قدرتش أبدأ السحب ('+_aud_esc(String(e.message||e))+') — جرّب تاني بعد شوية.'; return; }
+  var t0=Date.now(); clearInterval(AUD_RANGE_POLL);
+  var tick=function(){ var m=Math.floor((Date.now()-t0)/60000), sx=Math.floor((Date.now()-t0)/1000)%60;
+    info.innerHTML='⏳ بيسحب الفترة '+_aud_fmtDate(f)+' → '+_aud_fmtDate(t)+' من Medicolize — '+m+':'+String(sx).padStart(2,'0')+' (عادةً 5–10 دقايق، ولو فيه تحديث شغال بيستناه يخلص الأول). سيب الصفحة مفتوحة.';
+    if(Math.floor((Date.now()-t0)/1000)%30===0) audRangeFetch(function(j){ if(j&&j.req===f+','+t&&new Date(j.last_updated).getTime()>t0-60000){ clearInterval(AUD_RANGE_POLL); AUD_RANGE=j; audAutoRun(); } });
+    if(Date.now()-t0>30*60000){ clearInterval(AUD_RANGE_POLL); info.innerHTML='⚠️ السحب أخد وقت طويل — اعمل Refresh بعد شوية ودوس 🔄 طابق تاني.'; } };
+  AUD_RANGE_POLL=setInterval(tick,1000); tick();
+}
 function audAutoRun(){
   if(!AUD_DATA){ audAutoLoad(true); return; }
   var d=AUD_DATA, br=document.getElementById('audBr').value, f=document.getElementById('audFrom').value||d.from,
       t=document.getElementById('audTo').value||d.to, st=document.getElementById('audSt').value;
   if(f>t){ var x=f; f=t; t=x; }
+  if(f<d.from){   // فترة أقدم من بيانات المزامنة
+    if(AUD_RANGE&&AUD_RANGE.from<=f&&AUD_RANGE.to>=t) d=AUD_RANGE;
+    else { if(AUD_RANGE===null){ AUD_RANGE=false; audRangeFetch(function(j){ AUD_RANGE=j||false; if(j&&j.from<=f&&j.to>=t) audAutoRun(); else audAutoRun(); }); return; }
+      allResults=[]; _aud_renderSummary(); _aud_renderFilters(); _aud_renderTable(); AUD_UNPAID=[]; audUnpaidRender();
+      document.getElementById('audAutoInfo').innerHTML='📅 الفترة دي ('+_aud_fmtDate(f)+' → '+_aud_fmtDate(t)+') أقدم من بيانات التحديث العادي (من '+_aud_fmtDate(AUD_DATA.from)+').<br>'+
+        '<button class="export-btn" style="margin-top:8px" onclick="audRangeRequest(\''+f+'\',\''+t+'\')">📥 اسحب الفترة دي من Medicolize</button> <span style="color:#64748B">بياخد 5–10 دقايق · بيتعمل بس لما تدوس</span>';
+      return; }
+  }
   var inR=function(r){ return r.d>=f&&r.d<=t&&(!br||r.b===br); };
   var L=audMapLook(document.getElementById('audCat').value);
   var A=d.appts.filter(function(r){ return inR(r)&&L.A[audN(r.s)]; }),

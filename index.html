@@ -14932,6 +14932,10 @@ async function bfSyncNow(){
   }
   var H={'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json'};
   var clicked=Date.now();
+  // فيه سحب شغال أو مستني أصلاً (حد داس من جهاز تاني / السحب الأوتوماتيك)؟ → نستناه هو بدل ما نطابق سحب جديد وراه
+  try{ var jr=await (await fetch(BF_REPO_API+'/runs?per_page=5',{headers:H,cache:'no-store'})).json();
+    var live=(jr.workflow_runs||[]).filter(function(x){ return x.status!=='completed'&&Date.now()-new Date(x.created_at).getTime()<20*60000; }).pop();
+    if(live){ var ls=new Date(live.created_at).getTime(); bfStartTimer(ls,''); bfSyncMsg('⏳ فيه تحديث شغال أصلاً — بستناه يخلص (مش هبدأ واحد جديد)','info'); bfWatch(H, ls-1000); return; } }catch(e){}
   bfStartTimer(clicked,'');
   try{
     var r=await fetch(BF_REPO_API+'/dispatches',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({ref:'main'})});

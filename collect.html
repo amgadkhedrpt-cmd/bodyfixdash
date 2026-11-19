@@ -1548,6 +1548,9 @@ let syncBusy = false;
 /* auto-sync driven by open devices: GitHub's own schedule is unreliable.
    Every 5 min: if it's clinic hours and the last sync is older than 30 min, one device triggers a sync. */
 async function ghDispatch(t){
+  /* لو فيه سحب شغال أو مستني أصلاً (من جهاز تاني أو من الجدول) ما نبدأش واحد كمان — كانوا بيتطابقوا ورا بعض والانتظار يطول */
+  try { const j = await (await fetch(GH_DISPATCH.replace(/\/dispatches$/, '/runs') + '?per_page=5', {headers:{'Authorization':'Bearer '+t, 'Accept':'application/vnd.github+json'}, cache:'no-store'})).json();
+    if ((j.workflow_runs||[]).some(x => x.status !== 'completed' && Date.now() - new Date(x.created_at).getTime() < 20*60000)) return 204; } catch(e){}
   const r = await fetch(GH_DISPATCH, {method:'POST', headers:{'Authorization':'Bearer '+t, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json'}, body: JSON.stringify({ref:'main'})});
   return r.status;
 }

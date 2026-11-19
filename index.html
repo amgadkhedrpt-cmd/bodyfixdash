@@ -12825,7 +12825,12 @@ function planNormName(n){ n=String(n||'').trim(); if(!n) return n;
 /* 🚪 البارتشن → العيادة (الهرم): عيادة 1 = P1-P6 + G1-G3 · عيادة 2 = P7-P11 + F1-F4 */
 function planRoomClinic(room){ var m=String(room||'').toUpperCase().replace(/\s+/g,'').match(/([PGF])-?(\d+)/); if(!m) return 0; var n=+m[2];
   if(m[1]==='G') return 1; if(m[1]==='F') return 2; return n<=6?1:2; }
+/* 🥗 مرضى التغذية (د. آلاء) في الهرم: مهامهم كلها مع مسئولة الشيفت الصباحي (ندى) حتى لو جاية نايت — إلا شغل المشرفة والتحصيل عند الاستقبال وشغل الصبح */
+var PLAN_NUT_AM=['conftoday','waittoday','waitnut','confsp'];   // لازم تتعمل الصبح (تأكيد المفتوح النهارده / الويتنج) — مع اللي جاية الصبح
+function planNutTask(t,g){ if(t.br!=='BODYFIX Center'||g==='debt'||PLAN_NUT_AM.indexOf(g)>=0||(PLAN_GROUP_ROLE['BODYFIX Center']||{})[g]==='L') return false;
+  var x=t._src||{}; return planIsNut({doctor:t.doctor||x.doctor||'', type:t.type||x.type||''}); }
 function planOwner0(t,g){
+  if(planNutTask(t,g)){ var Rn0=PLAN_ROLES['BODYFIX Center']||{}; if(Rn0.F) return Rn0.F; }
   if(g==='mcall'||g==='mcallup'){ var tdm=(ALERTS_DATA&&ALERTS_DATA.today)||'', am=PLAN_ST['asg|'+tdm+'|'+t.sec+'|'+g+'|'+t.br]; if(am&&am.by) return am.by;
     var mrk=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mnm=(PLAN_ROLES[t.br]||{})[mrk]; if(mnm) return mnm; }
   if(g==='nonext'&&t.br==='FIX ZONE'){ var tdz=(ALERTS_DATA&&ALERTS_DATA.today)||'', az=PLAN_ST['asg|'+tdz+'|'+t.sec+'|nonext|'+t.br]; if(az&&az.by) return az.by;
@@ -13063,7 +13068,7 @@ function planCoverMap(){
     var T=planTasks(true), stOpen=function(t){ var st=PLAN_ST[t.key]||{}; return !(st.s==='done'||t.sys); };
     ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){ (t.grp||[]).forEach(function(g){
       var k=t.key+'|'+g, o=planOwner0(t,g), br=t.br;
-      if(o&&g!=='debt'&&planHere(o,br)&&planOutCount(br)>=1&&PLAN_SHARE.indexOf(g)>=0&&stOpen(t)){
+      if(o&&g!=='debt'&&planHere(o,br)&&planOutCount(br)>=1&&PLAN_SHARE.indexOf(g)>=0&&stOpen(t)&&!planNutTask(t,g)){
         // يوم فيه غياب: مهام التليفون اللي ممكن تتقسم (التأكيد / المتابعة / الويتنج) بتدخل التوازن — صاحبتها أولى وبتاخد من الموجودين لو حملها عالي
         var cd0=planCoverCands(t,g,o); if(cd0.c.length){ items.push({k:k, t:t, o:o, c:[o].concat(cd0.c), open:true, own:true}); return; } }
       if(!o||g==='debt'||planHere(o,br)||planAsgd(t,g,o)||planAwayOk(t,g,o)){ M[k]={owner:o}; if(o&&stOpen(t)) load[o]=(load[o]||0)+1; return; }

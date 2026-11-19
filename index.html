@@ -14979,23 +14979,23 @@ async function bfSyncNow(){
   bfWatch(H, clicked-15000);
 }
 /* بعد Refresh (أو من جهاز تاني): لو فيه سحب شغال دلوقتي، كمّل العدّاد من وقت ما بدأ */
-(async function bfResume(){
+/* ⏳ أي تحديث شغال أو مستني دلوقتي (من الجهاز ده أو من جهاز تاني أو الأوتوماتيك) → العداد يظهر فوق ويتابعه لحد ما يخلص */
+async function bfLiveCheck(){
+  if(bfSyncBusy) return;
   var t=''; try{ t=localStorage.getItem('bf_ghtok')||''; }catch(e){}
-  if(!t) return;
+  if(!t&&typeof bfGhToken==='function'){ try{ t=await bfGhToken(); }catch(e){} }
+  if(!t||bfSyncBusy) return;
   var H={'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json'};
   try{
-    var j=await (await fetch(BF_REPO_API+'/runs?per_page=3',{headers:H,cache:'no-store'})).json();
-    var saved=0; try{ saved=Number(localStorage.getItem('bf_sync_started'))||0; }catch(e){}
-    // العدّاد بيرجع بس لو التحديث اتداس من الجهاز ده (مش أي سحب شغال — السحب الأوتوماتيك كل نص ساعة أو سحب حد تاني)
-    if(!saved||Date.now()-saved>20*60000){ try{ localStorage.removeItem('bf_sync_started'); }catch(e){} return; }
-    var run=(j.workflow_runs||[]).filter(function(x){ return x.status!=='completed'&&new Date(x.created_at).getTime()>=saved-60000; }).pop();
-    if(!run){ try{ localStorage.removeItem('bf_sync_started'); }catch(e){} return; }
-    var st=new Date(run.run_started_at||run.created_at).getTime();
-    if(saved && saved<st && st-saved<10*60000) st=saved;
+    var j=await (await fetch(BF_REPO_API+'/runs?per_page=5',{headers:H,cache:'no-store'})).json();
+    var run=(j.workflow_runs||[]).filter(function(x){ return x.status!=='completed'&&Date.now()-new Date(x.created_at).getTime()<35*60000; }).pop();   // الأقدم الشغال
+    if(!run||bfSyncBusy) return;
+    var st=new Date(run.created_at).getTime();
     bfStartTimer(st, run.status==='in_progress'?'running':'queued');
-    bfWatch(H, new Date(run.created_at).getTime()-1000);
+    bfWatch(H, st-1000);
   }catch(e){}
-})();
+}
+bfLiveCheck(); setInterval(function(){ if(document.visibilityState==='visible') bfLiveCheck(); }, 60000);
 /* ── آخر تحديث ناجح: جنب الزرار، وبيعد من قد إيه ── */
 var bfLastMs=0, bfLastFail=0;
 function bfSetLast(ms){ if(ms && ms>bfLastMs){ bfLastMs=ms; } bfLastRender(); }

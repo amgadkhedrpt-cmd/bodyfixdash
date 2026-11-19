@@ -12237,10 +12237,11 @@ function planShiftBr(x){ return x&&x.branch==='dokki'?'FIX ZONE':'BODYFIX Center
 function planNames(bkey){
   var out=(PLAN_NAMES_BR[bkey]||[]).slice();
   // الخزنة بتتسجل بالاسم الكامل («Nada Abdel Razik») → نفس اسم الخطة («Nada») عشان ما يتكررش
-  (PLAN_SHIFTS||[]).forEach(function(x){ var n=String(x.name||'').trim(); if(n&&typeof planNormName==='function') n=planNormName(n); if(n&&planShiftBr(x)===bkey&&out.indexOf(n)<0) out.push(n); });
+  var here={};   // مسجّلة على خزنة الفرع ده النهارده = موجودة فيه (حتى لو من الفرع التاني — زي انجي في الدقي)
+  (PLAN_SHIFTS||[]).forEach(function(x){ var n=String(x.name||'').trim(); if(n&&typeof planNormName==='function') n=planNormName(n); if(n&&planShiftBr(x)===bkey){ here[n]=1; if(out.indexOf(n)<0) out.push(n); } });
   // أصحاب الأدوار في الفرع (الدقي: الصباحي / المسائي) + اللي جاية تغطي أو شغالة من الفرع ده النهارده
   var R=(typeof PLAN_ROLES!=='undefined'&&PLAN_ROLES[bkey])||{}; Object.keys(R).forEach(function(k){ var n=R[k]; if(n&&out.indexOf(n)<0) out.push(n); });
-  var here={}; try{ var P=planTeam().p; Object.keys(P).forEach(function(n){ var x=P[n]; if(x&&(x.st==='cover'||x.st==='away')&&x.br===bkey){ here[n]=1; if(out.indexOf(n)<0) out.push(n); } }); }catch(e){}
+  try{ var P=planTeam().p; Object.keys(P).forEach(function(n){ var x=P[n]; if(x&&(x.st==='cover'||x.st==='away')&&x.br===bkey){ here[n]=1; if(out.indexOf(n)<0) out.push(n); } }); }catch(e){}
   // سكرتيرات الفرع التاني (أصحاب أدوار هناك) ما يظهروش هنا — إلا لو جايين يغطوا النهارده
   var oth={}; if(typeof PLAN_ROLES!=='undefined') Object.keys(PLAN_ROLES).forEach(function(b){ if(b===bkey) return; var Ro=PLAN_ROLES[b]||{}; Object.keys(Ro).forEach(function(k){ if(Ro[k]) oth[Ro[k]]=1; }); });
   return out.filter(function(n){ return here[n]||R[n]||!oth[n]||Object.keys(R).some(function(k){ return R[k]===n; }); });

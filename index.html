@@ -12235,7 +12235,7 @@ try{ var _pnb=JSON.parse(localStorage.getItem('planNamesBr')||'null'); if(_pnb) 
 function planShiftBr(x){ return x&&x.branch==='dokki'?'FIX ZONE':'BODYFIX Center'; }
 /* أسامي الفرع = المتسجلة للفرع + اللي مسجّلين شيفت خزنة النهارده في نفس الفرع */
 function planNames(bkey){
-  var out=(PLAN_NAMES_BR[bkey]||[]).slice();
+  var out=(PLAN_NAMES_BR[bkey]||[]).map(planNormName);
   // الخزنة بتتسجل بالاسم الكامل («Nada Abdel Razik») → نفس اسم الخطة («Nada») عشان ما يتكررش
   var here={};   // مسجّلة على خزنة الفرع ده النهارده = موجودة فيه (حتى لو من الفرع التاني — زي انجي في الدقي)
   (PLAN_SHIFTS||[]).forEach(function(x){ var n=String(x.name||'').trim(); if(n&&typeof planNormName==='function') n=planNormName(n); if(n&&planShiftBr(x)===bkey){ here[n]=1; if(out.indexOf(n)<0) out.push(n); } });
@@ -12244,7 +12244,8 @@ function planNames(bkey){
   try{ var P=planTeam().p; Object.keys(P).forEach(function(n){ var x=P[n]; if(x&&(x.st==='cover'||x.st==='away')&&x.br===bkey){ here[n]=1; if(out.indexOf(n)<0) out.push(n); } }); }catch(e){}
   // سكرتيرات الفرع التاني (أصحاب أدوار هناك) ما يظهروش هنا — إلا لو جايين يغطوا النهارده
   var oth={}; if(typeof PLAN_ROLES!=='undefined') Object.keys(PLAN_ROLES).forEach(function(b){ if(b===bkey) return; var Ro=PLAN_ROLES[b]||{}; Object.keys(Ro).forEach(function(k){ if(Ro[k]) oth[Ro[k]]=1; }); });
-  return out.filter(function(n){ return here[n]||R[n]||!oth[n]||Object.keys(R).some(function(k){ return R[k]===n; }); });
+  out=out.map(planNormName).filter(function(n,i,a){ return a.indexOf(n)===i&&planIsReg(n); });   // المسجّلين بس
+  return out.filter(function(n){ return here[n]||!oth[n]||Object.keys(R).some(function(k){ return R[k]===n; }); });
 }
 function planNamesAll(){ var out=[]; planBR().forEach(function(b){ planNames(b.key).forEach(function(n){ if(out.indexOf(n)<0) out.push(n); }); }); return out; }
 function planAddName(n, bkey){
@@ -12851,11 +12852,14 @@ function planCashOwner(t){
   return hit?planNormName(hit.name):'';
 }
 /* نفس الشخص بأكتر من اسم (الخزنة بالاسم الكامل «Nada Abdel Razik» والخطة «Nada»): لو الاسم مش من أسامي الخطة وأول كلمة منه = اسم واحد بس في الخطة → ده هو */
-function planNormName(n){ n=String(n||'').trim(); if(!n) return n;
-  var all=[]; Object.keys(PLAN_NAMES_BR||{}).forEach(function(k){ (PLAN_NAMES_BR[k]||[]).forEach(function(x){ if(all.indexOf(x)<0) all.push(x); }); }); (PLAN_NAMES||[]).forEach(function(x){ if(all.indexOf(x)<0) all.push(x); });
-  Object.keys(PLAN_ROLES||{}).forEach(function(b){ var R=PLAN_ROLES[b]||{}; Object.keys(R).forEach(function(k){ if(R[k]&&all.indexOf(R[k])<0) all.push(R[k]); }); });
-  if(all.indexOf(n)>=0) return n; var f=n.split(/\s+/)[0].toLowerCase(), hit=all.filter(function(x){ return String(x).split(/\s+/)[0].toLowerCase()===f; });
+/* 👥 السكرتاريه المسجّلين بس = أصحاب الأدوار في الفرعين (الهرم: المشرف/الصباحي/عيادة 1/عيادة 2 · الدقي: الصباحي/المسائي) */
+function planRegistered(){ var out=[]; Object.keys(PLAN_ROLES||{}).forEach(function(b){ var R=PLAN_ROLES[b]||{}; Object.keys(R).forEach(function(k){ if(R[k]&&out.indexOf(R[k])<0) out.push(R[k]); }); }); return out; }
+/* أي شكل لاسم مسجّلة (حروف صغيرة «mariam» · الاسم الكامل «Mariam Saad» من الخزنة) → اسمها المسجّل («Mariam») — من غير فرق بين الحرف الكبير والصغير */
+function planNormName(n){ n=String(n||'').trim(); if(!n) return n; var REG=planRegistered(), lo=n.toLowerCase();
+  var ex=REG.filter(function(x){ return String(x).toLowerCase()===lo; })[0]; if(ex) return ex;
+  var f=lo.split(/\s+/)[0], hit=REG.filter(function(x){ return String(x).toLowerCase().split(/\s+/)[0]===f; });
   return hit.length===1?hit[0]:n; }
+function planIsReg(n){ return planRegistered().indexOf(n)>=0; }
 /* 🚪 البارتشن → العيادة (الهرم): عيادة 1 = P1-P6 + G1-G3 · عيادة 2 = P7-P11 + F1-F4 */
 function planRoomClinic(room){ var m=String(room||'').toUpperCase().replace(/\s+/g,'').match(/([PGF])-?(\d+)/); if(!m) return 0; var n=+m[2];
   if(m[1]==='G') return 1; if(m[1]==='F') return 2; return n<=6?1:2; }
@@ -13132,7 +13136,7 @@ function planCoverInfo(t,g){
   var cd=planCoverCands(t,g,o); if(!cd.c.length&&PLAN_MUST.indexOf(g)>=0){ cd.c=planAnyPresent(t,g,o); if(!cd.c.length) return {owner:'', from:o, need:true}; }
   return cd.c.length?{owner:cd.c[0], from:o}:{owner:'', from:o, post:true};
 }
-function planOwner(t,g){ return planCoverInfo(t,g).owner||''; }
+function planOwner(t,g){ return planNormName(planCoverInfo(t,g).owner||''); }
 function planIsPosted(t){ var g=(t.grp||[])[0]; return !!(g&&planCoverInfo(t,g).post); }
 function planTeamSet(name, st, br, forN){
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var T=planTeam(), ch=[name];
@@ -13217,6 +13221,7 @@ function planSecPanel(){
     var s=PLAN_ST[t.key]; if(s&&s.by&&(s.s==='done'||s.s==='nr')){ var hb=planNormName(s.by); (hand[hb]=hand[hb]||{})[t.key]=1; }
   }); });
   var names=Object.keys(own); Object.keys(hand).forEach(function(n){ if(names.indexOf(n)<0) names.push(n); });
+  names=names.filter(planIsReg);   // المسجّلين بس
   var did={}, seenK={}; ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){ if(seenK[t.key]||planState(t)!=='done') return; seenK[t.key]=1; var a=planActor(t); if(a) did[a]=(did[a]||0)+1; }); });
   // اللي بيظهروا في الجدول = السكرتاريه بس (الأخصائيين بيعدّلوا مواعيد على Medicolize كمان — ما يتحسبوش هنا)
   var SECN=planNamesAll().map(planNormName); Object.keys(did).forEach(function(n){ if(names.indexOf(n)<0&&SECN.indexOf(n)>=0) names.push(n); });
@@ -13626,14 +13631,15 @@ function planRender(){
   var pc=vis.length?Math.round(dn*100/vis.length):0;
   var c=document.getElementById('plan-cnt'); if(c){ var left=vis.length-dn; c.textContent=left; c.style.display=left?'inline':'none'; }
   var hr=new Date().getHours();
-  var ALLN=planNamesAll(); if(PLAN_ME&&ALLN.indexOf(PLAN_ME)<0) ALLN.push(PLAN_ME);
+  if(PLAN_ME){ var nmMe=planNormName(PLAN_ME); if(nmMe!==PLAN_ME){ PLAN_ME=nmMe; try{ localStorage.setItem('planMe',nmMe); }catch(e){} } }   // «mariam» → «Mariam»
+  var ALLN=planNamesAll(); if(PLAN_ME&&ALLN.indexOf(PLAN_ME)<0&&planIsReg(PLAN_ME)) ALLN.push(PLAN_ME);
   var opts=ALLN.map(function(n){ return '<option'+(n===PLAN_ME?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('');
   var mine=all.filter(function(t){ var s=PLAN_ST[t.key]; return s&&s.by===PLAN_ME&&(s.s==='done'||s.s==='nr'); }).length;
   var h='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:5">'+
     '<b style="font-size:.85rem">📋 خطة اليوم</b>'+planDataAge()+'<span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){return b.label;}).join(' + ')+'</span>'+
     '<span style="flex:1"></span><label style="font-size:.62rem;color:var(--mute)">السكرتيرة المسئولة '+
     '<select id="planMeSel" onchange="planSetMe(this.value)" style="background:var(--bg);border:1px solid '+(PLAN_ME?'var(--brd)':'var(--r)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
-      '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'<option value="__add">➕ اسم جديد</option></select></label>'+
+      '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'</select></label>'+
     '<label style="font-size:.62rem;color:var(--mute)">عرض مهام '+
     '<select onchange="PLAN_VIEW=this.value;try{localStorage.setItem(\'planView\',PLAN_VIEW)}catch(e){};planRender()" style="background:var(--bg);border:1px solid '+(PLAN_VIEW?'#ec4899':'var(--brd)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
       '<option value="">كل السكرتيرات</option>'+ALLN.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label>'+
@@ -13673,7 +13679,7 @@ function planRender(){
             if(!(a&&a.by)&&ci1.from) cur='';   // صاحبتها غايبة → الخانة فاضية عشان تقدري تختاري أي حد (حتى هي لو بتغطي في الفرع التاني)
             var mvTag=ci1.from?'<span title="'+alEsc(ci1.from)+' غايبة النهارده" style="font-size:.6rem;color:'+(ci1.post?'#f59e0b':'#38bdf8')+';border:1px solid currentColor;border-radius:7px;padding:2px 6px;margin-inline-start:4px">'+(ci1.post?'⏸ متأجل ('+alEsc(ci1.from)+' غايبة)':'🔁 '+alEsc(ci1.from)+' ← <b>'+alEsc(ci1.owner)+'</b>')+'</span>':'';
             return '<select onclick="event.stopPropagation()" onchange="event.stopPropagation();planAssign(\''+gk+'\',this.value,\''+bb.key+'\')" title="المسئولة عن المهمة دي في '+bb.label+'" style="background:var(--bg);border:1px solid '+(cur?'var(--brd)':'rgba(236,72,153,.5)')+';color:'+(cur?'var(--txt)':'var(--mute)')+';border-radius:7px;padding:2px 6px;font-family:Cairo,sans-serif;font-size:.6rem;max-width:'+(many?'120':'110')+'px">'+
-              '<option value="">👤 '+(many?bb.label+'…':'المسئولة…')+'</option>'+(function(L){ if(cur&&L.indexOf(cur)<0) L.push(cur); planBR().concat([{key:'BODYFIX Center'},{key:'FIX ZONE'}]).forEach(function(ob){ if(ob.key!==bb.key) planNames(ob.key).forEach(function(n){ if(L.indexOf(n)<0) L.push(n); }); }); return L; })(planNames(bb.key).slice()).map(function(n){ var away=!planHere(n,bb.key); return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>'+(many?bb.label+': ':'')+alEsc(n)+(away?' (غايبة هنا — هتاخدها برضه)':'')+'</option>'; }).join('')+'<option value="__add">➕ اسم جديد</option><option value="__del">➖ شيل اسم</option></select>'+(a&&a.by?'<span style="font-size:.54rem;color:#f59e0b;margin-inline-start:3px" title="التغيير ده للنهارده بس — بكره يرجع للأساس">⏱ النهارده بس</span>':'')+mvTag; }).join(''); })())+
+              '<option value="">👤 '+(many?bb.label+'…':'المسئولة…')+'</option>'+(function(L){ if(cur&&L.indexOf(cur)<0) L.push(cur); planBR().concat([{key:'BODYFIX Center'},{key:'FIX ZONE'}]).forEach(function(ob){ if(ob.key!==bb.key) planNames(ob.key).forEach(function(n){ if(L.indexOf(n)<0) L.push(n); }); }); return L; })(planNames(bb.key).slice()).map(function(n){ var away=!planHere(n,bb.key); return '<option value="'+alEsc(n)+'"'+(n===cur?' selected':'')+'>'+(many?bb.label+': ':'')+alEsc(n)+(away?' (غايبة هنا — هتاخدها برضه)':'')+'</option>'; }).join('')+'</select>'+(a&&a.by?'<span style="font-size:.54rem;color:#f59e0b;margin-inline-start:3px" title="التغيير ده للنهارده بس — بكره يرجع للأساس">⏱ النهارده بس</span>':'')+mvTag; }).join(''); })())+
 
         (allDone?'<span style="color:var(--g);font-size:.64rem;font-weight:800">✅ خلصت</span>':'<span style="background:'+(hot?'var(--r)':'#ec4899')+';color:#fff;border-radius:10px;padding:1px 10px;font-size:.68rem;font-weight:900">'+open.length+'</span>')+
         '<span style="width:60px;height:6px;background:var(--bg);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:'+pc+'%;background:var(--g)"></span></span>'+

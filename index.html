@@ -12633,7 +12633,7 @@ function planTasks(useAll){
   (D.dup_pts||[]).map(function(gp){ var P=gp.pts||[];   // كل ملف لازم يبقى قريب من ملف تاني في نفس المجموعة (بالترتيب: اسم بداية التاني)
     return Object.assign({},gp,{pts:P.filter(function(x){ return P.some(function(y){ var ph=String(x.phone).replace(/\D/g,'').slice(-9)===String(y.phone).replace(/\D/g,'').slice(-9); return y!==x&&dupSim(x.name,y.name,ph); }); })}); })
    .filter(function(gp){ return gp.pts.length>=2; }).forEach(function(gp){ var P=gp.pts||[], br=(P[0]||{}).br||'BODYFIX Center'; if(act.indexOf(br)<0&&act.indexOf((P[1]||{}).br)<0) return;
-    add('office',{grp:['dup'], key:'dup|'+P.map(function(x){ return x.pid; }).sort().join('|'), icon:'🔍', kind:'نفس المريض على أكتر من ملف ('+(gp.kind==='phone'?'نفس الرقم والاسم قريب':'الاسم متشابه')+') — ادمجيهم على Medicolize', name:(P[0]||{}).name||'', pid:(P[0]||{}).pid, br:act.indexOf(br)>=0?br:(P[1]||{}).br,
+    add('mgr',{grp:['dup'], key:'dup|'+P.map(function(x){ return x.pid; }).sort().join('|'), icon:'🔍', kind:'نفس المريض على أكتر من ملف ('+(gp.kind==='phone'?'نفس الرقم والاسم قريب':'الاسم متشابه')+') — ادمجيهم على Medicolize', name:(P[0]||{}).name||'', pid:(P[0]||{}).pid, br:act.indexOf(br)>=0?br:(P[1]||{}).br,
       lines:P.map(function(x,i){ return '📁 ملف '+(i+1)+': '+planPtLink(x.name,x.pid)+' · '+alEsc(x.phone||'')+' · حضر '+(x.n||0)+' جلسة'+(x.last?' · آخر حضور '+alEsc(alFmtDay(x.last)):'')+' · '+alEsc(x.br==='FIX ZONE'?'الدقي':'الهرم'); })}); });
   // 🎓 دكاترة حضروا ترينينج معانا (من 1/9) ومش شغالين معانا — على داليا: ملحوظة لكل واحد + رسالة واتساب · بتفضل لحد ما تتكتب الملحوظة
   if(today===PLAN_TRCALL.from&&act.indexOf('BODYFIX Center')>=0){ planTrnLoad();   /* النهارده بس */
@@ -12868,6 +12868,7 @@ var PLAN_NUT_AM=['conftoday','waittoday','waitnut','confsp'];   // لازم تت
 function planNutTask(t,g){ if(t.br!=='BODYFIX Center'||g==='debt'||PLAN_NUT_AM.indexOf(g)>=0||(PLAN_GROUP_ROLE['BODYFIX Center']||{})[g]==='L') return false;
   var x=t._src||{}; return planIsNut({doctor:t.doctor||x.doctor||'', type:t.type||x.type||''}); }
 function planOwner0(t,g){
+  if(g==='dup') return '';   // 🔍 الملفات المكررة: مع المدير (د. أمجد) — مش على سكرتيرة ومش في نسب الإنجاز
   if(planNutTask(t,g)){ var Rn0=PLAN_ROLES['BODYFIX Center']||{}; if(Rn0.F) return Rn0.F; }
   if(g==='mcall'||g==='mcallup'){ var tdm=(ALERTS_DATA&&ALERTS_DATA.today)||'', am=PLAN_ST['asg|'+tdm+'|'+t.sec+'|'+g+'|'+t.br]; if(am&&am.by) return am.by;
     var mrk=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mnm=(PLAN_ROLES[t.br]||{})[mrk]; if(mnm) return mnm; }
@@ -13011,11 +13012,11 @@ var PLAN_ROLES=JSON.parse(JSON.stringify(PLAN_ROLES_DEF));
 try{ var _rl=JSON.parse(localStorage.getItem('planRoles')||'null'); if(_rl) PLAN_ROLES=_rl; }catch(e){}
 /* 📌 الأساس: كل نوع مهمة على أنهي دور (كل يوم بيفتح على كده — التغيير اليومي من الخانة جنب المهمة مؤقت) */
 var PLAN_GROUP_ROLE={
-  'BODYFIX Center':{dup:'L', nopkg:'F', nopkgnext:'J', mcall:'F', mcallup:'F', mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
+  'BODYFIX Center':{nopkg:'F', nopkgnext:'J', mcall:'F', mcallup:'F', mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
     waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', evalamg:'F', renew:'F', svc:'F', kashf:'F',
     waitnext:'J', streak:'J', recur:'J', stop:'J', idle:'J', conf:'J', stale:'J', fix:'J', kashf0:'J',
     call:'H', drop:'H'},
-  'FIX ZONE':{nopkg:'DM', nopkgnext:'DE', mcall:'DM', mcallup:'DM', mgr:'DM', streak:'DM', recur:'DM', stop:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamgd:'DM', visit:'DM', dup:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
+  'FIX ZONE':{nopkg:'DM', nopkgnext:'DE', mcall:'DM', mcallup:'DM', mgr:'DM', streak:'DM', recur:'DM', stop:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamgd:'DM', visit:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
     waitnext:'DE', nonext:'DE', nonextrev:'DM', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', svc:'DE', sudden:'DE', late:'DE'}
 };
 function planBaseOwner(t,g){ var rk=(PLAN_GROUP_ROLE[t.br]||{})[g]; return rk?((PLAN_ROLES[t.br]||{})[rk]||''):''; }

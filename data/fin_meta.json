@@ -1,5 +1,5 @@
 {
- "at": "2026-11-21T08:57:38.014Z",
+ "at": "2026-11-21T10:15:07.087Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -90,14 +90,14 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
+ "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 45,
- "rsn_field": "cancelReason",
+ "ph2_n": 42,
  "conf": {
-  "confirmed_now": 125,
+  "confirmed_now": 121,
   "new": 2,
-  "cx_changed": 1
+  "cx_changed": 7
  },
  "kinds": {
   "pay": {
@@ -120,7 +120,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20794,
+    "rows": 20795,
     "cols": [
      "id",
      "type",
@@ -359,7 +359,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 832,
+    "rows": 834,
     "cols": [
      "aid",
      "start",
@@ -454,7 +454,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 7972,
+    "rows": 7975,
     "cols": [
      "duration",
      "createdAt",
@@ -588,7 +588,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 321,
+    "rows": 328,
     "cols": [
      "aid",
      "start",
@@ -659,7 +659,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 132479,
+    "rows": 132481,
     "cols": [
      "start",
      "status",
@@ -689,7 +689,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6527,
+    "rows": 6528,
     "cols": [
      "start",
      "status",
@@ -920,10 +920,10 @@
  },
  "hash": {
   "data/fin.enc": "11fc3db4147cdbfd",
-  "data/fin_c.enc": "010c1e1a931667df"
+  "data/fin_c.enc": "71e79a676fd0761e"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 56
+ "secs": 61
 }

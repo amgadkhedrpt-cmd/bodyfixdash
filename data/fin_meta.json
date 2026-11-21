@@ -1,5 +1,5 @@
 {
- "at": "2026-11-19T21:56:18.276Z",
+ "at": "2026-11-21T08:57:38.014Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -90,23 +90,14 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
- "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 47,
+ "ph2_n": 45,
+ "rsn_field": "cancelReason",
  "conf": {
-  "confirmed_now": 126,
-  "new": 3,
-  "cx_changed": 0
- },
- "docerr": {
-  "overrides": 6,
-  "override_error": null,
-  "appts": 3136,
-  "steps": 3139,
-  "day": "2026-11-19",
-  "open_now": 23,
-  "added": 0
+  "confirmed_now": 125,
+  "new": 2,
+  "cx_changed": 1
  },
  "kinds": {
   "pay": {
@@ -368,7 +359,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 830,
+    "rows": 832,
     "cols": [
      "aid",
      "start",
@@ -482,7 +473,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 1382,
+    "rows": 1383,
     "cols": [
      "duration",
      "createdAt",
@@ -597,7 +588,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 320,
+    "rows": 321,
     "cols": [
      "aid",
      "start",
@@ -698,7 +689,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6520,
+    "rows": 6527,
     "cols": [
      "start",
      "status",
@@ -929,23 +920,10 @@
  },
  "hash": {
   "data/fin.enc": "11fc3db4147cdbfd",
-  "data/fin_c.enc": "ec58b79f00bc190a"
+  "data/fin_c.enc": "010c1e1a931667df"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 118,
- "skipped_at": "2026-11-21T03:17:04.309Z",
- "today_hash": "ae420dd67171c387",
- "today_at": "2026-11-21T03:17:04.309Z",
- "today_n": {
-  "pay": {
-   "haram": 0,
-   "dokki": 0
-  },
-  "apt": {
-   "haram": 184,
-   "dokki": 29
-  }
- }
+ "secs": 56
 }

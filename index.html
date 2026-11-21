@@ -15023,14 +15023,15 @@ async function bfLastLoad(){
   if(t){
     try{
       var HH={'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json'};
-      var j=await (await fetch(BF_REPO_API+'/runs?status=success&per_page=1',{headers:HH,cache:'no-store'})).json();
-      var r=(j.workflow_runs||[])[0];
+      // آخر 20 سحب ونختار أحدث واحد نجح (فلتر status=success في GitHub ساعات بيرجّع سحب قديم)
+      var j=await (await fetch(BF_REPO_API+'/runs?per_page=20',{headers:HH,cache:'no-store'})).json();
+      var r=(j.workflow_runs||[]).filter(function(x){ return x.conclusion==='success'; }).sort(function(a,b){ return Date.parse(b.updated_at)-Date.parse(a.updated_at); })[0];
       try{
         var j2=await (await fetch(BF_REPO_API+'/runs?status=completed&per_page=10',{headers:HH,cache:'no-store'})).json();
         var l=(j2.workflow_runs||[]).filter(function(x){ return x.conclusion!=='cancelled'; })[0];   // «اتلغى» = سحب مكرر اتشال — مش فشل
         bfLastFail=(l&&l.conclusion!=='success')?new Date(l.updated_at).getTime():0;
       }catch(e){}
-      if(r){ bfSetLast(new Date(r.updated_at).getTime()); return; }
+      if(r) bfSetLast(new Date(r.updated_at).getTime());   // وكمان نشوف وقت البيانات نفسها تحت — الأحدث يكسب
     }catch(e){}
   }
   /* 2) من بيانات السحب نفسها */

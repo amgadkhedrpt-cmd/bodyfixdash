@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-11-22T13:22:57.729516+00:00",
+  "last_updated": "2026-11-22T13:46:49.108635+00:00",
   "total": 23000,
   "doctors": [
     "Abeer",
@@ -53,8 +53,8 @@
     "FIX ZONE"
   ],
   "by_type": {
-    "جلسة علاج طبيعي": 11512,
-    "متابعه": 2130,
+    "جلسة علاج طبيعي": 11513,
+    "متابعه": 2129,
     "متابعة تغذيه": 2017,
     "متابعه انقطاع": 1029,
     "اعادة تقييم": 944,
@@ -91,16 +91,16 @@
     "جلسة تغذيه": 1
   },
   "by_status": {
-    "Completed": 14920,
-    "Canceled": 3817,
+    "Completed": 14923,
+    "Canceled": 3818,
     "No Show": 1440,
-    "Waiting List": 1112,
-    "Open": 938,
+    "Waiting List": 1111,
+    "Open": 936,
     "Note": 498,
-    "Confirmed": 238,
-    "Checked In": 23,
-    "In Progress": 12,
-    "Delayed": 2
+    "Confirmed": 236,
+    "Checked In": 19,
+    "In Progress": 14,
+    "Delayed": 5
   },
   "by_date": {
     "2027-08-15": {
@@ -697,10 +697,10 @@
         "Rawan Yasser": 7,
         "Dr. Ahmad Ibrahim": 12,
         "Sarah Ahmad": 10,
-        "Mariam Mahmoud": 4,
         "Amr Mohsen": 9,
         "Malak Ashour": 1,
         "Amal Hussein": 3,
+        "Mariam Mahmoud": 4,
         "Abeer": 6,
         "Dr. Sara Hussein": 10,
         "Dr. Ahmed Ashraf": 1,
@@ -1894,11 +1894,11 @@
     "Dr. Mohammad Reda": 386,
     "Dr. Sara Hussein": 826,
     "Dr. Yasmin Ayman": 306,
-    "Dr. Yasmin Mohamad": 364,
+    "Dr. Yasmin Mohamad": 365,
     "Dr. Yasmin Sakr": 336,
     "Fares": 186,
     "Fatma Mahmoud": 334,
-    "Follow up": 3998,
+    "Follow up": 3997,
     "Gomaa Mohammad": 405,
     "Hazem Ibrahim": 401,
     "Hisham": 238,
@@ -2212,17 +2212,6 @@
       "phone": "+2_01005494482"
     },
     {
-      "id": "9206aef4-3bb4-4b8b-bd95-55e2383441fe",
-      "start": "2026-11-22T19:15:00.000Z",
-      "end": "2026-11-22T19:30:00.000Z",
-      "status": "Confirmed",
-      "type": "حقن ميزوثيرابي",
-      "doctor": "Dr. Alaa Harfoush",
-      "branch": "BODYFIX Center",
-      "patient": "صالح عبد اللطيف احمد العشيا",
-      "phone": "+20_1113007743"
-    },
-    {
       "id": "4da6948c-f5b7-41e7-a437-6e2f8215bf35",
       "start": "2026-11-22T19:15:00.000Z",
       "end": "2026-11-22T19:30:00.000Z",
@@ -2336,6 +2325,17 @@
       "phone": "+2_01013800003"
     },
     {
+      "id": "9206aef4-3bb4-4b8b-bd95-55e2383441fe",
+      "start": "2026-11-22T19:00:00.000Z",
+      "end": "2026-11-22T19:15:00.000Z",
+      "status": "Confirmed",
+      "type": "حقن ميزوثيرابي",
+      "doctor": "Dr. Alaa Harfoush",
+      "branch": "BODYFIX Center",
+      "patient": "صالح عبد اللطيف احمد العشيا",
+      "phone": "+20_1113007743"
+    },
+    {
       "id": "842983a3-ad98-4ff9-9433-b3f7291ea886",
       "start": "2026-11-22T19:00:00.000Z",
       "end": "2026-11-22T19:30:00.000Z",
@@ -2357,18 +2357,6 @@
       "patient": "احمد شكري درويش موسي",
       "phone": "+2_01223999021",
       "note": "هنشوف هيجي النهاردة ولا لا"
-    },
-    {
-      "id": "701622c4-b439-4733-8cdc-b84e19b9bb7e",
-      "start": "2026-11-22T19:00:00.000Z",
-      "end": "2026-11-22T19:15:00.000Z",
-      "status": "Waiting List",
-      "type": "متابعة تغذيه",
-      "doctor": "Dr. Alaa Harfoush",
-      "branch": "BODYFIX Center",
-      "patient": "الاء اشرف سالم دويدار",
-      "phone": "+2_01157886948",
-      "note": "مغلق 2:12"
     },
     {
       "id": "6c793222-befe-424f-a26b-058e36b4f6c9",
@@ -2582,12 +2570,13 @@
       "id": "77c5e317-3a54-44bf-8b7d-6bf64e7936fa",
       "start": "2026-11-22T18:15:00.000Z",
       "end": "2026-11-22T18:30:00.000Z",
-      "status": "Confirmed",
+      "status": "Canceled",
       "type": "اعادة تقييم",
       "doctor": "Dr Amgad Khedr",
       "branch": "BODYFIX Center",
       "patient": "خالد احمد حواش علي",
-      "phone": "+2_01227547737"
+      "phone": "+2_01227547737",
+      "reason": "مش هيقدر ييجي النهارده"
     },
     {
       "id": "707ef9a3-ac62-42ec-b508-3de335c38214",
@@ -2756,18 +2745,6 @@
       "branch": "BODYFIX Center",
       "patient": "هدير مصطفى عبد الباقى السيد",
       "phone": "+2_01222341416"
-    },
-    {
-      "id": "315dcaf2-a34c-4637-bc7f-990d6f23d25c",
-      "start": "2026-11-22T18:00:00.000Z",
-      "end": "2026-11-22T19:00:00.000Z",
-      "status": "Confirmed",
-      "type": "جلسة علاج طبيعي",
-      "doctor": "Mariam Mahmoud",
-      "branch": "BODYFIX Center",
-      "patient": "ازهريه ابراهيم بابكر ابراهيم",
-      "phone": "+249_918250874",
-      "note": "كشف الساعه 7"
     },
     {
       "id": "21993bb6-6d21-4cc1-80bb-b2920e2aae6c",
@@ -2947,6 +2924,17 @@
       "phone": "+2_01123244675"
     },
     {
+      "id": "6930a326-b47f-4122-8288-b0ad286ca4ad",
+      "start": "2026-11-22T17:15:00.000Z",
+      "end": "2026-11-22T17:30:00.000Z",
+      "status": "Confirmed",
+      "type": "تقييم الجلسه الأخيره",
+      "doctor": "Dr Amgad Khedr",
+      "branch": "BODYFIX Center",
+      "patient": "صفوت رفعت شاروبيم ذخاري",
+      "phone": "+20_1203171379"
+    },
+    {
       "id": "fac3e4fc-194b-4d7d-906d-4f4badceee09",
       "start": "2026-11-22T17:00:00.000Z",
       "end": "2026-11-22T17:30:00.000Z",
@@ -3013,18 +3001,6 @@
       "patient": "جميل قائد ناجي مثني",
       "phone": "+2_01070395855",
       "note": "9:50am  مبيردش\n12:23 مبيردش//2:32 تعبان وقال نتواصل بعد 5 ايام"
-    },
-    {
-      "id": "b7c9a4ca-777e-41db-91b1-2af36aacf80f",
-      "start": "2026-11-22T17:00:00.000Z",
-      "end": "2026-11-22T17:30:00.000Z",
-      "status": "Confirmed",
-      "type": "كشف علاج طبيعي",
-      "doctor": "Dr Amgad Khedr",
-      "branch": "BODYFIX Center",
-      "patient": "ازهريه ابراهيم بابكر ابراهيم",
-      "phone": "+249_918250874",
-      "note": "عندها جلسه الساعه 8 مع د امجد"
     },
     {
       "id": "af1eada9-2e09-4852-8fa8-5613ca753bde",
@@ -3165,6 +3141,18 @@
       "note": "مش بترد 3:00 مش بترد 5:00"
     },
     {
+      "id": "315dcaf2-a34c-4637-bc7f-990d6f23d25c",
+      "start": "2026-11-22T17:00:00.000Z",
+      "end": "2026-11-22T18:00:00.000Z",
+      "status": "Confirmed",
+      "type": "جلسة علاج طبيعي",
+      "doctor": "Mariam Mahmoud",
+      "branch": "BODYFIX Center",
+      "patient": "ازهريه ابراهيم بابكر ابراهيم",
+      "phone": "+249_918250874",
+      "note": "كشف الساعه 7"
+    },
+    {
       "id": "1989d84a-2925-46c8-9f26-38aa548800c2",
       "start": "2026-11-22T17:00:00.000Z",
       "end": "2026-11-22T17:30:00.000Z",
@@ -3236,6 +3224,17 @@
       "note": "مسافره"
     },
     {
+      "id": "bfe17637-2ada-42f2-bcd8-518aae5d726b",
+      "start": "2026-11-22T16:45:00.000Z",
+      "end": "2026-11-22T17:00:00.000Z",
+      "status": "Confirmed",
+      "type": "اعادة تقييم",
+      "doctor": "Dr Amgad Khedr",
+      "branch": "BODYFIX Center",
+      "patient": "فتحيه عبد الحكيم محمد ابراهيم",
+      "phone": "+2_01096526262"
+    },
+    {
       "id": "a2595569-e051-4b6c-a833-05fecc4e7116",
       "start": "2026-11-22T16:45:00.000Z",
       "end": "2026-11-22T17:00:00.000Z",
@@ -3248,15 +3247,16 @@
       "note": "هتشوف  لسه"
     },
     {
-      "id": "6930a326-b47f-4122-8288-b0ad286ca4ad",
+      "id": "701622c4-b439-4733-8cdc-b84e19b9bb7e",
       "start": "2026-11-22T16:45:00.000Z",
       "end": "2026-11-22T17:00:00.000Z",
       "status": "Confirmed",
-      "type": "تقييم الجلسه الأخيره",
-      "doctor": "Dr Amgad Khedr",
+      "type": "متابعة تغذيه",
+      "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",
-      "patient": "صفوت رفعت شاروبيم ذخاري",
-      "phone": "+20_1203171379"
+      "patient": "الاء اشرف سالم دويدار",
+      "phone": "+2_01157886948",
+      "note": "مغلق 2:12"
     },
     {
       "id": "5cab5ac8-e8a5-406a-9bd6-fa25e166b9b0",
@@ -3305,15 +3305,16 @@
       "phone": "+2_01061959988"
     },
     {
-      "id": "bfe17637-2ada-42f2-bcd8-518aae5d726b",
+      "id": "b7c9a4ca-777e-41db-91b1-2af36aacf80f",
       "start": "2026-11-22T16:30:00.000Z",
-      "end": "2026-11-22T16:45:00.000Z",
+      "end": "2026-11-22T17:00:00.000Z",
       "status": "Confirmed",
-      "type": "اعادة تقييم",
+      "type": "كشف علاج طبيعي",
       "doctor": "Dr Amgad Khedr",
       "branch": "BODYFIX Center",
-      "patient": "فتحيه عبد الحكيم محمد ابراهيم",
-      "phone": "+2_01096526262"
+      "patient": "ازهريه ابراهيم بابكر ابراهيم",
+      "phone": "+249_918250874",
+      "note": "عندها جلسه الساعه 8 مع د امجد"
     },
     {
       "id": "5ebd5d60-f378-4dd3-84bb-1721cf0bd7f9",
@@ -4265,7 +4266,7 @@
       "id": "8c8222be-052c-4385-810e-93d16ff4ae81",
       "start": "2026-11-22T13:30:00.000Z",
       "end": "2026-11-22T15:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Checked In",
       "type": "جلسة علاج طبيعي",
       "doctor": "Abeer",
       "branch": "FIX ZONE",
@@ -4276,18 +4277,19 @@
       "id": "277ab76b-ae0b-4c31-9adb-57768fc7fa51",
       "start": "2026-11-22T13:30:00.000Z",
       "end": "2026-11-22T15:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Delayed",
       "type": "جلسة علاج طبيعي",
       "doctor": "Mohammad Osama",
       "branch": "FIX ZONE",
       "patient": "جلال علي هاشم حسين المساوى",
-      "phone": "+2_01109667342"
+      "phone": "+2_01109667342",
+      "note": "بيكنسل"
     },
     {
       "id": "21e343df-e431-455d-89ce-07f52e846d1d",
       "start": "2026-11-22T13:30:00.000Z",
       "end": "2026-11-22T14:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Delayed",
       "type": "كشف علاج طبيعي",
       "doctor": "Dr Amgad Khedr",
       "branch": "BODYFIX Center",
@@ -4311,7 +4313,7 @@
       "id": "efce59b9-7886-483f-8e33-677e8d865234",
       "start": "2026-11-22T13:00:00.000Z",
       "end": "2026-11-22T14:30:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "جلسة علاج طبيعي",
       "doctor": "Roba",
       "branch": "BODYFIX Center",
@@ -4334,7 +4336,7 @@
       "id": "c6e4e558-35dc-4b36-ad69-e2cae37ba88b",
       "start": "2026-11-22T13:00:00.000Z",
       "end": "2026-11-22T14:00:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "جلسة علاج طبيعي",
       "doctor": "Amr Mohsen",
       "branch": "BODYFIX Center",
@@ -4413,7 +4415,7 @@
       "id": "737c3001-18c8-479d-a5c0-270e54f01cf0",
       "start": "2026-11-22T13:00:00.000Z",
       "end": "2026-11-22T14:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Delayed",
       "type": "جلسة علاج طبيعي",
       "doctor": "Dr. Sara Hussein",
       "branch": "BODYFIX Center",
@@ -4424,7 +4426,7 @@
       "id": "61859a42-5a5b-44ce-bc17-d29a6f416db9",
       "start": "2026-11-22T13:00:00.000Z",
       "end": "2026-11-22T14:00:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "جلسة علاج طبيعي",
       "doctor": "Ibrahim",
       "branch": "BODYFIX Center",
@@ -4502,7 +4504,7 @@
       "id": "6de079eb-abed-42bf-a926-314e9734033f",
       "start": "2026-11-22T12:30:00.000Z",
       "end": "2026-11-22T14:00:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "جلسة علاج طبيعي",
       "doctor": "Abeer",
       "branch": "FIX ZONE",
@@ -4583,7 +4585,7 @@
       "id": "b5366145-94a4-44fa-9190-6f253eeae23b",
       "start": "2026-11-22T12:00:00.000Z",
       "end": "2026-11-22T13:30:00.000Z",
-      "status": "In Progress",
+      "status": "Completed",
       "type": "جلسة علاج طبيعي",
       "doctor": "Roba",
       "branch": "BODYFIX Center",
@@ -4663,7 +4665,7 @@
       "id": "5244151f-2d64-4aab-94da-d1fb06b6b526",
       "start": "2026-11-22T12:00:00.000Z",
       "end": "2026-11-22T13:00:00.000Z",
-      "status": "In Progress",
+      "status": "Completed",
       "type": "جلسة علاج طبيعي",
       "doctor": "Amr Mohsen",
       "branch": "BODYFIX Center",
@@ -4697,7 +4699,7 @@
       "id": "0e098800-9015-4aca-ad97-833ee22301c6",
       "start": "2026-11-22T12:00:00.000Z",
       "end": "2026-11-22T13:00:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "جلسة علاج طبيعي",
       "doctor": "Dr. Ahmad Ibrahim",
       "branch": "BODYFIX Center",
@@ -4765,7 +4767,7 @@
       "id": "38a4437f-75ab-43a2-9fc4-53e623d14d15",
       "start": "2026-11-22T11:00:00.000Z",
       "end": "2026-11-22T12:30:00.000Z",
-      "status": "In Progress",
+      "status": "Completed",
       "type": "جلسة علاج طبيعي",
       "doctor": "Sarah Ahmad",
       "branch": "BODYFIX Center",

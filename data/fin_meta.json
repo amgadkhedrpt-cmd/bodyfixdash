@@ -1,5 +1,5 @@
 {
- "at": "2026-11-23T13:46:33.238Z",
+ "at": "2026-11-23T14:41:40.561Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -93,11 +93,11 @@
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 50,
+ "ph2_n": 42,
  "conf": {
-  "confirmed_now": 130,
+  "confirmed_now": 114,
   "new": 1,
-  "cx_changed": 1
+  "cx_changed": 7
  },
  "kinds": {
   "pay": {
@@ -120,7 +120,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20884,
+    "rows": 20888,
     "cols": [
      "id",
      "type",
@@ -359,7 +359,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 1207,
+    "rows": 1208,
     "cols": [
      "aid",
      "start",
@@ -428,7 +428,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16825,
+    "rows": 16830,
     "cols": [
      "name",
      "end",
@@ -544,7 +544,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17702,
+    "rows": 17704,
     "cols": [
      "id",
      "referenceId",
@@ -588,7 +588,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 479,
+    "rows": 485,
     "cols": [
      "aid",
      "start",
@@ -659,7 +659,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 132910,
+    "rows": 132947,
     "cols": [
      "start",
      "status",
@@ -678,9 +678,10 @@
     "values": {
      "status": [
       "CANCELED",
+      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
-      "INPROGRESS",
+      "DELAYED",
       "NOSHOW",
       "NOTE",
       "OPEN",
@@ -690,7 +691,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 6600,
+    "rows": 6603,
     "cols": [
      "start",
      "status",
@@ -921,10 +922,10 @@
  },
  "hash": {
   "data/fin.enc": "95c01cf62b155e20",
-  "data/fin_c.enc": "05c3d0f80ca775f9"
+  "data/fin_c.enc": "3558509276802f42"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 71
+ "secs": 67
 }

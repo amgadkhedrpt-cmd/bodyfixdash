@@ -12867,8 +12867,21 @@ function planRoomClinic(room){ var m=String(room||'').toUpperCase().replace(/\s+
 var PLAN_NUT_AM=['conftoday','waittoday','waitnut','confsp'];   // لازم تتعمل الصبح (تأكيد المفتوح النهارده / الويتنج) — مع اللي جاية الصبح
 function planNutTask(t,g){ if(t.br!=='BODYFIX Center'||g==='debt'||PLAN_NUT_AM.indexOf(g)>=0||(PLAN_GROUP_ROLE['BODYFIX Center']||{})[g]==='L') return false;
   var x=t._src||{}; return planIsNut({doctor:t.doctor||x.doctor||'', type:t.type||x.type||''}); }
+/* ☀️ «اللي جاية الصبح» النهارده غير مسئولة الصبح الأساسية (مثلاً انجي لونج وندى نايت) → لحد الساعة دي: شغل الصبح + استقبال المرضى اللي مواعيدهم قبلها معاها */
+var PLAN_AM_G=['conftoday','waittoday','waitnut','confsp'], PLAN_AM_REC=['eval','renew','nopkg','svc','evalamg'];
+function planAMOv(br){ var T=planTeam(), am=T.am[br], R=PLAN_ROLES[br]||{}, base=br==='FIX ZONE'?R.DM:R.F; if(!am||am===base) return null;
+  return {name:am, to:+((T.amTo||{})[br])||(br==='FIX ZONE'?17:15), base:base}; }
+function planCairoH(iso){ try{ return +new Date(iso).toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2); }catch(e){ return 0; } }
 function planOwner0(t,g){
-  if(g==='dup') return '';   // 🔍 الملفات المكررة: مع المدير (د. أمجد) — مش على سكرتيرة ومش في نسب الإنجاز
+  if(g==='dup') return '';
+  var ov=planAMOv(t.br);
+  if(ov){ var tdo=(ALERTS_DATA&&ALERTS_DATA.today)||'', ao=PLAN_ST['asg|'+tdo+'|'+t.sec+'|'+g+'|'+t.br];
+    if(!(ao&&ao.by)){
+      if(PLAN_AM_G.indexOf(g)>=0) return ov.name;
+      if(PLAN_AM_REC.indexOf(g)>=0&&t.time&&planCairoH(t.time)<ov.to) return ov.name;
+      if(g==='mcallup'&&String(t.key).indexOf('mcallup|')===0) return ov.name;   // رفع سجل الصبح
+      if(g==='mcall'){ var mr0=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mn0=(PLAN_ROLES[t.br]||{})[mr0]; if(mn0===ov.base&&planCairoH(new Date().toISOString())<ov.to) return ov.name;   /* الموبايل معاها لحد الساعة دي */ }
+    } }   // 🔍 الملفات المكررة: مع المدير (د. أمجد) — مش على سكرتيرة ومش في نسب الإنجاز
   if(planNutTask(t,g)){ var Rn0=PLAN_ROLES['BODYFIX Center']||{}; if(Rn0.F) return Rn0.F; }
   if(g==='mcall'||g==='mcallup'){ var tdm=(ALERTS_DATA&&ALERTS_DATA.today)||'', am=PLAN_ST['asg|'+tdm+'|'+t.sec+'|'+g+'|'+t.br]; if(am&&am.by) return am.by;
     var mrk=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mnm=(PLAN_ROLES[t.br]||{})[mrk]; if(mnm) return mnm; }
@@ -13054,16 +13067,16 @@ var PLAN_H_OK=['conf','conftoday','call','drop','late','nonext','svc'];         
 var PLAN_EVE_G=['stale','kashf0'];                     // مهام آخر اليوم — ما تروحش للي جاية الصبح
 /* الحضور: كل شخص بيتحفظ لوحده (PLAN|teamp|<اليوم>|<الاسم>) عشان تعديل حد ما يمسحش اللي غيره كتبه — وفوقه السجل القديم المجمّع */
 var PLAN_TEAM_C=null;
-function planTeam(){ var C=PLAN_TEAM_C; if(C&&C.ref===PLAN_ST&&Date.now()-C.t<400) return {p:Object.assign({},C.o.p), am:Object.assign({},C.o.am), by:C.o.by, at:C.o.at}; var o=planTeam0(); PLAN_TEAM_C={ref:PLAN_ST, t:Date.now(), o:o}; return {p:Object.assign({},o.p), am:Object.assign({},o.am), by:o.by, at:o.at}; }
-function planTeam0(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', b=PLAN_ST['team|'+td]||{}, o={p:Object.assign({},b.p||{}), am:Object.assign({},b.am||{}), by:b.by||'', at:b.at||''};
+function planTeam(){ var C=PLAN_TEAM_C; if(C&&C.ref===PLAN_ST&&Date.now()-C.t<400) return {p:Object.assign({},C.o.p), am:Object.assign({},C.o.am), amTo:Object.assign({},C.o.amTo||{}), by:C.o.by, at:C.o.at}; var o=planTeam0(); PLAN_TEAM_C={ref:PLAN_ST, t:Date.now(), o:o}; return {p:Object.assign({},o.p), am:Object.assign({},o.am), amTo:Object.assign({},o.amTo||{}), by:o.by, at:o.at}; }
+function planTeam0(){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', b=PLAN_ST['team|'+td]||{}, o={p:Object.assign({},b.p||{}), am:Object.assign({},b.am||{}), amTo:Object.assign({},b.amTo||{}), by:b.by||'', at:b.at||''};
   var pp='teamp|'+td+'|', pa='teamam|'+td+'|';
   Object.keys(PLAN_ST).forEach(function(k){ var v=PLAN_ST[k]; if(!v) return;
     if(k.indexOf(pp)===0){ var n=k.slice(pp.length); if(v.st==='in') delete o.p[n]; else o.p[n]=v.p||v; if(v.ts&&v.ts>(o._ts||'')){ o._ts=v.ts; o.by=v.by||o.by; o.at=v.at||o.at; } }
-    else if(k.indexOf(pa)===0){ o.am[k.slice(pa.length)]=v.v||''; } });
+    else if(k.indexOf(pa)===0){ o.am[k.slice(pa.length)]=v.v||''; if(v.to) (o.amTo=o.amTo||{})[k.slice(pa.length)]=+v.to; } });
   return o; }
 function planTeamSave(T, names){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', at=new Date().toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}), ts=new Date().toISOString();
   names.forEach(function(n){ var x=T.p[n]||{st:'in'}, k='teamp|'+td+'|'+n, o={st:x.st||'in', p:x, by:PLAN_ME||'', at:at, ts:ts}; PLAN_ST[k]=o; planSaveRaw('PLAN|'+k, JSON.stringify(o)); });
-  var W={p:T.p, am:T.am, by:PLAN_ME||'', at:at}; PLAN_ST['team|'+td]=W; PLAN_TEAM_C=null; planSaveRaw('PLAN|team|'+td, JSON.stringify(W));
+  var W={p:T.p, am:T.am, amTo:T.amTo||{}, by:PLAN_ME||'', at:at}; PLAN_ST['team|'+td]=W; PLAN_TEAM_C=null; planSaveRaw('PLAN|team|'+td, JSON.stringify(W));
   try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender(); }
 /* 🚗 في الفرع التاني وشغلها معاها (أو بتغطي مكان حد هناك): مهام التليفون والسيستم تفضل عندها · شغل الاستقبال بس (التحصيل وهو موجود / عرض التجديد…) يتنقل لحد في الفرع */
 var PLAN_AWAY_LOCAL=['debt','late','renew','eval','svc'];
@@ -13152,7 +13165,8 @@ function planTeamSet(name, st, br, forN){
   else { if(st==='in') delete T.p[name]; else T.p[name]={st:st}; }
   planTeamSave(T, ch);
 }
-function planTeamAM(br, v){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', k='teamam|'+td+'|'+br, o={v:v, by:PLAN_ME||'', ts:new Date().toISOString()}; PLAN_ST[k]=o; PLAN_TEAM_C=null; planSaveRaw('PLAN|'+k, JSON.stringify(o));
+function planTeamAM(br, v, to){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', k='teamam|'+td+'|'+br, prev=PLAN_ST[k]||{}; if(v==null) v=prev.v||''; if(to==null) to=prev.to||'';
+  var o={v:v, to:to?+to:'', by:PLAN_ME||'', ts:new Date().toISOString()}; PLAN_ST[k]=o; PLAN_TEAM_C=null; planSaveRaw('PLAN|'+k, JSON.stringify(o));
   var T=planTeam(); T.am[br]=v; planTeamSave(T, []); }
 function planTeamPanel(){
   var T=planTeam(), brs=planBR(), moved=0, posted=0, needN=0;
@@ -13170,7 +13184,9 @@ function planTeamPanel(){
           [['in','✅ موجودة'],['out','🔴 غايبة (المهام تتوزع)'],['sub','🔴 غايبة وفيه حد بيغطي مكانها'],['cover','🔁 بتغطي في الفرع التاني'],['away','🚗 في الفرع التاني (شغلها معاها)']].map(function(o){ var cur=x.sub?'sub':(x.st||'in'); return '<option value="'+o[0]+'"'+(cur===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'+(x.st==='cover'?'<div style="font-size:.54rem;color:'+col+'">'+lbl+'</div>':'')+(x.sub?'<div style="font-size:.56rem;color:#38bdf8">↩️ مهامها كلها ← <b>'+alEsc(x.sub)+'</b></div>':''))+'</div>'; }).join('');
     var am=planAM(b.key), pool=names.map(function(z){return z[1];}).filter(function(n){ return planHere(n,b.key); });
     var amSel='<label style="font-size:.58rem;color:var(--mute)">☀️ اللي جاية الصبح <select onchange="planTeamAM(\''+b.key+'\',this.value)" style="background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:6px;padding:2px 4px;font-family:Cairo,sans-serif;font-size:.58rem">'+
-      '<option value="">—</option>'+pool.map(function(n){ return '<option'+(n===am?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('')+'</select></label>';
+      '<option value="">—</option>'+pool.map(function(n){ return '<option'+(n===am?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('')+'</select>'+
+      (function(){ var ov=planAMOv(b.key); if(!ov) return ''; return ' لحد <select onchange="planTeamAM(\''+b.key+'\',null,this.value)" style="background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:6px;padding:2px 4px;font-family:Cairo,sans-serif;font-size:.58rem">'+
+        [11,12,13,14,15,16,17,18,19].map(function(hh){ return '<option value="'+hh+'"'+(hh===ov.to?' selected':'')+'>'+(hh>12?hh-12:hh)+(hh>=12?' م':' ص')+'</option>'; }).join('')+'</select> <span style="color:#f59e0b">⏱ النهارده بس — شغل الصبح والاستقبال قبل الساعة دي معاها</span>'; })()+'</label>';
     return '<div style="margin-top:6px"><div style="font-size:.6rem;font-weight:800;margin-bottom:4px">'+alEsc(b.label)+' · '+amSel+'</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+cells+'</div></div>';
   }).join('');
   var anyOut=Object.keys(T.p).some(function(n){ return T.p[n].st&&T.p[n].st!=='in'; });

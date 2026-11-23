@@ -310,6 +310,7 @@ padding:7px 11px;font-family:'Cairo',sans-serif;font-size:.74rem;color:var(--txt
 
 <div class="tabs">
   <button class="tab active" onclick="sw('overview',this)">📊 نظرة عامة</button>
+  <button class="tab" onclick="sw('sum',this)" style="color:#38bdf8">📊 ملخص اليوم</button>
   <button class="tab" onclick="sw('plan',this)" style="color:#f472b6">📋 خطة اليوم <span id="plan-cnt" style="background:#ec4899;color:#fff;border-radius:8px;padding:0 5px;font-size:.54rem;margin-right:2px;display:none"></span></button>
   <button class="tab" onclick="sw('shifts',this)">🔄 الشيفتات</button>
   <button class="tab" onclick="sw('doctors',this)">👨‍⚕️ الأطباء</button>
@@ -371,6 +372,7 @@ padding:7px 11px;font-family:'Cairo',sans-serif;font-size:.74rem;color:var(--txt
   <iframe id="collect-frame" title="تحصيل اليوم" style="width:100%;height:calc(100vh - 170px);min-height:520px;border:1px solid var(--brd);border-radius:12px;background:var(--card);display:none"></iframe>
 </div>
 
+<div class="tc" id="tab-sum"><div id="sumBox" dir="rtl" style="max-width:900px;margin:0 auto;padding:6px 4px 40px;font-family:Cairo,sans-serif"></div></div>
 <div class="tc" id="tab-plan"><div id="planBox" dir="rtl" style="max-width:900px;margin:0 auto;padding:6px 4px 40px;font-family:Cairo,sans-serif"></div></div>
 <div class="tc active" id="tab-overview">
   <!-- ══ لوحة التنبيهات (alerts.json + Medicolize + شيتات الدكاترة) ══ -->
@@ -4070,6 +4072,7 @@ function sw(name,btn){
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='audit'&&typeof audAutoLoad==='function') audAutoLoad();
   if(name==='plan'&&typeof planOpen==='function') planOpen();
+  if(name==='sum'&&typeof sumOpen==='function') sumOpen();
   if(name==='mngdoc'){var c=document.getElementById('mng-shifts-container');if(c&&!c.children.length)mngAddShift();mngRenderDoctorsList('');}
   if(name==='secretary'){
     if(typeof pullMasterTasks === 'function' && typeof USE_JSONBIN !== 'undefined' && USE_JSONBIN){
@@ -12194,6 +12197,93 @@ function planSudAlerts(){
 }
 /* 💸 حصّلي قبل ما يمشي: خدمة اتعملت النهارده ومتدفعتش · أو حضر النهارده وعليه فلوس من قبل — بيتحدث مع كل مزامنة (كل نص ساعة) */
 var PLAN_LATE=[];
+/* ══ 📊 ملخص اليوم: كروت بالأرقام — دوسة على الكارت تفتح أسامي المرضى اللي وراه (المرحلة 1: من غير فلوس) ══ */
+var SUM_OPEN={}, SUM_PKG=null, SUM_TIMER=null;
+function sumOpen(){
+  if(typeof planOpen==='function'){ try{ planShiftsLoad(); if(!PLAN_LOADED) planLoad(); if(typeof AUD_DATA!=='undefined'&&!AUD_DATA&&typeof audAutoLoad==='function') audAutoLoad(); }catch(e){} }
+  if(!SUM_PKG){ var bases=(typeof MED_URLS!=='undefined'?MED_URLS:[]).map(function(u){ return u.summary.replace(/summary\.json$/,'packages.json'); });
+    (function tryAt(i){ if(i>=bases.length) return; fetch(bases[i]+'?t='+Date.now(),{cache:'no-store'}).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){ SUM_PKG=j||{}; sumRender(); }).catch(function(){ tryAt(i+1); }); })(0); }
+  var h=(location.hash.match(/sum=([\w-]+)/)||[])[1]; if(h) SUM_OPEN[h]=true;
+  sumRender(); [3000,8000,15000].forEach(function(ms){ setTimeout(sumRender,ms); });
+  if(!SUM_TIMER) SUM_TIMER=setInterval(function(){ var t=document.getElementById('tab-sum'); if(t&&t.classList.contains('active')) sumRender(); },60000);
+  if(h) setTimeout(function(){ var el=document.getElementById('sum_'+h); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },1500);
+}
+function sumTog(id){ SUM_OPEN[id]=!SUM_OPEN[id]; sumRender(); }
+function sumRender(){
+  var box=document.getElementById('sumBox'); if(!box) return;
+  var D=ALERTS_DATA; if(!D){ box.innerHTML='<div style="padding:30px;text-align:center;color:var(--mute)">⏳ بيحمّل…</div>'; if(typeof alertsLoad==='function') alertsLoad(); setTimeout(sumRender,2500); return; }
+  var today=D.today, act=planBR().map(function(b){ return b.key; }), inb=function(br){ return act.indexOf(br)>=0; };
+  var T=null; try{ T=planTasks(true); }catch(e){}
+  var all=T?[].concat(T.mgr,T.morning,T.rec,T.office,T.evening):[];
+  var grp=function(g){ return all.filter(function(t){ return (t.grp||[]).indexOf(g)>=0; }); };
+  var dn=function(L){ return L.filter(function(t){ return planState(t)==='done'; }); };
+  var ptRow=function(name,pid,extra){ return '<div style="padding:3px 0;border-top:1px solid var(--brd);font-size:.64rem">'+planPtLink(name||'',pid||'')+(extra?' <span style="color:var(--mute)">'+extra+'</span>':'')+'</div>'; };
+  var taskRows=function(L){ return L.map(function(t){ var st=planState(t); return ptRow(t.name,t.pid||planPidOfKey(t.key),(st==='done'?'✅':'⬜')+' '+alEsc(planOwner(t,(t.grp||[])[0])||'')+(t.time?' · '+alEsc(planT(t.time)):'')); }).join(''); };
+  // مواعيد النهارده (من غير Follow up)
+  var TA=((typeof MED_SUMMARY!=='undefined'&&MED_SUMMARY&&MED_SUMMARY.today_date===today&&MED_SUMMARY.today_appointments)||[]).filter(function(a){ return inb(a.branch)&&!/follow up/i.test(a.doctor||''); });
+  var byPt={}; TA.forEach(function(a){ var k=a.patient||''; (byPt[k]=byPt[k]||[]).push(a); });
+  var came=[], booked=[], ns=[], sud=[];
+  Object.keys(byPt).forEach(function(n){ var L=byPt[n]; if(L.some(function(a){ return /checked|progress|completed/i.test(a.status||''); })) came.push(n);
+    if(L.some(function(a){ return !/cancel|waiting/i.test(a.status||''); })) booked.push(n);
+    if(L.some(function(a){ return /no ?show/i.test(a.status||''); })) ns.push(n);
+    if(L.some(function(a){ return /الغاء مفاجئ/.test(a.type||''); })) sud.push(n); });
+  var absent=booked.filter(function(n){ return came.indexOf(n)<0; });
+  // كشوفات جديدة: اتحجز / اتثبت
+  var KP={}; (D.kashf_pending||[]).forEach(function(x){ KP[x.name]=x; });
+  var fidx=(typeof alFixedIndex==='function')?alFixedIndex():null; if(fidx&&!fidx.length){ fidx=null; if(typeof fetchDRFromSheet==='function'&&!sumRender._dr){ sumRender._dr=1; try{ fetchDRFromSheet('haram',function(){ sumRender(); }); fetchDRFromSheet('dokki',function(){ sumRender(); }); }catch(e){} } }   // شيت الدكاترة لسه ما اتحملش
+  var ex=TA.filter(function(a){ return /كشف/.test(a.type||'')&&/checked|progress|completed/i.test(a.status||''); }).map(function(a){ var k=KP[a.patient]||{};
+    var bk=!!(k.next_pt||k.sessions_after||(k.appts||[]).some(function(x){ return x.start>a.start&&!/cancel|no ?show/i.test(x.status||'')&&!/كشف/.test(x.type||''); }));
+    var fx=fidx&&typeof alFindFixed==='function'?alFindFixed(a.patient,fidx).length>0:null; return {name:a.patient, pid:k.pid||'', bk:bk, fx:fx, doc:a.doctor}; });
+  var exB=ex.filter(function(x){ return x.bk; }).length, exF=ex.filter(function(x){ return x.fx; }).length, pct=function(a,b){ return b?Math.round(a*100/b)+'%':'—'; };
+  // باقات جديدة النهارده (من الفواتير)
+  var PI=((SUM_PKG||{}).inv)||{}, nameOf={}; (D.pt_index||[]).forEach(function(r){ if(r[15]) nameOf[r[15]]=r[0]; });
+  if(typeof AUD_DATA!=='undefined'&&AUD_DATA){ [].concat(AUD_DATA.appts||[],AUD_DATA.steps||[],AUD_DATA.debts||[]).forEach(function(r){ if(r.pid&&r.p&&!nameOf[r.pid]) nameOf[r.pid]=r.p; }); }
+  var pk=Object.keys(PI).map(function(k){ return PI[k]; }).filter(function(v){ return v&&v.d===today&&v.big; });
+  var p6=pk.filter(function(v){ return +v.s===6; }), p12=pk.filter(function(v){ return +v.s===12; }), pO=pk.filter(function(v){ return +v.s!==6&&+v.s!==12; });
+  // باقي المصادر
+  var renew=grp('renew'), early=((D.plan||{}).early_drop||[]).filter(function(x){ return inb(x.branch||alBranchOf(x.doctor,x.branch)); });
+  var wait=grp('waittoday'), mcall=grp('mcall'), conf=grp('conf'), aud=grp('aud'), stale=grp('stale');
+  var live=all.filter(function(t){ return planState(t)!=='snz'; }), liveD=dn(live).length;
+  var late=(typeof PLAN_LATE!=='undefined'&&PLAN_LATE)||[];
+  var DV=(D.dokki_visit||{}), dvI=(DV.items||[]), dvB=dvI.filter(function(x){ return x.amg; });
+  // الكارت
+  var card=function(id,icon,title,big,sub,rows,col){ var op=!!SUM_OPEN[id];
+    return '<div id="sum_'+id+'" style="'+(op?'grid-column:1/-1;':'')+'background:var(--card);border:1px solid '+(op?'#2563eb':'var(--brd)')+';border-radius:12px;padding:9px 11px">'+
+      '<div onclick="sumTog(\''+id+'\')" style="cursor:pointer"><div style="font-size:.62rem;color:var(--mute)">'+icon+' '+title+'</div><div style="font-size:1.15rem;font-weight:900;color:'+(col||'var(--txt)')+'">'+big+'</div><div style="font-size:.58rem;color:var(--mute)">'+(sub||'')+' '+(rows?(op?'▴':'▾'):'')+'</div></div>'+
+      (op&&rows?'<div style="margin-top:6px;max-height:420px;overflow:auto">'+rows+'</div>':'')+'</div>'; };
+  var sec=function(t,cards){ return '<div style="font-weight:800;font-size:.78rem;margin:14px 0 6px">'+t+'</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px">'+cards+'</div>'; };
+  var names=function(L){ return L.map(function(n){ return ptRow(n,''); }).join(''); };
+  var h='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:6px"><b style="font-size:.85rem">📊 ملخص اليوم</b><span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){ return b.label; }).join(' + ')+'</span>'+planDataAge()+'<span style="flex:1"></span><span style="font-size:.58rem;color:var(--mute)">دوسي على أي كارت تظهر الأسامي · الفلوس قريب (بكلمة سر التحليلات)</span></div>';
+  h+=sec('🧑‍🤝‍🧑 المرضى والاستمرارية',
+    card('came','✅','جه / محجوز',came.length+' / '+booked.length,'غياب '+pct(absent.length,booked.length)+' ('+absent.length+')',
+      '<div style="font-size:.6rem;font-weight:800;margin-top:4px">ما جوش ('+absent.length+')</div>'+names(absent)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px">جم ('+came.length+')</div>'+names(came),absent.length/(booked.length||1)>.2?'var(--r)':'')+
+    card('exams','🆕','كشوفات جديدة',ex.length,'اتحجز '+pct(exB,ex.length)+' · اتثبت '+(fidx?pct(exF,ex.length):'…'),
+      ex.map(function(x){ return ptRow(x.name,x.pid,'— '+alEsc(x.doc||'')+' · '+(x.bk?'✅ اتحجز':'❌ ما اتحجزش')+' · '+(x.fx==null?'…':x.fx?'✅ اتثبت':'❌ ما اتثبتش')); }).join(''))+
+    card('renew','🔁','آخر الباقة → جدد',dn(renew).length+' من '+renew.length,pct(dn(renew).length,renew.length),taskRows(renew))+
+    card('early','📉','وقفوا بدري',early.length,'أقل من 3 جلسات',early.map(function(x){ return ptRow(x.name,x.pid,'— '+alEsc(x.doctor||'')); }).join(''),early.length?'#f59e0b':'')+
+    card('wait','⏳','الويتنج النهارده',dn(wait).length+' من '+wait.length,'اتنقلوا لميعاد / اتقفلت',taskRows(wait)));
+  h+=sec('📦 الباقات الجديدة النهارده',
+    card('pkg','📦','باقات جديدة',SUM_PKG?pk.length:'…','باقة 6: '+p6.length+' · باقة 12: '+p12.length+' · <span style="text-decoration:underline">أخرى: '+pO.length+'</span>',
+      pk.sort(function(a,b){ return (+a.s===6?0:+a.s===12?1:2)-(+b.s===6?0:+b.s===12?1:2); }).map(function(v){ return ptRow(nameOf[v.p]||'(اسم مش متاح)',v.p,'— <b>'+(+v.s===6?'باقة 6':+v.s===12?'باقة 12':'أخرى'+(v.s?' ('+v.s+' جلسات)':''))+'</b>'+(v.r?' · المصدر: '+alEsc(v.r):'')); }).join('')||'<div style="font-size:.6rem;color:var(--mute)">مفيش باقات جديدة متسجلة النهارده</div>'));
+  h+=sec('📞 التليفون والحضور',
+    card('mcall','📵','مكالمات فايتة',mcall.length?dn(mcall).length+' / '+mcall.length:(typeof CS!=='undefined'&&CS.cfg()?'0':'—'),mcall.length?'اترجعلهم · لسه '+(mcall.length-dn(mcall).length):(typeof CS!=='undefined'&&CS.cfg()?'':'الجهاز مش مربوط'),taskRows(mcall),mcall.length-dn(mcall).length?'var(--r)':'')+
+    card('conf','✔️','تأكيد يوم الشغل الجاي',pct(dn(conf).length,conf.length),dn(conf).length+' من '+conf.length,taskRows(conf.filter(function(t){ return planState(t)!=='done'; })))+
+    card('sud','⚡','إلغاء مفاجئ / No Show',sud.length+' / '+ns.length,'',
+      '<div style="font-size:.6rem;font-weight:800;margin-top:4px">إلغاء مفاجئ</div>'+names(sud)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px">No Show</div>'+names(ns))+
+    card('late','⏰','اتأخروا من غير Check In',late.length,'',late.map(function(x){ return ptRow(x.name,x.pid||planPidByPh(x.phone),'— '+alEsc(planT(x.time))+' مع '+alEsc(x.doctor||'')); }).join('')));
+  h+=sec('🧾 جودة الشغل',
+    card('aud','🔍','أخطاء كومبليت امبارح',aud.length,dn(aud).length+' اتصلّحت',taskRows(aud))+
+    card('stale','🧹','مواعيد عدّت وما اتقفلتش',stale.length-dn(stale).length,'من '+stale.length,taskRows(stale.filter(function(t){ return planState(t)!=='done'; })))+
+    card('plan','✅','إنجاز خطة اليوم',pct(liveD,live.length),liveD+' من '+live.length,'',liveD/(live.length||1)>=.8?'var(--g)':''));
+  if(dvI.length&&act.indexOf('FIX ZONE')>=0) h+=sec('🏢 الدقي — زيارة د. أمجد '+(DV.date?alEsc(alFmtDay(DV.date)):''),
+    card('dokki','📋','محجوز معاه',dvB.length+' من '+dvI.length,'فاضل '+(dvI.length-dvB.length),dvI.map(function(x){ return ptRow(x.name,x.pid,(x.amg?'✅ محجوز':'⬜')); }).join('')));
+  // 👩‍💼 السكرتاريه
+  var own={}; all.forEach(function(t){ var s0=planState(t); if(s0==='snz') return; (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planNormName(planOwner(t,g)); if(!o||!planIsReg(o)) return; var z=own[o]=own[o]||{n:0,d:0,k:{},left:{}}; if(z.k[t.key]) return; z.k[t.key]=1; z.n++; if(s0==='done') z.d++; else z.left[g]=(z.left[g]||0)+1; }); });
+  var rowsS=Object.keys(own).sort(function(a,b){ return own[b].n-own[a].n; }).map(function(n){ var z=own[n], pc=z.n?Math.round(z.d*100/z.n):0, top=Object.keys(z.left).sort(function(a,b){ return z.left[b]-z.left[a]; })[0];
+    return '<tr style="border-top:1px solid var(--brd)"><td style="padding:5px 4px;font-weight:800">'+alEsc(n)+'</td><td style="text-align:center;color:'+(pc>=80?'var(--g)':pc>=40?'#f59e0b':'var(--r)')+';font-weight:800">'+pc+'%</td><td style="text-align:center">'+z.d+' / '+z.n+'</td><td>'+(top?alEsc((PLAN_GT[top]||['',top])[1])+' ('+z.left[top]+')':'—')+'</td></tr>'; }).join('');
+  h+='<div style="font-weight:800;font-size:.78rem;margin:14px 0 6px">👩‍💼 السكرتاريه</div><div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:6px 10px"><table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr style="color:var(--mute)"><th style="text-align:right">الاسم</th><th>الإنجاز</th><th>اتعمل</th><th style="text-align:right">أكتر حاجة فاضلة</th></tr>'+rowsS+'</table></div>';
+  var sc=window.scrollY; box.innerHTML=h; window.scrollTo(0,sc);
+}
 function planLateInfo(){
   if(!PLAN_LATE||!PLAN_LATE.length) return '';
   var L=PLAN_LATE.slice().sort(function(a,b){ return String(a.time).localeCompare(String(b.time)); });

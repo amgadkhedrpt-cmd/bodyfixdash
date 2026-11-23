@@ -3863,7 +3863,7 @@ function audAutoInit(){
     if(ys<d.from) ys=d.from; if(ys>d.to) ys=d.to; f.value=ys; t.value=ys; }
   var sel=document.getElementById('audSt'), sts=Object.keys(d.statuses||{}).filter(Boolean);
   var def=sts.filter(function(x){return /complet|done|finish|منته|مكتمل/i.test(x);})[0]||'';
-  sel.innerHTML='<option value="">كل الحالات</option>'+sts.map(function(x){ return '<option value="'+_aud_esc(x)+'"'+(x===def?' selected':'')+'>'+_aud_esc(x)+' ('+d.statuses[x]+')</option>'; }).join('');
+  sel.innerHTML=sts.filter(function(x){ return !/planned|reject|existing/i.test(x); }).map(function(x){ return '<option value="'+_aud_esc(x)+'"'+(x===def?' selected':'')+'>'+_aud_esc(x)+' ('+d.statuses[x]+')</option>'; }).join('');
   if(typeof CURRENT_BRANCH!=='undefined'){ var b=String(CURRENT_BRANCH||'').toLowerCase(); if(b.indexOf('haram')>=0) document.getElementById('audBr').value='BODYFIX Center'; else if(b.indexOf('dokki')>=0) document.getElementById('audBr').value='FIX ZONE'; }
   audAutoRun();
 }
@@ -3901,7 +3901,7 @@ function audAutoRun(){
   var inR=function(r){ return r.d>=f&&r.d<=t&&(!br||r.b===br); };
   var L=audMapLook(document.getElementById('audCat').value);
   var A=d.appts.filter(function(r){ return inR(r)&&L.A[audN(r.s)]; }),
-      S=d.steps.filter(function(r){ return inR(r)&&(!st||r.st===st)&&L.S[audN(r.s)]; });
+      S=d.steps.filter(function(r){ return inR(r)&&(st?r.st===st:/complet|done|finish|منته|مكتمل/i.test(r.st||''))&&L.S[audN(r.s)]; });   // الكومبليت = الخطوات اللي اتقفلت بس (Planned لسه ما اتعملتش — مش غلطة)
   var aRows=A.map(function(r){ return {Start:r.d,Patient:r.p,Doctor:r.dr,Type:r.s,_svc:L.A[audN(r.s)]}; });
   var oRows=S.map(function(r){ return {End:r.d,Patient:r.p,Doctor:r.dr,Name:r.s,_svc:L.S[audN(r.s)]}; });
   var disc=_aud_doAudit(aRows,oRows);

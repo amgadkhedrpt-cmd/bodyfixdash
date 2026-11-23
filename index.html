@@ -12453,7 +12453,7 @@ function planTasks(useAll){
     add('morning',{grp:['miss'], key:today+'|miss|'+x.pid, icon:'🙋', kind:'بييجي بانتظام ومالوش ميعاد النهارده', name:x.name, phone:x.phone, br:brOf(x),
       lines:['آخر حضور '+alEsc(alFmtDay(x.last_attended))+' · عادةً الساعة '+(x.usual_hour>12?x.usual_hour-12:x.usual_hour)+(x.next_appt?' · ميعاده الجاي '+alEsc(alFmtDay(String(x.next_appt).slice(0,10))):'')+' — اتصل اسأله']});
   });
-  (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since>=1&&x.days_since<=3&&!x.next_pt&&!x.sessions_after; }).forEach(function(x){
+  (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since>=1&&x.days_since<=3&&!x.next_pt&&!x.sessions_after&&!planKashfAmg(x); }).forEach(function(x){
     add('morning',{grp:['kashf'], key:today+'|kashf|'+x.pid, icon:'🩺', kind:'عمل كشف من '+x.days_since+' يوم وما حجزش جلسات', name:x.name, phone:x.phone, br:brOf(x),
       lines:['الكشف مع '+alEsc(doc(x.doctor))+' يوم '+alEsc(alFmtDay(String(x.kashf_date).slice(0,10)))+' — اتصل واعرض الباقة']});
   });
@@ -12676,7 +12676,7 @@ function planTasks(useAll){
     add('evening',{grp:['nonextrev'], key:today+'|nonextrev|'+x.pid, icon:'📅', kind:'مراجعة: عنده موعد النهارده ومالوش ميعاد جاي'+(x.room?' · 🚪 '+alEsc(x.room):''), name:x.name, phone:x.phone, br:brOf(x), room:x.room||'', doctor:x.doctor,
       lines:[alEsc(x.type)+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' · <b>'+alEsc(x.status||'')+'</b> — احجزله أو اتصل']});
   });
-  (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since===0&&!x.next_pt&&!x.sessions_after&&/checked|progress|completed/i.test(x.kashf_status||''); }).forEach(function(x){
+  (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since===0&&!x.next_pt&&!x.sessions_after&&!planKashfAmg(x)&&/checked|progress|completed/i.test(x.kashf_status||''); }).forEach(function(x){
     add('evening',{grp:['kashf0'], key:today+'|kashf0|'+x.pid, icon:'🩺', kind:'كشف النهارده وما حجزش', name:x.name, phone:x.phone, br:brOf(x),
       lines:['مع '+alEsc(doc(x.doctor))+' '+alEsc(planT(x.kashf_date))]});
   });
@@ -13513,8 +13513,17 @@ function planStopNo(key){
   PLAN_ST[key]=o; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){}
   planRender(); planSaveRaw('PLAN|'+key, JSON.stringify(o));
 }
+/* 🩺 كشف وما حجزش: اتحجزله «إعادة تقييم» مع د. أمجد بعد الكشف = اتعملت (زي حجز الجلسات) */
+function planKashfAmg(x){ var kd=String(x.kashf_date||''); return (x.appts||[]).some(function(a){ return /تقي?يم/.test(a.type||'')&&/amgad/i.test(a.doctor||'')&&String(a.start||'')>kd&&!/cancel|no ?show/i.test(a.status||''); }); }
+/* التقييم · التجديد · مالوش باقة: بتتقفل من Medicolize — أو «🚫 رفض» بسبب مكتوب (مفيش خانة ملحوظة) */
+var PLAN_REF_ONLY={eval:1, renew:1, nopkg:1, nopkgnext:1};
+function planRefOnly(t){ var g=(t&&t.grp)||[]; return g.length>0&&g.every(function(x){ return PLAN_REF_ONLY[x]; }); }
 function planRef(key){
   if(!PLAN_ME){ alert('اختار اسمك الأول من خانة «السكرتيرة المسئولة» فوق'); return; }
+  if(planRefOnly(PLAN_TASKIDX[key]||{})){ var fr=(prompt('اكتبي سبب الرفض (ليه مش هيتحجز / مش هتتفتح باقة):','')||'').trim(); if(!fr) return; if(fr.length<4){ alert('اكتبي السبب بوضوح.'); return; }
+    var c0=PLAN_ST[key]||{}, t0=PLAN_TASKIDX[key]||{};
+    var o0=Object.assign(planMeta(t0),{s:'ref', reason:fr, by:PLAN_ME, at:new Date().toLocaleString('ar-EG',{hour:'numeric',minute:'2-digit',day:'numeric',month:'numeric'}), ts:new Date().toISOString(), note:c0.note||''});
+    PLAN_ST[key]=o0; try{ localStorage.setItem('planSt',JSON.stringify(PLAN_ST)); }catch(e){} planRender(); planSaveRaw('PLAN|'+key, JSON.stringify(o0)); return; }
   var a=prompt('سبب الرفض؟ اكتب الرقم:\n'+PLAN_REF_R.map(function(r,i){ return (i+1)+') '+r; }).join('\n')+'\n5) سبب تاني', '1'); if(a==null) return;
   var n=parseInt(String(a).replace(/[٠-٩]/g,function(c){ return '٠١٢٣٤٥٦٧٨٩'.indexOf(c); }),10), r=PLAN_REF_R[n-1];
   if(!r){ r=(n===5?prompt('اكتب السبب:',''):String(a)).trim(); if(!r) return; }
@@ -13567,8 +13576,9 @@ function planRow(t){
       (phone?'<div dir="ltr" style="font-size:.6rem;color:var(--g);margin-top:4px;text-align:right">'+alEsc(phone)+'</div>':'')+
       '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">'+
         (live?(auto?'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">🤖 بتتقفل لوحدها لما '+alEsc(PLAN_AUTO_G[(t.grp||[])[0]]||'')+(sysOnly&&(t.grp||[])[0]==='call'?' — اكتبي المكالمات في ملحوظة الموعد على Medicolize':'')+'</span>':manOk?btn('done',(t.grp||[])[0]==='aud'?'✅ راجعته — مفيش خطأ':'✅ اتعمل','rgba(16,185,129,.15)'):'<span style="font-size:.58rem;color:var(--mute);border:1px dashed var(--brd);border-radius:7px;padding:4px 8px">'+(PLAN_NOTE_REF[(t.grp||[])[0]]?'🤖 بتتقفل لما الخدمة تتحجز على Medicolize — ولو مش عايزها اكتبي السبب في الملحوظة (بتتحسب 🚫 رفض)':'🤖 بتتقفل لما الشغل يتسجل على Medicolize — أو «🚫 رفض» لو المريض رفض')+'</span>')+(isCall||sysOnly||PLAN_NO_NR[(t.grp||[])[0]]?'':btn('nr','📞 ما ردش','rgba(245,158,11,.12)'))+((t.grp||[])[0]==='stop'?'<button onclick="event.stopPropagation();planStopNo(\''+k+'\')" style="background:rgba(167,139,250,.14);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">✋ مش هيوقف جلسات</button>':
-         planNoteCloses(t)||sysOnly?'':'<button onclick="event.stopPropagation();planRef(\''+k+'\')" style="background:rgba(249,115,22,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🚫 رفض</button>')+((t.grp||[])[0]==='sudden'?'':(t.grp||[])[0]==='miss'?'<button onclick="event.stopPropagation();planMissNo(\''+k+'\')" style="background:rgba(16,185,129,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🗓️ مش بييجي كل يوم</button>':btn('later','⏭ أجّل','transparent')):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
-        '<input id="pn_'+h+'" value="'+alEsc(st.note||'')+'" placeholder="💬 ملحوظة…" onchange="planNote(\''+k+'\')" onkeydown="if(event.key===\'Enter\')this.blur()" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--brd);border-radius:7px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.62rem;padding:5px 8px">'+
+         (planNoteCloses(t)||sysOnly)&&!planRefOnly(t)?'':'<button onclick="event.stopPropagation();planRef(\''+k+'\')" style="background:rgba(249,115,22,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🚫 رفض</button>')+((t.grp||[])[0]==='sudden'?'':(t.grp||[])[0]==='miss'?'<button onclick="event.stopPropagation();planMissNo(\''+k+'\')" style="background:rgba(16,185,129,.12);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap">🗓️ مش بييجي كل يوم</button>':btn('later','⏭ أجّل','transparent')):(t.sys&&st.s!=='done'&&st.s!=='later'?'':btn('undo','↩️ رجّعها','transparent')))+
+        (planRefOnly(t)?'<span style="font-size:.58rem;color:var(--mute)">لو مش هيتحجز / مش هتتفتح باقة: دوسي 🚫 رفض واكتبي السبب</span>'+(st.note?'<span style="font-size:.58rem;color:var(--mute)"> · 📝 '+alEsc(st.note)+'</span>':'')+'<span style="display:none">':'')+
+        '<input id="pn_'+h+'" value="'+alEsc(st.note||'')+'" placeholder="💬 ملحوظة…" onchange="planNote(\''+k+'\')" onkeydown="if(event.key===\'Enter\')this.blur()" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--brd);border-radius:7px;color:var(--txt);font-family:Cairo,sans-serif;font-size:.62rem;padding:5px 8px">'+(planRefOnly(t)?'</span>':'')+
         '<span id="pst_'+h+'" style="font-size:.56rem;color:var(--mute)"></span></div></div></div>';
 }
 /* 🙋 «بييجي بانتظام ومالوش ميعاد النهارده»: زرار «مش بييجي كل يوم» = اتعملت (زي الملحوظة) */

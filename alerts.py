@@ -1113,9 +1113,9 @@ def build_alerts(appointments, now=None, packages=None):
             if not ex or is_amg(ex):
                 continue
             ed = ex["start"].date()
-            if any(a["type"] in EVAL_TYPES and is_amg(a) and a["start"].date() > ed and
+            if any(a["type"] in EVAL_TYPES and a["start"].date() > ed and
                    (a["status"] in ATTENDED or (a["start"].date() >= today and a["status"] in LIVE_TODAY)) for a in appts):
-                continue                                         # اتعمله أو محجوزله تقييم مع د. أمجد
+                continue                                         # اتعمله أو محجوزله تقييم / إعادة تقييم (مع أي دكتور)
             after = len({a["start"].date() for a in appts if a["status"] in ATTENDED and ed < a["start"].date() < sday})
             kx = {"date": ed.isoformat(), "doctor": ex["doctor"], "after": after}
             if ses["pid"] in by_pid:
@@ -1346,12 +1346,17 @@ def build_alerts(appointments, now=None, packages=None):
                 return {k: v for k, v in out.items() if v["rem"] >= 1}
             except Exception:
                 return {}
+        def _amg_ev(x):   # كشف وما حجزش: اتحجزله «إعادة تقييم / تقييم» مع د. أمجد بعد الكشف = اتعملت
+            kd = str(x.get("kashf_date") or "")
+            return any(("تقييم" in str(a.get("type") or "") or "تقيم" in str(a.get("type") or "")) and "amgad" in str(a.get("doctor") or "").lower()
+                       and str(a.get("start") or "") > kd and str(a.get("status") or "").lower() not in ("canceled", "cancelled", "no show")
+                       for a in (x.get("appts") or []))
         try:
             import os as _os, json as _json
             act = {
                 "miss":   {x["pid"]: x for x in missing_today},
-                "kashf":  {x["pid"]: x for x in kashf_pending if 1 <= (x.get("days_since") or 0) <= 3 and not x.get("next_pt") and not x.get("sessions_after")},
-                "kashf0": {x["pid"]: x for x in kashf_pending if (x.get("days_since") or 0) == 0 and not x.get("next_pt") and not x.get("sessions_after")
+                "kashf":  {x["pid"]: x for x in kashf_pending if 1 <= (x.get("days_since") or 0) <= 3 and not x.get("next_pt") and not x.get("sessions_after") and not _amg_ev(x)},
+                "kashf0": {x["pid"]: x for x in kashf_pending if (x.get("days_since") or 0) == 0 and not x.get("next_pt") and not x.get("sessions_after") and not _amg_ev(x)
                            and str(x.get("kashf_status") or "").lower() in ATTENDED},
                 "drop":   {x["pid"]: x for x in plan["early_drop"]},
                 "nonext": {x["pid"]: x for x in no_next},
@@ -1507,7 +1512,7 @@ def build_alerts(appointments, now=None, packages=None):
                 if k == "eval":
                     fut = [a for a in fut if a["type"] in EVAL_TYPES] or fut
                 if k in ("kashf", "kashf0"):
-                    fut = [a for a in fut if _is_pt(a["type"])] or fut
+                    fut = [a for a in fut if _is_pt(a["type"]) or (a["type"] in EVAL_TYPES and "amgad" in (a["doctor"] or "").lower())] or fut
                 if k == "debt":
                     r["what"] = "اتدفع الباقي على Medicolize"; continue
                 if k == "svc":

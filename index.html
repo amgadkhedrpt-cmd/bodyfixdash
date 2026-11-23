@@ -12868,7 +12868,7 @@ var PLAN_NUT_AM=['conftoday','waittoday','waitnut','confsp'];   // لازم تت
 function planNutTask(t,g){ if(t.br!=='BODYFIX Center'||g==='debt'||PLAN_NUT_AM.indexOf(g)>=0||(PLAN_GROUP_ROLE['BODYFIX Center']||{})[g]==='L') return false;
   var x=t._src||{}; return planIsNut({doctor:t.doctor||x.doctor||'', type:t.type||x.type||''}); }
 /* ☀️ «اللي جاية الصبح» النهارده غير مسئولة الصبح الأساسية (مثلاً انجي لونج وندى نايت) → لحد الساعة دي: شغل الصبح + استقبال المرضى اللي مواعيدهم قبلها معاها */
-var PLAN_AM_G=['conftoday','waittoday','waitnut','confsp','nopkg'], PLAN_AM_REC=['eval','renew','svc','evalamg'];   // مالوش باقة: تتفتحله الصبح — كلها مع اللي جاية الصبح
+var PLAN_AM_G=['conftoday','waittoday','waitnut','confsp','nopkg','eval','renew','svc','evalamg'], PLAN_AM_REC=[];   // كله مع مسئولة الصبح النهارده (مالوش باقة · التجديد · التقييم · الخدمة الناقصة)
 function planAMOv(br){ var T=planTeam(), am=T.am[br], R=PLAN_ROLES[br]||{}, base=br==='FIX ZONE'?R.DM:R.F; if(!am||am===base) return null;
   return {name:am, to:+((T.amTo||{})[br])||(br==='FIX ZONE'?17:15), base:base}; }
 function planCairoH(iso){ try{ return +new Date(iso).toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2); }catch(e){ return 0; } }

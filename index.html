@@ -12280,6 +12280,34 @@ function sumPastPlan(F,TO,act,inR,card,ptRow){
     '<div style="font-size:.6rem;font-weight:800;margin-top:8px">⏪ فضلت مفتوحة آخر اليوم ('+open.length+')</div>'+open.map(function(o){ var x=o[1]; return ptRow(x.n,x.p,'— '+alEsc(alFmtDay(o[0]))+' · '+alEsc(x.kd||'')+' · '+alEsc(x.o||'')); }).join('');
   return card('plan','✅','إنجاز خطة اليوم',tot?Math.round(dn*100/tot)+'%':'—',dn+' من '+tot+' · فضل مفتوح '+open.length,rows,tot&&dn/tot>=.8?'var(--g)':'');
 }
+/* 📞 مطابقة مكالمات الانقطاع المكتوبة على Medicolize مع سجل مكالمات الموبايل — للمدير بس (أول أسبوعين) */
+function fuIsMgr(){ var m=String(PLAN_ME||''); return !m||/amgad|أمجد/i.test(m); }
+function fuVerify(r){
+  if(typeof MC==='undefined'||!MC.calls||!MC.calls.length||typeof cfPh!=='function') return null;
+  var D=ALERTS_DATA||{}; if(!MC.fuPh||MC.fuPhAt!==MC.calls.length){ var P={}, B={}; (D.pt_index||[]).forEach(function(z){ if(z[15]&&z[1]) P[z[15]]=cfPh(z[1]); });
+    MC.calls.forEach(function(c){ (B[c.ph]=B[c.ph]||[]).push(c); }); MC.fuPh=P; MC.fuBy=B; MC.fuPhAt=MC.calls.length;
+    var DY={}; MC.calls.forEach(function(c){ DY[mcCairoDay(c.t)]=1; }); MC.fuDays=DY; MC.fuMin=Object.keys(DY).sort()[0]||''; }
+  var ph=MC.fuPh[r[0]]; if(!ph) return {st:'noph', txt:'رقمه مش موجود عندنا'};
+  var C=(r[8]||[]).map(function(x){ return {d:x[0], n:x[1]||'', by:x[2]||''}; }).concat([{d:r[3], n:r[6]||'', by:r[7]||'', fin:1}]);
+  var d0=C[0].d; if(!d0||d0<MC.fuMin) return {st:'nolog', txt:'السجل المحمّل بيبدأ من '+alFmtDay(MC.fuMin||'')+' — قبل كده مش متاح'};
+  var L=(MC.fuBy[ph]||[]), hm=function(c){ var s0=new Date(c.t).toLocaleTimeString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',minute:'2-digit',hour12:false}).split(':'); return (+s0[0])*60+(+s0[1]); };
+  var outs=L.filter(function(c){ var d=mcCairoDay(c.t); return c.ty==='out'&&d>=d0&&d<=r[3]; }), talk=L.filter(function(c){ var d=mcCairoDay(c.t); return d>=d0&&d<=r[3]&&cfTalk(c); });
+  var dset={}; outs.forEach(function(c){ dset[mcCairoDay(c.t)]=1; });
+  var claim=0, found=0, miss=[], unk=0, W={}, w=function(by,ok){ if(!by) return; var z=W[by]=W[by]||[0,0]; z[1]++; if(!ok) z[0]++; };
+  C.forEach(function(x){ var n=cfDig(x.n); if(!n.trim()||/واتس|whats/i.test(n)) return;
+    if(!MC.fuDays[x.d]){ unk++; return; }
+    var day=L.filter(function(c){ return mcCairoDay(c.t)===x.d; }), T=[], re=/(\d{1,2})\s*[:.٫]\s*(\d{2})/g, m;
+    while((m=re.exec(n))){ var h=+m[1], mi=+m[2]; if(h<=23&&mi<=59) T.push([h,mi]); }
+    if(!T.length){ if(/مبيرد|مش بيرد|مبتردش|مش بترد|مغلق|مقفول|مشغول|رد|كلمت|اتكلم|اتصل|رن/.test(n)){ claim++; w(x.by,day.length); if(day.length) found++; else miss.push(alFmtDay(x.d)+' (مفيش أي اتصال برقمه اليوم ده)'); } return; }
+    T.forEach(function(tm){ claim++; var ok=day.some(function(c){ var a=hm(c); return [tm[0]*60+tm[1],(tm[0]+12)*60+tm[1],(tm[0]-12)*60+tm[1]].some(function(v){ return Math.abs(a-v)<=15; }); });
+      w(x.by,ok); if(ok) found++; else miss.push(alFmtDay(x.d)+' '+tm[0]+':'+(tm[1]<10?'0':'')+tm[1]+(x.by?' ('+x.by+')':'')); }); });
+  var st=miss.length?'mis':unk&&!claim?'unk':'ok';
+  return {st:st, W:W, outs:outs.length, days:Object.keys(dset).length, talk:talk.length, claim:claim, found:found, miss:miss, unk:unk, last:outs.length?outs[outs.length-1].t:null};
+}
+function fuVerTxt(v){ if(!v) return ''; if(v.st==='noph'||v.st==='nolog') return '<div style="font-size:.58rem;color:var(--mute)">📞 '+alEsc(v.txt)+'</div>';
+  var s0='📞 من سجل المكالمات: '+(v.outs?'اتصلنا '+v.outs+' مرة في '+v.days+' يوم'+(v.talk?' · رد '+v.talk:' · ما ردش')+' · آخر اتصال '+alEsc(alFmtDay(mcCairoDay(v.last))):'<b style="color:var(--r)">مفيش ولا اتصال صادر برقمه</b>');
+  var s1=v.st==='mis'?'<div style="color:#f59e0b;font-weight:700">⚠️ مش مطابق: مكتوب '+v.claim+' اتصال، لقينا '+v.found+' — مش موجود: '+v.miss.map(alEsc).join('، ')+'</div>':v.claim?'<span style="color:var(--g)"> · ✅ المكتوب مطابق ('+v.found+' من '+v.claim+')</span>':'';
+  return '<div style="font-size:.58rem;color:var(--mute);padding-top:2px">'+s0+s1+(v.unk?' <span style="color:var(--mute)">· '+v.unk+' يوم السجل بتاعه ناقص — مش متأكد</span>':'')+'</div>'; }
 function sumTog(id){ SUM_OPEN[id]=!SUM_OPEN[id]; sumRender(); }
 /* دوسة على رقم في جدول الدكاترة → يفتح بيانات المؤشر ده بس · دوسة تانية على نفس الرقم تقفل */
 function sumDocOpen(en,mk){ var id='doc_'+en.replace(/[^\w]/g,'_'); SUM_OPEN[id]=(SUM_OPEN[id]===mk)?0:mk; sumRender(); }
@@ -12328,7 +12356,10 @@ function sumRender0(){
     if(L.some(function(a){ return !/cancel|waiting/i.test(a.status||''); })) booked.push(n);
     if(L.some(function(a){ return /no ?show/i.test(a.status||''); })) ns.push(n);
     if(L.some(function(a){ return /الغاء مفاجئ/.test(a.type||''); })) sud.push(n); });
-  var absent=booked.filter(function(n){ return came.indexOf(n)<0; });
+  // ما جاش = ميعاده عدّى (بربع ساعة سماح) ولسه ما عملش Check In · اللي ميعاده لسه جاي النهارده = «لسه جاي» مش غياب
+  var nowMs=Date.now(), passed=function(n){ return byPt[n].some(function(a){ return !/cancel|waiting/i.test(a.status||'')&&Date.parse(a.start)+15*60000<nowMs; }); };
+  var absent=booked.filter(function(n){ return came.indexOf(n)<0&&passed(n); }), coming=booked.filter(function(n){ return came.indexOf(n)<0&&!passed(n); });
+  var dueN=came.length+absent.length;
   // كشوفات جديدة: اتحجز / اتثبت
   var KP={}; (D.kashf_pending||[]).forEach(function(x){ KP[x.name]=x; });
   var fidx=(typeof alFixedIndex==='function')?alFixedIndex():null; if(fidx&&!fidx.length){ fidx=null; if(typeof fetchDRFromSheet==='function'&&!sumRender._dr){ sumRender._dr=1; try{ fetchDRFromSheet('haram',function(){ sumRender(); }); fetchDRFromSheet('dokki',function(){ sumRender(); }); }catch(e){} } }   // شيت الدكاترة لسه ما اتحملش
@@ -12385,8 +12416,8 @@ function sumRender0(){
     '<span style="width:100%;display:flex;gap:6px;align-items:center;justify-content:flex-end"><span style="font-size:.6rem;color:var(--mute)">الفرع:</span>'+[['','حسب اللي فوق'],['BODYFIX Center','الهرم'],['FIX ZONE','الدقي'],['all','الفرعين']].map(function(o){ var on=SUM_BR===o[0]; return '<button onclick="sumSetBr(\''+o[0]+'\')" style="background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border:1px solid '+(on?'#2563eb':'var(--brd)')+';border-radius:7px;padding:3px 9px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">'+o[1]+'</button>'; }).join('')+'</span></div>'+
     '<div style="font-size:.58rem;color:var(--mute);margin-bottom:6px">دوسي على أي كارت تظهر الأسامي'+(isT?'':' · الكروت اللي مكتوب عليها «متاح للنهارده بس» محتاجة تسجيل يومي — بتتملي من بكره')+' · الفلوس قريب (بكلمة سر التحليلات)</div>';
   h+=sec('🧑‍🤝‍🧑 المرضى والاستمرارية',
-    (isT?card('came','✅','جه / محجوز',came.length+' / '+booked.length,'غياب '+pct(absent.length,booked.length)+' ('+absent.length+')',
-      '<div style="font-size:.6rem;font-weight:800;margin-top:4px">ما جوش ('+absent.length+')</div>'+names(absent)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px">جم ('+came.length+')</div>'+names(came),absent.length/(booked.length||1)>.2?'var(--r)':'')
+    (isT?card('came','✅','جه / محجوز',came.length+' / '+booked.length,'غياب '+pct(absent.length,dueN)+' ('+absent.length+' من اللي ميعادهم عدّى) · لسه جايين '+coming.length,
+      '<div style="font-size:.6rem;font-weight:800;margin-top:4px;color:var(--r)">ما جوش — ميعادهم عدّى ('+absent.length+')</div>'+names(absent)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px">⏳ لسه ميعادهم جاي النهارده ('+coming.length+')</div>'+names(coming)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px;color:var(--g)">جم ('+came.length+')</div>'+names(came),absent.length/(dueN||1)>.2?'var(--r)':'')
      :card('came','✅','زيارات اتعملت (Completed)',cameR.length,'مريض × يوم',cameR.map(function(r){ return ptRow(r.p,r.pid,'— '+alEsc(alFmtDay(r.d))+' · '+alEsc(r.dr||'')); }).join('')))+
     card('exams','🆕','كشوفات جديدة',ex.length,'اتحجز '+pct(exB,ex.length)+' · اتثبت '+(fidx?pct(exF,ex.length):'…'),
       ex.map(function(x){ return ptRow(x.name,x.pid,'— '+(x.d&&!isT?alEsc(alFmtDay(x.d))+' · ':'')+alEsc(x.doc||'')+' · '+(x.bk?'✅ اتحجز':'❌ ما اتحجزش')+' · '+(x.fx==null?'…':x.fx?'✅ اتثبت':'❌ ما اتثبتش')); }).join(''))+
@@ -12425,6 +12456,9 @@ function sumRender0(){
       var clRows=function(L){ return L.slice().sort(function(a,b){ return (planState(a)==='done'?0:1)-(planState(b)==='done'?0:1); }).map(function(t){ var st=planState(t), x=PLAN_ST[t.key]||{}, nt=t.mnote||x.note||'';
         return '<div style="padding:4px 0;border-top:1px solid var(--brd);font-size:.64rem">'+planPtLink(t.name||'',t.pid||planPidOfKey(t.key))+' <span style="color:var(--mute)">'+(st==='done'?'✅':'⬜')+' '+alEsc(planOwner(t,'call')||'')+' · '+String(t.kind||'').replace(/^مكالمة متابعة — /,'')+'</span>'+
           (nt?'<div style="font-size:.6rem;color:var(--txt);opacity:.85;padding-top:2px">📝 '+alEsc(nt)+'</div>':'<div style="font-size:.58rem;color:var(--r);padding-top:2px">مفيش ملحوظة على Medicolize</div>')+(t.mres?'<div style="font-size:.58rem;color:var(--g)">📅 '+alEsc(t.mres)+'</div>':'')+'</div>'; }).join(''); };
+      var MG=fuIsMgr(); if(MG&&typeof CS!=='undefined'&&CS.cfg&&CS.cfg()&&typeof mcLoad==='function'&&(!MC.calls||!MC.calls.length)&&!sumRender._mc){ sumRender._mc=1; try{ var pr=mcLoad(); if(pr&&pr.then) pr.then(function(){ sumRender(); }); }catch(e){} }
+      var VM=[], bySec={}; if(MG&&typeof MC!=='undefined'&&MC.calls&&MC.calls.length) FN.forEach(function(r){ var v=fuVerify(r); if(!v||v.st!=='mis') return; VM.push([r,v]); });
+      FN.forEach(function(r){ var v=MG?fuVerify(r):null; if(!v||!v.W) return; Object.keys(v.W).forEach(function(n){ var z=bySec[n]=bySec[n]||[0,0]; z[0]+=v.W[n][0]; z[1]+=v.W[n][1]; }); });
       var pcol=function(a,b,g,y){ var v=b?a/b:1; return v>=g?'var(--g)':v>=y?'#f59e0b':'var(--r)'; };
       h+=sec('📞 متابعة الانقطاع — '+alEsc(wl),
         card('fuin','📥','دخلوا المتابعة',pct(EN.length,EL.length),EN.length+' من '+EL.length+' خلّصوا/وقفوا · في أول أسبوع: '+E7.length,
@@ -12434,11 +12468,14 @@ function sumRender0(){
           gaps.length?'<div style="font-size:.62rem;padding:4px 0">لحد 21 يوم: '+gaps.filter(function(g){ return g<=21; }).length+' · 22–28: '+gaps.filter(function(g){ return g>21; }).length+'</div>':'',med!=null&&med>21?'#f59e0b':'')+
         (isT?card('fucall','☎️','مكالمات المتابعة النهارده',clD.length+' من '+cl.length,'بملحوظة على Medicolize: '+clN.length,clRows(cl),pcol(clD.length,cl.length,.9,.7)):'')+
         card('fu3','🔢','التزام بالـ3 مكالمات',pct(FOK.length,FN.length),FOK.length+' من '+FN.length+' «منقطع نهائي» (أو سبب مكتوب: مسافر / مش عايز يكمل)',
-          FN.map(function(r){ return ptRow(r[1],r[0],'— '+alEsc(alFmtDay(r[3]))+' · '+r[4]+' مكالمة'+(r[5]?' ✅':' ❌')+(r[6]?' · «'+alEsc(r[6].slice(0,70))+'»':'')); }).join(''),pcol(FOK.length,FN.length,.9,.7))+
+          FN.map(function(r){ return ptRow(r[1],r[0],'— '+alEsc(alFmtDay(r[3]))+' · '+r[4]+' مكالمة'+(r[5]?' ✅':' ❌')+(r[6]?' · «'+alEsc(r[6].slice(0,70))+'»':''))+(MG?fuVerTxt(fuVerify(r)):''); }).join(''),pcol(FOK.length,FN.length,.9,.7))+
         card('fubad','🔴','منقطع نهائي من غير 3 مكالمات',FBAD.length,'ومن غير سبب مكتوب — راحت للمدير',
-          FBAD.map(function(r){ return ptRow(r[1],r[0],'— '+alEsc(alFmtDay(r[3]))+' · '+r[4]+' مكالمة'+(r[7]?' · '+alEsc(r[7]):'')+(r[6]?' · «'+alEsc(r[6].slice(0,70))+'»':'')); }).join(''),FBAD.length?'var(--r)':'var(--g)')+
+          FBAD.map(function(r){ return ptRow(r[1],r[0],'— '+alEsc(alFmtDay(r[3]))+' · '+r[4]+' مكالمة'+(r[7]?' · '+alEsc(r[7]):'')+(r[6]?' · «'+alEsc(r[6].slice(0,70))+'»':''))+(MG?fuVerTxt(fuVerify(r)):''); }).join(''),FBAD.length?'var(--r)':'var(--g)')+
         card('fuback','↩️','رجعوا بعد مكالمة الانقطاع',BK.length+' من '+IQ.length,pct(BK.length,IQ.length)+' · '+Object.keys(byK).sort().map(function(k){ return 'بعد المكالمة '+k+': '+byK[k]; }).join(' · '),
           BK.map(function(r){ return ptRow(r[1],r[0],'— أول مكالمة '+alEsc(alFmtDay(r[3]))+' · رجع '+alEsc(alFmtDay(r[5]))+' (بعد المكالمة '+(r[6]||1)+')'); }).join(''),BK.length?'var(--g)':'')+
+        (MG?card('fuver','🕵️','مطابقة المكالمات مع سجل الموبايل',(typeof MC!=='undefined'&&MC.calls&&MC.calls.length)?VM.length:'…',(typeof MC!=='undefined'&&MC.calls&&MC.calls.length)?'مش مطابق · للمدير بس':'السجل بيتحمّل (الأجهزة المربوطة بس)',
+          (Object.keys(bySec).length?'<div style="font-size:.6rem;font-weight:800;margin-top:4px">لكل سكرتيرة: اتصالات كتبتها ومش لاقيينها في السجل</div>'+Object.keys(bySec).map(function(n){ return '<div style="font-size:.62rem;padding:2px 0;border-top:1px solid var(--brd)">'+alEsc(n)+': <b style="color:'+(bySec[n][0]?'#f59e0b':'var(--g)')+'">'+bySec[n][0]+' من '+bySec[n][1]+'</b></div>'; }).join(''):'')+
+          '<div style="font-size:.6rem;font-weight:800;margin-top:8px">⚠️ مش مطابق ('+VM.length+')</div>'+VM.map(function(o){ return ptRow(o[0][1],o[0][0],'— منقطع نهائي '+alEsc(alFmtDay(o[0][3])))+fuVerTxt(o[1]); }).join(''),VM.length?'#f59e0b':''):'')+
         card('funo','😟','ما حسّوش بتحسن',NI.length,'بتظهر للمدير',
           NI.map(function(r){ return ptRow(r[1],r[0],'— '+alEsc(alFmtDay(r[3]))+' · '+alEsc(r[5]||'')+' · «'+alEsc(r[4].slice(0,90))+'»'); }).join(''),NI.length?'#f59e0b':''));
     } else h+=sec('📞 متابعة الانقطاع','<div style="font-size:.62rem;color:var(--mute);padding:6px">هتظهر بعد السحب الجاي</div>');
@@ -13099,6 +13136,9 @@ function planTasks(useAll){
     (FS.fin||[]).forEach(function(r){ if(r[5]||r[3]<d14||act.indexOf(r[2])<0) return;
       add('mgr',{grp:['mgr'], key:'mgr|fufin|'+r[0]+'|'+r[3], icon:'📵', kind:'اتقفل «منقطع نهائي» بعد '+r[4]+' مكالمة انقطاع بس (المفروض 3) ومن غير سبب مكتوب', name:r[1], pid:r[0], br:r[2],
         lines:['يوم '+alEsc(alFmtDay(r[3]))+(r[7]?' · كتبه '+alEsc(r[7]):'')+(r[6]?' · الملحوظة: «'+alEsc(r[6])+'»':' · مفيش ملحوظة')]}); });
+    if(fuIsMgr()&&typeof MC!=='undefined'&&MC.calls&&MC.calls.length) (FS.fin||[]).forEach(function(r){ if(r[3]<d14||act.indexOf(r[2])<0) return; var v=fuVerify(r); if(!v||v.st!=='mis') return;
+      add('mgr',{grp:['mgr'], key:'mgr|fuver|'+r[0]+'|'+r[3], icon:'🕵️', kind:'ملحوظة مكالمة مش مطابقة لسجل الموبايل (للمدير بس)', name:r[1], pid:r[0], br:r[2],
+        lines:['منقطع نهائي '+alEsc(alFmtDay(r[3]))+' · مكتوب '+v.claim+' اتصال ولقينا '+v.found+' — مش موجود: '+v.miss.map(alEsc).join('، '), 'لو اتكلم من موبايل تاني أو واتساب ✅ · لو فعلاً ما اتصلش 🚫 واكتب السبب']}); });
     (FS.noimp||[]).forEach(function(r){ if(r[3]<d14||act.indexOf(r[2])<0) return;
       add('mgr',{grp:['mgr'], key:'mgr|noimp|'+r[0]+'|'+r[3], icon:'😟', kind:'مريض مكتوب عنده إنه ما حسش بتحسن', name:r[1], pid:r[0], br:r[2],
         lines:[alEsc(alFmtDay(r[3]))+' · '+alEsc(r[6]||'')+(r[5]?' مع '+alEsc(r[5]):'')+' — «'+alEsc(r[4])+'»']}); });

@@ -12384,7 +12384,9 @@ function sumRender0(){
   var dn=function(L){ return L.filter(function(t){ return planState(t)==='done'; }); };
   var ptRow=function(name,pid,extra){ return '<div style="padding:3px 0;border-top:1px solid var(--brd);font-size:.64rem">'+planPtLink(name||'',pid||'')+(extra?' <span style="color:var(--mute)">'+extra+'</span>':'')+'</div>'; };
   var taskRows=function(L){ return L.map(function(t){ var st=planState(t); return ptRow(t.name,t.pid||planPidOfKey(t.key),(st==='done'?'✅':'⬜')+' '+alEsc(planOwner(t,(t.grp||[])[0])||'')+(t.time?' · '+alEsc(planT(t.time)):'')); }).join(''); };
-  // مواعيد النهارده (من غير Follow up)
+  // مواعيد النهارده (من غير Follow up) — من summary.json: لو لسه ما اتحمّلش (بيستنى شيت الدكاترة) نحمّله ونرسم تاني
+  var medOk=typeof MED_SUMMARY!=='undefined'&&MED_SUMMARY&&MED_SUMMARY.today_date===today;
+  if(!medOk&&typeof medLoad==='function'&&!sumRender._ml){ sumRender._ml=1; try{ medLoad(!!(typeof MED_SUMMARY!=='undefined'&&MED_SUMMARY), function(){ sumRender._ml=0; if(document.getElementById('sumBox')) sumRender(); }); }catch(e){ sumRender._ml=0; } setTimeout(function(){ sumRender._ml=0; },20000); }
   var TA=((typeof MED_SUMMARY!=='undefined'&&MED_SUMMARY&&MED_SUMMARY.today_date===today&&MED_SUMMARY.today_appointments)||[]).filter(function(a){ return inb(a.branch)&&!/follow up/i.test(a.doctor||''); });
   var byPt={}; TA.forEach(function(a){ var k=a.patient||''; (byPt[k]=byPt[k]||[]).push(a); });
   var came=[], booked=[], ns=[], sud=[];
@@ -12453,7 +12455,7 @@ function sumRender0(){
     '<span style="width:100%;display:flex;gap:6px;align-items:center;justify-content:flex-end"><span style="font-size:.6rem;color:var(--mute)">الفرع:</span>'+[['','حسب اللي فوق'],['BODYFIX Center','الهرم'],['FIX ZONE','الدقي'],['all','الفرعين']].map(function(o){ var on=SUM_BR===o[0]; return '<button onclick="sumSetBr(\''+o[0]+'\')" style="background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border:1px solid '+(on?'#2563eb':'var(--brd)')+';border-radius:7px;padding:3px 9px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">'+o[1]+'</button>'; }).join('')+'</span></div>'+
     '<div style="font-size:.58rem;color:var(--mute);margin-bottom:6px">دوسي على أي كارت تظهر الأسامي'+(isT?'':' · الكروت اللي مكتوب عليها «متاح للنهارده بس» محتاجة تسجيل يومي — بتتملي من بكره')+' · الفلوس قريب (بكلمة سر التحليلات)</div>';
   h+=sec('🧑‍🤝‍🧑 المرضى والاستمرارية',
-    (isT?card('came','✅','جه / ميعادهم عدّى',came.length+' / '+dueN,'ما جاش '+absent.length+' ('+pct(absent.length,dueN)+') · ⏳ لسه جايين '+coming.length+' · محجوز النهارده '+booked.length,
+    (isT?card('came','✅','جه / ميعادهم عدّى',medOk?came.length+' / '+dueN:'⏳','ما جاش '+absent.length+' ('+pct(absent.length,dueN)+') · ⏳ لسه جايين '+coming.length+' · محجوز النهارده '+booked.length,
       '<div style="font-size:.6rem;font-weight:800;margin-top:4px;color:var(--r)">ما جوش — ميعادهم عدّى ('+absent.length+')</div>'+names(absent)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px">⏳ لسه ميعادهم جاي النهارده ('+coming.length+')</div>'+names(coming)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px;color:var(--g)">جم ('+came.length+')</div>'+names(came),absent.length/(dueN||1)>.2?'var(--r)':'')
      :card('came','✅','زيارات اتعملت (Completed)',cameR.length,'مريض × يوم',cameR.map(function(r){ return ptRow(r.p,r.pid,'— '+alEsc(alFmtDay(r.d))+' · '+alEsc(r.dr||'')); }).join('')))+
     card('exams','🆕','كشوفات جديدة',ex.length,'اتحجز '+pct(exB,ex.length)+' · اتثبت '+(fidx?pct(exF,ex.length):'…'),
@@ -12470,7 +12472,7 @@ function sumRender0(){
     card('mcall','📵','مكالمات فايتة — '+alEsc(perLbl),MCok?mE.length:'—',MCok?((upMiss.length?'<b style="color:var(--r)">📂 ما اترفعش: '+(F===TO?upMiss.map(function(u){ return alEsc(u.ln); }).join('، '):upMiss.length+' مرة')+'</b><br>':'')+'اتكلمنا '+mT.length+' · جه العيادة '+mC.length+' · <b style="color:'+(mO.length?'var(--r)':'var(--g)')+'">لسه '+mO.length+'</b>'):(typeof CS!=='undefined'&&CS.cfg()?'⏳ بيحمّل سجل المكالمات…':'الجهاز مش مربوط'),
       MCok?((upMiss.length?'<div style="font-size:.62rem;font-weight:800;margin-top:4px;color:var(--r);background:rgba(239,68,68,.08);border-radius:7px;padding:4px 8px">📂 ما اترفعش سجل: '+upMiss.map(function(u){ return 'خط '+alEsc(u.ln)+(F===TO?'':' ('+alEsc(alFmtDay(u.d))+')'); }).join('، ')+' — المكالمات الفايتة بتاعته مش محسوبة هنا</div>':'')+'<div style="font-size:.6rem;font-weight:800;margin-top:4px;color:var(--r)">⬜ لسه ('+mO.length+')</div>'+mRows(mO)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px;color:var(--g)">✅ اتكلمنا ('+mT.length+')</div>'+mRows(mT)+(mC.length?'<div style="font-size:.6rem;font-weight:800;margin-top:6px">🏥 جه العيادة ('+mC.length+')</div>'+mRows(mC):'')):'',mO.length?'var(--r)':'')+
     (isT?card('conf','✔️','تأكيد يوم الشغل الجاي',pct(dn(conf).length,conf.length),dn(conf).length+' من '+conf.length,taskRows(conf.filter(function(t){ return planState(t)!=='done'; })))+
-      card('sud','⚡','إلغاء مفاجئ / No Show',sud.length+' / '+ns.length,'',
+      card('sud','⚡','إلغاء مفاجئ / No Show',medOk?sud.length+' / '+ns.length:'⏳',medOk?'':'بيحمّل مواعيد النهارده…',
         '<div style="font-size:.6rem;font-weight:800;margin-top:4px">إلغاء مفاجئ</div>'+names(sud)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px">No Show</div>'+names(ns))+
       card('late','⏰','اتأخروا من غير Check In',late.length,'',late.map(function(x){ return ptRow(x.name,x.pid||planPidByPh(x.phone),'— '+alEsc(planT(x.time))+' مع '+alEsc(x.doctor||'')); }).join(''))
      :card('sud','⚡','إلغاء مفاجئ / No Show','—',NA,'')));

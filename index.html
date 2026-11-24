@@ -12421,7 +12421,7 @@ function sumRender0(){
   var grp=function(g){ return all.filter(function(t){ return (t.grp||[]).indexOf(g)>=0; }); };
   var dn=function(L){ return L.filter(function(t){ return planState(t)==='done'; }); };
   var ptRow=function(name,pid,extra){ return '<div style="padding:3px 0;border-top:1px solid var(--brd);font-size:.64rem">'+planPtLink(name||'',pid||'')+(extra?' <span style="color:var(--mute)">'+extra+'</span>':'')+'</div>'; };
-  var taskRows=function(L){ return L.map(function(t){ var st=planState(t); return ptRow(t.name,t.pid||planPidOfKey(t.key),(st==='done'?'✅':'⬜')+' '+alEsc(planOwner(t,(t.grp||[])[0])||'')+(t.time?' · '+alEsc(planT(t.time)):'')); }).join(''); };
+  var taskRows=function(L){ return L.map(function(t){ var st=planState(t); return ptRow(t.name,t.pid||planPidOfKey(t.key),(st==='done'?'✅':t.tried?'📞':'⬜')+' '+alEsc(planOwner(t,(t.grp||[])[0])||'')+(t.time?' · '+alEsc(planT(t.time)):'')); }).join(''); };
   // مواعيد النهارده (من غير Follow up) — من summary.json: لو لسه ما اتحمّلش (بيستنى شيت الدكاترة) نحمّله ونرسم تاني
   var medOk=typeof MED_SUMMARY!=='undefined'&&MED_SUMMARY&&MED_SUMMARY.today_date===today;
   if((typeof AUD_DATA==='undefined'||!AUD_DATA)&&typeof audAutoLoad==='function'){ try{ audAutoLoad(); }catch(e){} }   // سجل المواعيد المكتملة (للفترات) — بيرسم تاني لما يوصل
@@ -12508,7 +12508,10 @@ function sumRender0(){
     sumRenewCards(D,isT,F,TO,today,perLbl,inb,card,ptRow,pct,dn(renew).length,renew.length,taskRows(renew),medOk?TA:null)+
     (isT?
       card('early','📉','وقفوا بدري',early.length,'أقل من 3 جلسات',early.map(function(x){ return ptRow(x.name,x.pid,'— '+alEsc(x.doctor||'')); }).join(''),early.length?'#f59e0b':'')+
-      card('wait','⏳','الويتنج النهارده',dn(wait).length+' من '+wait.length,'اتنقلوا لميعاد / اتقفلت',taskRows(wait))
+      (function(){ var wD=dn(wait), wT=wait.filter(function(t){ return planState(t)!=='done'&&t.tried; }), wN=wait.length-wD.length-wT.length;
+        var srt=function(t){ return planState(t)==='done'?2:t.tried?1:0; };
+        return card('wait','⏳','الويتنج النهارده',wD.length+' من '+wait.length,'✅ اتعمل معاه حاجة '+wD.length+' · 📞 حاولنا وما ردش '+wT.length+' · ⬜ ما اتعملش حاجة '+wN,
+          '<div style="font-size:.58rem;color:var(--mute);margin-bottom:4px">✅ = اتنقل لميعاد / اتلغى / رد واتكتب اللي حصل · 📞 = الملحوظة «مش بيرد / اتبعت واتساب» بس · ⬜ = مفيش أي حاجة النهارده</div>'+taskRows(wait.slice().sort(function(a,b){ return srt(a)-srt(b); })),wN?'#f59e0b':''); })()
      :card('early','📉','وقفوا بدري','—',NA,'')));
   h+=sec('📦 الباقات الجديدة — '+alEsc(perLbl),
     card('pkg','📦','باقات جديدة',SUM_PKG?pk.length:'…','باقة 6: '+p6.length+' · باقة 12: '+p12.length+' · <span style="text-decoration:underline">أخرى: '+pO.length+'</span>'+(function(){ var c={}; pO.forEach(function(v){ var k=v.n||'?'; c[k]=(c[k]||0)+1; }); var ks=Object.keys(c).filter(function(k){ return k!=='?'; }); return ks.length?' ('+ks.map(function(k){ return alEsc(k)+(c[k]>1?' ×'+c[k]:''); }).join('، ')+')':''; })(),
@@ -12539,7 +12542,7 @@ function sumRender0(){
       var NI=(FS.noimp||[]).filter(function(r){ return inb(r[2])&&inW(r[3]); });
       var cl=grp('call'), clD=dn(cl), clN=cl.filter(function(t){ var x=PLAN_ST[t.key]; return t.mnote||(x&&x.note); });
       var clRows=function(L){ return L.slice().sort(function(a,b){ return (planState(a)==='done'?0:1)-(planState(b)==='done'?0:1); }).map(function(t){ var st=planState(t), x=PLAN_ST[t.key]||{}, nt=t.mnote||x.note||'';
-        return '<div style="padding:4px 0;border-top:1px solid var(--brd);font-size:.64rem">'+planPtLink(t.name||'',t.pid||planPidOfKey(t.key))+' <span style="color:var(--mute)">'+(st==='done'?'✅':'⬜')+' '+alEsc(planOwner(t,'call')||'')+' · '+String(t.kind||'').replace(/^مكالمة متابعة — /,'')+'</span>'+
+        return '<div style="padding:4px 0;border-top:1px solid var(--brd);font-size:.64rem">'+planPtLink(t.name||'',t.pid||planPidOfKey(t.key))+' <span style="color:var(--mute)">'+(st==='done'?'✅':t.tried?'📞':'⬜')+' '+alEsc(planOwner(t,'call')||'')+' · '+String(t.kind||'').replace(/^مكالمة متابعة — /,'')+'</span>'+
           (nt?'<div style="font-size:.6rem;color:var(--txt);opacity:.85;padding-top:2px">📝 '+alEsc(nt)+'</div>':'<div style="font-size:.58rem;color:var(--r);padding-top:2px">مفيش ملحوظة على Medicolize</div>')+(t.mres?'<div style="font-size:.58rem;color:var(--g)">📅 '+alEsc(t.mres)+'</div>':'')+'</div>'; }).join(''); };
       var MG=fuIsMgr(); if(MG&&typeof CS!=='undefined'&&CS.cfg&&CS.cfg()&&typeof mcLoad==='function'&&(!MC.calls||!MC.calls.length)&&!sumRender._mc){ sumRender._mc=1; try{ var pr=mcLoad(); if(pr&&pr.then) pr.then(function(){ sumRender(); }); }catch(e){} }
       var VM=[], bySec={}; if(MG&&typeof MC!=='undefined'&&MC.calls&&MC.calls.length) FN.forEach(function(r){ var v=fuVerify(r); if(!v||v.st!=='mis') return; VM.push([r,v]); });
@@ -12809,8 +12812,8 @@ function planTasks(useAll){
         (x.note_today?'<br><span style="font-size:.58rem;color:var(--mute)">الملحوظة لوحدها مش كفاية طول ما فيه ميعاد فاضي — المهمة بتتقفل لما يتنقل من الويتنج</span>':''); }
     var noteOk=x.note_today&&!fr.length;
     add(g==='waitnut'?'rec':'morning',{grp:[g], sys:noteOk?'اتكتبت ملحوظة النهارده':'', what:noteOk?'📝 '+x.note:'', key:k, icon:'⏳', kind:alEsc(x.type)+' '+(x.day==='today'?'النهارده':alEsc(alFmtDay(String(x.time).slice(0,10))))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor)),
-      name:x.name, phone:x.phone, br:brOf(x), time:x.time,
-      lines:[x.note?(x.note_today?'📝 ':'<span style="color:var(--am)">📝 ملحوظة قديمة (مش النهارده): </span>')+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة</span>', frTxt, frTxt?'':sug]});
+      name:x.name, phone:x.phone, br:brOf(x), time:x.time, tried:!noteOk&&!!x.tried,
+      lines:[x.tried&&!noteOk?'<b style="color:var(--am)">📞 اتصلنا وما ردش — لسه محتاج حل (يتنقل / يتلغى / رد حقيقي)</b>':'', x.note?(x.note_today?'📝 ':'<span style="color:var(--am)">📝 ملحوظة قديمة (مش النهارده): </span>')+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة</span>', frTxt, frTxt?'':sug]});
   });
   var stk=(typeof alStreaks==='function')?alStreaks():null;
   // 📋 نتيجة تقييم الجلسة الأخيرة: كل اللي حضر التقييم النهارده → تختار هيجدد / هيفكر / هيوقف

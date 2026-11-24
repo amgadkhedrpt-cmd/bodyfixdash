@@ -1445,7 +1445,8 @@ def build_alerts(appointments, now=None, packages=None):
                         "time": a["start"].isoformat(), "type": a["type"], "note": nt[:300],
                         "day": "today" if a["start"].date() == today else "next",
                         # «مش بيرد / تم الإرسال واتساب» = لسه محاولة، مش حل → ما تقفلش المهمة (آخر جزء في الملحوظة هو اللي بيتحسب)
-                        "note_today": bool(nt) and bool(upd) and upd.date() == today and not _wait_noans(nt)})
+                        "note_today": bool(nt) and bool(upd) and upd.date() == today and not _wait_noans(nt),
+                        "tried": bool(nt) and bool(upd) and upd.date() == today and _wait_noans(nt)})   # 📞 حاولنا وما ردش
             for a in appts:   # مواعيد عدت وما اتقفلتش (لسه Open / Confirmed / Delayed) — آخر 14 يوم
                 if today - timedelta(days=14) <= a["start"].date() < today and a["status"] in ("open", "confirmed", "delayed"):
                     plan["stale_open"].append({"pid": a["pid"], "name": a["name"], "time": a["start"].isoformat(), "doctor": a["doctor"],

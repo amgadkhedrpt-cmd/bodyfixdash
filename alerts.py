@@ -1768,11 +1768,14 @@ def build_alerts(appointments, now=None, packages=None):
     #    pkg = اتفتحتله فاتورة باقة ودفع فيها النهارده · fu = اتحجزله «متابعه» خلال أسبوع (للي هيفكر / قال هيجدد وما فتحش)
     eval_out = []
     try:
-        prev_d = today - timedelta(days=1)
-        if prev_d.weekday() == 4:                       # الجمعة إجازة → يوم الشغل اللي قبله = الخميس
-            prev_d -= timedelta(days=1)
+        days_ = [today]                                 # النهارده + آخر 7 أيام شغل (الجمعة إجازة): 1 = امبارح (مراجعة) · 2+ = الأيام اللي فاتت (مراجعة مستقلة)
+        d_ = today
+        while len(days_) < 8:
+            d_ -= timedelta(days=1)
+            if d_.weekday() != 4:
+                days_.append(d_)
         for v in patients_all.values():
-            for day_, y_ in ((today, 0), (prev_d, 1)):   # النهارده + امبارح (اللي ما اتقفلش بيترحّل)
+            for y_, day_ in enumerate(days_):
                 ev = [a for a in v if a["start"].date() == day_ and "تقييم الجلس" in (a["type"] or "").replace("ة", "ه")
                       and a["status"] in ATTENDED]
                 if not ev:

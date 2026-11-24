@@ -13962,7 +13962,7 @@ function planSummarySave(){
 }
 
 /* 📈 نتيجة المتابعة (أرقام بس — مش مهام): اللي اتتابعوا آخر 14 يوم · حجزوا · جم فعلاً · مين كانت مسئولة عن المتابعة ومين حجز */
-var PLAN_CALL_F='', PLAN_FU_OPEN=false, PLAN_FU_F='', PLAN_CONF_F='', PLAN_FU_P='today', PLAN_FUT_F='';
+var PLAN_MC_F='', PLAN_CALL_F='', PLAN_FU_OPEN=false, PLAN_FU_F='', PLAN_CONF_F='', PLAN_FU_P='today', PLAN_FUT_F='';
 /* 📅 متابعات النهارده: كل متابعة عليها النهارده — اتعمل فيها إيه على Medicolize */
 function planFuToday(){
   var D=ALERTS_DATA; if(!D) return '';
@@ -14344,6 +14344,21 @@ function planRender(){
         cfBar='<div style="display:flex;gap:6px;flex-wrap:wrap;padding:4px 2px 8px">'+fb2('','الكل ('+A.length+')','var(--txt)')+fb2('done','✅ اتعمل ('+cc.done+')','var(--g)')+fb2('half','⚠️ فيه مشكلة ('+cc.half+')','var(--am)')+fb2('none','⬜ ما اتعملش خالص ('+cc.none+')','var(--r)')+'</div>';
         var fk2=function(t){ return !PLAN_CALL_F||cf(t)===PLAN_CALL_F; };
         open=open.filter(fk2); done=done.filter(fk2); snz=snz.filter(fk2);
+      }
+      if(g==='mcall'){   // 📵 فلتر بيوم المكالمة الفايتة: امبارح الأول، وبعدين اللي قبله، والنهارده في الآخر
+        var td0=(ALERTS_DATA&&ALERTS_DATA.today)||'', dOf=function(t){ return String(t.key||'').split('|')[3]||''; };
+        var addD0=function(d,n){ var x=new Date(d+'T12:00:00Z'); x.setUTCDate(x.getUTCDate()+n); return x.toISOString().slice(0,10); };
+        var y1=addD0(td0,-1), y2=addD0(td0,-2), DS={}; A.forEach(function(t){ var d=dOf(t); if(d) DS[d]=1; });
+        var rk=function(d){ return d===td0?'0':'1'+d; }, days=Object.keys(DS).sort(function(a,b){ return rk(b)<rk(a)?-1:rk(b)>rk(a)?1:0; });
+        if(PLAN_MC_F&&!DS[PLAN_MC_F]) PLAN_MC_F='';
+        var lbD=function(d){ return d===td0?'النهارده':d===y1?'امبارح':d===y2?'أول امبارح':alFmtDay(d); };
+        var opn=function(d){ return A.filter(function(t){ var s=planState(t); return (!d||dOf(t)===d)&&(s==='open'||s==='nr'); }).length; };
+        var fb3=function(v,l){ var on=PLAN_MC_F===v, n=opn(v); return '<span onclick="PLAN_MC_F=\''+v+'\';planRender()" style="cursor:pointer;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:8px;border:1px solid '+(on?'#ec4899':'var(--brd)')+';background:'+(on?'rgba(236,72,153,.15)':'transparent')+'">'+l+' <b style="color:'+(n?'var(--r)':'var(--g)')+'">'+n+'</b></span>'; };
+        cfBar='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:4px 2px 8px"><span style="font-size:.58rem;color:var(--mute)">📅 يوم المكالمة:</span>'+fb3('','الكل')+days.map(function(d){ return fb3(d,lbD(d)); }).join('')+'</div>'+
+          '<div style="font-size:.56rem;color:var(--mute);padding:0 2px 6px">الترتيب: بتوع امبارح الأول، وبعدين اللي قبله، وبتوع النهارده في الآخر · الرقم = لسه ما اترجعلوش</div>';
+        var fk3=function(t){ return !PLAN_MC_F||dOf(t)===PLAN_MC_F; };
+        open=open.filter(fk3); done=done.filter(fk3); snz=snz.filter(fk3);
+        open.sort(function(a,b){ var A1=rk(dOf(a)), B1=rk(dOf(b)); return A1===B1?String((b.time||'')).localeCompare(String(a.time||'')):(B1<A1?-1:1); });
       }
       if(g==='conf'){   // فلتر: أكّد ضروري / تأكيد عادي
         var nR=A.filter(function(t){ return t.risk; }), nN=A.filter(function(t){ return !t.risk; });

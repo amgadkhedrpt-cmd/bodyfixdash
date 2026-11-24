@@ -13409,6 +13409,10 @@ function planTasks(useAll){
     var seenF={};
     (D.finished_packages||[]).forEach(function(x){ seenF[x.pid]=1; fuinAdd(x,'📦 خلّص باقته وما جددش','خلّص '+(x.size||'')+' جلسة · آخر جلسة '+alFmtDay(x.last_session)+' مع '+alEsc(doc(x.doctor))+' (من '+x.days_since+' يوم)'+(x.eval==='done'?' · اتعمله '+alEsc(x.eval_type||'تقييم'):'')); });
     (D.dropped||[]).forEach(function(x){ if(seenF[x.pid]) return; fuinAdd(x,'🚶 انقطع','آخر حضور '+alFmtDay(x.last_attended)+' مع '+alEsc(doc(x.doctor))+' (من '+x.days_since+' يوم) · حضر '+(x.pt_total||'')+' جلسة'); });
+    /* 🕳 الثغرة: خلّصوا أو وقفوا في نص الباقة وعدّى 14 يوم ومش في قايمة «خلّص باقته» ولا «انقطع» → برضه يتحجزلهم Follow up */
+    (function(){ var PX={}; (D.pt_index||[]).forEach(function(z){ if(z[15]) PX[z[15]]=z; }); (D.dropped||[]).forEach(function(x){ seenF[x.pid]=1; });
+      ((D.fu_stats||{}).elig||[]).forEach(function(r){ if(r[4]||seenF[r[0]]) return; seenF[r[0]]=1; var z=PX[r[0]]||[], ds=Math.round((new Date(today+'T12:00:00')-new Date(r[3]+'T12:00:00'))/864e5);
+        fuinAdd({pid:r[0], name:r[1], branch:r[2], phone:z[1]||'', days_since:ds}, '⏸ وقف في نص الباقة', 'آخر جلسة '+alFmtDay(r[3])+' (من '+ds+' يوم)'+(z[2]?' · حضر '+z[2]+' جلسة':'')); }); })();
     var FCAP=20, cnt={}, AMG={}; (D.amgad_eval||[]).forEach(function(z){ if(z&&z.pid) AMG[z.pid]=1; });
     FQ.filter(function(q){ return q.d; }).forEach(function(q){ cnt[q.br]=(cnt[q.br]||0)+1; add('morning',q.t); });
     /* الترتيب: (1) المتأخرين (عدّى 14 يوم أو أكتر من آخر جلسة لحد 45) — كلهم يظهروا من غير حد، الأحدث الأول (فرصة رجوعه أكبر)

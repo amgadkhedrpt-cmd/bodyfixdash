@@ -13546,9 +13546,10 @@ function mcTasks(today,act){
         lines:['لو الملف لسه ما اترفعش ولا مرة: اكتبي اسم الخط وارفعيه آخر الشيفت:', mcUpHTML('',br)]});
       return; }
     lns.forEach(function(ln){
-      var up=(MC.upl||[]).filter(function(x){ return x.ln===ln&&mcCairoDay(x.at)===today; }), u0=up[0];
+      var upT=function(x){ return x.ln===ln&&mcCairoDay(x.at)===today&&(!x.mx||cfDay(x.mx)===today); };   // ملف قديم (آخر مكالمة فيه قبل النهارده) ما يقفلش مهمة رفع النهارده
+      var up=(MC.upl||[]).filter(upT), u0=up[0];
       var cfg=(MC.lines||{})[ln]||{}, sw=cfg.sw||(br==='FIX ZONE'?17:15), nowH=+new Date().toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2);
-      var upPm=(MC.upl||[]).filter(function(x){ return x.ln===ln&&mcCairoDay(x.at)===today&&+new Date(x.at).toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2)>=sw; })[0];
+      var upPm=(MC.upl||[]).filter(function(x){ return upT(x)&&+new Date(x.at).toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2)>=sw; })[0];
       var swL=(sw>12?sw-12:sw)+(sw>=12?' م':' ص');
       out.push({grp:['mcallup'], _h:sw, key:'mcallup2|'+today+'|'+ln, icon:'📂', kind:'ارفع سجل مكالمات خط '+alEsc(ln)+' — آخر الشيفت (بعد '+swL+')', name:'خط '+ln+' (المسائي)', br:br, line:ln,
         sys:upPm?'اترفع ملف بعد التسليم':'', what:upPm?('اترفع — '+(upPm.add||0)+' مكالمة جديدة'):'',

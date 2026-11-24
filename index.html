@@ -12226,10 +12226,10 @@ function sumScore(drs){
   // 🪑 الإشغال (من تاب التحليل: الحضور ÷ طاقة الشيفتات آخر 4 أسابيع)
   var OC={}; try{ var R=typeof anCompute==='function'?anCompute():null; (R&&R.docs||[]).forEach(function(D){ (OC[D.name]=OC[D.name]||[0,0]); OC[D.name][0]+=D.att; OC[D.name][1]+=D.cap; }); }catch(e){}
   // 🔍 الدقة: أخطاء الكومبليت آخر 30 يوم ÷ جلساته
-  var ER={}, SS={}; try{ if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&typeof _aud_doAudit==='function'){ var d30=new Date(Date.now()-30*864e5).toISOString().slice(0,10), Lm=audMapLook();
+  var ER={}, SS={}; sumScore.EL={}; try{ if(typeof AUD_DATA!=='undefined'&&AUD_DATA&&typeof _aud_doAudit==='function'){ var d30=new Date(Date.now()-30*864e5).toISOString().slice(0,10), Lm=audMapLook();
     var aR=AUD_DATA.appts.filter(function(r){ return r.d>=d30&&Lm.A[audN(r.s)]; }).map(function(r){ SS[r.dr]=(SS[r.dr]||0)+1; return {Start:r.d,Patient:r.p,Doctor:r.dr,Type:r.s,_svc:Lm.A[audN(r.s)]}; });
     var oR=AUD_DATA.steps.filter(function(r){ return r.d>=d30&&/complet/i.test(r.st||'')&&Lm.S[audN(r.s)]; }).map(function(r){ return {End:r.d,Patient:r.p,Doctor:r.dr,Name:r.s,_svc:Lm.S[audN(r.s)]}; });
-    _aud_doAudit(aR,oR).forEach(function(e){ ER[e.doc]=(ER[e.doc]||0)+1; }); } }catch(e){}
+    _aud_doAudit(aR,oR).forEach(function(e){ ER[e.doc]=(ER[e.doc]||0)+1; (sumScore.EL[e.doc]=sumScore.EL[e.doc]||[]).push(e); }); } }catch(e){}
   L.forEach(function(r){
     var m=typeof alMatchDoc==='function'?alMatchDoc(r.en):null, oc=m&&OC[m.doc.name], parts=[];
     var cp=sh(r.cp[0],r.cp[1],aCP), rn=sh(r.rn[1],r.rn[0],aRN), mt=sh(r.mt[0],r.mt[0]+r.mt[1],aMT);
@@ -12243,11 +12243,12 @@ function sumScore(drs){
     var sc=base, det=parts.map(function(p){ return [p[0],Math.round(p[1]*(r.exm?60:100)/tw),Math.round(p[2]*100)]; });
     if(r.exm){ var ex=sh(r.ex[2]+0.5*r.ex[3],r.ex[0],aEX), ev=sh(r.ev[1],r.ev[0],aEV); sc=0.6*base+0.2*ex+0.2*ev; det.push(['🩺 بعد الكشف',20,Math.round(ex*100)],['📋 بعد التقييم',20,Math.round(ev*100)]); }
     var enough=r.cp[1]>=4||r.rn[0]>=4||r.ex[0]>=5||r.ev[0]>=5;
-    r.sc=enough?Math.round(sc*100):null; r.det=det; r.oc=oc;
+    r.sc=enough?Math.round(sc*100):null; r.det=det; r.oc=oc; r.er=ER[r.en]||0; r.ss=SS[r.en]||0; r.el=sumScore.EL[r.en]||[];
   });
 }
-function sumDocDetail(r){
+function sumDocDetail(r,mk){
   var doc=function(e){ return (typeof alDocAr==='function'&&alDocAr(e))||e||''; };
+  if(mk&&mk!=='all'){ var V=sumDocMetric(r,mk,doc); if(V) return '<div style="background:var(--bg);border:1px solid var(--brd);border-radius:10px;padding:6px 10px;text-align:right">'+V+'<div onclick="sumDocOpen(\''+r.en.replace(/'/g,'')+'\',\'all\')" style="cursor:pointer;font-size:.6rem;color:#38bdf8;margin-top:6px">▾ كل تفاصيل الدكتور</div></div>'; }
   if(!r.rl&&!r.dl) return '<div style="font-size:.6rem;color:var(--mute)">⏳ الأسامي هتظهر بعد السحب الجاي (البيانات بتتجهز)</div>';
   var me=doc(r.en);
   var nx=function(x,o,ren){ var ld=x[o+1], ldoc=doc(x[o+2]), other=ldoc&&ldoc!==me;
@@ -12270,6 +12271,32 @@ function sumDocDetail(r){
     blk('🚪 وقفوا بدري معاه','#f59e0b',dl,function(x){ return row(x,'<span style="color:var(--mute)">— بدأ '+alEsc(alFmtDay(x[2]))+' ووقف عند جلسة '+x[4]+' ('+alEsc(alFmtDay(x[3]))+')</span>',5); })+exL+'</div>';
 }
 function sumTog(id){ SUM_OPEN[id]=!SUM_OPEN[id]; sumRender(); }
+/* دوسة على رقم في جدول الدكاترة → يفتح بيانات المؤشر ده بس · دوسة تانية على نفس الرقم تقفل */
+function sumDocOpen(en,mk){ var id='doc_'+en.replace(/[^\w]/g,'_'); SUM_OPEN[id]=(SUM_OPEN[id]===mk)?0:mk; sumRender(); }
+function sumDocMetric(r,mk,doc){
+  var pr=function(pid,nm,extra){ return '<div style="padding:4px 0;border-top:1px solid var(--brd);font-size:.62rem">'+planPtLink(nm||'',pid||'')+(extra?' <span style="color:var(--mute)">'+extra+'</span>':'')+'</div>'; };
+  var hd=function(t,col,n){ return '<div style="font-size:.64rem;font-weight:800;color:'+(col||'var(--txt)')+';margin:6px 0 2px">'+t+(n!=null?' ('+n+')':'')+'</div>'; };
+  var nxt=function(x,o){ return x[o+3]?' · الجاي <b style="color:var(--g)">'+alEsc(alFmtDay(x[o+3].slice(0,10)))+'</b> مع '+alEsc(doc(x[o+4])):' · <b style="color:var(--r)">مالوش ميعاد جاي</b>'; };
+  var none='<div style="font-size:.6rem;color:var(--mute)">—</div>', L=function(A,f){ return A.length?A.map(f).join(''):none; };
+  if(mk==='sc') return hd('⭐ تفصيل الدرجة')+(r.det||[]).map(function(d){ return '<div style="font-size:.62rem;padding:2px 0">'+d[0]+': <b style="color:'+(d[2]>=80?'var(--g)':d[2]>=65?'#f59e0b':'var(--r)')+'">'+d[2]+'%</b> <span style="color:var(--mute)">× وزن '+d[1]+'%</span></div>'; }).join('')+'<div style="font-size:.58rem;color:var(--mute);margin-top:4px">دوسي على أي رقم تاني في الصف يفتح أسامي المرضى بتوعه</div>';
+  if(mk==='cp'){ var C=r.cl; if(!C) return hd('🎯 استكمال الباقة')+'<div style="font-size:.6rem;color:var(--mute)">⏳ الأسامي هتظهر بعد السحب الجاي</div>';
+    var ok=C.filter(function(x){ return x[5]>=1; }), hf=C.filter(function(x){ return x[5]>0&&x[5]<1; }), z=C.filter(function(x){ return !x[5]; });
+    var f=function(x){ return pr(x[0],x[1],'— باقة '+x[3]+' بدأت '+alEsc(alFmtDay(x[2]))+' · حضر منها '+Math.min(x[4],x[3])+nxt(x,6)); };
+    return hd('🎯 بدأوا باقة معاه (آخر 6 شهور، من غير اللي لسه مكمّلين)','',C.length)+hd('✅ كمّلوها لآخرها','var(--g)',ok.length)+L(ok,f)+hd('🟡 وقفوا بعد جلسة 3 (بيتحسبوا نص)','#f59e0b',hf.length)+L(hf,f)+hd('❌ وقفوا في أول 3 جلسات','var(--r)',z.length)+L(z,f); }
+  if(mk==='rn'){ var rl=r.rl||[], y=rl.filter(function(x){ return x[4]; }), n=rl.filter(function(x){ return !x[4]; }), f2=function(x){ return pr(x[0],x[1],'— باقة '+x[3]+' خلصت '+alEsc(alFmtDay(x[2]))+nxt(x,5)); };
+    return hd('🔁 خلّصوا باقة معاه — جدد = حضر جلسة خلال 60 يوم أو محجوزله')+hd('❌ ما جددوش','var(--r)',n.length)+L(n,f2)+hd('✅ جددوا','var(--g)',y.length)+L(y,f2); }
+  if(mk==='dr'){ var dl=r.dl||[]; return hd('🚪 بدأوا معاه ووقفوا عند جلسة 3 أو أقل','#f59e0b',dl.length)+L(dl,function(x){ return pr(x[0],x[1],'— بدأ '+alEsc(alFmtDay(x[2]))+' ووقف عند جلسة '+x[4]+' ('+alEsc(alFmtDay(x[3]))+')'+nxt(x,5)); }); }
+  if(mk==='kx'){ var xl=r.xl||[]; return hd('🩺 كشف عليهم','#38bdf8',xl.length)+L(xl,function(x){ return pr(x[0],x[1],'— كشف '+alEsc(alFmtDay(x[2]))+' · حضر بعده '+x[3]+' جلسة · '+(x[4]>=12?'✅ باقة 12':x[4]?'✅ باقة '+x[4]:'❌ ما بدأش باقة')); }); }
+  if(mk==='mt'){ var ml=r.ml; if(!ml) return hd('📉 التزام مرضاه')+'<div style="font-size:.6rem;color:var(--mute)">⏳ الأسامي هتظهر بعد السحب الجاي</div>';
+    return hd('📉 مواعيد جلسات معاه: حضر '+r.mt[0]+' · No Show / إلغاء مفاجئ '+r.mt[1]+' (آخر 6 شهور)')+hd('اللي ما حضروش','var(--r)',ml.length)+L(ml,function(x){ return pr(x[0],x[1],'— '+alEsc(alFmtDay(x[2]))+' · '+alEsc(x[3])); }); }
+  if(mk==='oc'){ var o=r.oc; return hd('🪑 الإشغال (آخر 4 أسابيع)')+(o&&o[1]?'<div style="font-size:.62rem">حضر <b>'+o[0]+'</b> جلسة من طاقة شيفتاته <b>'+o[1]+'</b> = <b>'+Math.round(o[0]*100/o[1])+'%</b><br><span style="color:var(--mute)">الطاقة من شيت الشيفتات — التفاصيل يوم بيوم في تاب 📊 تحليل</span></div>':'<div style="font-size:.6rem;color:var(--mute)">مفيش شيفتات متسجلة ليه في شيت الشيفتات</div>'); }
+  if(mk==='act'){ var A=r.al||[]; return hd('👥 مرضى ميعادهم الجاي معاه','',A.length)+L(A,function(x){ return pr(x[15],x[0],'— الجاي '+alEsc(alFmtDay(String(x[5]).slice(0,10)))+' · حضر '+x[2]+' جلسة'+(x[8]?' · باقة '+x[8]+' (حضر منها '+x[9]+')':'')); }); }
+  if(mk==='er'){ var E=r.el||[]; return hd('🔍 أخطاء الكومبليت آخر 30 يوم','var(--r)',E.length)+L(E,function(e){ return pr('',e.patient,'— '+alEsc(e.date)+' · '+alEsc(e.note)+' · '+alEsc(e.svc)); })+(r.ss?'<div style="font-size:.58rem;color:var(--mute);margin-top:4px">من '+r.ss+' ميعاد اتراجع</div>':''); }
+  if(mk==='a'||mk==='nc'){ var T=r.ta||[], X=T.filter(function(a){ return mk==='a'?/checked|progress|completed/i.test(a.status||''):/no ?show|cancel/i.test(a.status||''); });
+    if(r.ta==null) return hd(mk==='a'?'حضر':'غياب / إلغاء')+'<div style="font-size:.6rem;color:var(--mute)">الأسامي متاحة للنهارده بس — للفترة الأرقام بس</div>';
+    return hd(mk==='a'?'✅ جلسات حضرت معاه النهارده':'❌ غياب / إلغاء النهارده','',X.length)+L(X,function(a){ return pr(a.pid||'',a.patient,'— '+alEsc(planT(a.start||a.time||''))+' · '+alEsc(a.status||'')+' · '+alEsc(a.type||'')); }); }
+  return '';
+}
 function sumRender(){ SUM_BRX=SUM_BR; PLAN_CMAP=null; try{ sumRender0(); }finally{ SUM_BRX=''; PLAN_CMAP=null; } }
 function sumRender0(){
   var box=document.getElementById('sumBox'); if(!box) return;
@@ -12409,28 +12436,45 @@ function sumRender0(){
     Object.keys(DP).forEach(function(en){ var x=DP[en]; if(/amgad|khedr/i.test(en)) return;
       // دكتور بيشتغل في الفرعين: لو فرع واحد مختار فوق، أرقامه في الفرع ده بس (bb) — مش بس فرعه الأساسي
       var bb=one&&x.bb?x.bb[one]:null; if(one&&x.bb&&!bb) return; if(!x.bb&&!inb(x.branch)) return;
-      var fl=function(L){ return L?L.filter(function(z){ return !one||!z[11]||z[11]===one; }):L; };
+      var fl=function(L,bi){ bi=bi||11; return L?L.filter(function(z){ return !one||!z[bi]||z[bi]===one; }):L; };
       drs[en]={en:en, br:one||x.branch, rn:(bb||x).renew||[0,0], dr:(bb||x).drop||[0,0,0,0,0], kx:(bb||x).kashf||[0,0], rl:fl(x.rl), dl:fl(x.dl), a:0, n:0, c:0,
-        cp:(bb&&bb.cp)||x.cp||[0,0], mt:x.mt||[0,0], ex:x.ex||[0,0,0,0], ev:x.ev||[0,0,0], xl:fl(x.xl), vl:fl(x.vl)}; });
+        cp:(bb&&bb.cp)||x.cp||[0,0], mt:x.mt||[0,0], ex:x.ex||[0,0,0,0], ev:x.ev||[0,0,0], xl:fl(x.xl), vl:fl(x.vl), cl:fl(x.cl,12), ml:fl(x.ml,4), ta:isT?[]:null, al:[]}; });
+    // 👥 مرضى ميعادهم الجاي معاه (من فهرس المرضى)
+    (D.pt_index||[]).forEach(function(z){ var r=drs[z[6]]; if(r&&z[5]&&String(z[5]).slice(0,10)>=today) r.al.push(z); });
     sumScore(drs);
     Object.keys(DY).forEach(function(en){ var r=drs[en]; if(!r) return; Object.keys(DY[en]).forEach(function(d){ if(!inR(d)||d===today) return; var v=DY[en][d]; r.a+=v[0]; r.n+=v[1]; r.c+=v[2]; }); });
-    if(inR(today)) TA.forEach(function(x){ var r=drs[x.doctor]; if(!r||!/جلس/.test(x.type||'')) return; if(/checked|progress|completed/i.test(x.status||'')) r.a++; else if(/no ?show/i.test(x.status||'')) r.n++; else if(/cancel/i.test(x.status||'')) r.c++; });   // النهارده من مواعيد النهارده
+    if(inR(today)) TA.forEach(function(x){ var r=drs[x.doctor]; if(!r||!/جلس/.test(x.type||'')) return; if(r.ta) r.ta.push(x); if(/checked|progress|completed/i.test(x.status||'')) r.a++; else if(/no ?show/i.test(x.status||'')) r.n++; else if(/cancel/i.test(x.status||'')) r.c++; });   // النهارده من مواعيد النهارده
     var rt=function(x){ return x[0]?x[1]/x[0]:-1; }, SK=SUM_DSORT||'sc';
-    var keyF={sc:function(r){ return r.sc==null?-1:r.sc; }, cp:function(r){ return r.cp[1]?r.cp[0]/r.cp[1]:-1; }, a:function(r){ return r.a; }, nc:function(r){ return r.n+r.c; }, rn:function(r){ return rt(r.rn); }, dr:function(r){ return rt([r.dr[0],r.dr[1]]); }, kx:function(r){ return rt(r.kx); }}[SK];
-    var DL=Object.keys(drs).map(function(k){ return drs[k]; }).filter(function(r){ return r.a||r.rn[0]; }).sort(function(a,b){ return (keyF(b)-keyF(a))||(b.rn[0]-a.rn[0])||(b.a-a.a); });   // من الأعلى للأقل
+    var mtP=function(r){ var t=r.mt[0]+r.mt[1]; return t?r.mt[0]/t:-1; }, ocP=function(r){ return r.oc&&r.oc[1]?r.oc[0]/r.oc[1]:-1; };
+    var keyF={sc:function(r){ return r.sc==null?-1:r.sc; }, cp:function(r){ return r.cp[1]?r.cp[0]/r.cp[1]:-1; }, a:function(r){ return r.a; }, nc:function(r){ return r.n+r.c; }, rn:function(r){ return rt(r.rn); }, dr:function(r){ return -rt([r.dr[0],r.dr[1]]); }, kx:function(r){ return rt(r.kx); },
+      mt:mtP, oc:ocP, er:function(r){ return r.ss?-(r.er/r.ss):-1; }, act:function(r){ return r.al.length; }}[SK]||function(r){ return r.sc==null?-1:r.sc; };
+    var DL=Object.keys(drs).map(function(k){ return drs[k]; }).filter(function(r){ return r.a||r.rn[0]||r.al.length; }).sort(function(a,b){ return (keyF(b)-keyF(a))||(b.rn[0]-a.rn[0])||(b.a-a.a); });   // من الأعلى للأقل
     var pc2=function(x){ return x[0]?Math.round(x[1]*100/x[0])+'%':'—'; }, colP=function(x){ if(!x[0]) return 'var(--mute)'; var v=x[1]/x[0]; return v>=.6?'var(--g)':v>=.4?'#f59e0b':'var(--r)'; };
+    var col3=function(v,g,y){ return v<0?'var(--mute)':v>=g?'var(--g)':v>=y?'#f59e0b':'var(--r)'; }, sm=function(t){ return ' <span style="color:var(--mute);font-weight:400">'+t+'</span>'; };
     var op=!!SUM_OPEN.docs, shown=op?DL:DL.slice(0,8);
-    h+='<div id="sum_docs" style="font-weight:800;font-size:.78rem;margin:14px 0 6px">🩺 الدكاترة — الدرجة والتجديد آخر 6 شهور · الجلسات '+alEsc(perLbl)+'</div>'+
-      '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:6px 10px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:.62rem;min-width:640px"><tr style="color:var(--mute)"><th style="text-align:right">الدكتور</th>'+[['sc','⭐ الدرجة'],['cp','🎯 استكمال'],['a','حضر '+alEsc(perLbl)],['nc','غياب / إلغاء '+alEsc(perLbl)],['rn','🔁 جددوا'],['dr','🚪 وقفوا بدري'],['kx','🩺 كشف ← باقة']].map(function(c){ return '<th onclick="SUM_DSORT=\''+c[0]+'\';sumRender()" style="cursor:pointer;'+(SK===c[0]?'color:#38bdf8':'')+'">'+c[1]+(SK===c[0]?' ▼':'')+'</th>'; }).join('')+'</tr>'+
-      shown.map(function(r){ var nm=(typeof alDocAr==='function'&&alDocAr(r.en))||r.en, dr=[r.dr[0],r.dr[1]], did='doc_'+r.en.replace(/[^\w]/g,'_'), dop=!!SUM_OPEN[did];
-        var scC=r.sc==null?'var(--mute)':r.sc>=80?'var(--g)':r.sc>=65?'#f59e0b':'var(--r)', cpP=r.cp[1]?Math.round(r.cp[0]*100/r.cp[1])+'%':'—';
-        return '<tr onclick="sumTog(\''+did+'\')" style="cursor:pointer;border-top:1px solid var(--brd)'+(dop?';background:rgba(37,99,235,.12)':'')+'"><td style="padding:4px;font-weight:700">'+(dop?'▾ ':'▸ ')+alEsc(nm)+(act.length>1?' <span style="color:var(--mute);font-weight:400">'+(r.br==='FIX ZONE'?'دقي':'هرم')+'</span>':'')+(r.exm?' <span title="بيكشف ويقيّم" style="font-size:.55rem">🩺</span>':'')+'</td>'+
-          '<td style="text-align:center;font-weight:900;color:'+scC+'">'+(r.sc==null?'<span style="font-size:.55rem;font-weight:400">بيانات قليلة</span>':r.sc)+'</td><td style="text-align:center">'+cpP+'</td><td style="text-align:center">'+r.a+'</td><td style="text-align:center">'+(r.n+r.c)+'</td>'+
-          '<td style="text-align:center;color:'+colP(r.rn)+';font-weight:800">'+pc2(r.rn)+' <span style="color:var(--mute);font-weight:400">('+r.rn[1]+' من '+r.rn[0]+')</span></td>'+
-          '<td style="text-align:center">'+(dr[0]?Math.round(dr[1]*100/dr[0])+'% <span style="color:var(--mute)">('+dr[1]+' من '+dr[0]+')</span>':'—')+'</td>'+
-          '<td style="text-align:center">'+pc2(r.kx)+(r.kx[0]?' <span style="color:var(--mute)">('+r.kx[1]+' من '+r.kx[0]+')</span>':'')+'</td></tr>'+(dop?'<tr><td colspan="8" style="padding:4px 6px 10px">'+sumDocDetail(r)+'</td></tr>':''); }).join('')+'</table>'+
+    var COLS=[['sc','⭐ الدرجة'],['cp','🎯 استكمال'],['rn','🔁 جددوا'],['dr','🚪 وقفوا بدري'],['mt','📉 التزام مرضاه'],['oc','🪑 الإشغال'],['er','🔍 أخطاء (30 يوم)'],['act','👥 مرضى جايين معاه'],['kx','🩺 كشف ← باقة'],['a','✅ حضر '+alEsc(perLbl)],['nc','❌ غياب / إلغاء '+alEsc(perLbl)]];
+    h+='<div id="sum_docs" style="font-weight:800;font-size:.78rem;margin:14px 0 6px">🩺 الدكاترة — المؤشرات آخر 6 شهور · الجلسات '+alEsc(perLbl)+'</div>'+
+      '<div style="font-size:.58rem;color:var(--mute);margin:-2px 0 6px">دوسي على أي رقم يفتح أسامي المرضى بتوعه · على العنوان يترتبوا بيه · على اسم الدكتور كل تفاصيله</div>'+
+      '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:6px 10px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:.62rem;min-width:980px"><tr style="color:var(--mute)"><th style="text-align:right;position:sticky;right:0;background:var(--card)">الدكتور</th>'+COLS.map(function(c){ return '<th onclick="SUM_DSORT=\''+c[0]+'\';sumRender()" style="cursor:pointer;'+(SK===c[0]?'color:#38bdf8':'')+'">'+c[1]+(SK===c[0]?' ▼':'')+'</th>'; }).join('')+'</tr>'+
+      shown.map(function(r){ var nm=(typeof alDocAr==='function'&&alDocAr(r.en))||r.en, dr=[r.dr[0],r.dr[1]], did='doc_'+r.en.replace(/[^\w]/g,'_'), dop=SUM_OPEN[did], en=r.en.replace(/'/g,'');
+        var scC=r.sc==null?'var(--mute)':r.sc>=80?'var(--g)':r.sc>=65?'#f59e0b':'var(--r)', cpV=r.cp[1]?r.cp[0]/r.cp[1]:-1, mv=mtP(r), ov=ocP(r);
+        var td=function(k,inner){ var on=dop===k||(dop&&dop!==1&&dop!=='all'?false:false); return '<td onclick="sumDocOpen(\''+en+'\',\''+k+'\')" style="text-align:center;cursor:pointer;padding:4px 2px;'+(dop===k?'background:rgba(56,189,248,.18);border-radius:6px;':'')+'">'+inner+'</td>'; };
+        var cells=[
+          td('sc','<b style="color:'+scC+';font-size:.72rem">'+(r.sc==null?'<span style="font-size:.55rem;font-weight:400">بيانات قليلة</span>':r.sc)+'</b>'),
+          td('cp','<b style="color:'+col3(cpV,.75,.6)+'">'+(cpV<0?'—':Math.round(cpV*100)+'%')+'</b>'),
+          td('rn','<b style="color:'+colP(r.rn)+'">'+pc2(r.rn)+'</b>'+sm('('+r.rn[1]+' من '+r.rn[0]+')')),
+          td('dr',dr[0]?'<b style="color:'+col3(1-dr[1]/dr[0],.85,.75)+'">'+Math.round(dr[1]*100/dr[0])+'%</b>'+sm('('+dr[1]+' من '+dr[0]+')'):'—'),
+          td('mt','<b style="color:'+col3(mv,.9,.8)+'">'+(mv<0?'—':Math.round(mv*100)+'%')+'</b>'),
+          td('oc','<b style="color:'+col3(ov,.75,.55)+'">'+(ov<0?'—':Math.round(ov*100)+'%')+'</b>'),
+          td('er',r.ss?'<b style="color:'+(r.er?'var(--r)':'var(--g)')+'">'+r.er+'</b>'+sm('من '+r.ss):'—'),
+          td('act','<b>'+r.al.length+'</b>'),
+          td('kx',pc2(r.kx)+(r.kx[0]?sm('('+r.kx[1]+' من '+r.kx[0]+')'):'')),
+          td('a',r.a),
+          td('nc',(r.n+r.c)||'0')];
+        return '<tr style="border-top:1px solid var(--brd)'+(dop?';background:rgba(37,99,235,.12)':'')+'"><td onclick="sumDocOpen(\''+en+'\',\'all\')" style="cursor:pointer;padding:4px;font-weight:700;position:sticky;right:0;background:var(--card)">'+(dop?'▾ ':'▸ ')+alEsc(nm)+(act.length>1?' <span style="color:var(--mute);font-weight:400">'+(r.br==='FIX ZONE'?'دقي':'هرم')+'</span>':'')+(r.exm?' <span title="بيكشف ويقيّم" style="font-size:.55rem">🩺</span>':'')+'</td>'+cells.join('')+'</tr>'+
+          (dop?'<tr><td colspan="12" style="padding:4px 6px 10px">'+sumDocDetail(r,dop===1?'all':dop)+'</td></tr>':''); }).join('')+'</table>'+
       (DL.length>8?'<div onclick="sumTog(\'docs\')" style="cursor:pointer;font-size:.6rem;color:#38bdf8;padding:4px 0">'+(op?'▴ أقل':'▾ كل الدكاترة ('+DL.length+')')+'</div>':'')+
-       '<div onclick="sumTog(\'dleg\')" style="cursor:pointer;font-size:.6rem;color:#38bdf8;padding:4px 0">ℹ️ إزاي الأرقام دي بتتحسب؟ '+(SUM_OPEN.dleg?'▴':'▾')+'</div>'+(SUM_OPEN.dleg?'<div style="font-size:.6rem;line-height:1.9;color:var(--mute);padding:4px 0">⭐ الدرجة من 100 (آخر 6 شهور): 🎯 استكمال الباقة 45% · 🔁 التجديد 25% · 🪑 الإشغال 15% · 📉 التزام مرضاه 10% · 🔍 الدقة 5% — والدكتور اللي بيكشف 🩺: الـ60% دول + بعد الكشف 20% + بعد التقييم 20% · العدد القليل بيتعدّل ناحية متوسط المركز («بيانات قليلة» = أقل من 4 باقات) · 🟢 80+ · 🟡 65–80 · 🔴 أقل من 65<br>مترتبين من الأعلى للأقل — دوسي على أي عمود يترتبوا بيه · 🔁 جددوا = من الباقات اللي خلصت مع الدكتور (من أسبوعين على الأقل)، كام مريض حضر جلسة تانية خلال 60 يوم أو محجوزله ميعاد جاي · 🚪 وقفوا بدري = كورسات بدأت معاه ووقفت عند جلسة 3 أو أقل · 🩺 كشف ← باقة = كشوفاته اللي بدأت جلسات خلال 30 يوم · 🎯 استكمال = المرضى اللي بدأوا باقة معاه كمّلوها لآخرها (باقة 12 بتتحسب مرتين) · 📉 التزام مرضاه = نسبة الجلسات اللي حضروها من اللي اتحجزت · 🪑 الإشغال = حضوره ÷ طاقة شيفتاته · 🔍 الدقة = أخطاء الكومبليت آخر 30 يوم<br>دوسي على اسم الدكتور يفتح تفصيل الدرجة وأسامي المرضى</div>':'')+'</div>'; }catch(e){}
+       '<div onclick="sumTog(\'dleg\')" style="cursor:pointer;font-size:.6rem;color:#38bdf8;padding:4px 0">ℹ️ إزاي الأرقام دي بتتحسب؟ '+(SUM_OPEN.dleg?'▴':'▾')+'</div>'+(SUM_OPEN.dleg?'<div style="font-size:.6rem;line-height:1.9;color:var(--mute);padding:4px 0">⭐ الدرجة من 100 (آخر 6 شهور): 🎯 استكمال الباقة 45% · 🔁 التجديد 25% · 🪑 الإشغال 15% · 📉 التزام مرضاه 10% · 🔍 الدقة 5% — والدكتور اللي بيكشف 🩺: الـ60% دول + بعد الكشف 20% + بعد التقييم 20% · العدد القليل بيتعدّل ناحية متوسط المركز («بيانات قليلة» = أقل من 4 باقات) · 🟢 80+ · 🟡 65–80 · 🔴 أقل من 65<br>مترتبين من الأعلى للأقل — دوسي على أي عمود يترتبوا بيه · 🔁 جددوا = من الباقات اللي خلصت مع الدكتور (من أسبوعين على الأقل)، كام مريض حضر جلسة تانية خلال 60 يوم أو محجوزله ميعاد جاي · 🚪 وقفوا بدري = كورسات بدأت معاه ووقفت عند جلسة 3 أو أقل · 🩺 كشف ← باقة = كشوفاته اللي بدأت جلسات خلال 30 يوم · 🎯 استكمال = المرضى اللي بدأوا باقة معاه كمّلوها لآخرها (باقة 12 بتتحسب مرتين) · 📉 التزام مرضاه = نسبة الجلسات اللي حضروها من اللي اتحجزت · 🪑 الإشغال = حضوره ÷ طاقة شيفتاته · 🔍 الدقة = أخطاء الكومبليت آخر 30 يوم<br>👥 مرضى جايين معاه = محجوزلهم ميعاد جاي معاه · ✅ حضر / ❌ غياب = جلسات الفترة اللي فوق (النهارده لوحده لو مختارة النهارده)</div>':'')+'</div>'; }catch(e){}
   if(!isT){ var sc=window.scrollY; box.innerHTML=h; window.scrollTo(0,sc); return; }
   // 👩‍💼 السكرتاريه
   var own={}; all.forEach(function(t){ var s0=planState(t); if(s0==='snz') return; (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planNormName(planOwner(t,g)); if(!o||!planIsReg(o)) return; var z=own[o]=own[o]||{n:0,d:0,k:{},left:{}}; if(z.k[t.key]) return; z.k[t.key]=1; z.n++; if(s0==='done') z.d++; else z.left[g]=(z.left[g]||0)+1; }); });

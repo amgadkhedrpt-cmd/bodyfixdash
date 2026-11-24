@@ -830,7 +830,7 @@ def build_alerts(appointments, now=None, packages=None):
     def doc_perf():
         P_FROM = today - timedelta(days=PERF_DAYS)
         out = defaultdict(lambda: {"branch": Counter(), "renew": [0, 0], "drop": [0, 0, 0, 0, 0], "kashf": [0, 0], "rl": [], "dl": [],
-                                   "cp": [0.0, 0.0], "mt": [0, 0], "ex": [0, 0, 0, 0], "ev": [0, 0, 0], "xl": [], "vl": [],
+                                   "cp": [0.0, 0.0], "mt": [0, 0], "ex": [0, 0, 0, 0], "ev": [0, 0, 0], "xl": [], "vl": [], "cl": [], "ml": [],
                                    "bb": defaultdict(lambda: {"renew": [0, 0], "drop": [0, 0], "kashf": [0, 0]})})   # bb = لكل فرع (دكتور بيشتغل في الفرعين)
         for appts in patients.values():
             att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() < today and _is_pt(a["type"])],
@@ -885,6 +885,7 @@ def build_alerts(appointments, now=None, packages=None):
                 sc_ = 1.0 if done_ else (0.0 if len(sd) <= 3 else 0.5)
                 w_ = 2.0 if size >= 12 else 1.0
                 oc = out[byday[st0]["doctor"]]; oc["cp"][0] += sc_ * w_; oc["cp"][1] += w_
+                oc["cl"].append([pid, byday[st0]["name"], st0.isoformat(), size, len(sd), sc_] + pinfo + [byday[st0]["branch"]])   # مين بدأ باقة معاه — كمّل ولا وقف
                 bc_ = oc["bb"][byday[st0]["branch"]]; bc_.setdefault("cp", [0.0, 0.0]); bc_["cp"][0] += sc_ * w_; bc_["cp"][1] += w_
             # 1ج) التزام المرضى: مواعيد جلسات الدكتور اللي فاتت — حضر ولا No Show / إلغاء مفاجئ
             for a in appts:
@@ -896,6 +897,7 @@ def build_alerts(appointments, now=None, packages=None):
                     om[0] += 1
                 elif a["status"] in ("no show", "noshow") or "مفاجئ" in (a["type"] or ""):
                     om[1] += 1
+                    out[a["doctor"]]["ml"].append([pid, a["name"], d_.isoformat(), "مفاجئ" if "مفاجئ" in (a["type"] or "") else "No Show", a["branch"]])
             # 1د) بعد الكشف / بعد التقييم (للدكاترة اللي بيكشفوا ويقيّموا): المريض حضر كام جلسة بعدها · بدأ باقة كام · جدد
             for a in appts:
                 if a["status"] not in ATTENDED:
@@ -958,7 +960,8 @@ def build_alerts(appointments, now=None, packages=None):
                         "rl": sorted(o["rl"], key=lambda r: r[2], reverse=True), "dl": sorted(o["dl"], key=lambda r: r[3], reverse=True),
                         "bb": {b: dict(v) for b, v in o["bb"].items() if b},
                         "cp": [round(o["cp"][0], 1), o["cp"][1]], "mt": o["mt"], "ex": o["ex"], "ev": o["ev"],
-                        "xl": sorted(o["xl"], key=lambda r: r[2], reverse=True)[:60], "vl": sorted(o["vl"], key=lambda r: r[2], reverse=True)[:60]}
+                        "xl": sorted(o["xl"], key=lambda r: r[2], reverse=True)[:60],
+                        "cl": sorted(o["cl"], key=lambda r: r[2], reverse=True)[:80], "ml": sorted(o["ml"], key=lambda r: r[2], reverse=True)[:60], "vl": sorted(o["vl"], key=lambda r: r[2], reverse=True)[:60]}
         g = RENEW_GAPS; n = len(g); b = Counter()
         for x in g:
             k = "لم يرجع" if x is None else "≤3" if x <= 3 else "4-7" if x <= 7 else "8-10" if x <= 10 else "11-14" if x <= 14 else "15-21" if x <= 21 else "22-30" if x <= 30 else "31-60" if x <= 60 else ">60"

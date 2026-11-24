@@ -1758,17 +1758,22 @@ def build_alerts(appointments, now=None, packages=None):
     #    pkg = اتفتحتله فاتورة باقة ودفع فيها النهارده · fu = اتحجزله «متابعه» خلال أسبوع (للي هيفكر / قال هيجدد وما فتحش)
     eval_out = []
     try:
+        prev_d = today - timedelta(days=1)
+        if prev_d.weekday() == 4:                       # الجمعة إجازة → يوم الشغل اللي قبله = الخميس
+            prev_d -= timedelta(days=1)
         for v in patients_all.values():
-            ev = [a for a in v if a["start"].date() == today and "تقييم الجلس" in (a["type"] or "").replace("ة", "ه")
-                  and a["status"] in ATTENDED]
-            if not ev:
-                continue
-            a0 = ev[0]; pid_ = a0.get("pid") or ""
-            fu = [a for a in v if today < a["start"].date() <= today + timedelta(days=8) and _fu_kind(a["type"]) and a["status"] not in NOT_FUTURE]
-            nx = min((a for a in v if a["start"].date() > today and _is_pt(a["type"]) and a["status"] not in NOT_FUTURE), key=lambda a: a["start"], default=None)
-            eval_out.append({"pid": pid_, "name": a0["name"], "phone": a0["phone"], "doctor": a0["doctor"], "branch": a0["branch"],
-                             "time": a0["start"].isoformat(), "pkg": 1 if today in paid_pk.get(pid_, []) else 0,
-                             "fu": fu[0]["start"].date().isoformat() if fu else "", "next": nx["start"].isoformat()[:16] if nx else ""})
+            for day_, y_ in ((today, 0), (prev_d, 1)):   # النهارده + امبارح (اللي ما اتقفلش بيترحّل)
+                ev = [a for a in v if a["start"].date() == day_ and "تقييم الجلس" in (a["type"] or "").replace("ة", "ه")
+                      and a["status"] in ATTENDED]
+                if not ev:
+                    continue
+                a0 = ev[0]; pid_ = a0.get("pid") or ""
+                fu = [a for a in v if day_ < a["start"].date() <= day_ + timedelta(days=8) and _fu_kind(a["type"]) and a["status"] not in NOT_FUTURE]
+                nx = min((a for a in v if a["start"].date() > today and _is_pt(a["type"]) and a["status"] not in NOT_FUTURE), key=lambda a: a["start"], default=None)
+                eval_out.append({"pid": pid_, "name": a0["name"], "phone": a0["phone"], "doctor": a0["doctor"], "branch": a0["branch"],
+                                 "time": a0["start"].isoformat(), "d": day_.isoformat(), "y": y_,
+                                 "pkg": 1 if any(day_ <= d <= today for d in paid_pk.get(pid_, [])) else 0,
+                                 "fu": fu[0]["start"].date().isoformat() if fu else "", "next": nx["start"].isoformat()[:16] if nx else ""})
     except Exception as e:
         print(f"⚠️ eval_out: {e}")
 

@@ -1432,6 +1432,10 @@ def build_alerts(appointments, now=None, packages=None):
                                                  "doctor": a0["doctor"], "branch": a0["branch"], "type": a0["type"], "why": why, "risk": bool(why),
                                                  "status": ("Confirmed" if live_ and done_ else ("Canceled" if not live_ else a0["status"].title())),
                                                  "auto": done_})
+            def _wait_noans(nt):
+                last = [x.strip() for x in re.split(r"[/\n،,]+", nt) if x.strip()]
+                last = last[-1] if last else ""
+                return bool(re.search(r"(بي|بت)ر[دض]|ردش|مغلق|مقفول|مشغول|غير متاح|خارج التغطي|رسال|واتس", last))
             for a in appts:   # ⏳ مواعيد على الويتنج ليست النهارده / يوم الشغل الجاي
                 if a["status"] in ("waiting list", "waiting") and a["start"].date() in (today, tomorrow_):
                     nt = (a.get("note") or "").strip()
@@ -1440,7 +1444,8 @@ def build_alerts(appointments, now=None, packages=None):
                         "pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
                         "time": a["start"].isoformat(), "type": a["type"], "note": nt[:300],
                         "day": "today" if a["start"].date() == today else "next",
-                        "note_today": bool(nt) and bool(upd) and upd.date() == today})
+                        # «مش بيرد / تم الإرسال واتساب» = لسه محاولة، مش حل → ما تقفلش المهمة (آخر جزء في الملحوظة هو اللي بيتحسب)
+                        "note_today": bool(nt) and bool(upd) and upd.date() == today and not _wait_noans(nt)})
             for a in appts:   # مواعيد عدت وما اتقفلتش (لسه Open / Confirmed / Delayed) — آخر 14 يوم
                 if today - timedelta(days=14) <= a["start"].date() < today and a["status"] in ("open", "confirmed", "delayed"):
                     plan["stale_open"].append({"pid": a["pid"], "name": a["name"], "time": a["start"].isoformat(), "doctor": a["doctor"],

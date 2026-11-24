@@ -13417,7 +13417,7 @@ function planTasks(useAll){
     FQ.filter(function(q){ return q.d; }).forEach(function(q){ cnt[q.br]=(cnt[q.br]||0)+1; add('morning',q.t); });
     /* الترتيب: (1) المتأخرين (عدّى 14 يوم أو أكتر من آخر جلسة لحد 45) — كلهم يظهروا من غير حد، الأحدث الأول (فرصة رجوعه أكبر)
                 (2) الباقي (أحدث من 14 يوم / أقدم من 45) — لحد 20 في اليوم لكل فرع، الأحدث الأول */
-    var urg=function(q){ return q.n>=14&&q.n<=45; };
+    var urg=function(q){ return today>='2026-11-25'&&q.n>=14&&q.n<=45; };   // ⏰ المتأخرين كلهم بيبدأوا من 25/11 — قبلها زي الأول (20 في اليوم)
     FQ.filter(function(q){ return !q.d&&urg(q); }).sort(function(a,b){ return a.n-b.n; }).forEach(function(q){ cnt[q.br]=(cnt[q.br]||0)+1;
       q.t.kind='⏰ متأخر — '+q.t.kind; q.t.lines=q.t.lines.concat(['<b style="color:var(--r)">عدّى '+q.n+' يوم من آخر جلسة ولسه مش داخل المتابعة — كلّميه النهارده: ردّ → احجزيله «متابعه» في اليوم اللي يقوله (أو جلسة) · ما ردش → احجزيله «متابعه» بعد يومين</b>']);
       if(AMG[q.t.pid]) q.t.lines.push('<b style="color:#a78bfa">📋 محتاج تقييم مع د. أمجد — احجزيله معاه '+(q.br==='FIX ZONE'?'في زيارته الجاية للدقي':'في أقرب يوم ليه في الهرم')+'</b>');

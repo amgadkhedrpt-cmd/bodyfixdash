@@ -12421,7 +12421,10 @@ function sumRender0(){
       var FN=(FS.fin||[]).filter(function(r){ return inb(r[2])&&inW(r[3]); }), FOK=FN.filter(function(r){ return r[5]; }), FBAD=FN.filter(function(r){ return !r[5]; });
       var IQ=(FS.inq||[]).filter(function(r){ return inb(r[2])&&inW(r[3]); }), BK=IQ.filter(function(r){ return r[5]; }), byK={}; BK.forEach(function(r){ var k=r[6]||1; byK[k]=(byK[k]||0)+1; });
       var NI=(FS.noimp||[]).filter(function(r){ return inb(r[2])&&inW(r[3]); });
-      var cl=grp('call'), clD=dn(cl), clN=clD.filter(function(t){ var x=PLAN_ST[t.key]; return (x&&x.note)||t.what; });
+      var cl=grp('call'), clD=dn(cl), clN=cl.filter(function(t){ var x=PLAN_ST[t.key]; return t.mnote||(x&&x.note); });
+      var clRows=function(L){ return L.slice().sort(function(a,b){ return (planState(a)==='done'?0:1)-(planState(b)==='done'?0:1); }).map(function(t){ var st=planState(t), x=PLAN_ST[t.key]||{}, nt=t.mnote||x.note||'';
+        return '<div style="padding:4px 0;border-top:1px solid var(--brd);font-size:.64rem">'+planPtLink(t.name||'',t.pid||planPidOfKey(t.key))+' <span style="color:var(--mute)">'+(st==='done'?'✅':'⬜')+' '+alEsc(planOwner(t,'call')||'')+' · '+String(t.kind||'').replace(/^مكالمة متابعة — /,'')+'</span>'+
+          (nt?'<div style="font-size:.6rem;color:var(--txt);opacity:.85;padding-top:2px">📝 '+alEsc(nt)+'</div>':'<div style="font-size:.58rem;color:var(--r);padding-top:2px">مفيش ملحوظة على Medicolize</div>')+(t.mres?'<div style="font-size:.58rem;color:var(--g)">📅 '+alEsc(t.mres)+'</div>':'')+'</div>'; }).join(''); };
       var pcol=function(a,b,g,y){ var v=b?a/b:1; return v>=g?'var(--g)':v>=y?'#f59e0b':'var(--r)'; };
       h+=sec('📞 متابعة الانقطاع — '+alEsc(wl),
         card('fuin','📥','دخلوا المتابعة',pct(EN.length,EL.length),EN.length+' من '+EL.length+' خلّصوا/وقفوا · في أول أسبوع: '+E7.length,
@@ -12429,7 +12432,7 @@ function sumRender0(){
           '<div style="font-size:.6rem;font-weight:800;margin-top:6px">✅ دخلوا ('+EN.length+')</div>'+EN.map(function(r){ return ptRow(r[1],r[0],'— آخر جلسة '+alEsc(alFmtDay(r[3]))+' · أول متابعة بعد '+dif(r[3],r[5])+' يوم'); }).join(''),pcol(EN.length,EL.length,.8,.6))+
         card('fuspd','⏱','سرعة أول مكالمة',med==null?'—':med+' يوم','من آخر جلسة لأول متابعة (الوسط) · المفروض ~14',
           gaps.length?'<div style="font-size:.62rem;padding:4px 0">لحد 21 يوم: '+gaps.filter(function(g){ return g<=21; }).length+' · 22–28: '+gaps.filter(function(g){ return g>21; }).length+'</div>':'',med!=null&&med>21?'#f59e0b':'')+
-        (isT?card('fucall','☎️','مكالمات المتابعة النهارده',clD.length+' من '+cl.length,'بملحوظة: '+clN.length,taskRows(cl),pcol(clD.length,cl.length,.9,.7)):'')+
+        (isT?card('fucall','☎️','مكالمات المتابعة النهارده',clD.length+' من '+cl.length,'بملحوظة على Medicolize: '+clN.length,clRows(cl),pcol(clD.length,cl.length,.9,.7)):'')+
         card('fu3','🔢','التزام بالـ3 مكالمات',pct(FOK.length,FN.length),FOK.length+' من '+FN.length+' «منقطع نهائي» (أو سبب مكتوب: مسافر / مش عايز يكمل)',
           FN.map(function(r){ return ptRow(r[1],r[0],'— '+alEsc(alFmtDay(r[3]))+' · '+r[4]+' مكالمة'+(r[5]?' ✅':' ❌')+(r[6]?' · «'+alEsc(r[6].slice(0,70))+'»':'')); }).join(''),pcol(FOK.length,FN.length,.9,.7))+
         card('fubad','🔴','منقطع نهائي من غير 3 مكالمات',FBAD.length,'ومن غير سبب مكتوب — راحت للمدير',
@@ -12743,7 +12746,7 @@ function planTasks(useAll){
       if(!x.next_fu) miss.push('<b>لازم يتحجز ميعاد متابعة جاي</b> — حتى لو قال هيتوقف شوية / مسافر، نحدد يوم نكلمه فيه');
       else if(x.next_late) miss.push('<b>المتابعة الجاية متأخرة ('+alEsc(x.next_fu)+')</b> — ما ردش، فالمتابعة التانية المفروض تتحجز بعد يومين شغل (سبت/اتنين/أربع أو حد/تلات/خميس)'); }
     var cs=ok?'done':(((x.note||'').trim()||/completed|checked|progress/i.test(x.status||'')||tm.length)?'half':'none');
-    add('morning',{grp:['call'], _cs:cs, sys:ok?why:'', what:ok?((x.result?'📅 '+x.result+' · ':'')+(x.note?'📝 '+x.note:'')):'', key:today+'|call|'+x.pid, icon:'📞', kind:'مكالمة متابعة — '+alEsc(x.type||'')+(x.step?' '+x.step:''), name:x.name, phone:x.phone, br:brOf(x),
+    add('morning',{grp:['call'], _cs:cs, mnote:x.note||'', mres:x.result||'', sys:ok?why:'', what:ok?((x.result?'📅 '+x.result+' · ':'')+(x.note?'📝 '+x.note:'')):'', key:today+'|call|'+x.pid, icon:'📞', kind:'مكالمة متابعة — '+alEsc(x.type||'')+(x.step?' '+x.step:''), name:x.name, phone:x.phone, br:brOf(x),
       lines:['الموعد على Medicolize: <b style="color:'+(/completed|checked|progress/i.test(x.status||'')?'var(--g)':'var(--am)')+'">'+alEsc(x.status||'')+'</b>'+(tm.length?' · اتصالات مكتوبة: '+tm.map(alEsc).join('، '):''),
              x.note?'📝 '+alEsc(x.note):'<span style="color:var(--r)">مفيش ملحوظة لسه</span>',
              x.result?'<span style="color:var(--g)">📅 '+alEsc(x.result)+'</span>':'',

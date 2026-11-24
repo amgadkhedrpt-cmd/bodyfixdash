@@ -685,9 +685,8 @@ def build_alerts(appointments, now=None, packages=None):
                              and not _fu_kind(x["type"])], key=lambda x: x["start"])
                 nf = sorted([x for x in srt if x["start"] > a["start"] and x["status"] not in ("canceled", "cancelled", "no show", "noshow")],
                             key=lambda x: x["start"])   # أي خطوة جاية محجوزة (متابعة تانية / منقطع نهائي / ميعاد)
-                # ما وصلناش للمريض نفسه (مغلق / مش بيرد) → «نكلمه بعد فترة» مش عذر: المتابعة الجاية خلال يومين شغل
-                #   (التأجيل بعد فترة مقبول بس لو المريض نفسه رد وقال كده — «رد / قال / اتكلم ...»)
-                unreach_ = (unr or len(times) >= 2) and not reached
+                # مكتوب إنه طلب نكلمه بعد فترة («نكلمه بعد فترة / بعد شهر ...») → مقبول يتحجز بعد كده · غير كده ما ردش = خلال يومين شغل
+                unreach_ = (unr or len(times) >= 2) and not reached and not cb
                 # بعد يومين شغل (الجمعة إجازة): سبت/اتنين/أربع أو حد/تلات/خميس — الخميس → الحد · الأربع → السبت
                 lim_, wd_ = today, 0
                 while wd_ < 2:

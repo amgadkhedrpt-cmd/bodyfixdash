@@ -835,11 +835,13 @@ def build_alerts(appointments, now=None, packages=None):
                                    "bb": defaultdict(lambda: {"renew": [0, 0], "drop": [0, 0], "kashf": [0, 0]})})   # bb = لكل فرع (دكتور بيشتغل في الفرعين)
         DOC_MIN = 0.40   # المريض يتحسب كامل لأي دكتور عمل 40% أو أكتر من جلساته في الباقة/الكورس — أقل من كده ما يتحسبش عليه
 
-        def docs40(day_list, byday):
-            """[(الدكتور، جلساته، من كام)] لكل دكتور عمل ≥40% من الجلسات دي"""
+        def docs40(day_list, byday, last3=None):
+            """[(الدكتور، جلساته، من كام)] لكل دكتور عمل ≥40% من الجلسات دي
+            last3: لو اتبعتت → لازم كمان يكون عمل جلسة على الأقل من آخر 3 (اللي معاه في الآخر هو اللي بيأثر في قرار التجديد / الوقوف)"""
             cnt = Counter(byday[d]["doctor"] for d in day_list)
             n = sum(cnt.values())
-            return [(d_, k_, n) for d_, k_ in cnt.items() if n and k_ / n >= DOC_MIN]
+            end_docs = {byday[d]["doctor"] for d in last3} if last3 else None
+            return [(d_, k_, n) for d_, k_ in cnt.items() if n and k_ / n >= DOC_MIN and (end_docs is None or d_ in end_docs)]
 
         for appts in patients.values():
             att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() < today and _is_pt(a["type"])],
@@ -873,7 +875,7 @@ def build_alerts(appointments, now=None, packages=None):
                 nx = [d for d in days if d > end]
                 RENEW_GAPS.append((nx[0] - end).days if nx else None)
                 rn_ = any(end < d <= end + timedelta(days=60) for d in days) or (future and not any(d > end for d in days))
-                for doc, k_, n_ in docs40(sd[:size], byday):
+                for doc, k_, n_ in docs40(sd[:size], byday, last3=sd[max(0, size - 3):size]):
                     o = out[doc]; o["branch"][byday[sd[0]]["branch"]] += 1
                     o["renew"][0] += 1
                     if rn_:
@@ -894,7 +896,8 @@ def build_alerts(appointments, now=None, packages=None):
                 PKG_END.append([pid, byday[sd[0]]["name"], byday[sd[size - 1]]["branch"], end.isoformat(), size, byday[sd[size - 1]]["doctor"],
                                 evs[0]["start"].date().isoformat() if evs else "", ev_att[0]["start"].date().isoformat() if ev_att else "",
                                 nxd[0].isoformat() if nxd and (nxd[0] - end).days <= 60 else "",
-                                nx_a["start"].isoformat()[:16] if nx_a else ""])
+                                nx_a["start"].isoformat()[:16] if nx_a else "",
+                                (sd[size - 2] if size >= 2 else sd[0]).isoformat()])   # [10] يوم الجلسة قبل الأخيرة — التقييم «في وقته» من اليوم ده
             # 1ب) استكمال الباقة: بدأت مع الدكتور ده ووصلت لآخرها؟ (كمّل = 1 · وقف بعد جلسة 3 = ½ · وقف في أول 3 = 0) · باقة 12 وزنها ضعف الـ6
             for size, sd, approx in segs:
                 if approx or not sd:
@@ -908,7 +911,8 @@ def build_alerts(appointments, now=None, packages=None):
                     continue                                    # لسه مكمّل — ما يتحسبش
                 sc_ = 1.0 if done_ else (0.0 if len(sd) <= 3 else 0.5)
                 w_ = 2.0 if size >= 12 else 1.0
-                for doc, k_, n_ in docs40(sd[:size], byday):
+                # كمّل → كل اللي عمل ≥40% ياخد حقه · وقف → على اللي عمل ≥40% وكان معاه في آخر 3 جلسات قبل ما يقف
+                for doc, k_, n_ in (docs40(sd[:size], byday) if done_ else docs40(sd, byday, last3=sd[-3:])):
                     oc = out[doc]; oc["cp"][0] += sc_ * w_; oc["cp"][1] += w_
                     oc["cl"].append([pid, byday[st0]["name"], st0.isoformat(), size, len(sd), sc_] + pinfo + [byday[st0]["branch"], f"{k_} من {n_}"])   # مين اتعالج معاه في الباقة — كمّل ولا وقف
                     bc_ = oc["bb"][byday[st0]["branch"]]; bc_.setdefault("cp", [0.0, 0.0]); bc_["cp"][0] += sc_ * w_; bc_["cp"][1] += w_

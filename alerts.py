@@ -827,6 +827,7 @@ def build_alerts(appointments, now=None, packages=None):
 
     # ── أداء الدكاترة: التجديد · الوقوف بدري (أول 3 جلسات) · الكشف ← باقة ──
     RENEW_GAPS = []
+    PKG_END = []   # 🔁 كل باقة خلصت آخر 90 يوم: اتحجز تقييم الجلسة الأخيرة؟ حضره؟ جدد فعلاً (حضر جلسة بعدها)؟
     def doc_perf():
         P_FROM = today - timedelta(days=PERF_DAYS)
         out = defaultdict(lambda: {"branch": Counter(), "renew": [0, 0], "drop": [0, 0, 0, 0, 0], "kashf": [0, 0], "rl": [], "dl": [],
@@ -871,6 +872,21 @@ def build_alerts(appointments, now=None, packages=None):
                     o["renew"][1] += 1
                 bb_ = o["bb"][byday[sd[0]]["branch"]]["renew"]; bb_[0] += 1; bb_[1] += 1 if rn_ else 0
                 o["rl"].append([pid, byday[sd[0]]["name"], end.isoformat(), size, 1 if rn_ else 0] + pinfo + [byday[sd[0]]["branch"]])   # مين خلّص باقة معاه — وجدد ولا لأ
+            # 1أ+) للملخص: باقة خلصت آخر 90 يوم → تقييم الجلسة الأخيرة + التجديد الفعلي
+            for size, sd, approx in segs:
+                if approx or len(sd) < size:
+                    continue
+                end = sd[size - 1]
+                if not (today - timedelta(days=90) <= end <= today):
+                    continue
+                evs = sorted([a for a in appts if (a["type"] or "").strip() in EVAL_TYPES and end - timedelta(days=7) <= a["start"].date() <= end + timedelta(days=45)
+                              and a["status"] not in ("canceled", "cancelled")], key=lambda a: a["start"])
+                ev_att = [a for a in evs if a["status"] in ATTENDED]
+                nxd = [d for d in days if d > end]
+                PKG_END.append([pid, byday[sd[0]]["name"], byday[sd[size - 1]]["branch"], end.isoformat(), size, byday[sd[size - 1]]["doctor"],
+                                evs[0]["start"].date().isoformat() if evs else "", ev_att[0]["start"].date().isoformat() if ev_att else "",
+                                nxd[0].isoformat() if nxd and (nxd[0] - end).days <= 60 else "",
+                                nx_a["start"].isoformat()[:16] if nx_a else ""])
             # 1ب) استكمال الباقة: بدأت مع الدكتور ده ووصلت لآخرها؟ (كمّل = 1 · وقف بعد جلسة 3 = ½ · وقف في أول 3 = 0) · باقة 12 وزنها ضعف الـ6
             for size, sd, approx in segs:
                 if approx or not sd:
@@ -2001,5 +2017,6 @@ def build_alerts(appointments, now=None, packages=None):
         "analysis": build_analysis(patients, today),
         "doc_perf": perf,
         "fu_stats": fus_,
+        "pkg_end": sorted(PKG_END, key=lambda r: r[3], reverse=True),
         "day_counts": {k: {doc: dict(br) for doc, br in v.items()} for k, v in day_counts.items()},
     }

@@ -13969,7 +13969,7 @@ function planSummarySave(){
 }
 
 /* 📈 نتيجة المتابعة (أرقام بس — مش مهام): اللي اتتابعوا آخر 14 يوم · حجزوا · جم فعلاً · مين كانت مسئولة عن المتابعة ومين حجز */
-var PLAN_MC_F='', PLAN_CALL_F='', PLAN_FU_OPEN=false, PLAN_FU_F='', PLAN_CONF_F='', PLAN_FU_P='today', PLAN_FUT_F='';
+var PLAN_MC_F='', PLAN_MC_H='', PLAN_CALL_F='', PLAN_FU_OPEN=false, PLAN_FU_F='', PLAN_CONF_F='', PLAN_FU_P='today', PLAN_FUT_F='';
 /* 📅 متابعات النهارده: كل متابعة عليها النهارده — اتعمل فيها إيه على Medicolize */
 function planFuToday(){
   var D=ALERTS_DATA; if(!D) return '';
@@ -14372,6 +14372,14 @@ function planRender(){
           '<div style="font-size:.56rem;color:var(--mute);padding:0 2px 6px">الترتيب: بتوع امبارح الأول، وبعدين اللي قبله، وبتوع النهارده في الآخر · الرقم = لسه ما اترجعلوش</div>';
         var fk3=function(t){ return !PLAN_MC_F||dOf(t)===PLAN_MC_F; };
         open=open.filter(fk3); done=done.filter(fk3); snz=snz.filter(fk3);
+        // 📋 اتقفلت إزاي: كل طريقة وعددها — دوسة تفتح أساميها
+        var MH=[['we','📤 رجعناله واتكلمنا','var(--g)'],['he','📥 هو اتصل تاني واتكلمنا','var(--g)'],['bk','📅 اتحجزله ميعاد','var(--g)'],['came','🏥 جه العيادة','var(--g)'],['wa','💬 واتساب (✋ يدوي)','#a78bfa'],['t3','📞 3 محاولات النهارده — بترجع بكره','var(--am)'],['nr','🔒 مش بيرد (يومين)','var(--am)'],['ref','🚫 رفض','#f97316'],['oth','✅ تاني','var(--mute)']];
+        var mh=function(t){ var st=PLAN_ST[t.key]||{}, y=String(t.sys||''); if(st.s==='ref') return 'ref'; if(st.wa) return 'wa'; if(/اتحجزله/.test(y)) return 'bk'; if(/جه العيادة/.test(y)) return 'came'; if(/رجعناله/.test(y)) return 'we'; if(/اتصل تاني/.test(y)) return 'he'; if(/مش بيرد/.test(y)) return 'nr'; if(/محاولات/.test(y)) return 't3'; return 'oth'; };
+        var mhC={}; done.forEach(function(t){ var k=mh(t); mhC[k]=(mhC[k]||0)+1; });
+        if(PLAN_MC_H&&!mhC[PLAN_MC_H]) PLAN_MC_H='';
+        if(done.length) cfBar+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:0 2px 8px"><span style="font-size:.58rem;color:var(--mute)">✅ اتقفلت إزاي ('+done.length+'):</span>'+
+          MH.filter(function(m){ return mhC[m[0]]; }).map(function(m){ var on=PLAN_MC_H===m[0]; return '<span onclick="PLAN_MC_H=PLAN_MC_H===\''+m[0]+'\'?\'\':\''+m[0]+'\';PLAN_OPEN_DONE[\''+gk+'\']=!!PLAN_MC_H||PLAN_OPEN_DONE[\''+gk+'\'];planRender()" style="cursor:pointer;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:8px;color:'+m[2]+';border:1px solid '+(on?m[2]:'var(--brd)')+';background:'+(on?'rgba(255,255,255,.07)':'transparent')+'">'+m[1]+' <b>'+mhC[m[0]]+'</b></span>'; }).join('')+'</div>';
+        if(PLAN_MC_H) done=done.filter(function(t){ return mh(t)===PLAN_MC_H; });
         open.sort(function(a,b){ var A1=rk(dOf(a)), B1=rk(dOf(b)); return A1===B1?String((b.time||'')).localeCompare(String(a.time||'')):(B1<A1?-1:1); });
       }
       if(g==='conf'){   // فلتر: أكّد ضروري / تأكيد عادي

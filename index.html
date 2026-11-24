@@ -12371,7 +12371,7 @@ function sumRender0(){
   var F=SUM_FROM||today, TO=SUM_TO||F, isT=(F===today&&TO===today), inR=function(d){ return d&&d>=F&&d<=TO; };
   var perLbl=isT?'النهارده':(F===TO?alFmtDay(F):alFmtDay(F)+' → '+alFmtDay(TO));
   var T=null; try{ T=planTasks(true); }catch(e){}
-  var all=T?[].concat(T.mgr,T.morning,T.rec,T.office,T.evening):[];
+  var all=T?[].concat(T.mgr,T.morning,T.rec,T.office,T.evening).filter(function(t){ return !t.br||inb(t.br); }):[];   // مهام الفرع المختار بس
   var grp=function(g){ return all.filter(function(t){ return (t.grp||[]).indexOf(g)>=0; }); };
   var dn=function(L){ return L.filter(function(t){ return planState(t)==='done'; }); };
   var ptRow=function(name,pid,extra){ return '<div style="padding:3px 0;border-top:1px solid var(--brd);font-size:.64rem">'+planPtLink(name||'',pid||'')+(extra?' <span style="color:var(--mute)">'+extra+'</span>':'')+'</div>'; };
@@ -12428,7 +12428,7 @@ function sumRender0(){
   var cameR=[]; if(!isT&&typeof AUD_DATA!=='undefined'&&AUD_DATA){ var sc0={}; (AUD_DATA.appts||[]).forEach(function(r){ if(inR(r.d)&&inb(r.b)&&!/follow/i.test(r.dr||'')&&!sc0[r.p+'|'+r.d]){ sc0[r.p+'|'+r.d]=1; cameR.push(r); } }); }
   var NA='<div style="font-size:.6rem;color:var(--mute)">متاح للنهارده بس</div>';
   var live=all.filter(function(t){ return planState(t)!=='snz'; }), liveD=dn(live).length;
-  var late=(typeof PLAN_LATE!=='undefined'&&PLAN_LATE)||[];
+  var late=((typeof PLAN_LATE!=='undefined'&&PLAN_LATE)||[]).filter(function(x){ return inb(x.branch||alBranchOf(x.doctor,x.branch)); });
   var DV=(D.dokki_visit||{}), dvI=(DV.items||[]), dvB=dvI.filter(function(x){ return x.amg; });
   // الكارت
   var card=function(id,icon,title,big,sub,rows,col){ var op=!!SUM_OPEN[id];

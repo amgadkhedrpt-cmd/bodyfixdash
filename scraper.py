@@ -731,6 +731,7 @@ async def sync_invoices(page, cookie_str, extra_headers):
                 cur.update({"p": (r.get("patient") or {}).get("id") or "", "d": str(r.get("createdAt") or "")[:10],
                             "a": str((r.get("createAppointment") or {}).get("start") or ""),
                             "r": ((r.get("referralSource") or {}).get("name") or "").strip(),
+                            "b": b["name"],   # فرع الفاتورة
                             "big": 1 if float(r.get("total") or 0) >= PKG_MIN_TOTAL else 0})
                 inv[iid] = cur
             if len(rows) < 500:

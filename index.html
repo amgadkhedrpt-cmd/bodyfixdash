@@ -13404,9 +13404,17 @@ function planTasks(useAll){
     var seenF={};
     (D.finished_packages||[]).forEach(function(x){ seenF[x.pid]=1; fuinAdd(x,'📦 خلّص باقته وما جددش','خلّص '+(x.size||'')+' جلسة · آخر جلسة '+alFmtDay(x.last_session)+' مع '+alEsc(doc(x.doctor))+' (من '+x.days_since+' يوم)'+(x.eval==='done'?' · اتعمله '+alEsc(x.eval_type||'تقييم'):'')); });
     (D.dropped||[]).forEach(function(x){ if(seenF[x.pid]) return; fuinAdd(x,'🚶 انقطع','آخر حضور '+alFmtDay(x.last_attended)+' مع '+alEsc(doc(x.doctor))+' (من '+x.days_since+' يوم) · حضر '+(x.pt_total||'')+' جلسة'); });
-    var FCAP=20, cnt={};
+    var FCAP=20, cnt={}, AMG={}; (D.amgad_eval||[]).forEach(function(z){ if(z&&z.pid) AMG[z.pid]=1; });
     FQ.filter(function(q){ return q.d; }).forEach(function(q){ cnt[q.br]=(cnt[q.br]||0)+1; add('morning',q.t); });
-    FQ.filter(function(q){ return !q.d; }).sort(function(a,b){ return a.n-b.n; }).forEach(function(q){ if((cnt[q.br]||0)>=FCAP) return; cnt[q.br]=(cnt[q.br]||0)+1; add('morning',q.t); });
+    /* الترتيب: (1) المتأخرين (عدّى 14 يوم أو أكتر من آخر جلسة لحد 45) — كلهم يظهروا من غير حد، الأقدم الأول (قبل ما يفوتهم)
+                (2) الباقي (أحدث من 14 يوم / أقدم من 45) — لحد 20 في اليوم لكل فرع، الأحدث الأول */
+    var urg=function(q){ return q.n>=14&&q.n<=45; };
+    FQ.filter(function(q){ return !q.d&&urg(q); }).sort(function(a,b){ return b.n-a.n; }).forEach(function(q){ cnt[q.br]=(cnt[q.br]||0)+1;
+      q.t.kind='⏰ متأخر — '+q.t.kind; q.t.lines=q.t.lines.concat(['<b style="color:var(--r)">عدّى '+q.n+' يوم من آخر جلسة ولسه مش داخل المتابعة — كلّميه النهارده: ردّ → احجزيله «متابعه» في اليوم اللي يقوله (أو جلسة) · ما ردش → احجزيله «متابعه» بعد يومين</b>']);
+      if(AMG[q.t.pid]) q.t.lines.push('<b style="color:#a78bfa">📋 محتاج تقييم مع د. أمجد — احجزيله معاه '+(q.br==='FIX ZONE'?'في زيارته الجاية للدقي':'في أقرب يوم ليه في الهرم')+'</b>');
+      add('morning',q.t); });
+    FQ.filter(function(q){ return !q.d&&!urg(q); }).sort(function(a,b){ return a.n-b.n; }).forEach(function(q){ if((cnt[q.br]||0)>=FCAP) return; cnt[q.br]=(cnt[q.br]||0)+1;
+      if(AMG[q.t.pid]) q.t.lines.push('<b style="color:#a78bfa">📋 محتاج تقييم مع د. أمجد</b>'); add('morning',q.t); });
   }catch(e){ console.log('fuin',e); }
   // 🧾 خدمة اتعملت من غير فاتورة → داليا تعمل الفاتورة · بتتقفل لوحدها لما الفاتورة تتعمل على Medicolize (أو 🚫 رفض بسبب)
   (D.noinv||[]).forEach(function(x){ if(act.indexOf(x.b)<0) return; if(x.sys&&String(x.fixed||'').slice(0,10)<today) return;   // اتعملت فاتورتها يوم فات — مش مهمة النهارده

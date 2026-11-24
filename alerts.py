@@ -740,7 +740,7 @@ def build_alerts(appointments, now=None, packages=None):
                                     # تمت: (1) المريض حجز ميعاد بعد المتابعة، أو (2) ملحوظة باللي حصل (أو اتصالين بوقتهم) + الخطوة الجاية محجوزة
                                     #       (متابعة تانية / منقطع نهائي) — «هيتوقف شوية» مش عذر، لازم يتحجز ميعاد نتابعه فيه
                                     #       ما ردش / مش عارفين نوصله → المتابعة الجاية لازم تبقى خلال يومين (بعد بكره، ولو جمعة اليوم اللي بعده)
-                                    "done": bool(nb) or ((a["status"] in ATTENDED and bool(note.strip()) or len(times) >= 2) and bool(nf) and (not unreach_ or fu_ok_date) and not seq_)})
+                                    "done": bool(nb) or ((a["status"] in ATTENDED and bool(note.strip()) or len(times) >= 2) and (bool(nf) or exc_) and (not unreach_ or fu_ok_date or exc_) and not seq_)})   # سفر / مش عايز نكلمه = تتقفل من غير خطوة جاية
             if verdict in ("ok", "callback_ok"):
                 continue
             rec = base(a, {"date": a["start"].isoformat(), "kind": _fu_kind(a["type"]), "step": step(a), "type": a["type"],

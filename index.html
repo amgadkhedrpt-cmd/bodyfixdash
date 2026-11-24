@@ -3846,14 +3846,14 @@ function audUnpaidRender(){
 }
 function audAutoLoad(force){
   if(AUD_LOADING||(AUD_DATA&&!force)) return;
-  if(!AUD_DATA&&!audAutoLoad._c){ audAutoLoad._c=1; alCacheGet('audit',function(d){ if(d&&!AUD_DATA){ AUD_DATA=d; try{ if(document.getElementById('planBox')) planRender(); }catch(e){} } }); }
+  if(!AUD_DATA&&!audAutoLoad._c){ audAutoLoad._c=1; alCacheGet('audit',function(d){ if(d&&!AUD_DATA){ AUD_DATA=d; try{ if(document.getElementById('planBox')) planRender(); }catch(e){} try{ if(document.getElementById('sumBox')) sumRender(); }catch(e){} } }); }
   AUD_LOADING=true;
   if(!audAutoLoad._m){ audAutoLoad._m=1; audMapLoad(function(){ audMapRender(); if(AUD_DATA) audAutoRun(); }); audMapRender(); }
   var bases=(typeof MED_URLS!=='undefined'?MED_URLS:[]).map(function(u){ return u.summary.replace(/summary\.json$/,'data/audit.json'); });
   (function tryAt(i){
     if(i>=bases.length){ AUD_LOADING=false; document.getElementById('audAutoInfo').textContent='⚠️ لسه مفيش بيانات مطابقة — هتظهر بعد أول مزامنة.'; return; }
     fetch(bases[i]+'?t='+Date.now()).then(function(r){ if(!r.ok) throw 0; return r.json(); })
-      .then(function(d){ AUD_LOADING=false; AUD_DATA=d; alCachePut('audit',d); audAutoInit(); try{ if(document.getElementById('planBox')) planRender(); }catch(e){} })
+      .then(function(d){ AUD_LOADING=false; AUD_DATA=d; alCachePut('audit',d); audAutoInit(); try{ if(document.getElementById('planBox')) planRender(); }catch(e){} try{ if(document.getElementById('sumBox')) sumRender(); }catch(e){} })
       .catch(function(){ tryAt(i+1); });
   })(0);
 }
@@ -12402,28 +12402,35 @@ function sumRender0(){
   var taskRows=function(L){ return L.map(function(t){ var st=planState(t); return ptRow(t.name,t.pid||planPidOfKey(t.key),(st==='done'?'✅':'⬜')+' '+alEsc(planOwner(t,(t.grp||[])[0])||'')+(t.time?' · '+alEsc(planT(t.time)):'')); }).join(''); };
   // مواعيد النهارده (من غير Follow up) — من summary.json: لو لسه ما اتحمّلش (بيستنى شيت الدكاترة) نحمّله ونرسم تاني
   var medOk=typeof MED_SUMMARY!=='undefined'&&MED_SUMMARY&&MED_SUMMARY.today_date===today;
+  if((typeof AUD_DATA==='undefined'||!AUD_DATA)&&typeof audAutoLoad==='function'){ try{ audAutoLoad(); }catch(e){} }   // سجل المواعيد المكتملة (للفترات) — بيرسم تاني لما يوصل
   if(!medOk&&typeof medLoad==='function'&&!sumRender._ml){ sumRender._ml=1; try{ medLoad(!!(typeof MED_SUMMARY!=='undefined'&&MED_SUMMARY), function(){ sumRender._ml=0; if(document.getElementById('sumBox')) sumRender(); }); }catch(e){ sumRender._ml=0; } setTimeout(function(){ sumRender._ml=0; },20000); }
   var TA=((typeof MED_SUMMARY!=='undefined'&&MED_SUMMARY&&MED_SUMMARY.today_date===today&&MED_SUMMARY.today_appointments)||[]).filter(function(a){ return inb(a.branch)&&!/follow up/i.test(a.doctor||''); });
-  var byPt={}; TA.forEach(function(a){ var k=a.patient||''; (byPt[k]=byPt[k]||[]).push(a); });
+  var byPt={}; TA.forEach(function(a){ if(/note/i.test(a.status||'')) return; var k=a.patient||''; (byPt[k]=byPt[k]||[]).push(a); });   // «Note» مش ميعاد
   var came=[], booked=[], ns=[], sud=[];
   Object.keys(byPt).forEach(function(n){ var L=byPt[n]; if(L.some(function(a){ return /checked|progress|completed/i.test(a.status||''); })) came.push(n);
     if(L.some(function(a){ return !/cancel|waiting/i.test(a.status||''); })) booked.push(n);
     if(L.some(function(a){ return /no ?show/i.test(a.status||''); })) ns.push(n);
     if(L.some(function(a){ return /الغاء مفاجئ/.test(a.type||''); })) sud.push(n); });
-  // ما جاش = ميعاده عدّى (بربع ساعة سماح) ولسه ما عملش Check In · اللي ميعاده لسه جاي النهارده = «لسه جاي» مش غياب
-  var nowMs=Date.now(), passed=function(n){ return byPt[n].some(function(a){ return !/cancel|waiting/i.test(a.status||'')&&Date.parse(a.start)+15*60000<nowMs; }); };
-  var absent=booked.filter(function(n){ return came.indexOf(n)<0&&passed(n); }), coming=booked.filter(function(n){ return came.indexOf(n)<0&&!passed(n); });
+  // ما جاش = Cancelled أو No Show بس (ومالوش ميعاد تاني النهارده لسه شغال) · لسه = محجوز ولسه ما عملش Check In (حتى لو ميعاده عدّى)
+  var live=function(a){ return !/cancel|waiting|no ?show|checked|progress|completed/i.test(a.status||''); };
+  var absent=Object.keys(byPt).filter(function(n){ var L=byPt[n]; return came.indexOf(n)<0&&L.some(function(a){ return /cancel|no ?show/i.test(a.status||''); })&&!L.some(live); }),
+      coming=Object.keys(byPt).filter(function(n){ return came.indexOf(n)<0&&byPt[n].some(live); });
   var dueN=came.length+absent.length;
   // كشوفات جديدة: اتحجز / اتثبت
   var KP={}; (D.kashf_pending||[]).forEach(function(x){ KP[x.name]=x; });
   var fidx=(typeof alFixedIndex==='function')?alFixedIndex():null; if(fidx&&!fidx.length){ fidx=null; if(typeof fetchDRFromSheet==='function'&&!sumRender._dr){ sumRender._dr=1; try{ fetchDRFromSheet('haram',function(){ sumRender(); }); fetchDRFromSheet('dokki',function(){ sumRender(); }); }catch(e){} } }   // شيت الدكاترة لسه ما اتحملش
-  var ex=TA.filter(function(a){ return /كشف/.test(a.type||'')&&/checked|progress|completed/i.test(a.status||''); }).map(function(a){ var k=KP[a.patient]||{};
-    var bk=!!(k.next_pt||k.sessions_after||(k.appts||[]).some(function(x){ return x.start>a.start&&!/cancel|no ?show/i.test(x.status||'')&&!/كشف/.test(x.type||''); }));
-    var fx=fidx&&typeof alFindFixed==='function'?alFindFixed(a.patient,fidx).length>0:null; return {name:a.patient, pid:k.pid||'', bk:bk, fx:fx, doc:a.doctor}; });
-  if(!isT&&typeof AUD_DATA!=='undefined'&&AUD_DATA){ var later={}; [].concat(AUD_DATA.appts||[],AUD_DATA.steps||[]).forEach(function(r){ if(r.pid&&(!r.st||/complet/i.test(r.st))&&!/كشف/.test(r.s||'')) (later[r.pid]=later[r.pid]||[]).push(r.d); });
-    var seenX={}; ex=(AUD_DATA.appts||[]).filter(function(r){ return inR(r.d)&&inb(r.b)&&/كشف/.test(r.s||''); }).filter(function(r){ if(seenX[r.pid]) return false; seenX[r.pid]=1; return true; }).map(function(r){ var k=KP[r.p]||{};
-      var bk=(later[r.pid]||[]).some(function(d){ return d>r.d; })||!!(k.next_pt||k.sessions_after);
-      return {name:r.p, pid:r.pid, bk:bk, fx:fidx&&typeof alFindFixed==='function'?alFindFixed(r.p,fidx).length>0:null, doc:r.dr, d:r.d}; }); }
+  /* 🆕 كشوفات: كشف علاج طبيعي بس (التغذية سطر لوحدها) · أي كشف (جديد أو قديم) · «اتحجز» = جلسة (مش كشف) خلال أسبوع من الكشف */
+  var isPT=function(t){ return /كشف/.test(t||'')&&!/تغذ/.test(t||''); }, isNut=function(t){ return /كشف/.test(t||'')&&/تغذ/.test(t||''); };
+  var add7=function(d){ var x=new Date(String(d).slice(0,10)+'T12:00:00'); x.setDate(x.getDate()+7); return x.toISOString().slice(0,10); };
+  var later={}; if(typeof AUD_DATA!=='undefined'&&AUD_DATA) [].concat(AUD_DATA.appts||[],AUD_DATA.steps||[]).forEach(function(r){ if(r.pid&&(!r.st||/complet/i.test(r.st))&&!/كشف|تقييم|تقيم|متابع|تغذ/.test(r.s||'')) (later[r.pid]=later[r.pid]||[]).push(r.d); });   // جلسات بس
+  var bk7=function(pid,name,d0){ d0=String(d0).slice(0,10); var e=add7(d0), k=KP[name]||{};
+    return (later[pid]||[]).some(function(d){ return d>d0&&d<=e; })||(k.appts||[]).some(function(x){ var d=String(x.start||'').slice(0,10); return d>d0&&d<=e&&!/cancel|no ?show/i.test(x.status||'')&&!/كشف|تقييم|تقيم|متابع|تغذ/.test(x.type||''); }); };
+  var exNut=0;
+  var ex=TA.filter(function(a){ if(isNut(a.type)&&/checked|progress|completed/i.test(a.status||'')) exNut++; return isPT(a.type)&&/checked|progress|completed/i.test(a.status||''); }).map(function(a){ var k=KP[a.patient]||{};
+    var fx=fidx&&typeof alFindFixed==='function'?alFindFixed(a.patient,fidx).length>0:null; return {name:a.patient, pid:k.pid||a.pid||'', bk:bk7(k.pid||a.pid||'',a.patient,a.start), fx:fx, doc:a.doctor}; });
+  if(!isT&&typeof AUD_DATA!=='undefined'&&AUD_DATA){ exNut=0;
+    var seenX={}; ex=(AUD_DATA.appts||[]).filter(function(r){ if(inR(r.d)&&inb(r.b)&&isNut(r.s)) exNut++; return inR(r.d)&&inb(r.b)&&isPT(r.s); }).filter(function(r){ if(seenX[r.pid+r.d]) return false; seenX[r.pid+r.d]=1; return true; }).map(function(r){
+      return {name:r.p, pid:r.pid, bk:bk7(r.pid,r.p,r.d), fx:fidx&&typeof alFindFixed==='function'?alFindFixed(r.p,fidx).length>0:null, doc:r.dr, d:r.d}; }); }
   var exB=ex.filter(function(x){ return x.bk; }).length, exF=ex.filter(function(x){ return x.fx; }).length, pct=function(a,b){ return b?Math.round(a*100/b)+'%':'—'; };
   // باقات جديدة النهارده (من الفواتير)
   var PI=((SUM_PKG||{}).inv)||{}, nameOf={}; (D.pt_index||[]).forEach(function(r){ if(r[15]) nameOf[r[15]]=r[0]; });
@@ -12471,11 +12478,11 @@ function sumRender0(){
     '<span style="width:100%;display:flex;gap:6px;align-items:center;justify-content:flex-end"><span style="font-size:.6rem;color:var(--mute)">الفرع:</span>'+[['','حسب اللي فوق'],['BODYFIX Center','الهرم'],['FIX ZONE','الدقي'],['all','الفرعين']].map(function(o){ var on=SUM_BR===o[0]; return '<button onclick="sumSetBr(\''+o[0]+'\')" style="background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border:1px solid '+(on?'#2563eb':'var(--brd)')+';border-radius:7px;padding:3px 9px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">'+o[1]+'</button>'; }).join('')+'</span></div>'+
     '<div style="font-size:.58rem;color:var(--mute);margin-bottom:6px">دوسي على أي كارت تظهر الأسامي'+(isT?'':' · الكروت اللي مكتوب عليها «متاح للنهارده بس» محتاجة تسجيل يومي — بتتملي من بكره')+' · الفلوس قريب (بكلمة سر التحليلات)</div>';
   h+=sec('🧑‍🤝‍🧑 المرضى والاستمرارية',
-    (isT?card('came','✅','جه / ميعادهم عدّى',medOk?came.length+' / '+dueN:'⏳','ما جاش '+absent.length+' ('+pct(absent.length,dueN)+') · ⏳ لسه جايين '+coming.length+' · محجوز النهارده '+booked.length,
-      '<div style="font-size:.6rem;font-weight:800;margin-top:4px;color:var(--r)">ما جوش — ميعادهم عدّى ('+absent.length+')</div>'+names(absent)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px">⏳ لسه ميعادهم جاي النهارده ('+coming.length+')</div>'+names(coming)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px;color:var(--g)">جم ('+came.length+')</div>'+names(came),absent.length/(dueN||1)>.2?'var(--r)':'')
+    (isT?card('came','✅','جه / ما جاش',medOk?came.length+' / '+dueN:'⏳','ما جاش (Cancelled / No Show) '+absent.length+' ('+pct(absent.length,dueN)+') · ⏳ لسه '+coming.length,
+      '<div style="font-size:.6rem;font-weight:800;margin-top:4px;color:var(--r)">ما جوش — Cancelled / No Show ('+absent.length+')</div>'+names(absent)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px">⏳ لسه — محجوزين وما عملوش Check In ('+coming.length+')</div>'+names(coming)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px;color:var(--g)">جم ('+came.length+')</div>'+names(came),absent.length/(dueN||1)>.2?'var(--r)':'')
      :card('came','✅','زيارات اتعملت (Completed)',cameR.length,'مريض × يوم',cameR.map(function(r){ return ptRow(r.p,r.pid,'— '+alEsc(alFmtDay(r.d))+' · '+alEsc(r.dr||'')); }).join('')))+
-    card('exams','🆕','كشوفات جديدة',(isT&&!medOk)?'⏳':ex.length,(isT&&medOk?'اتكشفوا النهارده · لسه جايين '+TA.filter(function(a){ return /كشف/.test(a.type||'')&&!/checked|progress|completed|cancel|no ?show|waiting|note/i.test(a.status||''); }).length+' · ':'')+'اتحجز '+pct(exB,ex.length)+' · اتثبت '+(fidx?pct(exF,ex.length):'…'),
-      ex.map(function(x){ return ptRow(x.name,x.pid,'— '+(x.d&&!isT?alEsc(alFmtDay(x.d))+' · ':'')+alEsc(x.doc||'')+' · '+(x.bk?'✅ اتحجز':'❌ ما اتحجزش')+' · '+(x.fx==null?'…':x.fx?'✅ اتثبت':'❌ ما اتثبتش')); }).join(''))+
+    card('exams','🆕','كشوفات جديدة',(isT&&!medOk)?'⏳':ex.length,'كشف علاج طبيعي'+(isT&&medOk?' · لسه جايين النهارده '+TA.filter(function(a){ return isPT(a.type)&&!/checked|progress|completed|cancel|no ?show|waiting|note/i.test(a.status||''); }).length:'')+' · اتحجزله جلسة خلال أسبوع '+pct(exB,ex.length)+' · اتثبت '+(fidx?pct(exF,ex.length):'…')+(exNut?' · 🥗 كشف تغذية '+exNut:''),
+      ex.map(function(x){ return ptRow(x.name,x.pid,'— '+(x.d&&!isT?alEsc(alFmtDay(x.d))+' · ':'')+alEsc(x.doc||'')+' · '+(x.bk?'✅ اتحجزله جلسة خلال أسبوع':'❌ ما اتحجزلوش جلسة خلال أسبوع')+' · '+(x.fx==null?'…':x.fx?'✅ اتثبت':'❌ ما اتثبتش')); }).join(''))+
     sumRenewCards(D,isT,F,TO,today,perLbl,inb,card,ptRow,pct,dn(renew).length,renew.length,taskRows(renew),medOk?TA:null)+
     (isT?
       card('early','📉','وقفوا بدري',early.length,'أقل من 3 جلسات',early.map(function(x){ return ptRow(x.name,x.pid,'— '+alEsc(x.doctor||'')); }).join(''),early.length?'#f59e0b':'')+

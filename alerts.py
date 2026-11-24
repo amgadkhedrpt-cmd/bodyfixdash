@@ -849,7 +849,7 @@ def build_alerts(appointments, now=None, packages=None):
             end_docs = {byday[d]["doctor"] for d in last3} if last3 else None
             return [(d_, k_, n) for d_, k_ in cnt.items() if n and k_ / n >= DOC_MIN and (end_docs is None or d_ in end_docs)]
 
-        for appts in patients.values():
+        for pk_k_, appts in patients.items():
             att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() < today and _is_pt(a["type"])],
                          key=lambda a: a["start"])
             byday = {}
@@ -909,7 +909,10 @@ def build_alerts(appointments, now=None, packages=None):
                                 rnd_.isoformat() if rnd_ else "",
                                 nx_a["start"].isoformat()[:16] if nx_a else "",
                                 (sd[size - 2] if size >= 2 else sd[0]).isoformat(),
-                                1 if (pp_ and rnd_ == pp_[0]) else 0])   # [11] جدد بفاتورة باقة مدفوعة (مش بحضور)   # [10] يوم الجلسة قبل الأخيرة — التقييم «في وقته» من اليوم ده
+                                1 if (pp_ and rnd_ == pp_[0]) else 0,
+                                next((a["start"].isoformat()[:16] for a in sorted(patients_all.get(pk_k_, appts), key=lambda a: a["start"])
+                                      if "متابع" in (a["type"] or "") and "انقطاع" not in (a["type"] or "") and "تغذ" not in (a["type"] or "") and a["start"].date() > end - timedelta(days=3)
+                                      and a["start"].date() <= end + timedelta(days=45) and a["status"] not in ("canceled", "cancelled")), "")])   # [12] أول «متابعه» بعد الباقة (لـ «هيفكر»)   # [11] جدد بفاتورة باقة مدفوعة (مش بحضور)   # [10] يوم الجلسة قبل الأخيرة — التقييم «في وقته» من اليوم ده
             # 1ب) استكمال الباقة: بدأت مع الدكتور ده ووصلت لآخرها؟ (كمّل = 1 · وقف بعد جلسة 3 = ½ · وقف في أول 3 = 0) · باقة 12 وزنها ضعف الـ6
             for size, sd, approx in segs:
                 if approx or not sd:

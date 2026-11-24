@@ -690,7 +690,9 @@ def build_alerts(appointments, now=None, packages=None):
                 nf = sorted([x for x in srt if x["start"] > a["start"] and x["status"] not in ("canceled", "cancelled", "no show", "noshow")],
                             key=lambda x: x["start"])   # أي خطوة جاية محجوزة (متابعة تانية / منقطع نهائي / ميعاد)
                 # مكتوب إنه طلب نكلمه بعد فترة («نكلمه بعد فترة / بعد شهر ...») → مقبول يتحجز بعد كده · غير كده ما ردش = خلال يومين شغل
-                unreach_ = (unr or len(times) >= 2) and not reached and not cb
+                # مكتوب إنه مأجّل لفترة («مشغولين فترة» / «موقف شوية» / «بعد أسبوعين» ...) = طلب تأجيل مقبول
+                later_ok = bool(_re.search(r"فتر[هة]|شوي[هة]|مد[هة]", note)) or bool(_PERIOD_RE.search(note))
+                unreach_ = (unr or len(times) >= 2) and not reached and not cb and not later_ok
                 # بعد يومين شغل (الجمعة إجازة): سبت/اتنين/أربع أو حد/تلات/خميس — الخميس → الحد · الأربع → السبت
                 lim_, wd_ = today, 0
                 while wd_ < 2:
@@ -699,8 +701,34 @@ def build_alerts(appointments, now=None, packages=None):
                         wd_ += 1
                 fu_ok_date = bool(nf) and nf[0]["start"].date() <= lim_
                 # تأجيل المتابعة الجاية لبعد يومين شغل مقبول بس لو الفترة المطلوبة مكتوبة («بعد أسبوعين» / «الخميس» / «بعد العيد» / تاريخ ...) أو سفر / مش عايز نكلمه
-                period_ok = bool(_PERIOD_RE.search(note)) or bool(_FU_EXC_RE.search(note))
-                need_period = bool(nf) and not fu_ok_date and not nb and not period_ok
+                # ⏸ اتأجلت لفترة: المتابعة الجاية بعد أكتر من يومين شغل (المريض طلب كده) — بتتحسب اتعملت بس في مجموعة لوحدها
+                postp = bool(nf) and not fu_ok_date and not nb
+                # 🔢 ترتيب المتابعة: 3 متابعه ← 3 متابعه انقطاع (يوم بعد يوم) ← منقطع نهائي — الاستثناء: سفر / مش عايز نكلمه
+                exc_ = bool(_FU_EXC_RE.search(note))
+                k_, st_ = _fu_kind(a["type"]), step(a)
+                lbl_ = {"fu": "متابعه", "inq": "متابعه انقطاع", "final": "منقطع نهائي"}
+                seq_ = []
+                if st_ > 3:
+                    seq_.append(f"دي {lbl_.get(k_, '')} رقم {st_} (المفروض 3 بس)")
+                last_att = max([x["start"] for x in att_pt if x["start"] < a["start"]], default=None)
+                if k_ == "inq" and st_ == 1:
+                    nfu_ = sum(1 for x in fus if _fu_kind(x["type"]) == "fu" and x["start"] < a["start"] and (last_att is None or x["start"] > last_att))
+                    if nfu_ < 3 and not exc_:
+                        seq_.append(f"دخل متابعه انقطاع بعد {nfu_} متابعه بس (المفروض 3)")
+                if k_ == "inq" and st_ > 1:
+                    pv_ = [x for x in fus if _fu_kind(x["type"]) == "inq" and x["start"] < a["start"]]
+                    if pv_:
+                        d0_, d1_ = pv_[-1]["start"].date(), a["start"].date(); g_ = (d1_ - d0_).days
+                        fri_ = any((d0_ + timedelta(days=j)).weekday() == 4 for j in range(1, g_))
+                        if g_ > 2 and not (fri_ and g_ == 3) and not _CALLBACK.search(pv_[-1].get("note") or ""):
+                            seq_.append(f"متابعه انقطاع {st_} بعد {g_} أيام من اللي قبلها (المفروض يوم بعد يوم)")
+                exp_ = ("fu" if st_ < 3 else "inq") if k_ == "fu" else ("inq" if st_ < 3 else "final")
+                if nf and not nb and not exc_:
+                    nk_ = _fu_kind(nf[0]["type"])
+                    if nk_ and nk_ != exp_:
+                        seq_.append(f"الخطوة الجاية اتحجزت «{nf[0]['type']}» والمفروض «{lbl_[exp_]}»")
+                if k_ == "inq" and st_ >= 3 and not nf and not nb and not exc_:
+                    seq_.append("خلص 3 متابعه انقطاع — لازم يتحجز «منقطع نهائي»")
                 res = ("حجز: " + nb[0]["type"] + " يوم " + nb[0]["start"].strftime("%d/%m") + " " + nb[0]["start"].strftime("%H:%M")
                        + " مع " + nb[0]["doctor"] + " (" + nb[0]["status"].title() + ")") if nb else ""
                 calls_today.append({"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
@@ -708,11 +736,11 @@ def build_alerts(appointments, now=None, packages=None):
                                     "note": note[:300], "times": times, "verdict": verdict, "reached": reached or cb, "result": res,
                                     "next_fu": (nf[0]["type"] + " يوم " + nf[0]["start"].strftime("%d/%m")) if nf else "",
                                     "next_late": bool(nf) and unreach_ and not fu_ok_date,
-                                    "need_period": need_period,
+                                    "postp": postp, "seq": seq_,
                                     # تمت: (1) المريض حجز ميعاد بعد المتابعة، أو (2) ملحوظة باللي حصل (أو اتصالين بوقتهم) + الخطوة الجاية محجوزة
                                     #       (متابعة تانية / منقطع نهائي) — «هيتوقف شوية» مش عذر، لازم يتحجز ميعاد نتابعه فيه
                                     #       ما ردش / مش عارفين نوصله → المتابعة الجاية لازم تبقى خلال يومين (بعد بكره، ولو جمعة اليوم اللي بعده)
-                                    "done": bool(nb) or ((a["status"] in ATTENDED and bool(note.strip()) or len(times) >= 2) and bool(nf) and (not unreach_ or fu_ok_date) and not need_period)})
+                                    "done": bool(nb) or ((a["status"] in ATTENDED and bool(note.strip()) or len(times) >= 2) and bool(nf) and (not unreach_ or fu_ok_date) and not seq_)})
             if verdict in ("ok", "callback_ok"):
                 continue
             rec = base(a, {"date": a["start"].isoformat(), "kind": _fu_kind(a["type"]), "step": step(a), "type": a["type"],

@@ -12483,19 +12483,29 @@ function liAdd(d,n){ var x=new Date(d+'T12:00:00'); x.setDate(x.getDate()+n); re
 function liDow(d){ return LI_DK[new Date(d+'T12:00:00').getDay()]; }
 function liH(v){ var h=parseInt(v,10); if(isNaN(h)) return null; return h<12?h+12:h; }   // رقم خانة الشيت (2 = 2 م)
 function liHT(h){ return h==null?'':(h>12?h-12:h)+(h>=12?' م':' ص'); }
-function liAllDocs(){ var S={}, D=ALERTS_DATA||{}; Object.keys(((D.doc_perf||{}).docs)||{}).forEach(function(k){ S[k]=1; }); (D.pt_sched||[]).forEach(function(r){ if(r[4]) S[r[4]]=1; }); delete S['Follow up']; return Object.keys(S).filter(function(k){ return !/amgad|khedr|harfoush/i.test(k); }).sort(); }
-function liSheet(en){ var m=typeof alMatchDoc==='function'?alMatchDoc(en):null; return m?{d:m.doc, br:m.branch}:null; }
+/* الدكاترة الفعليين = اللي في شيت التثبيتات (الفرعين) · كل واحد مربوط باسمه على Medicolize (لو ليه مواعيد) */
+function liRoster(){
+  var D=ALERTS_DATA||{}, ens={}, cnt={}; Object.keys(((D.doc_perf||{}).docs)||{}).forEach(function(k){ ens[k]=1; }); (D.pt_sched||[]).forEach(function(r){ if(r[4]){ ens[r[4]]=1; cnt[r[4]]=(cnt[r[4]]||0)+1; } });
+  var R=[], lists=[[(typeof DR_HARAM_STATIC!=='undefined'?DR_HARAM_STATIC:[]),'BODYFIX Center'],[(typeof DR_DOKKI_STATIC!=='undefined'?DR_DOKKI_STATIC:[]),'FIX ZONE']];
+  lists.forEach(function(L){ (L[0]||[]).forEach(function(d){ if(!d||!d.name) return; R.push({d:d, br:L[1], name:d.name, en:'', sc:-1, ens:[]}); }); });
+  Object.keys(ens).forEach(function(en){ if(/follow up/i.test(en)) return; var m=typeof alMatchDoc==='function'?alMatchDoc(en):null; if(!m||!m.doc) return; var o=R.filter(function(x){ return x.d===m.doc; })[0]; if(!o) return;
+    var ex=typeof alNorm==='function'&&(alNorm(en)===alNorm(o.name)||alNorm((typeof alDocAr==='function'&&alDocAr(en))||'')===alNorm(o.name)), sc=(ex?1e6:0)+(cnt[en]||0);
+    o.ens.push(en); if(sc>o.sc){ o.sc=sc; o.en=en; } });
+  R.forEach(function(o){ o.key=o.en||('sheet:'+o.br+':'+o.name); });
+  return R;
+}
+function liGender(key){ if(typeof resolveDocGender!=='function') return ''; var o=liRoster().filter(function(x){ return x.key===key; })[0]; return resolveDocGender(o&&o.en?o.en:(o?o.name:key))||(o?resolveDocGender(o.name):'')||''; }
+function liAllDocs(){ return liRoster().map(function(o){ return o.key; }); }
+function liSheet(key){ var o=liRoster().filter(function(x){ return x.key===key; })[0]; return o?{d:o.d, br:o.br}:null; }
+function liLabel(key){ var o=liRoster().filter(function(x){ return x.key===key; })[0]; return o?o.name+(o.br==='FIX ZONE'?' (الدقي)':''):((typeof alDocAr==='function'&&alDocAr(key))||key); }
 function liCompute(){
   var D=ALERTS_DATA||{}, PS=D.pt_sched||[], days=liDays(LI.from,LI.to), today=D.today;
   var byPid={}; (D.pt_index||[]).forEach(function(z){ if(z[15]) byPid[z[15]]=z; });
   var nN=function(s){ return typeof alPatNorm==='function'?alPatNorm(s):String(s||'').trim(); };
   // دكاترة الشيت ← اسم Medicolize
-  var all=liAllDocs(), sh={}, own=[], cnt={}; PS.forEach(function(r){ cnt[r[4]]=(cnt[r[4]]||0)+1; });
-  // كل صف في الشيت لدكتور واحد بس من Medicolize (اللي اسمه مطابق، وإلا اللي عنده مواعيد أكتر)
-  all.forEach(function(en){ var s0=liSheet(en); if(!s0||!s0.d) return; var ex=typeof alNorm==='function'&&(alNorm(en)===alNorm(s0.d.name)||alNorm((typeof alDocAr==='function'&&alDocAr(en))||'')===alNorm(s0.d.name));
-    var o=own.filter(function(x){ return x.d===s0.d; })[0]; var sc=(ex?1e6:0)+(cnt[en]||0);
-    if(!o) own.push({d:s0.d, en:en, sc:sc}); else if(sc>o.sc){ o.en=en; o.sc=sc; } });
-  own.forEach(function(o){ sh[o.en]=liSheet(o.en); });
+  var RO=liRoster(), all=RO.map(function(o){ return o.key; }), sh={}, enK={}, kEns={};
+  RO.forEach(function(o){ sh[o.key]={d:o.d, br:o.br}; kEns[o.key]=o.ens; o.ens.forEach(function(en){ enK[en]=o.key; }); });
+  var dk=function(r){ return enK[r[4]]||r[4]; };   // الموعد ده تبع أنهي دكتور في الشيت
   var sel=LI.docs.filter(Boolean), out=[];
   days.forEach(function(d){
     var dow=liDow(d), set=['sun','tue','thu'].indexOf(dow)>=0?['sun','tue','thu']:['sat','mon','wed'];
@@ -12503,25 +12513,25 @@ function liCompute(){
     var onDay=PS.filter(function(r){ return r[3].slice(0,10)===d; }), bookedOn={}; onDay.forEach(function(r){ bookedOn[r[0]||nN(r[1])]=r; });
     // المتوقع لكل دكتور (المختارين + البدايل)
     var exp=function(en){ var M={}, put=function(k,o){ if(!M[k]) M[k]=o; else { M[k].src=M[k].src.concat(o.src.filter(function(x){ return M[k].src.indexOf(x)<0; })); if(M[k].h==null) M[k].h=o.h; if(!M[k].pid&&o.pid) M[k].pid=o.pid; } };
-      onDay.forEach(function(r){ if(r[4]===en&&r[5]!=='n') put(r[0]||nN(r[1]),{pid:r[0],name:r[1],h:+r[3].slice(11,13),src:['محجوز'],br:r[2]}); });
+      onDay.forEach(function(r){ if(dk(r)===en&&r[5]!=='n') put(r[0]||nN(r[1]),{pid:r[0],name:r[1],h:+r[3].slice(11,13),src:['محجوز'],br:r[2]}); });
       var s0=sh[en]; if(s0&&s0.d&&s0.d.days&&s0.d.days[dow]) Object.keys(s0.d.slots||{}).forEach(function(num){ var sl=s0.d.slots[num]; if(!sl||!isR(sl.patient)||sl.patient==='—') return;
         var k=nN(sl.patient), hit=null; Object.keys(byPid).some(function(p){ var z=byPid[p]; if(nN(z[0])===k||(k.split(' ').length>=2&&(nN(z[0])+' ').indexOf(k+' ')===0)){ hit=p; return true; } return false; });
-        var key=hit||k; if(bookedOn[key]&&bookedOn[key][4]!==en) return;   // محجوز مع دكتور تاني اليوم ده
+        var key=hit||k; if(bookedOn[key]&&dk(bookedOn[key])!==en) return;   // محجوز مع دكتور تاني اليوم ده
         put(key,{pid:hit||'',name:hit?byPid[hit][0]:sl.patient,h:liH(num),src:['مثبّت'],br:s0.br}); });
-      PS.forEach(function(r){ if(r[4]!==en||prev.indexOf(r[3].slice(0,10))<0||r[5]==='n') return; var key=r[0]||nN(r[1]);
-        if(bookedOn[key]&&bookedOn[key][4]!==en) return; put(key,{pid:r[0],name:r[1],h:+r[3].slice(11,13),src:['جه/محجوز '+alFmtDay(r[3].slice(0,10)).split(' ')[0]],br:r[2]}); });
+      PS.forEach(function(r){ if(dk(r)!==en||prev.indexOf(r[3].slice(0,10))<0||r[5]==='n') return; var key=r[0]||nN(r[1]);
+        if(bookedOn[key]&&dk(bookedOn[key])!==en) return; put(key,{pid:r[0],name:r[1],h:+r[3].slice(11,13),src:['جه/محجوز '+alFmtDay(r[3].slice(0,10)).split(' ')[0]],br:r[2]}); });
       return Object.keys(M).map(function(k){ return M[k]; }); };
-    var avg=function(en){ var DY=(((D.analysis||{}).daily)||{})[en]||{}, v=[]; for(var w=1;w<=6&&v.length<4;w++){ var od=liAdd(d,-7*w); if(DY[od]) v.push(DY[od][0]); } return v.length?Math.round(v.reduce(function(a,b){ return a+b; },0)/v.length):null; };
+    var avg=function(en){ var AD=((D.analysis||{}).daily)||{}, DY={}; (kEns[en]||[en]).forEach(function(e){ var x=AD[e]||{}; Object.keys(x).forEach(function(k){ DY[k]=DY[k]||[0]; DY[k]=[DY[k][0]+x[k][0]]; }); }); var v=[]; for(var w=1;w<=6&&v.length<4;w++){ var od=liAdd(d,-7*w); if(DY[od]) v.push(DY[od][0]); } return v.length?Math.round(v.reduce(function(a,b){ return a+b; },0)/v.length):null; };
     var aff=[], perDoc=[];
     sel.forEach(function(en){ var E=exp(en); perDoc.push({en:en, n:E.length, avg:avg(en), bk:E.filter(function(x){ return x.src.indexOf('محجوز')>=0; }).length, fx:E.filter(function(x){ return x.src.indexOf('مثبّت')>=0; }).length}); E.forEach(function(x){ x.from=en; aff.push(x); }); });
     // البدايل: نفس الفرع + نفس النوع + شيفته شغال اليوم ده
     var free={}; all.forEach(function(en){ if(sel.indexOf(en)>=0) return; var s0=sh[en]; if(!s0||!s0.d||!s0.d.days||!s0.d.days[dow]) return;
       var busy={}; exp(en).forEach(function(x){ if(x.h!=null) busy[x.h]=1; });
       var hrs=Object.keys(s0.d.slots||{}).map(liH).filter(function(h){ return h!=null&&!busy[h]; });
-      free[en]={br:s0.br, g:typeof resolveDocGender==='function'?resolveDocGender(en):'', h:hrs}; });
+      free[en]={br:s0.br, g:liGender(en), h:hrs}; });
     aff.sort(function(a,b){ return (a.h||0)-(b.h||0); });
     var covered=0, near=0, none=0;
-    var cands=function(x){ var g=typeof resolveDocGender==='function'?resolveDocGender(x.from):'', br=x.br||(sh[x.from]||{}).br;
+    var cands=function(x){ var g=liGender(x.from), br=x.br||(sh[x.from]||{}).br;
       return Object.keys(free).filter(function(en){ var f=free[en]; return (!br||f.br===br)&&(!g||!f.g||f.g===g); }); };
     var pick=function(C,h){ var best=null; C.forEach(function(en){ if(free[en].h.indexOf(h)>=0&&(!best||free[en].h.length>free[best].h.length)) best=en; }); return best; };
     var take=function(x,en,h,nr){ x.to=en; x.th=h; if(nr){ x.near=1; near++; } else covered++; free[en].h=free[en].h.filter(function(y){ return y!==h; }); };
@@ -12547,9 +12557,10 @@ function liSet(k,v){ LI[k]=v; if(k==='from'&&LI.to<v) LI.to=v; if(k==='to'&&LI.f
 function liDoc(en,on){ var i=LI.docs.indexOf(en); if(on&&i<0) LI.docs.push(en); if(!on&&i>=0) LI.docs.splice(i,1); liRender(); }
 function liRender(){
   var ov=document.getElementById('li-ov'); if(!ov) return; var D=ALERTS_DATA||{};
-  var dn=function(en){ return alEsc((typeof alDocAr==='function'&&alDocAr(en))||en); };
+  var dn=function(k){ return alEsc(liLabel(k)); };
   var chips=LI.docs.map(function(en){ return '<span onclick="liDoc(\''+en.replace(/'/g,"\\'")+'\',0)" style="cursor:pointer;background:#2563eb;color:#fff;border-radius:999px;padding:3px 10px;font-size:.66rem">'+dn(en)+' ✕</span>'; }).join(' ');
-  var opts='<option value="">+ اختار دكتور</option>'+liAllDocs().filter(function(en){ return LI.docs.indexOf(en)<0; }).map(function(en){ return '<option value="'+alEsc(en)+'">'+dn(en)+'</option>'; }).join('');
+  var RO=liRoster(); RO.sort(function(a,b){ return (a.br===b.br?0:a.br==='FIX ZONE'?1:-1)||String(a.name).localeCompare(String(b.name),'ar'); });
+  var opts='<option value="">'+(RO.length?'+ اختار دكتور':'⏳ بيحمّل شيت التثبيتات…')+'</option>'+['BODYFIX Center','FIX ZONE'].map(function(b){ var L=RO.filter(function(o){ return o.br===b&&LI.docs.indexOf(o.key)<0; }); return L.length?'<optgroup label="'+(b==='FIX ZONE'?'الدقي':'الهرم')+'">'+L.map(function(o){ return '<option value="'+alEsc(o.key)+'">'+alEsc(o.name)+'</option>'; }).join('')+'</optgroup>':''; }).join('');
   var inp=function(k){ return '<input type="date" value="'+LI[k]+'" onchange="liSet(\''+k+'\',this.value)" style="background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 6px;font-family:Cairo,sans-serif;font-size:.66rem">'; };
   var h='<div style="max-width:760px;margin:0 auto;background:var(--card);border:1px solid var(--brd);border-radius:14px;padding:12px 14px;text-align:right">'+
     '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:.9rem">🏖️ تأثير الغياب</b><span style="flex:1"></span><button onclick="document.getElementById(\'li-ov\').remove()" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:2px 10px;cursor:pointer">✕</button></div>'+
@@ -12577,8 +12588,8 @@ function liRender(){
 /* من طلب إجازة: نلاقي الدكتور بالاسم */
 function liFromReq(idx){ var r=(typeof REQ_DATA!=='undefined'&&REQ_DATA[idx])||{}, nm=String(typeof reqGetName==='function'?reqGetName(r):'');
   var f=reqGetISODate(r['من يوم']||r['تاريخ الاجازه المطلوبه']), t=reqGetISODate(r['الي يوم']||r['من يوم']||r['تاريخ الاجازه المطلوبه'])||f;
-  var n=typeof alPatNorm==='function'?alPatNorm(nm):nm, hit=liAllDocs().filter(function(en){ var a=alPatNorm((typeof alDocAr==='function'&&alDocAr(en))||en), b=alPatNorm(en);
-    var p=n.split(' ').filter(function(w){ return w.length>2; }); return a===n||b===n||(p.length&&p.slice(0,2).every(function(w){ return (a+' '+b).indexOf(w)>=0; })); });
+  var n=typeof alPatNorm==='function'?alPatNorm(nm):nm, p=n.split(' ').filter(function(w){ return w.length>2; }), hit=liRoster().filter(function(o){ var a=alPatNorm(o.name)+' '+alPatNorm(o.en||'')+' '+alPatNorm((o.en&&typeof alDocAr==='function'&&alDocAr(o.en))||'');
+    return a.indexOf(n)>=0||(p.length&&p.slice(0,2).every(function(w){ return a.indexOf(w)>=0; })); }).map(function(o){ return o.key; });
   liOpen(hit.slice(0,1),f||'',t||''); }
 function sumTog(id){ SUM_OPEN[id]=!SUM_OPEN[id]; sumRender(); }
 /* دوسة على رقم في جدول الدكاترة → يفتح بيانات المؤشر ده بس · دوسة تانية على نفس الرقم تقفل */

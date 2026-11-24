@@ -305,9 +305,11 @@ def _noinv(today):
         pass
     return out
 
+DAY_CUTOFF_H = 2   # قبل الساعة دي بعد نص الليل = لسه نفس يوم الشغل
+
 def build_alerts(appointments, now=None, packages=None):
     now = (now or datetime.now(timezone.utc)).astimezone(CAIRO)
-    today = now.date()
+    today = (now - timedelta(hours=DAY_CUTOFF_H)).date()   # 🌙 يوم الشغل بيخلص الساعة 2 الفجر (السكرتارية بتشتغل لحد 1 ص)
     last_week = today - timedelta(days=7)
 
     patients = defaultdict(list)

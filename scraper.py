@@ -1793,7 +1793,7 @@ def analyze(appointments):
     by_type    = defaultdict(int)
     by_status  = defaultdict(int)
 
-    today_str = (datetime.now(timezone.utc) + timedelta(hours=2)).strftime("%Y-%m-%d")
+    today_str = (datetime.now(timezone.utc) + timedelta(hours=2) - timedelta(hours=2)).strftime("%Y-%m-%d")   # بتوقيت مصر − ساعتين: يوم الشغل بيخلص 2 الفجر (زي alerts.DAY_CUTOFF_H)
     today_appointments = []
     # الملحوظات بتتنشر للمواعيد القريبة بس (من أسبوع فات لحد أسبوعين جايين)
     note_from = (datetime.now(timezone.utc) + timedelta(hours=2) - timedelta(days=NOTE_PAST_DAYS)).strftime("%Y-%m-%d")

@@ -13527,6 +13527,9 @@ function planOwner0(t,g){
       if(g==='mcallup'&&String(t.key).indexOf('mcallup|')===0) return ov.name;   // رفع سجل الصبح
       if(g==='mcall'){ var mr0=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mn0=(PLAN_ROLES[t.br]||{})[mr0]; if(mn0===ov.base&&planCairoH(new Date().toISOString())<ov.to) return ov.name;   /* الموبايل معاها لحد الساعة دي */ }
     } }   // 🔍 الملفات المكررة: مع المدير (د. أمجد) — مش على سكرتيرة ومش في نسب الإنجاز
+  // ⏳ ويتنج النهارده (الهرم): مع الصباحي (ندى) لحد ما تمشي الساعة 7 — اللي لسه مفتوح بعد 7 يتنقل لعيادة 2 (إنجي) · اللي اتعمل يفضل محسوب للي عملته
+  if(g==='waittoday'&&t.br!=='FIX ZONE'&&planCairoH(new Date().toISOString())>=19&&!t.sys&&(PLAN_ST[t.key]||{}).s!=='done'){ var tdw=(ALERTS_DATA&&ALERTS_DATA.today)||'', aw=PLAN_ST['asg|'+tdw+'|'+t.sec+'|'+g+'|'+t.br]; if(aw&&aw.by) return aw.by;
+    var Rw=PLAN_ROLES[t.br]||{}; if(Rw.J) return Rw.J; }
   if(planNutTask(t,g)){ var Rn0=PLAN_ROLES['BODYFIX Center']||{}; if(Rn0.F) return Rn0.F; }
   if(g==='mcall'||g==='mcallup'){ var tdm=(ALERTS_DATA&&ALERTS_DATA.today)||'', am=PLAN_ST['asg|'+tdm+'|'+t.sec+'|'+g+'|'+t.br]; if(am&&am.by) return am.by;
     var mrk=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mnm=(PLAN_ROLES[t.br]||{})[mrk]; if(mnm) return mnm; }

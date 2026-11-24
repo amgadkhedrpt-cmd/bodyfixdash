@@ -12336,28 +12336,35 @@ function fuVerify(r){
   if(typeof MC==='undefined'||!MC.calls||!MC.calls.length||typeof cfPh!=='function') return null;
   var D=ALERTS_DATA||{}; if(!MC.fuPh||MC.fuPhAt!==MC.calls.length){ var P={}, B={}; (D.pt_index||[]).forEach(function(z){ if(z[15]&&z[1]) P[z[15]]=cfPh(z[1]); });
     MC.calls.forEach(function(c){ (B[c.ph]=B[c.ph]||[]).push(c); }); MC.fuPh=P; MC.fuBy=B; MC.fuPhAt=MC.calls.length;
-    var DY={}; MC.calls.forEach(function(c){ DY[mcCairoDay(c.t)]=1; }); MC.fuDays=DY; MC.fuMin=Object.keys(DY).sort()[0]||''; }
+    var DY={}, LD={}; MC.calls.forEach(function(c){ var d=mcCairoDay(c.t); DY[d]=1; (LD[d]=LD[d]||{})[c.ln]=1; }); MC.fuDays=DY; MC.fuLD=LD; MC.fuMin=Object.keys(DY).sort()[0]||''; }
+  // اليوم «ليه سجل» بس لو كل خطوط الفرع ليها مكالمات مترفعة اليوم ده — لو خط ناقص: مش بنقارن (مش متأكد)
+  var brL=Object.keys(MC.lines||{}).filter(function(ln){ return ((MC.lines[ln]||{}).br||'BODYFIX Center')===(r[2]||'BODYFIX Center'); });
+  var lnMiss=function(d){ var x=MC.fuLD[d]||{}; return brL.filter(function(ln){ return !x[ln]; }); };
   var ph=MC.fuPh[r[0]]; if(!ph) return {st:'noph', txt:'رقمه مش موجود عندنا'};
   var C=(r[8]||[]).map(function(x){ return {d:x[0], n:x[1]||'', by:x[2]||''}; }).concat([{d:r[3], n:r[6]||'', by:r[7]||'', fin:1}]);
   var d0=C[0].d; if(!d0||d0<MC.fuMin) return {st:'nolog', txt:'السجل المحمّل بيبدأ من '+alFmtDay(MC.fuMin||'')+' — قبل كده مش متاح'};
   var L=(MC.fuBy[ph]||[]), hm=function(c){ var s0=new Date(c.t).toLocaleTimeString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',minute:'2-digit',hour12:false}).split(':'); return (+s0[0])*60+(+s0[1]); };
   var outs=L.filter(function(c){ var d=mcCairoDay(c.t); return c.ty==='out'&&d>=d0&&d<=r[3]; }), talk=L.filter(function(c){ var d=mcCairoDay(c.t); return d>=d0&&d<=r[3]&&cfTalk(c); });
   var dset={}; outs.forEach(function(c){ dset[mcCairoDay(c.t)]=1; });
-  var claim=0, found=0, miss=[], unk=0, W={}, w=function(by,ok){ if(!by) return; var z=W[by]=W[by]||[0,0]; z[1]++; if(!ok) z[0]++; };
+  var claim=0, found=0, miss=[], unk=0, unkD=[], W={}, w=function(by,ok){ if(!by) return; var z=W[by]=W[by]||[0,0]; z[1]++; if(!ok) z[0]++; };
   C.forEach(function(x){ var n=cfDig(x.n); if(!n.trim()||/واتس|whats/i.test(n)) return;
-    if(!MC.fuDays[x.d]){ unk++; return; }
+    var lm=lnMiss(x.d); if(!MC.fuDays[x.d]||lm.length){ unk++; unkD.push(alFmtDay(x.d)+(MC.fuDays[x.d]&&lm.length?' (خط '+lm.join(' و')+' مش مترفع)':' (مفيش سجل خالص)')); return; }
     var day=L.filter(function(c){ return mcCairoDay(c.t)===x.d; }), T=[], re=/(\d{1,2})\s*[:.٫]\s*(\d{2})/g, m;
     while((m=re.exec(n))){ var h=+m[1], mi=+m[2]; if(h<=23&&mi<=59) T.push([h,mi]); }
     if(!T.length){ if(/مبيرد|مش بيرد|مبتردش|مش بترد|مغلق|مقفول|مشغول|رد|كلمت|اتكلم|اتصل|رن/.test(n)){ claim++; w(x.by,day.length); if(day.length) found++; else miss.push(alFmtDay(x.d)+' (مفيش أي اتصال برقمه اليوم ده)'); } return; }
     T.forEach(function(tm){ claim++; var ok=day.some(function(c){ var a=hm(c); return [tm[0]*60+tm[1],(tm[0]+12)*60+tm[1],(tm[0]-12)*60+tm[1]].some(function(v){ return Math.abs(a-v)<=15; }); });
       w(x.by,ok); if(ok) found++; else miss.push(alFmtDay(x.d)+' '+tm[0]+':'+(tm[1]<10?'0':'')+tm[1]+(x.by?' ('+x.by+')':'')); }); });
   var st=miss.length?'mis':unk&&!claim?'unk':'ok';
-  return {st:st, W:W, outs:outs.length, days:Object.keys(dset).length, talk:talk.length, claim:claim, found:found, miss:miss, unk:unk, last:outs.length?outs[outs.length-1].t:null};
+  return {st:st, W:W, outs:outs.length, days:Object.keys(dset).length, talk:talk.length, claim:claim, found:found, miss:miss, unk:unk, unkD:unkD, last:outs.length?outs[outs.length-1].t:null};
 }
-function fuVerTxt(v){ if(!v) return ''; if(v.st==='noph'||v.st==='nolog') return '<div style="font-size:.58rem;color:var(--mute)">📞 '+alEsc(v.txt)+'</div>';
-  var s0='📞 من سجل المكالمات: '+(v.outs?'اتصلنا '+v.outs+' مرة في '+v.days+' يوم'+(v.talk?' · رد '+v.talk:' · ما ردش')+' · آخر اتصال '+alEsc(alFmtDay(mcCairoDay(v.last))):'<b style="color:var(--r)">مفيش ولا اتصال صادر برقمه</b>');
-  var s1=v.st==='mis'?'<div style="color:#f59e0b;font-weight:700">⚠️ مش مطابق: مكتوب '+v.claim+' اتصال، لقينا '+v.found+' — مش موجود: '+v.miss.map(alEsc).join('، ')+'</div>':v.claim?'<span style="color:var(--g)"> · ✅ المكتوب مطابق ('+v.found+' من '+v.claim+')</span>':'';
-  return '<div style="font-size:.58rem;color:var(--mute);padding-top:2px">'+s0+s1+(v.unk?' <span style="color:var(--mute)">· '+v.unk+' يوم السجل بتاعه ناقص — مش متأكد</span>':'')+'</div>'; }
+function fuVerTxt(v){ if(!v) return ''; if(v.st==='noph'||v.st==='nolog') return '<div style="font-size:.6rem;color:var(--mute)">📞 '+alEsc(v.txt)+'</div>';
+  var L=[];
+  L.push('📞 <b>في سجل المكالمات:</b> '+(v.outs?'اتصلنا برقمه '+v.outs+' مرة في '+v.days+' يوم'+(v.talk?' · رد '+v.talk+' مرة':' · ما ردش ولا مرة')+' · آخر اتصال '+alEsc(alFmtDay(mcCairoDay(v.last))):'<b style="color:var(--r)">مفيش ولا اتصال منّا برقمه</b>'));
+  if(v.claim) L.push('📝 <b>مكتوب في الملحوظات:</b> '+v.claim+' اتصال في أيام ليها سجل كامل — لقينا منهم '+v.found);
+  if(v.miss.length) L.push('<span style="color:#f59e0b;font-weight:700">⚠️ مكتوب ومش لاقينه في السجل: '+v.miss.map(alEsc).join('، ')+'</span>');
+  else if(v.claim) L.push('<span style="color:var(--g)">✅ كل المكتوب لقيناه في السجل</span>');
+  if(v.unk) L.push('<span style="color:var(--mute)">❔ مش بنقارن '+v.unk+' اتصال لأن سجل اليوم ناقص: '+alEsc((v.unkD||[]).join('، '))+'</span>');
+  return '<div style="font-size:.6rem;color:var(--mute);padding-top:2px;line-height:1.7">'+L.map(function(x){ return '<div>'+x+'</div>'; }).join('')+'</div>'; }
 /* 🔁 آخر الباقة: (1) تقييم الجلسة الأخيرة اتحجز / اتحضر  (2) جدد فعلاً = حضر جلسة بعد آخر جلسة في الباقة (خلال 60 يوم) */
 function sumRenewCards(D,isT,F,TO,today,perLbl,inb,card,ptRow,pct,tD,tN,tRows,TA){
   var PE=D.pkg_end; if(!PE) return card('rnev','📋','تقييم الجلسة الأخيرة','…','هتظهر بعد السحب الجاي','')+card('rnok','🔁','جددوا فعلاً','…','هتظهر بعد السحب الجاي','');
@@ -12642,7 +12649,7 @@ function sumRender0(){
         card('fuback','↩️','رجعوا بعد مكالمة الانقطاع',BK.length+' من '+IQ.length,pct(BK.length,IQ.length)+' · '+Object.keys(byK).sort().map(function(k){ return 'بعد المكالمة '+k+': '+byK[k]; }).join(' · '),
           BK.map(function(r){ return ptRow(r[1],r[0],'— أول مكالمة '+alEsc(alFmtDay(r[3]))+' · رجع '+alEsc(alFmtDay(r[5]))+' (بعد المكالمة '+(r[6]||1)+')'); }).join(''),BK.length?'var(--g)':'')+
         (MG?card('fuver','🕵️','مطابقة المكالمات مع سجل الموبايل',(typeof MC!=='undefined'&&MC.calls&&MC.calls.length)?VM.length:'…',(typeof MC!=='undefined'&&MC.calls&&MC.calls.length)?'مش مطابق · للمدير بس':'السجل بيتحمّل (الأجهزة المربوطة بس)',
-          (Object.keys(bySec).length?'<div style="font-size:.6rem;font-weight:800;margin-top:4px">لكل سكرتيرة: اتصالات كتبتها ومش لاقيينها في السجل</div>'+Object.keys(bySec).map(function(n){ return '<div style="font-size:.62rem;padding:2px 0;border-top:1px solid var(--brd)">'+alEsc(n)+': <b style="color:'+(bySec[n][0]?'#f59e0b':'var(--g)')+'">'+bySec[n][0]+' من '+bySec[n][1]+'</b></div>'; }).join(''):'')+
+          (Object.keys(bySec).length?'<div style="font-size:.6rem;font-weight:800;margin-top:4px">لكل سكرتيرة (الأيام اللي ليها سجل كامل بس)</div>'+Object.keys(bySec).map(function(n){ var z=bySec[n]; return '<div style="font-size:.62rem;padding:2px 0;border-top:1px solid var(--brd)">'+alEsc(n)+': كتبت <b>'+z[1]+'</b> اتصال · لقينا <b style="color:var(--g)">'+(z[1]-z[0])+'</b> · <b style="color:'+(z[0]?'#f59e0b':'var(--g)')+'">مش لاقينه '+z[0]+'</b></div>'; }).join(''):'')+
           '<div style="font-size:.6rem;font-weight:800;margin-top:8px">⚠️ مش مطابق ('+VM.length+')</div>'+VM.map(function(o){ return ptRow(o[0][1],o[0][0],'— منقطع نهائي '+alEsc(alFmtDay(o[0][3])))+fuVerTxt(o[1]); }).join(''),VM.length?'#f59e0b':''):'')+
         card('funo','😟','ما حسّوش بتحسن',NI.length,'بتظهر للمدير',
           NI.map(function(r){ return ptRow(r[1],r[0],'— '+alEsc(alFmtDay(r[3]))+' · '+alEsc(r[5]||'')+' · «'+alEsc(r[4].slice(0,90))+'»'); }).join(''),NI.length?'#f59e0b':''));

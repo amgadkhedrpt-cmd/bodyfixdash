@@ -13128,7 +13128,7 @@ function planTasks(useAll){
   // 📋 نتيجة تقييم الجلسة الأخيرة: كل اللي حضر التقييم النهارده → تختار هيجدد / هيفكر / هيوقف
   /* الهرم: Dalia · الدقي: Georgina (المسائي) — واللي ما اتقفلش بيترحّل لتاني يوم: Dalia / Bassant (الصباحي بتراجع ورا جورجينا) */
   (D.eval_out||[]).filter(inb).forEach(function(x){ var ed=x.d||today, k=ed+'|evout|'+x.pid, st0=PLAN_ST[k]||{}, ch=st0.ev||'', qk=k.replace(/'/g,''), cy=ed!==today;
-    var sy=x.pkg?'اتفتحتله باقة ودفع':((ch==='think'||ch==='renew')&&x.fu?'اتحجزله «متابعه» '+alFmtDay(x.fu):'');
+    var sy=x.pkg?'اتفتحتله باقة ودفع':(x.att?'كمّل — حضر جلسة '+alFmtDay(x.att)+' بعد التقييم':((ch==='think'||ch==='renew')&&x.fu?'اتحجزله «متابعه» '+alFmtDay(x.fu):''));   // حضر جلسة بعد التقييم (باقة جديدة أو جلسات منفردة) = كمّل
     var mgrT=function(){ if(ch==='stop'&&EVOUT_MGR[st0.evr]) add('mgr',{grp:['mgr'], key:today+'|mgr|evout|'+x.pid, icon:'↗️', name:x.name, phone:x.phone, br:x.branch,
       kind:'اتقيّم ومش هيكمّل — '+alEsc(st0.evr), lines:['الدكتور: '+alEsc(doc(x.doctor))+' · سجّلتها '+alEsc(st0.by||'')]}); };
     if(cy&&(sy||(ch==='stop'&&st0.evr))){ if(String(st0.ts||'').slice(0,10)>=ed) mgrT(); return; }   // امبارح واتقفل → خلاص (لو اتسجل هيوقف لسبب للمدير يفضل يظهرله)

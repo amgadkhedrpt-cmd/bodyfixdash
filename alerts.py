@@ -833,6 +833,14 @@ def build_alerts(appointments, now=None, packages=None):
         out = defaultdict(lambda: {"branch": Counter(), "renew": [0, 0], "drop": [0, 0, 0, 0, 0], "kashf": [0, 0], "rl": [], "dl": [],
                                    "cp": [0.0, 0.0], "mt": [0, 0], "ex": [0, 0, 0, 0], "ev": [0, 0, 0], "xl": [], "vl": [], "cl": [], "ml": [],
                                    "bb": defaultdict(lambda: {"renew": [0, 0], "drop": [0, 0], "kashf": [0, 0]})})   # bb = لكل فرع (دكتور بيشتغل في الفرعين)
+        DOC_MIN = 0.40   # المريض يتحسب كامل لأي دكتور عمل 40% أو أكتر من جلساته في الباقة/الكورس — أقل من كده ما يتحسبش عليه
+
+        def docs40(day_list, byday):
+            """[(الدكتور، جلساته، من كام)] لكل دكتور عمل ≥40% من الجلسات دي"""
+            cnt = Counter(byday[d]["doctor"] for d in day_list)
+            n = sum(cnt.values())
+            return [(d_, k_, n) for d_, k_ in cnt.items() if n and k_ / n >= DOC_MIN]
+
         for appts in patients.values():
             att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() < today and _is_pt(a["type"])],
                          key=lambda a: a["start"])
@@ -862,16 +870,16 @@ def build_alerts(appointments, now=None, packages=None):
                 end = sd[size - 1]
                 if not (P_FROM <= end <= today - timedelta(days=RENEW_WAIT)):
                     continue
-                doc = Counter(byday[d]["doctor"] for d in sd[:size]).most_common(1)[0][0]
                 nx = [d for d in days if d > end]
                 RENEW_GAPS.append((nx[0] - end).days if nx else None)
-                o = out[doc]; o["branch"][byday[sd[0]]["branch"]] += 1
-                o["renew"][0] += 1
                 rn_ = any(end < d <= end + timedelta(days=60) for d in days) or (future and not any(d > end for d in days))
-                if rn_:
-                    o["renew"][1] += 1
-                bb_ = o["bb"][byday[sd[0]]["branch"]]["renew"]; bb_[0] += 1; bb_[1] += 1 if rn_ else 0
-                o["rl"].append([pid, byday[sd[0]]["name"], end.isoformat(), size, 1 if rn_ else 0] + pinfo + [byday[sd[0]]["branch"]])   # مين خلّص باقة معاه — وجدد ولا لأ
+                for doc, k_, n_ in docs40(sd[:size], byday):
+                    o = out[doc]; o["branch"][byday[sd[0]]["branch"]] += 1
+                    o["renew"][0] += 1
+                    if rn_:
+                        o["renew"][1] += 1
+                    bb_ = o["bb"][byday[sd[0]]["branch"]]["renew"]; bb_[0] += 1; bb_[1] += 1 if rn_ else 0
+                    o["rl"].append([pid, byday[sd[0]]["name"], end.isoformat(), size, 1 if rn_ else 0] + pinfo + [byday[sd[0]]["branch"], f"{k_} من {n_}"])   # مين خلّص باقة معاه — وجدد ولا لأ
             # 1أ+) للملخص: باقة خلصت آخر 90 يوم → تقييم الجلسة الأخيرة + التجديد الفعلي
             for size, sd, approx in segs:
                 if approx or len(sd) < size:
@@ -900,9 +908,10 @@ def build_alerts(appointments, now=None, packages=None):
                     continue                                    # لسه مكمّل — ما يتحسبش
                 sc_ = 1.0 if done_ else (0.0 if len(sd) <= 3 else 0.5)
                 w_ = 2.0 if size >= 12 else 1.0
-                oc = out[byday[st0]["doctor"]]; oc["cp"][0] += sc_ * w_; oc["cp"][1] += w_
-                oc["cl"].append([pid, byday[st0]["name"], st0.isoformat(), size, len(sd), sc_] + pinfo + [byday[st0]["branch"]])   # مين بدأ باقة معاه — كمّل ولا وقف
-                bc_ = oc["bb"][byday[st0]["branch"]]; bc_.setdefault("cp", [0.0, 0.0]); bc_["cp"][0] += sc_ * w_; bc_["cp"][1] += w_
+                for doc, k_, n_ in docs40(sd[:size], byday):
+                    oc = out[doc]; oc["cp"][0] += sc_ * w_; oc["cp"][1] += w_
+                    oc["cl"].append([pid, byday[st0]["name"], st0.isoformat(), size, len(sd), sc_] + pinfo + [byday[st0]["branch"], f"{k_} من {n_}"])   # مين اتعالج معاه في الباقة — كمّل ولا وقف
+                    bc_ = oc["bb"][byday[st0]["branch"]]; bc_.setdefault("cp", [0.0, 0.0]); bc_["cp"][0] += sc_ * w_; bc_["cp"][1] += w_
             # 1ج) التزام المرضى: مواعيد جلسات الدكتور اللي فاتت — حضر ولا No Show / إلغاء مفاجئ
             for a in appts:
                 d_ = a["start"].date()
@@ -944,16 +953,17 @@ def build_alerts(appointments, now=None, packages=None):
                     continue
                 if ci == 0 and c[0] <= hist_start + timedelta(days=COURSE_GAP):
                     continue                                    # بدأ قبل أول البيانات — مش عارفين أوله
-                doc = byday[c[0]]["doctor"]
-                o = out[doc]; o["branch"][byday[c[0]]["branch"]] += 1
-                o["drop"][0] += 1
-                bd_ = o["bb"][byday[c[0]]["branch"]]["drop"]; bd_[0] += 1
                 last_course = ci == len(courses) - 1
-                if len(c) <= 3 and last_course and not future and (today - c[-1]).days >= 14:
-                    o["drop"][1] += 1
-                    bd_[1] += 1
-                    o["drop"][1 + len(c)] += 1                  # وقف عند جلسة 1 / 2 / 3
-                    o["dl"].append([pid, byday[c[0]]["name"], c[0].isoformat(), c[-1].isoformat(), len(c)] + pinfo + [byday[c[0]]["branch"]])   # مين وقف بدري معاه
+                stop_ = len(c) <= 3 and last_course and not future and (today - c[-1]).days >= 14
+                for doc, k_, n_ in docs40(c[:3] if stop_ else c, byday):   # اللي وقف بدري: على مين عمل ≥40% من جلساته (1-3)
+                    o = out[doc]; o["branch"][byday[c[0]]["branch"]] += 1
+                    o["drop"][0] += 1
+                    bd_ = o["bb"][byday[c[0]]["branch"]]["drop"]; bd_[0] += 1
+                    if stop_:
+                        o["drop"][1] += 1
+                        bd_[1] += 1
+                        o["drop"][1 + len(c)] += 1                  # وقف عند جلسة 1 / 2 / 3
+                        o["dl"].append([pid, byday[c[0]]["name"], c[0].isoformat(), c[-1].isoformat(), len(c)] + pinfo + [byday[c[0]]["branch"], f"{k_} من {n_}"])   # مين وقف بدري معاه
             # 3) الكشف ← باقة: كشف علاج طبيعي حضره، وبعده جلسة علاج طبيعي في خلال 30 يوم
             for a in appts:
                 if "كشف" not in a["type"] or "تغذ" in a["type"] or a["status"] not in ATTENDED:

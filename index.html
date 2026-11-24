@@ -13527,9 +13527,14 @@ function planOwner0(t,g){
       if(g==='mcallup'&&String(t.key).indexOf('mcallup|')===0) return ov.name;   // رفع سجل الصبح
       if(g==='mcall'){ var mr0=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mn0=(PLAN_ROLES[t.br]||{})[mr0]; if(mn0===ov.base&&planCairoH(new Date().toISOString())<ov.to) return ov.name;   /* الموبايل معاها لحد الساعة دي */ }
     } }   // 🔍 الملفات المكررة: مع المدير (د. أمجد) — مش على سكرتيرة ومش في نسب الإنجاز
-  // ⏳ ويتنج النهارده (الهرم): مع الصباحي (ندى) لحد ما تمشي الساعة 7 — اللي لسه مفتوح بعد 7 يتنقل لعيادة 2 (إنجي) · اللي اتعمل يفضل محسوب للي عملته
-  if(g==='waittoday'&&t.br!=='FIX ZONE'&&planCairoH(new Date().toISOString())>=19&&!t.sys&&(PLAN_ST[t.key]||{}).s!=='done'){ var tdw=(ALERTS_DATA&&ALERTS_DATA.today)||'', aw=PLAN_ST['asg|'+tdw+'|'+t.sec+'|'+g+'|'+t.br]; if(aw&&aw.by) return aw.by;
-    var Rw=PLAN_ROLES[t.br]||{}; if(Rw.J) return Rw.J; }
+  // ⏳ ويتنج النهارده (الهرم): مع الصباحي (ندى) لحد ما تمشي الساعة 7 — اللي لسه مفتوح بعد 7 يتنقل لعيادة 2 (إنجي) وتتحسب عليه هي
+  //    اللي اتقفل قبل 7 = ندى · اتقفل بعد 7 = إنجي (وقت القفل: الزرار، أو أول سحب شاف المهمة اتقفلت)
+  if(g==='waittoday'&&t.br!=='FIX ZONE'){ var tdw=(ALERTS_DATA&&ALERTS_DATA.today)||'', aw=PLAN_ST['asg|'+tdw+'|'+t.sec+'|'+g+'|'+t.br];
+    if(!(aw&&aw.by)){ var stw=PLAN_ST[t.key]||{}, doneH=null;
+      if(stw.s==='done'&&stw.ts) doneH=planCairoH(stw.ts);
+      else if(t.sys){ var tm=(((ALERTS_DATA||{}).plan||{}).times||{})[t.key]; doneH=tm&&tm[1]?+String(tm[1]).slice(0,2):0; }
+      var late7=doneH!=null?doneH>=19:planCairoH(new Date().toISOString())>=19, Rw=PLAN_ROLES[t.br]||{};
+      if(late7&&Rw.J) return Rw.J; } }
   if(planNutTask(t,g)){ var Rn0=PLAN_ROLES['BODYFIX Center']||{}; if(Rn0.F) return Rn0.F; }
   if(g==='mcall'||g==='mcallup'){ var tdm=(ALERTS_DATA&&ALERTS_DATA.today)||'', am=PLAN_ST['asg|'+tdm+'|'+t.sec+'|'+g+'|'+t.br]; if(am&&am.by) return am.by;
     var mrk=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mnm=(PLAN_ROLES[t.br]||{})[mrk]; if(mnm) return mnm; }
@@ -13811,8 +13816,7 @@ function planCoverInfo(t,g){
   return cd.c.length?{owner:cd.c[0], from:o}:{owner:'', from:o, post:true};
 }
 function planOwner(t,g){ return planNormName(planCoverInfo(t,g).owner||''); }
-/* 📊 صاحبة المهمة في نسبة الأداء: ويتنج النهارده في الهرم على ندى (الصباحي) حتى لو اللي فاضل اتنقل لإنجي بعد 7 — إلا لو ندى غايبة النهارده */
-function planPerfOwner(t,g){ if(g==='waittoday'&&t.br!=='FIX ZONE'){ var aw=PLAN_ST['asg|'+((ALERTS_DATA&&ALERTS_DATA.today)||'')+'|'+t.sec+'|'+g+'|'+t.br]; if(!(aw&&aw.by)){ var f=planNormName((PLAN_ROLES[t.br]||{}).F||''); if(f&&(typeof planHere!=='function'||planHere(f,t.br))) return f; } } return planOwner(t,g); }
+function planPerfOwner(t,g){ return planOwner(t,g); }   // نفس صاحبة المهمة (ويتنج النهارده بعد 7 → إنجي وتتحسب عليها)
 function planIsPosted(t){ var g=(t.grp||[])[0]; return !!(g&&planCoverInfo(t,g).post); }
 function planTeamSet(name, st, br, forN){
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var T=planTeam(), ch=[name];

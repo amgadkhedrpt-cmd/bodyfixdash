@@ -1072,6 +1072,20 @@ def build_alerts(appointments, now=None, packages=None):
             last_fin[r[0]] = r
         fin_l = sorted(last_fin.values(), key=lambda r: r[3], reverse=True)   # مريض واحد = آخر «منقطع نهائي» بتاعه بس
         return {"from": F0.isoformat(), "elig": elig, "inq": inq_l, "fin": fin_l, "noimp": noimp}
+    # ── 🏖️ تأثير الغياب: جلسات العلاج الطبيعي من أسبوع فات لحد 30 يوم جايين (حضر / محجوز / No Show) ──
+    pt_sched_ = []
+    try:
+        s0_, s1_ = today - timedelta(days=7), today + timedelta(days=30)
+        for appts in patients.values():
+            for a in appts:
+                d_ = a["start"].date()
+                if not (s0_ <= d_ <= s1_) or not _is_pt(a["type"]) or a["status"] in ("canceled", "cancelled", "note"):
+                    continue
+                st_ = "a" if a["status"] in ATTENDED else "n" if a["status"] in ("no show", "noshow") else "w" if "wait" in a["status"] else "b"
+                pt_sched_.append([a.get("pid") or "", a["name"], a["branch"], a["start"].isoformat()[:16], a["doctor"], st_])
+        pt_sched_.sort(key=lambda r: r[3])
+    except Exception as e:
+        pt_sched_ = [["", "error " + str(e)[:80], "", "", "", ""]]
     try:
         fus_ = fu_stats()
     except Exception as e:
@@ -2087,5 +2101,6 @@ def build_alerts(appointments, now=None, packages=None):
         "doc_perf": perf,
         "fu_stats": fus_,
         "pkg_end": sorted(PKG_END, key=lambda r: r[3], reverse=True),
+        "pt_sched": pt_sched_,
         "day_counts": {k: {doc: dict(br) for doc, br in v.items()} for k, v in day_counts.items()},
     }

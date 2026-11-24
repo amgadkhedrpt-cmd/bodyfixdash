@@ -12356,7 +12356,7 @@ function fuVerify(r){
   if(typeof MC==='undefined'||!MC.calls||!MC.calls.length||typeof cfPh!=='function') return null;
   var D=ALERTS_DATA||{}; if(!MC.fuPh||MC.fuPhAt!==MC.calls.length){ var P={}, B={}; (D.pt_index||[]).forEach(function(z){ if(z[15]&&z[1]) P[z[15]]=cfPh(z[1]); });
     MC.calls.forEach(function(c){ (B[c.ph]=B[c.ph]||[]).push(c); }); MC.fuPh=P; MC.fuBy=B; MC.fuPhAt=MC.calls.length;
-    var DY={}, LD={}; MC.calls.forEach(function(c){ var d=mcCairoDay(c.t); DY[d]=1; (LD[d]=LD[d]||{})[c.ln]=1; }); MC.fuDays=DY; MC.fuLD=LD; MC.fuMin=Object.keys(DY).sort()[0]||''; }
+    var DY={}, LD={}, LT={}; MC.calls.forEach(function(c){ var d=mcCairoDay(c.t); DY[d]=1; (LD[d]=LD[d]||{})[c.ln]=1; var z=(LT[d]=LT[d]||{}); if(!z[c.ln]||c.t>z[c.ln]) z[c.ln]=c.t; }); MC.fuDays=DY; MC.fuLD=LD; MC.fuLT=LT; MC.fuMin=Object.keys(DY).sort()[0]||''; }
   // اليوم «ليه سجل» بس لو كل خطوط الفرع ليها مكالمات مترفعة اليوم ده — لو خط ناقص: مش بنقارن (مش متأكد)
   var brL=Object.keys(MC.lines||{}).filter(function(ln){ return ((MC.lines[ln]||{}).br||'BODYFIX Center')===(r[2]||'BODYFIX Center'); });
   var lnMiss=function(d){ var x=MC.fuLD[d]||{}; return brL.filter(function(ln){ return !x[ln]; }); };
@@ -12369,10 +12369,15 @@ function fuVerify(r){
   var claim=0, found=0, miss=[], unk=0, unkD=[], W={}, w=function(by,ok){ if(!by) return; var z=W[by]=W[by]||[0,0]; z[1]++; if(!ok) z[0]++; };
   C.forEach(function(x){ var n=cfDig(x.n); if(!n.trim()||/واتس|whats/i.test(n)) return;
     var lm=lnMiss(x.d); if(!MC.fuDays[x.d]||lm.length){ unk++; unkD.push(alFmtDay(x.d)+(MC.fuDays[x.d]&&lm.length?' (خط '+lm.join(' و')+' مش مترفع)':' (مفيش سجل خالص)')); return; }
+    // السجل مترفع لحد إمتى في اليوم ده؟ (آخر مكالمة في كل خط — بناخد الأقل) · اللي بعد كده مش بنحكم عليه
+    var lt=MC.fuLT[x.d]||{}, endM=null; brL.forEach(function(ln){ if(lt[ln]){ var mm=hm({t:lt[ln]}); if(endM==null||mm<endM) endM=mm; } });
+    var endTxt=endM==null?'':Math.floor(endM/60)%12+':'+('0'+endM%60).slice(-2);
     var day=L.filter(function(c){ return mcCairoDay(c.t)===x.d; }), T=[], re=/(\d{1,2})\s*[:.٫]\s*(\d{2})/g, m;
     while((m=re.exec(n))){ var h=+m[1], mi=+m[2]; if(h<=23&&mi<=59) T.push([h,mi]); }
-    if(!T.length){ if(/مبيرد|مش بيرد|مبتردش|مش بترد|مغلق|مقفول|مشغول|رد|كلمت|اتكلم|اتصل|رن/.test(n)){ claim++; w(x.by,day.length); if(day.length) found++; else miss.push(alFmtDay(x.d)+' (مفيش أي اتصال برقمه اليوم ده)'); } return; }
-    T.forEach(function(tm){ claim++; var ok=day.some(function(c){ var a=hm(c); return [tm[0]*60+tm[1],(tm[0]+12)*60+tm[1],(tm[0]-12)*60+tm[1]].some(function(v){ return Math.abs(a-v)<=15; }); });
+    if(!T.length){ if(/مبيرد|مش بيرد|مبتردش|مش بترد|مغلق|مقفول|مشغول|رد|كلمت|اتكلم|اتصل|رن/.test(n)){ if(!day.length&&endM!=null&&endM<21*60){ unk++; unkD.push(alFmtDay(x.d)+' (السجل مترفع لحد '+endTxt+' بس)'); return; } claim++; w(x.by,day.length); if(day.length) found++; else miss.push(alFmtDay(x.d)+' (مفيش أي اتصال برقمه اليوم ده)'); } return; }
+    T.forEach(function(tm){ var cands=tm[0]<10?[(tm[0]+12)*60+tm[1]]:tm[0]<12?[tm[0]*60+tm[1],(tm[0]+12)*60+tm[1]]:[tm[0]*60+tm[1]];   // 1–9 = بالليل (الشغل الصبح من 10)
+      if(endM!=null&&cands.every(function(v){ return v>endM+5; })&&!day.some(function(c){ var a=hm(c); return cands.some(function(v){ return Math.abs(a-v)<=15; }); })){ unk++; unkD.push(alFmtDay(x.d)+' '+tm[0]+':'+(tm[1]<10?'0':'')+tm[1]+' (السجل مترفع لحد '+endTxt+' بس)'); return; }
+      claim++; var ok=day.some(function(c){ var a=hm(c); return [tm[0]*60+tm[1],(tm[0]+12)*60+tm[1],(tm[0]-12)*60+tm[1]].some(function(v){ return Math.abs(a-v)<=15; }); });
       w(x.by,ok); if(ok) found++; else miss.push(alFmtDay(x.d)+' '+tm[0]+':'+(tm[1]<10?'0':'')+tm[1]+(x.by?' ('+x.by+')':'')); }); });
   var st=miss.length?'mis':unk&&!claim?'unk':'ok';
   return {st:st, W:W, outs:outs.length, days:Object.keys(dset).length, talk:talk.length, claim:claim, found:found, miss:miss, unk:unk, unkD:unkD, last:outs.length?outs[outs.length-1].t:null};
@@ -12381,7 +12386,7 @@ function fuVerify(r){
 function fuCallRow(t,who){ var D=ALERTS_DATA||{}; return [t.pid||planPidOfKey(t.key)||'', t.name||'', t.br||'BODYFIX Center', D.today, 0, 0, t.mnote||'', who||'', [], t.phone||'']; }
 function fuVerTxt(v){ if(!v) return ''; if(v.st==='noph'||v.st==='nolog') return '<div style="font-size:.6rem;color:var(--mute)">📞 '+alEsc(v.txt)+'</div>';
   var L=[];
-  L.push('📞 <b>في سجل المكالمات:</b> '+(v.outs?'اتصلنا برقمه '+v.outs+' مرة في '+v.days+' يوم'+(v.talk?' · رد '+v.talk+' مرة':' · ما ردش ولا مرة')+' · آخر اتصال '+alEsc(alFmtDay(mcCairoDay(v.last))):'<b style="color:var(--r)">مفيش ولا اتصال منّا برقمه</b>'));
+  L.push('📞 <b>في سجل المكالمات:</b> '+(v.outs?'اتصلنا برقمه '+v.outs+' مرة في '+v.days+' يوم'+(v.talk?' · رد '+v.talk+' مرة':' · ما ردش ولا مرة')+' · آخر اتصال '+alEsc(alFmtDay(mcCairoDay(v.last))):(v.claim?'<b style="color:var(--r)">مفيش ولا اتصال منّا برقمه</b>':'<span>لسه مفيش — السجل ما اترفعش للوقت ده</span>')));
   if(v.claim) L.push('📝 <b>مكتوب في الملحوظات:</b> '+v.claim+' اتصال في أيام ليها سجل كامل — لقينا منهم '+v.found);
   if(v.miss.length) L.push('<span style="color:#f59e0b;font-weight:700">⚠️ مكتوب ومش لاقينه في السجل: '+v.miss.map(alEsc).join('، ')+'</span>');
   else if(v.claim) L.push('<span style="color:var(--g)">✅ كل المكتوب لقيناه في السجل</span>');

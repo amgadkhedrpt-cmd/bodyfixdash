@@ -12311,22 +12311,24 @@ function fuVerTxt(v){ if(!v) return ''; if(v.st==='noph'||v.st==='nolog') return
 /* 🔁 آخر الباقة: (1) تقييم الجلسة الأخيرة اتحجز / اتحضر  (2) جدد فعلاً = حضر جلسة بعد آخر جلسة في الباقة (خلال 60 يوم) */
 function sumRenewCards(D,isT,F,TO,today,perLbl,inb,card,ptRow,pct,tD,tN,tRows){
   var PE=D.pkg_end; if(!PE) return card('rnev','📋','تقييم الجلسة الأخيرة','…','هتظهر بعد السحب الجاي','')+card('rnok','🔁','جددوا فعلاً','…','هتظهر بعد السحب الجاي','');
-  var addD=function(d,n){ var x=new Date(d+'T12:00:00'); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
-  var W0=isT?addD(today,-30):F, W1=TO, wl=isT?'آخر 30 يوم':perLbl, L=PE.filter(function(r){ return inb(r[2])&&r[3]>=W0&&r[3]<=W1; });
+  var addD=function(d,n){ var x=new Date(d+'T12:00:00'); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); }, inR=function(d){ return d&&d>=F&&d<=TO; };
+  var B=PE.filter(function(r){ return inb(r[2]); }), L=B.filter(function(r){ return inR(r[3]); });   // باقات آخر جلسة فيها في الفترة
   var nm=function(r,x){ return ptRow(r[1],r[0],'— باقة '+r[4]+' خلصت '+alEsc(alFmtDay(r[3]))+' مع '+alEsc((typeof alDocAr==='function'&&alDocAr(r[5]))||r[5]||'')+(x?' · '+x:'')); };
-  var evA=L.filter(function(r){ return r[7]; }), evB=L.filter(function(r){ return r[6]&&!r[7]; }), evN=L.filter(function(r){ return !r[6]; }), bk=evA.length+evB.length;
   var hd=function(t,c,n){ return '<div style="font-size:.6rem;font-weight:800;margin-top:6px;color:'+(c||'var(--txt)')+'">'+t+' ('+n+')</div>'; };
-  var c1=card('rnev','📋','تقييم الجلسة الأخيرة — '+alEsc(wl),bk+' من '+L.length,'اتحجز '+pct(bk,L.length)+' · حضر التقييم '+evA.length+(isT?' · مهام النهارده '+tD+' من '+tN:''),
-    hd('✅ حضر التقييم','var(--g)',evA.length)+evA.map(function(r){ return nm(r,'التقييم '+alEsc(alFmtDay(r[7]))); }).join('')+
-    hd('📅 اتحجز وما حضرش (لسه)','#f59e0b',evB.length)+evB.map(function(r){ return nm(r,'محجوز '+alEsc(alFmtDay(r[6]))); }).join('')+
-    hd('❌ ما اتحجزلوش تقييم','var(--r)',evN.length)+evN.map(function(r){ return nm(r,r[8]?'(جدد من غير تقييم)':''); }).join('')+
-    (isT?hd('🔁 مهام «اعرض التجديد» النهارده','',tN)+tRows:''),bk/(L.length||1)>=.7?'var(--g)':bk/(L.length||1)>=.4?'#f59e0b':'var(--r)');
-  var d14=addD(today,-14), rn=L.filter(function(r){ return r[8]; }), early=L.filter(function(r){ return !r[8]&&r[3]>d14; }), no=L.filter(function(r){ return !r[8]&&r[3]<=d14; }), base=rn.length+no.length;
-  var c2=card('rnok','🔁','جددوا فعلاً — '+alEsc(wl),rn.length+' من '+base,pct(rn.length,base)+' حضروا جلسة بعد الباقة · لسه بدري '+early.length,
-    hd('✅ جددوا (حضروا جلسة في الباقة الجديدة)','var(--g)',rn.length)+rn.map(function(r){ return nm(r,'أول جلسة بعدها '+alEsc(alFmtDay(r[8]))); }).join('')+
-    hd('❌ ما جددوش (عدّى أسبوعين ومفيش جلسة)','var(--r)',no.length)+no.map(function(r){ return nm(r,r[9]?'الجاي '+alEsc(alFmtDay(r[9].slice(0,10))):'<b style="color:var(--r)">مالوش ميعاد جاي</b>'); }).join('')+
-    hd('⏳ لسه بدري (خلصوا من أقل من أسبوعين)','',early.length)+early.map(function(r){ return nm(r,r[9]?'الجاي '+alEsc(alFmtDay(r[9].slice(0,10))):'مالوش ميعاد جاي'); }).join(''),
-    rn.length/(base||1)>=.6?'var(--g)':rn.length/(base||1)>=.4?'#f59e0b':'var(--r)');
+  // 📋 (1) اللي خلّصوا الباقة في الفترة: اتحجزلهم تقييم الجلسة الأخيرة؟ · (2) التقييمات اللي اتحضرت في الفترة
+  var evA=L.filter(function(r){ return r[7]; }), evB=L.filter(function(r){ return r[6]&&!r[7]; }), evN=L.filter(function(r){ return !r[6]; }), bk=evA.length+evB.length;
+  var evIn=B.filter(function(r){ return inR(r[7]); });
+  var c1=card('rnev','📋','تقييم الجلسة الأخيرة — '+alEsc(perLbl),bk+' من '+L.length,'خلّصوا الباقة '+L.length+' · اتحجزلهم '+pct(bk,L.length)+' · حضروا تقييم في الفترة '+evIn.length+(isT?' · مهام النهارده '+tD+' من '+tN:''),
+    hd('📅 خلّصوا واتحجزلهم تقييم','var(--g)',bk)+evA.concat(evB).map(function(r){ return nm(r,r[7]?'✅ حضر التقييم '+alEsc(alFmtDay(r[7])):'محجوز '+alEsc(alFmtDay(r[6]))); }).join('')+
+    hd('❌ خلّصوا وما اتحجزلهمش تقييم','var(--r)',evN.length)+evN.map(function(r){ return nm(r,r[8]?'(جدد من غير تقييم)':''); }).join('')+
+    hd('✅ حضروا تقييم الجلسة الأخيرة في الفترة','#a78bfa',evIn.length)+evIn.map(function(r){ return nm(r,'التقييم '+alEsc(alFmtDay(r[7]))+(r[8]?' · جدد':'')); }).join('')+
+    (isT?hd('🔁 مهام «اعرض التجديد» النهارده','',tN)+tRows:''),L.length?(bk/L.length>=.7?'var(--g)':bk/L.length>=.4?'#f59e0b':'var(--r)'):'');
+  // 🔁 جددوا فعلاً في الفترة = أول جلسة في الباقة الجديدة كانت في الفترة · + من اللي خلّصوا في الفترة: جدد كام لحد دلوقتي
+  var rnIn=B.filter(function(r){ return inR(r[8]); }), d14=addD(today,-14), rnL=L.filter(function(r){ return r[8]; }), noL=L.filter(function(r){ return !r[8]&&r[3]<=d14; }), erL=L.filter(function(r){ return !r[8]&&r[3]>d14; });
+  var c2=card('rnok','🔁','جددوا فعلاً — '+alEsc(perLbl),rnIn.length,'حضروا أول جلسة في باقة جديدة في الفترة · من اللي خلّصوا في الفترة: جدد '+rnL.length+' من '+(rnL.length+noL.length)+(erL.length?' · لسه بدري '+erL.length:''),
+    hd('✅ حضروا أول جلسة بعد الباقة في الفترة','var(--g)',rnIn.length)+rnIn.map(function(r){ return nm(r,'أول جلسة بعدها '+alEsc(alFmtDay(r[8]))); }).join('')+
+    hd('❌ خلّصوا في الفترة وما جددوش (عدّى أسبوعين)','var(--r)',noL.length)+noL.map(function(r){ return nm(r,r[9]?'الجاي '+alEsc(alFmtDay(r[9].slice(0,10))):'<b style="color:var(--r)">مالوش ميعاد جاي</b>'); }).join('')+
+    hd('⏳ خلّصوا في الفترة — لسه بدري (أقل من أسبوعين)','',erL.length)+erL.map(function(r){ return nm(r,r[9]?'الجاي '+alEsc(alFmtDay(r[9].slice(0,10))):'مالوش ميعاد جاي'); }).join(''),rnIn.length?'var(--g)':'');
   return c1+c2;
 }
 function sumTog(id){ SUM_OPEN[id]=!SUM_OPEN[id]; sumRender(); }

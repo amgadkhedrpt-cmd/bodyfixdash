@@ -834,7 +834,7 @@ def build_alerts(appointments, now=None, packages=None):
                                    "cp": [0.0, 0.0], "mt": [0, 0], "ex": [0, 0, 0, 0], "ev": [0, 0, 0], "xl": [], "vl": [], "cl": [], "ml": [],
                                    "bb": defaultdict(lambda: {"renew": [0, 0], "drop": [0, 0], "kashf": [0, 0]})})   # bb = لكل فرع (دكتور بيشتغل في الفرعين)
         for appts in patients.values():
-            att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() < today and _is_pt(a["type"])],
+            att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() <= today and _is_pt(a["type"])],
                          key=lambda a: a["start"])
             byday = {}
             for a in att:

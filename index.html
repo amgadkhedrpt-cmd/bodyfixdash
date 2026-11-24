@@ -12384,7 +12384,8 @@ function sumRenewCards(D,isT,F,TO,today,perLbl,inb,card,ptRow,pct,tD,tN,tRows,TA
     else if(ev==='think'){ if(rnT){ kT++; t=gn('🔁 جدد بعد التفكير — '+rnT,'var(--g)'); } else if(fu){ kT++; t=gn('📅 اتحجزله «متابعه» '+alFmtDay(String(fu).slice(0,10)),'var(--g)'); } else t=gn('❌ لسه ما اتحجزلوش «متابعه»','var(--r)'); }
     else if(ev==='stop'){ rsS[o.evr||'—']=(rsS[o.evr||'—']||0)+1; t='السبب: <b>'+alEsc(o.evr||'—')+'</b>'+(rnT?' · '+gn('🔁 رجع وجدد','var(--g)'):''); }
     else { var evS=r?(r[7]?gn('عمل تقييم '+alFmtDay(r[7])+' وما اتسجلش قرار','#f59e0b'):r[6]?'محجوزله تقييم '+alFmtDay(r[6]):gn('ما عملش تقييم','var(--r)')):(x?gn('عمل تقييم '+alFmtDay(x.d)+' وما اتسجلش قرار','#f59e0b'):'');
-      var rs=rnT?gn('✅ جدد','var(--g)'):(r&&addD(r[3],7)>today)?'⏳ لسه في الأسبوع':(r&&r[9]&&String(r[9]).slice(0,10)>=today)?'حاجز ميعاد جاي '+alFmtDay(r[9].slice(0,10)):gn('❌ عدّى أسبوع وما جددش','var(--r)');
+      var base0=r?r[3]:(x&&x.d)||'', nx0=r&&r[9]?String(r[9]).slice(0,10):(x&&x.next?String(x.next.time||x.next).slice(0,10):'');   // من غير صف باقة (التقييم بس) → الأسبوع يتحسب من يوم التقييم
+      var rs=rnT?gn('✅ جدد','var(--g)'):(base0&&addD(base0,7)>today)?'⏳ لسه في الأسبوع ('+(dd(base0,today)===0?(r?'الباقة خلصت النهارده':'اتقيّم النهارده'):'يوم '+dd(base0,today)+' من 7')+')':(nx0&&nx0>=today)?'حاجز ميعاد جاي '+alFmtDay(nx0):gn('❌ عدّى أسبوع وما جددش','var(--r)');
       t=(evS?evS+' · ':'')+rs; }
     G[ev].push({p:p, n:nm0, dr:dr, t:t, rn:!!rnT}); });
   var dA=function(d){ return alEsc((typeof alDocAr==='function'&&alDocAr(d))||d||''); };

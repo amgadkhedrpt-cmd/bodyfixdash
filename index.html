@@ -13498,7 +13498,7 @@ function planTasks(useAll){
         '<span style="font-size:.6rem">احجزي خطوة جاية: <b>ميعاد</b> (لو هيكمل) · <b>«متابعه»</b> (لو مش جاهز أو ما ردش — يدخل نظام المتابعة) · <b>«منقطع نهائي»</b> بس لو فيه سبب مكتوب (سافر / مش عايز يكمل / الدكتور قال يوقف)</span>'].concat(x.stale_final?['<b style="color:#f59e0b">⚠️ كان «منقطع نهائي» قبل كده ('+alEsc(x.stale_final.length===10?alFmtDay(x.stale_final):x.stale_final)+') ورجع اتعالج — الكلمة قديمة، مش سبب إننا ما نكلموش</b>']:[])});
   });
   // 🧹 رجع للعلاج وكان مكتوب عنده «منقطع» في التفاصيل (قبل آخر جلسة) → تتمسح عشان محدش يتلخبط · بتختفي لوحدها لما الكلمة تتمسح
-  var SFC={}; (D.stale_final||[]).filter(inb).sort(function(a,b){ return String(b.last_att).localeCompare(String(a.last_att)); }).filter(function(x){ var b=x.branch||''; SFC[b]=(SFC[b]||0)+1; return SFC[b]<=10; }).forEach(function(x){   // 10 في اليوم لكل فرع (المتراكم بيتوزع) — اللي حضر أحدث الأول
+  var SFC={}; (today>='2026-11-25'?(D.stale_final||[]):[]).filter(inb).sort(function(a,b){ return String(b.last_att).localeCompare(String(a.last_att)); }).filter(function(x){ var b=x.branch||''; SFC[b]=(SFC[b]||0)+1; return SFC[b]<=10; }).forEach(function(x){   // من 25/11 · 10 في اليوم لكل فرع (المتراكم بيتوزع) — اللي حضر أحدث الأول
     add('evening',{grp:['stalefin'], key:'stalefin|'+x.pid+'|'+x.last_att, icon:'🧹', kind:'رجع للعلاج — امسحي «منقطع نهائي» من تفاصيل المريض', name:x.name, pid:x.pid, phone:x.phone, br:brOf(x),
       lines:['آخر جلسة '+alEsc(alFmtDay(x.last_att))+' مع '+alEsc(doc(x.doctor))+(x.fin_date?' · كان متعمله «منقطع نهائي» يوم '+alEsc(alFmtDay(x.fin_date)):''), 'مكتوب في التفاصيل: «'+alEsc(x.note)+'»']});
   });

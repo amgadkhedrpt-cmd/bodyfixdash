@@ -829,7 +829,7 @@ def build_alerts(appointments, now=None, packages=None):
     RENEW_GAPS = []
     def doc_perf():
         P_FROM = today - timedelta(days=PERF_DAYS)
-        out = defaultdict(lambda: {"branch": Counter(), "renew": [0, 0], "drop": [0, 0, 0, 0, 0], "kashf": [0, 0]})
+        out = defaultdict(lambda: {"branch": Counter(), "renew": [0, 0], "drop": [0, 0, 0, 0, 0], "kashf": [0, 0], "rl": [], "dl": []})
         for appts in patients.values():
             att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() < today and _is_pt(a["type"])],
                          key=lambda a: a["start"])
@@ -839,6 +839,10 @@ def build_alerts(appointments, now=None, packages=None):
             days = sorted(byday)
             pid = appts[0]["pid"]
             future = any(a["start"].date() >= today and a["status"] not in NOT_FUTURE for a in appts)
+            nx_a = min((a for a in appts if a["start"].date() >= today and a["status"] not in NOT_FUTURE), key=lambda a: a["start"], default=None)
+            # تفاصيل المريض للقوايم: [جلسات حضرها كلها، آخر جلسة، مع مين، الميعاد الجاي، مع مين، نوعه]
+            pinfo = [len(days), days[-1].isoformat() if days else "", byday[days[-1]]["doctor"] if days else "",
+                     nx_a["start"].isoformat()[:16] if nx_a else "", nx_a["doctor"] if nx_a else "", nx_a["type"] if nx_a else ""]
             # 1) التجديد: كل باقة خلصت (من الفاتورة أو كل 12) — جدد لو حضر جلسة بعدها في خلال 60 يوم
             pks = sorted(p for p in pk_by_pid.get(pid, []) if p[0] < today)
             segs = []
@@ -860,8 +864,10 @@ def build_alerts(appointments, now=None, packages=None):
                 RENEW_GAPS.append((nx[0] - end).days if nx else None)
                 o = out[doc]; o["branch"][byday[sd[0]]["branch"]] += 1
                 o["renew"][0] += 1
-                if any(end < d <= end + timedelta(days=60) for d in days) or (future and not any(d > end for d in days)):
+                rn_ = any(end < d <= end + timedelta(days=60) for d in days) or (future and not any(d > end for d in days))
+                if rn_:
                     o["renew"][1] += 1
+                o["rl"].append([pid, byday[sd[0]]["name"], end.isoformat(), size, 1 if rn_ else 0] + pinfo)   # مين خلّص باقة معاه — وجدد ولا لأ
             # 2) الوقوف بدري: كورس جديد (أول جلسة أو بعد انقطاع 3 أسابيع) وقف عند جلسة 3 أو أقل
             courses, cur = [], []
             for d in days:
@@ -882,6 +888,7 @@ def build_alerts(appointments, now=None, packages=None):
                 if len(c) <= 3 and last_course and not future and (today - c[-1]).days >= 14:
                     o["drop"][1] += 1
                     o["drop"][1 + len(c)] += 1                  # وقف عند جلسة 1 / 2 / 3
+                    o["dl"].append([pid, byday[c[0]]["name"], c[0].isoformat(), c[-1].isoformat(), len(c)] + pinfo)   # مين وقف بدري معاه
             # 3) الكشف ← باقة: كشف علاج طبيعي حضره، وبعده جلسة علاج طبيعي في خلال 30 يوم
             for a in appts:
                 if "كشف" not in a["type"] or "تغذ" in a["type"] or a["status"] not in ATTENDED:
@@ -899,7 +906,8 @@ def build_alerts(appointments, now=None, packages=None):
             if doc.lower() in SKIP_DOCS or not doc:
                 continue
             res[doc] = {"branch": o["branch"].most_common(1)[0][0] if o["branch"] else "",
-                        "renew": o["renew"], "drop": o["drop"], "kashf": o["kashf"]}
+                        "renew": o["renew"], "drop": o["drop"], "kashf": o["kashf"],
+                        "rl": sorted(o["rl"], key=lambda r: r[2], reverse=True), "dl": sorted(o["dl"], key=lambda r: r[3], reverse=True)}
         g = RENEW_GAPS; n = len(g); b = Counter()
         for x in g:
             k = "لم يرجع" if x is None else "≤3" if x <= 3 else "4-7" if x <= 7 else "8-10" if x <= 10 else "11-14" if x <= 14 else "15-21" if x <= 21 else "22-30" if x <= 30 else "31-60" if x <= 60 else ">60"

@@ -12212,6 +12212,19 @@ function sumOpen(){
   if(!SUM_TIMER) SUM_TIMER=setInterval(function(){ var t=document.getElementById('tab-sum'); if(t&&t.classList.contains('active')) sumRender(); },60000);
   if(h) setTimeout(function(){ var el=document.getElementById('sum_'+h); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },1500);
 }
+/* 🩺 تفاصيل الدكتور: مين خلّص باقة معاه (جدد / لأ) · مين وقف بدري — مع عدد الجلسات وآخر جلسة والميعاد الجاي */
+function sumDocDetail(r){
+  var doc=function(e){ return (typeof alDocAr==='function'&&alDocAr(e))||e||''; };
+  if(!r.rl&&!r.dl) return '<div style="font-size:.6rem;color:var(--mute)">⏳ الأسامي هتظهر بعد السحب الجاي (البيانات بتتجهز)</div>';
+  var nx=function(x,o){ return '<div style="color:var(--mute);font-size:.56rem">حضر '+x[o]+' جلسة كلها · آخر جلسة '+(x[o+1]?alEsc(alFmtDay(x[o+1]))+' مع '+alEsc(doc(x[o+2])):'—')+' · '+(x[o+3]?'الجاي: <b style="color:var(--g)">'+alEsc(alFmtDay(x[o+3].slice(0,10)))+' '+alEsc(planT(x[o+3]))+'</b> '+alEsc(x[o+5]||'')+' مع '+alEsc(doc(x[o+4])):'<b style="color:var(--r)">مالوش ميعاد جاي</b>')+'</div>'; };
+  var row=function(x,head,o){ return '<div style="padding:4px 0;border-top:1px solid var(--brd);font-size:.62rem">'+planPtLink(x[1],x[0])+' '+head+nx(x,o)+'</div>'; };
+  var rl=r.rl||[], yes=rl.filter(function(x){ return x[4]; }), no=rl.filter(function(x){ return !x[4]; }), dl=r.dl||[];
+  var blk=function(t,col,L,f){ return '<div style="margin-top:6px"><div style="font-size:.62rem;font-weight:800;color:'+col+'">'+t+' ('+L.length+')</div>'+(L.length?L.map(f).join(''):'<div style="font-size:.58rem;color:var(--mute)">—</div>')+'</div>'; };
+  return '<div style="background:var(--bg);border:1px solid var(--brd);border-radius:10px;padding:6px 10px;text-align:right">'+
+    blk('❌ خلّصوا الباقة معاه وما جددوش','var(--r)',no,function(x){ return row(x,'<span style="color:var(--mute)">— باقة '+x[3]+' خلصت '+alEsc(alFmtDay(x[2]))+'</span>',5); })+
+    blk('✅ خلّصوا الباقة معاه وجددوا','var(--g)',yes,function(x){ return row(x,'<span style="color:var(--mute)">— باقة '+x[3]+' خلصت '+alEsc(alFmtDay(x[2]))+'</span>',5); })+
+    blk('🚪 وقفوا بدري معاه','#f59e0b',dl,function(x){ return row(x,'<span style="color:var(--mute)">— بدأ '+alEsc(alFmtDay(x[2]))+' ووقف عند جلسة '+x[4]+' ('+alEsc(alFmtDay(x[3]))+')</span>',5); })+'</div>';
+}
 function sumTog(id){ SUM_OPEN[id]=!SUM_OPEN[id]; sumRender(); }
 function sumRender(){
   var box=document.getElementById('sumBox'); if(!box) return;
@@ -12318,7 +12331,7 @@ function sumRender(){
     card('dokki','📋','محجوز معاه',dvB.length+' من '+dvI.length,'فاضل '+(dvI.length-dvB.length),dvI.map(function(x){ return ptRow(x.name,x.pid,(x.amg?'✅ محجوز':'⬜')); }).join('')));
   // 🩺 الدكاترة: جلسات الفترة (حضر / ما حضرش / ملغي) + التجديد ووقفوا بدري وكشف ← باقة (آخر 6 شهور)
   try{ var DP=(D.doc_perf||{}).docs||{}, DY=((D.analysis||{}).daily)||{}, drs={};
-    Object.keys(DP).forEach(function(en){ var x=DP[en]; if(/amgad|khedr/i.test(en)||!inb(x.branch)) return; drs[en]={en:en, br:x.branch, rn:x.renew||[0,0], dr:x.drop||[0,0,0,0,0], kx:x.kashf||[0,0], a:0, n:0, c:0}; });
+    Object.keys(DP).forEach(function(en){ var x=DP[en]; if(/amgad|khedr/i.test(en)||!inb(x.branch)) return; drs[en]={en:en, br:x.branch, rn:x.renew||[0,0], dr:x.drop||[0,0,0,0,0], kx:x.kashf||[0,0], rl:x.rl, dl:x.dl, a:0, n:0, c:0}; });
     Object.keys(DY).forEach(function(en){ var r=drs[en]; if(!r) return; Object.keys(DY[en]).forEach(function(d){ if(!inR(d)||d===today) return; var v=DY[en][d]; r.a+=v[0]; r.n+=v[1]; r.c+=v[2]; }); });
     if(inR(today)) TA.forEach(function(x){ var r=drs[x.doctor]; if(!r||!/جلس/.test(x.type||'')) return; if(/checked|progress|completed/i.test(x.status||'')) r.a++; else if(/no ?show/i.test(x.status||'')) r.n++; else if(/cancel/i.test(x.status||'')) r.c++; });   // النهارده من مواعيد النهارده
     var rt=function(x){ return x[0]?x[1]/x[0]:-1; }, SK=SUM_DSORT||'rn';
@@ -12328,11 +12341,11 @@ function sumRender(){
     var op=!!SUM_OPEN.docs, shown=op?DL:DL.slice(0,8);
     h+='<div id="sum_docs" style="font-weight:800;font-size:.78rem;margin:14px 0 6px">🩺 الدكاترة — جلسات '+alEsc(perLbl)+' · التجديد والوقوف والكشف آخر 6 شهور</div>'+
       '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:6px 10px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:.62rem;min-width:520px"><tr style="color:var(--mute)"><th style="text-align:right">الدكتور</th>'+[['a','جلسات حضرت'],['nc','غياب / إلغاء'],['rn','🔁 جددوا'],['dr','🚪 وقفوا بدري'],['kx','🩺 كشف ← باقة']].map(function(c){ return '<th onclick="SUM_DSORT=\''+c[0]+'\';sumRender()" style="cursor:pointer;'+(SK===c[0]?'color:#38bdf8':'')+'">'+c[1]+(SK===c[0]?' ▼':'')+'</th>'; }).join('')+'</tr>'+
-      shown.map(function(r){ var nm=(typeof alDocAr==='function'&&alDocAr(r.en))||r.en, dr=[r.dr[0],r.dr[1]];
-        return '<tr style="border-top:1px solid var(--brd)"><td style="padding:4px;font-weight:700">'+alEsc(nm)+(act.length>1?' <span style="color:var(--mute);font-weight:400">'+(r.br==='FIX ZONE'?'دقي':'هرم')+'</span>':'')+'</td><td style="text-align:center">'+r.a+'</td><td style="text-align:center">'+(r.n+r.c)+'</td>'+
+      shown.map(function(r){ var nm=(typeof alDocAr==='function'&&alDocAr(r.en))||r.en, dr=[r.dr[0],r.dr[1]], did='doc_'+r.en.replace(/[^\w]/g,'_'), dop=!!SUM_OPEN[did];
+        return '<tr onclick="sumTog(\''+did+'\')" style="cursor:pointer;border-top:1px solid var(--brd)'+(dop?';background:rgba(37,99,235,.12)':'')+'"><td style="padding:4px;font-weight:700">'+(dop?'▾ ':'▸ ')+alEsc(nm)+(act.length>1?' <span style="color:var(--mute);font-weight:400">'+(r.br==='FIX ZONE'?'دقي':'هرم')+'</span>':'')+'</td><td style="text-align:center">'+r.a+'</td><td style="text-align:center">'+(r.n+r.c)+'</td>'+
           '<td style="text-align:center;color:'+colP(r.rn)+';font-weight:800">'+pc2(r.rn)+' <span style="color:var(--mute);font-weight:400">('+r.rn[1]+' من '+r.rn[0]+')</span></td>'+
           '<td style="text-align:center">'+(dr[0]?Math.round(dr[1]*100/dr[0])+'% <span style="color:var(--mute)">('+dr[1]+' من '+dr[0]+')</span>':'—')+'</td>'+
-          '<td style="text-align:center">'+pc2(r.kx)+(r.kx[0]?' <span style="color:var(--mute)">('+r.kx[1]+' من '+r.kx[0]+')</span>':'')+'</td></tr>'; }).join('')+'</table>'+
+          '<td style="text-align:center">'+pc2(r.kx)+(r.kx[0]?' <span style="color:var(--mute)">('+r.kx[1]+' من '+r.kx[0]+')</span>':'')+'</td></tr>'+(dop?'<tr><td colspan="6" style="padding:4px 6px 10px">'+sumDocDetail(r)+'</td></tr>':''); }).join('')+'</table>'+
       (DL.length>8?'<div onclick="sumTog(\'docs\')" style="cursor:pointer;font-size:.6rem;color:#38bdf8;padding:4px 0">'+(op?'▴ أقل':'▾ كل الدكاترة ('+DL.length+')')+'</div>':'')+
        '<div style="font-size:.56rem;color:var(--mute);padding:4px 0">مترتبين من الأعلى للأقل — دوسي على أي عمود يترتبوا بيه · 🔁 جددوا = من الباقات اللي خلصت مع الدكتور (من أسبوعين على الأقل)، كام مريض حضر جلسة تانية خلال 60 يوم أو محجوزله ميعاد جاي · 🚪 وقفوا بدري = كورسات بدأت معاه ووقفت عند جلسة 3 أو أقل · 🩺 كشف ← باقة = كشوفاته اللي بدأت جلسات خلال 30 يوم</div></div>'; }catch(e){}
   if(!isT){ var sc=window.scrollY; box.innerHTML=h; window.scrollTo(0,sc); return; }

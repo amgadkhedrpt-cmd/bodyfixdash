@@ -1,6 +1,8 @@
 {
- "at": "2026-11-24T13:28:07.997Z",
- "errors": [],
+ "at": "2026-11-24T13:44:53.026Z",
+ "errors": [
+  "apt haram 2026-11: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (K"
+ ],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
  "pay_pages": {
@@ -90,14 +92,18 @@
   ],
   "query": "query GET_ATTENDANCES($userId: ID, $id: ID, $orderBy: String!, $skip: Int!, $take: Int!, $rangeDate: [DateTime!]!, $branchId: ID, $filters: Filter) { attendances( userId: $userId id: $id orderBy: $orderBy skip: $skip take: $take rangeDate: $rangeDate branchId: $branchId filters: $filters ) { id createdIp updatedIp startUseragent endUseragent startImage endImage duration createdAt updatedAt details createdLocation updatedLocation startLatitude startLongitude startApproved endLatitude endLongitude endApproved approved branch { id name __typename } user { id name __typename } __typename } }"
  },
+ "fallbacks": [
+  "createdAppointments: APIRequestContext.post: aborted (ECONNRESET)\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.3",
+  "createdAppointments: APIRequestContext.post: read ECONNRESET\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36\n   "
+ ],
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 65,
+ "ph2_n": 64,
  "conf": {
-  "confirmed_now": 146,
+  "confirmed_now": 144,
   "new": 0,
-  "cx_changed": 0
+  "cx_changed": 1
  },
  "kinds": {
   "pay": {
@@ -588,7 +594,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 534,
+    "rows": 535,
     "cols": [
      "aid",
      "start",
@@ -921,10 +927,10 @@
  },
  "hash": {
   "data/fin.enc": "7a6178b82f657851",
-  "data/fin_c.enc": "f4bbbf4d6054df12"
+  "data/fin_c.enc": "7a4fbf2df4800bc1"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 73
+ "secs": 76
 }

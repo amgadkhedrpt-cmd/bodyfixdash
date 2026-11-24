@@ -972,6 +972,51 @@ def build_alerts(appointments, now=None, packages=None):
     except Exception as e:
         perf = {"error": str(e)[:200]}
 
+    # ── 📞 أداء متابعة الانقطاع (آخر 90 يوم) — للملخص اليومي وتنبيهات المدير ──
+    FU_OK_RE = re.compile(r"مساف|سافر|سفر|بره مصر|برا مصر|مش عايز|مش عاوز|مش حاب|مش هيكمل|مش هتكمل|رافض|رفض|مش هيرجع|خلص علاج|خلصت علاج|اتحسن|خف|اتعالج")
+    FU_NOIMP_RE = re.compile(r"(محس|ماحس|ما حس|محسيت|مش حاس|مش حاسه|محستش|ما حسيتش|محسوش)\S*\s*(ب|ب\s)?\s*(اي\s*)?(تحسن|فرق|نتيجه|نتيجة)|مفيش\s*(اي\s*)?(تحسن|فرق|نتيجه|نتيجة)|ما\s*اتحسنش|ماتحسنش|متحسنش|بدون تحسن|من غير تحسن|مش شايف تحسن|الالم زي ما هو|الألم زي ما هو|زي ما هو مفيش")
+    def fu_stats():
+        F0 = today - timedelta(days=90)
+        is_fu = lambda a: "follow" in (a["doctor"] or "").lower() or bool(_fu_kind(a["type"]))
+        elig, inq_l, fin_l, noimp = [], [], [], []
+        for appts in patients_all.values():
+            ap = sorted(appts, key=lambda a: a["start"])
+            pid = ap[0].get("pid") or ""; nm = ap[0]["name"]; br = Counter(a["branch"] for a in ap if not is_fu(a)).most_common(1)
+            br = br[0][0] if br else ap[0]["branch"]
+            sess = [a for a in ap if not is_fu(a) and a["status"] in ATTENDED and _is_pt(a["type"]) and a["start"].date() < today]
+            fus = [a for a in ap if is_fu(a) and a["status"] not in ("canceled", "cancelled")]
+            # 1) دخل المتابعة؟ آخر جلسة + 14 يوم من غير جلسات = محتاج متابعة → اتحجزله Follow up خلال 28 يوم من آخر جلسة؟
+            if sess:
+                L = sess[-1]["start"].date()
+                if F0 <= L <= today - timedelta(days=14) and not any(a["start"].date() > L and not is_fu(a) and a["status"] not in NOT_FUTURE for a in ap):
+                    f1 = [a for a in fus if L < a["start"].date() <= L + timedelta(days=28)]
+                    elig.append([pid, nm, br, L.isoformat(), 1 if f1 else 0, f1[0]["start"].date().isoformat() if f1 else ""])
+            # 2) مكالمات الانقطاع + رجع؟
+            q = [a for a in fus if _fu_kind(a["type"]) == "inq" and F0 <= a["start"].date() <= today]
+            if q:
+                f = q[0]["start"].date()
+                back = [a for a in ap if not is_fu(a) and a["status"] in ATTENDED and a["start"].date() >= f]
+                k = sum(1 for a in q if back and a["start"].date() <= back[0]["start"].date())
+                inq_l.append([pid, nm, br, f.isoformat(), len(q), back[0]["start"].date().isoformat() if back else "", k if back else 0])
+            # 3) منقطع نهائي: اتعمله 3 مكالمات انقطاع قبلها؟ ولا فيه سبب مكتوب (مسافر / مش عايز يكمل)؟
+            for a in fus:
+                if _fu_kind(a["type"]) != "final" or not (F0 <= a["start"].date() <= today):
+                    continue
+                before = [x for x in fus if _fu_kind(x["type"]) == "inq" and x["start"] < a["start"] and x["start"] >= a["start"] - timedelta(days=45)]
+                notes = " ".join(filter(None, [a.get("note") or ""] + [x.get("note") or "" for x in before]))
+                ok = len(before) >= 3 or bool(FU_OK_RE.search(notes))
+                fin_l.append([pid, nm, br, a["start"].date().isoformat(), len(before), 1 if ok else 0, (a.get("note") or "")[:160], a.get("by") or ""])
+            # 4) «ما حسش بتحسن» في أي ملحوظة (مواعيد أو متابعة) آخر 30 يوم → للمدير
+            for a in ap:
+                n_ = a.get("note") or ""
+                if n_ and today - timedelta(days=30) <= a["start"].date() <= today and FU_NOIMP_RE.search(n_):
+                    noimp.append([pid, nm, br, a["start"].date().isoformat(), n_[:200], a["doctor"], a["type"]])
+        return {"from": F0.isoformat(), "elig": elig, "inq": inq_l, "fin": fin_l, "noimp": noimp}
+    try:
+        fus_ = fu_stats()
+    except Exception as e:
+        fus_ = {"error": str(e)[:200]}
+
     # ── جلسة النهارده رقم كام في الباقة (3 / 6 / 9 / 12) ──
     milestones_all = []
     for appts in patients.values():
@@ -1941,5 +1986,6 @@ def build_alerts(appointments, now=None, packages=None):
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),
         "doc_perf": perf,
+        "fu_stats": fus_,
         "day_counts": {k: {doc: dict(br) for doc, br in v.items()} for k, v in day_counts.items()},
     }

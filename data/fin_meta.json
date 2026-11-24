@@ -1,5 +1,5 @@
 {
- "at": "2026-11-24T13:59:11.699Z",
+ "at": "2026-11-24T14:13:16.110Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -93,11 +93,11 @@
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 64,
+ "ph2_n": 62,
  "conf": {
-  "confirmed_now": 144,
-  "new": 3,
-  "cx_changed": 0
+  "confirmed_now": 139,
+  "new": 139,
+  "cx_changed": 91
  },
  "kinds": {
   "pay": {
@@ -122,29 +122,23 @@
     "last": "2026-11",
     "rows": 20912,
     "cols": [
-     "id",
      "type",
      "amount",
      "balance",
      "refunded",
-     "refundedAt",
-     "details",
      "createdAt",
      "createdBy.name",
      "doctor.name",
      "transaction.treasury.publicName",
-     "invoice.id",
      "invoice.referenceId",
      "invoice.total",
      "invoice.discount",
      "invoice.paid",
-     "invoice.patient.id",
      "invoice.patient.referenceId",
      "invoice.patient.firstName",
      "invoice.patient.lastName",
-     "patient",
-     "appointment",
-     "transaction"
+     "details",
+     "refundedAt"
     ],
     "missing": []
    },
@@ -209,12 +203,9 @@
     "last": "2026-11",
     "rows": 3034,
     "cols": [
-     "id",
      "type",
      "amount",
-     "details",
      "refunded",
-     "refundedAt",
      "expenseType",
      "expense.name",
      "expense.type",
@@ -223,8 +214,8 @@
      "transaction.treasury.publicName",
      "createdAt",
      "createdBy.name",
-     "transaction",
-     "createdBy"
+     "refundedAt",
+     "details"
     ],
     "missing": []
    },
@@ -261,6 +252,117 @@
     "missing": []
    }
   },
+  "inv": {
+   "haram": {
+    "values": {},
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 17730,
+    "cols": [
+     "id",
+     "referenceId",
+     "createdAt",
+     "total",
+     "paid",
+     "discount",
+     "patient.referenceId",
+     "patient.firstName",
+     "patient.lastName",
+     "referralSource.name",
+     "doctor.name"
+    ],
+    "missing": []
+   },
+   "dokki": {
+    "values": {},
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 805,
+    "cols": [
+     "id",
+     "referenceId",
+     "createdAt",
+     "total",
+     "paid",
+     "discount",
+     "patient.referenceId",
+     "patient.firstName",
+     "patient.lastName",
+     "referralSource.name",
+     "doctor.name"
+    ],
+    "missing": []
+   }
+  },
+  "apt": {
+   "haram": {
+    "values": {
+     "status": [
+      "CANCELED",
+      "CHECKEDIN",
+      "COMPLETED",
+      "CONFIRMED",
+      "DELAYED",
+      "INPROGRESS",
+      "NOSHOW",
+      "NOTE",
+      "OPEN",
+      "WAITING"
+     ]
+    },
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 133127,
+    "cols": [
+     "start",
+     "status",
+     "type",
+     "createdAt",
+     "updatedAt",
+     "createdBy.name",
+     "room",
+     "doctor.name",
+     "patient.referenceId",
+     "patient.phoneNumber"
+    ],
+    "missing": []
+   },
+   "dokki": {
+    "values": {
+     "status": [
+      "CANCELED",
+      "COMPLETED",
+      "CONFIRMED",
+      "DELAYED",
+      "INPROGRESS",
+      "NOSHOW",
+      "NOTE",
+      "OPEN",
+      "WAITING"
+     ]
+    },
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 6658,
+    "cols": [
+     "start",
+     "status",
+     "type",
+     "createdAt",
+     "updatedAt",
+     "createdBy.name",
+     "room",
+     "doctor.name",
+     "patient.referenceId",
+     "patient.phoneNumber"
+    ],
+    "missing": []
+   }
+  },
   "xp": {
    "haram": {
     "values": {
@@ -292,7 +394,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 3030,
+    "rows": 3031,
     "cols": [
      "name",
      "type",
@@ -353,13 +455,91 @@
     "missing": []
    }
   },
+  "att": {
+   "haram": {
+    "values": {},
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 8043,
+    "cols": [
+     "duration",
+     "createdAt",
+     "updatedAt",
+     "startApproved",
+     "endApproved",
+     "approved",
+     "branch.name",
+     "user.name",
+     "details"
+    ],
+    "missing": []
+   },
+   "dokki": {
+    "values": {},
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 1411,
+    "cols": [
+     "duration",
+     "createdAt",
+     "updatedAt",
+     "startApproved",
+     "endApproved",
+     "approved",
+     "branch.name",
+     "user.name",
+     "details"
+    ],
+    "missing": []
+   }
+  },
+  "ops": {
+   "all": {
+    "values": {
+     "status": [
+      "COMPLETED",
+      "EXISTING",
+      "IN_PROGRESS",
+      "PLANNED",
+      "REJECTED"
+     ],
+     "branch.name": [
+      "BODYFIX Center",
+      "FIX ZONE"
+     ]
+    },
+    "months": 30,
+    "first": "2024-06",
+    "last": "2026-11",
+    "rows": 16845,
+    "cols": [
+     "name",
+     "end",
+     "createdAt",
+     "paidAt",
+     "status",
+     "total",
+     "paid",
+     "discount",
+     "operation.name",
+     "doctor.name",
+     "patient.referenceId",
+     "patient.firstName",
+     "patient.lastName",
+     "branch.name"
+    ],
+    "missing": []
+   }
+  },
   "conf": {
    "all": {
     "values": {},
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 1379,
+    "rows": 139,
     "cols": [
      "aid",
      "start",
@@ -410,185 +590,13 @@
     ]
    }
   },
-  "ops": {
-   "all": {
-    "values": {
-     "status": [
-      "COMPLETED",
-      "EXISTING",
-      "IN_PROGRESS",
-      "PLANNED",
-      "REJECTED"
-     ],
-     "branch.name": [
-      "BODYFIX Center",
-      "FIX ZONE"
-     ]
-    },
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 16850,
-    "cols": [
-     "name",
-     "end",
-     "createdAt",
-     "paidAt",
-     "status",
-     "total",
-     "paid",
-     "discount",
-     "operation.name",
-     "doctor.name",
-     "patient.referenceId",
-     "patient.firstName",
-     "patient.lastName",
-     "branch.name"
-    ],
-    "missing": []
-   }
-  },
-  "att": {
-   "haram": {
-    "values": {},
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 8042,
-    "cols": [
-     "duration",
-     "createdAt",
-     "updatedAt",
-     "startApproved",
-     "endApproved",
-     "approved",
-     "branch.name",
-     "user.name",
-     "details"
-    ],
-    "missing": []
-   },
-   "dokki": {
-    "values": {},
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 1411,
-    "cols": [
-     "duration",
-     "createdAt",
-     "updatedAt",
-     "startApproved",
-     "endApproved",
-     "approved",
-     "branch.name",
-     "user.name",
-     "details"
-    ],
-    "missing": []
-   }
-  },
-  "docerr": {
-   "all": {
-    "values": {},
-    "months": 2,
-    "first": "2026-10",
-    "last": "2026-11",
-    "rows": 269,
-    "cols": [
-     "التاريخ",
-     "اسم المريض",
-     "اسم الدكتور",
-     "الخدمة",
-     "عدد المواعيد",
-     "عدد العمليات",
-     "الملحوظة",
-     "الفرع",
-     "أول ما ظهر"
-    ],
-    "missing": [
-     "2024-06",
-     "2024-07",
-     "2024-08",
-     "2024-09",
-     "2024-10",
-     "2024-11",
-     "2024-12",
-     "2025-01",
-     "2025-02",
-     "2025-03",
-     "2025-04",
-     "2025-05",
-     "2025-06",
-     "2025-07",
-     "2025-08",
-     "2025-09",
-     "2025-10",
-     "2025-11",
-     "2025-12",
-     "2026-01",
-     "2026-02",
-     "2026-03",
-     "2026-04",
-     "2026-05",
-     "2026-06",
-     "2026-07",
-     "2026-08",
-     "2026-09"
-    ]
-   }
-  },
-  "inv": {
-   "haram": {
-    "values": {},
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 17728,
-    "cols": [
-     "id",
-     "referenceId",
-     "createdAt",
-     "total",
-     "paid",
-     "discount",
-     "patient.referenceId",
-     "patient.firstName",
-     "patient.lastName",
-     "referralSource.name",
-     "doctor.name"
-    ],
-    "missing": []
-   },
-   "dokki": {
-    "values": {},
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 805,
-    "cols": [
-     "id",
-     "referenceId",
-     "createdAt",
-     "total",
-     "paid",
-     "discount",
-     "patient.referenceId",
-     "patient.firstName",
-     "patient.lastName",
-     "referralSource.name",
-     "doctor.name"
-    ],
-    "missing": []
-   }
-  },
   "cx": {
    "all": {
     "values": {},
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 535,
+    "rows": 91,
     "cols": [
      "aid",
      "start",
@@ -638,74 +646,6 @@
      "2026-09",
      "2026-10"
     ]
-   }
-  },
-  "apt": {
-   "haram": {
-    "values": {
-     "status": [
-      "CANCELED",
-      "CHECKEDIN",
-      "COMPLETED",
-      "CONFIRMED",
-      "DELAYED",
-      "INPROGRESS",
-      "NOSHOW",
-      "NOTE",
-      "OPEN",
-      "WAITING"
-     ]
-    },
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 133121,
-    "cols": [
-     "start",
-     "status",
-     "type",
-     "createdAt",
-     "updatedAt",
-     "createdBy.name",
-     "room",
-     "doctor.name",
-     "patient.referenceId",
-     "patient.phoneNumber"
-    ],
-    "missing": []
-   },
-   "dokki": {
-    "values": {
-     "status": [
-      "CANCELED",
-      "CHECKEDIN",
-      "COMPLETED",
-      "CONFIRMED",
-      "DELAYED",
-      "INPROGRESS",
-      "NOSHOW",
-      "NOTE",
-      "OPEN",
-      "WAITING"
-     ]
-    },
-    "months": 30,
-    "first": "2024-06",
-    "last": "2026-11",
-    "rows": 6658,
-    "cols": [
-     "start",
-     "status",
-     "type",
-     "createdAt",
-     "updatedAt",
-     "createdBy.name",
-     "room",
-     "doctor.name",
-     "patient.referenceId",
-     "patient.phoneNumber"
-    ],
-    "missing": []
    }
   }
  },
@@ -891,10 +831,10 @@
     "prod": 5
    },
    "2026-11": {
-    "fu": 197,
+    "fu": 203,
+    "physio": 51,
     "dev": 36,
     "mezo": 11,
-    "physio": 49,
     "inj": 72,
     "exam": 26,
     "prod": 1
@@ -922,11 +862,12 @@
   ]
  },
  "hash": {
-  "data/fin.enc": "7a6178b82f657851",
-  "data/fin_c.enc": "ae83360f60416377"
+  "data/fin.enc": "a129ad93d7c820f3",
+  "data/fin_c.enc": "fc1bc8a1c488226e"
  },
  "written": [
+  "data/fin.enc",
   "data/fin_c.enc"
  ],
- "secs": 78
+ "secs": 512
 }

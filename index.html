@@ -12312,7 +12312,8 @@ function fuVerTxt(v){ if(!v) return ''; if(v.st==='noph'||v.st==='nolog') return
 function sumRenewCards(D,isT,F,TO,today,perLbl,inb,card,ptRow,pct,tD,tN,tRows){
   var PE=D.pkg_end; if(!PE) return card('rnev','📋','تقييم الجلسة الأخيرة','…','هتظهر بعد السحب الجاي','')+card('rnok','🔁','جددوا فعلاً','…','هتظهر بعد السحب الجاي','');
   var addD=function(d,n){ var x=new Date(d+'T12:00:00'); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
-  var W0=isT?addD(today,-30):F, W1=TO, wl=isT?'آخر 30 يوم':perLbl, L=PE.filter(function(r){ return inb(r[2])&&r[3]>=W0&&r[3]<=W1; });
+  /* الفترة = فلتر الملخص اللي فوق (النهارده = اللي خلصت باقتهم النهارده بس) */
+  var W0=F, W1=TO, wl=isT?'النهارده':perLbl, L=PE.filter(function(r){ return inb(r[2])&&r[3]>=W0&&r[3]<=W1; });
   var nm=function(r,x){ return ptRow(r[1],r[0],'— باقة '+r[4]+' خلصت '+alEsc(alFmtDay(r[3]))+' مع '+alEsc((typeof alDocAr==='function'&&alDocAr(r[5]))||r[5]||'')+(x?' · '+x:'')); };
   var evA=L.filter(function(r){ return r[7]; }), evB=L.filter(function(r){ return r[6]&&!r[7]; }), evN=L.filter(function(r){ return !r[6]; }), bk=evA.length+evB.length;
   var hd=function(t,c,n){ return '<div style="font-size:.6rem;font-weight:800;margin-top:6px;color:'+(c||'var(--txt)')+'">'+t+' ('+n+')</div>'; };

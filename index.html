@@ -12593,6 +12593,73 @@ function liFromReq(idx){ var r=(typeof REQ_DATA!=='undefined'&&REQ_DATA[idx])||{
   var n=typeof alPatNorm==='function'?alPatNorm(nm):nm, p=n.split(' ').filter(function(w){ return w.length>2; }), hit=liRoster().filter(function(o){ var a=alPatNorm(o.name)+' '+alPatNorm(o.en||'')+' '+alPatNorm((o.en&&typeof alDocAr==='function'&&alDocAr(o.en))||'');
     return a.indexOf(n)>=0||(p.length&&p.slice(0,2).every(function(w){ return a.indexOf(w)>=0; })); }).map(function(o){ return o.key; });
   liOpen(hit.slice(0,1),f||'',t||''); }
+/* 📈 مقارنة أسبوع بأسبوع (آخر 10 أسابيع · الأسبوع من السبت للخميس) — رسمة لكل مقياس (مقياس واحد لكل رسمة) */
+var SUM_PLAN_START='2026-11-12';
+function wkStart(ds){ var x=new Date(ds+'T12:00:00'), back=(x.getDay()+1)%7; x.setDate(x.getDate()-back); return x.toISOString().slice(0,10); }
+function wkAdd(d,n){ var x=new Date(d+'T12:00:00'); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); }
+function wkChart(id,title,sub,W,fmt,goodUp,note){
+  // W: [{w, v (أو null), n (العدد اللي اتحسب منه), part (أسبوع ناقص / لسه بدري), tip}]
+  var vals=W.filter(function(x){ return x.v!=null; }).map(function(x){ return x.v; }), mx=Math.max.apply(null,vals.concat([1]))*1.12;
+  var w0=320, h0=120, pl=6, pr=6, pt=18, pb=22, bw=(w0-pl-pr)/W.length, ps=wkStart(SUM_PLAN_START);
+  var last=null; for(var i=W.length-1;i>=0;i--){ if(W[i].v!=null&&!W[i].part){ last=W[i]; break; } }
+  var prev=null; if(last){ var li=W.indexOf(last); for(var j=li-1;j>=0;j--){ if(W[j].v!=null&&!W[j].part){ prev=W[j]; break; } } }
+  var bars=W.map(function(x,i){ var X=pl+i*bw+bw*0.18, bwi=bw*0.64, lbl=x.w.slice(8,10)+'/'+(+x.w.slice(5,7));
+    var hh=x.v==null?0:Math.max(2,(h0-pt-pb)*x.v/mx), Y=h0-pb-hh, isL=x===last;
+    var col=x.part?'var(--wk-part)':isL?'var(--wk-hi)':'var(--wk-bar)';
+    var tip=lbl+' — '+(x.v==null?'مفيش بيانات':fmt(x.v))+(x.n!=null?' (من '+x.n+')':'')+(x.part?' · '+(x.tip||'ناقص'):'');
+    return '<g><title>'+alEsc(tip)+'</title><rect x="'+(pl+i*bw)+'" y="'+pt+'" width="'+bw+'" height="'+(h0-pt-pb)+'" fill="transparent"></rect>'+
+      (x.v==null?'':'<path d="M'+X+','+(h0-pb)+' V'+(Y+3)+' q0,-3 3,-3 h'+(bwi-6)+' q3,0 3,3 V'+(h0-pb)+' Z" fill="'+col+'"'+(x.part?' fill-opacity=".55"':'')+'></path>')+
+      (isL?'<text x="'+(X+bwi/2)+'" y="'+(Y-4)+'" text-anchor="middle" font-size="10" font-weight="800" fill="var(--txt)">'+alEsc(fmt(x.v))+'</text>':'')+
+      ((i%2===W.length%2||isL)?'<text x="'+(X+bwi/2)+'" y="'+(h0-7)+'" text-anchor="middle" font-size="8.5" fill="var(--mute)">'+lbl+'</text>':'')+'</g>'; }).join('');
+  var pi=-1; W.forEach(function(x,i){ if(x.w===ps) pi=i; });
+  var mark=pi>=0?'<line x1="'+(pl+pi*bw)+'" x2="'+(pl+pi*bw)+'" y1="'+(pt-6)+'" y2="'+(h0-pb)+'" stroke="var(--mute)" stroke-width="1" stroke-dasharray="3 3"></line><text x="'+(pl+pi*bw-3)+'" y="'+(pt-8)+'" text-anchor="end" font-size="8.5" fill="var(--mute)">بداية خطة اليوم ←</text>':'';
+  var dl='';
+  if(last&&prev&&prev.v){ var df=last.v-prev.v, up=df>0, good=goodUp?up:!up; dl='<span style="font-size:.6rem;font-weight:800;color:'+(Math.abs(df)<1e-9?'var(--mute)':good?'var(--g)':'var(--r)')+'">'+(up?'▲':df<0?'▼':'■')+' '+alEsc(fmt(Math.abs(df)).replace('%',''))+(fmt(1).indexOf('%')>=0?' نقطة':'')+' عن الأسبوع اللي قبله</span>'; }
+  return '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px 11px">'+
+    '<div style="font-size:.66rem;font-weight:800">'+title+'</div><div style="font-size:.56rem;color:var(--mute);margin-bottom:2px">'+sub+'</div>'+
+    '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:1.15rem;font-weight:900">'+(last?alEsc(fmt(last.v)):'—')+'</span>'+dl+'</div>'+
+    '<svg viewBox="0 0 '+w0+' '+h0+'" style="width:100%;height:auto;display:block;direction:ltr" role="img" aria-label="'+alEsc(title)+'"><line x1="'+pl+'" x2="'+(w0-pr)+'" y1="'+(h0-pb)+'" y2="'+(h0-pb)+'" stroke="var(--brd)"></line>'+mark+bars+'</svg>'+
+    (note?'<div style="font-size:.54rem;color:var(--mute)">'+note+'</div>':'')+'</div>';
+}
+function sumWeekly(D,inb,today){
+  var N=10, cw=wkStart(today), WK=[]; for(var i=N-1;i>=0;i--) WK.push(wkAdd(cw,-7*i));
+  var idx={}; WK.forEach(function(w,i){ idx[w]=i; });
+  var mk=function(){ return WK.map(function(w){ return {w:w}; }); }, pct=function(v){ return Math.round(v)+'%'; }, num=function(v){ return String(Math.round(v)); };
+  var partNow=function(A){ A[A.length-1].part=true; A[A.length-1].tip='الأسبوع ده لسه ما خلصش'; return A; };
+  // 1) الحضور والإلغاء والـ No Show — من تحليل كل دكتور يوم بيوم
+  var AT=WK.map(function(){ return [0,0,0]; }), DY=((D.analysis||{}).daily)||{};
+  Object.keys(DY).forEach(function(en){ if(/follow up/i.test(en)) return; var br=typeof alBranchOf==='function'?alBranchOf(en,''):''; if(br&&!inb(br)) return;
+    Object.keys(DY[en]).forEach(function(ds){ var k=idx[wkStart(ds)]; if(k==null) return; var v=DY[en][ds]; AT[k][0]+=v[0]||0; AT[k][1]+=v[1]||0; AT[k][2]+=v[2]||0; }); });
+  var A1=partNow(mk().map(function(x,i){ var a=AT[i]; x.v=a[0]+a[1]+a[2]?a[0]:null; x.n=null; return x; }));
+  var A2=partNow(mk().map(function(x,i){ var a=AT[i], t=a[0]+a[1]+a[2]; x.v=t?a[2]*100/t:null; x.n=t; return x; }));
+  var A3=partNow(mk().map(function(x,i){ var a=AT[i], t=a[0]+a[1]+a[2]; x.v=t?a[1]*100/t:null; x.n=t; return x; }));
+  // 2) التجديد الفعلي — الباقات اللي آخر جلسة فيها في الأسبوع ده: حضر جلسة بعدها خلال 60 يوم (آخر أسبوعين «لسه بدري»)
+  var RN=WK.map(function(){ return [0,0]; }); (D.pkg_end||[]).forEach(function(r){ if(!inb(r[2])) return; var k=idx[wkStart(r[3])]; if(k==null) return; RN[k][0]++; if(r[8]) RN[k][1]++; });
+  var A4=mk().map(function(x,i){ var a=RN[i]; x.v=a[0]?a[1]*100/a[0]:null; x.n=a[0]; if(wkAdd(x.w,6)>wkAdd(today,-14)){ x.part=true; x.tip='لسه بدري — بيتحسب بعد أسبوعين من آخر جلسة'; } return x; });
+  // 3) دخلوا المتابعة — المرضى اللي عدّى على آخر جلسة ليهم 14 يوم في الأسبوع ده: اتحجزلهم Follow up خلال 28 يوم؟
+  var EN=WK.map(function(){ return [0,0]; }); ((D.fu_stats||{}).elig||[]).forEach(function(r){ if(!inb(r[2])) return; var k=idx[wkStart(wkAdd(r[3],14))]; if(k==null) return; EN[k][0]++; if(r[4]) EN[k][1]++; });
+  var A5=mk().map(function(x,i){ var a=EN[i]; x.v=a[0]?a[1]*100/a[0]:null; x.n=a[0]; if(wkAdd(x.w,6)>wkAdd(today,-14)){ x.part=true; x.tip='لسه فيه وقت يدخلوا المتابعة'; } return x; });
+  // 4) إنجاز خطة اليوم — من ملخص كل يوم المتحفظ
+  var PS=WK.map(function(){ return [0,0]; }), SEC={}; Object.keys(PLAN_SUMS||{}).forEach(function(ds){ var k=idx[wkStart(ds)]; if(k==null) return; var S=PLAN_SUMS[ds]||{};
+    Object.keys(S.br||{}).forEach(function(b){ if(!inb(b)) return; PS[k][0]+=S.br[b].tot||0; PS[k][1]+=S.br[b].done||0; });
+    Object.keys(S.sec||{}).forEach(function(n){ var nn=typeof planNormName==='function'?planNormName(n):n; if(typeof planIsReg==='function'&&!planIsReg(nn)) return; var z=SEC[nn]=SEC[nn]||WK.map(function(){ return [0,0]; }); z[k][0]+=S.sec[n].tot||0; z[k][1]+=S.sec[n].done||0; }); });
+  var A6=partNow(mk().map(function(x,i){ var a=PS[i]; x.v=a[0]?a[1]*100/a[0]:null; x.n=a[0]; return x; }));
+  var secRows=Object.keys(SEC).sort().map(function(n){ var z=SEC[n], pts=z.map(function(a){ return a[0]?a[1]*100/a[0]:null; });
+    var cells=pts.map(function(v,i){ return '<td title="'+alEsc(WK[i].slice(8,10)+'/'+(+WK[i].slice(5,7))+(v==null?' — مفيش':' — '+Math.round(v)+'% ('+z[i][1]+' من '+z[i][0]+')'))+'" style="text-align:center;padding:3px 1px;font-size:.56rem;color:'+(v==null?'var(--mute)':v>=80?'var(--g)':v>=60?'#f59e0b':'var(--r)')+';font-weight:'+(i===N-1?'800':'500')+'">'+(v==null?'·':Math.round(v))+'</td>'; }).join('');
+    return '<tr style="border-top:1px solid var(--brd)"><td style="padding:3px 4px;font-size:.6rem;font-weight:700;white-space:nowrap;text-align:left">'+alEsc(n)+'</td>'+cells+'</tr>'; }).join('');
+  var secTbl=secRows?'<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px 11px;grid-column:1/-1;overflow:auto"><div style="font-size:.66rem;font-weight:800">✅ إنجاز كل سكرتيرة % — أسبوع بأسبوع</div><div style="font-size:.56rem;color:var(--mute);margin-bottom:4px">اللي اتعمل من مهامها في خطة اليوم · الأسبوع الأخير لسه ما خلصش</div>'+
+    '<table style="width:100%;border-collapse:collapse;min-width:380px;direction:ltr"><tr><td></td>'+WK.map(function(w){ return '<td style="text-align:center;font-size:.52rem;color:var(--mute)">'+w.slice(8,10)+'/'+(+w.slice(5,7))+'</td>'; }).join('')+'</tr>'+secRows+'</table></div>':'';
+  return '<style>#sumBox{--wk-bar:#64748b;--wk-hi:#2563eb;--wk-part:#94a3b8}@media (prefers-color-scheme:dark){#sumBox{--wk-bar:#64748b;--wk-hi:#60a5fa;--wk-part:#475569}}</style>'+
+    '<div style="font-weight:800;font-size:.78rem;margin:16px 0 4px">📈 مقارنة أسبوع بأسبوع — آخر 10 أسابيع</div><div style="font-size:.58rem;color:var(--mute);margin-bottom:6px">الأسبوع من السبت للخميس · العمود الأزرق = آخر أسبوع كامل · الفاتح = لسه ما خلصش / لسه بدري · الخط المتقطع = بداية خطة اليوم · المس أي عمود يظهر رقمه · بيمشي على فلتر الفرع</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">'+
+    wkChart('wk_att','✅ جلسات اتحضرت','عدد الجلسات في الأسبوع',A1,num,true)+
+    wkChart('wk_can','🚫 الإلغاء %','من كل مواعيد الجلسات',A2,pct,false)+
+    wkChart('wk_ns','❌ No Show %','من كل مواعيد الجلسات',A3,pct,false,'الأسبوع الأخير ممكن يكون أقل من الحقيقة لحد ما الحالات تتسجل')+
+    wkChart('wk_rn','🔁 التجديد الفعلي %','باقات خلصت في الأسبوع ده: حضروا جلسة بعدها',A4,pct,true)+
+    wkChart('wk_fu','📥 دخلوا المتابعة %','خلّصوا أو وقفوا: اتحجزلهم Follow up',A5,pct,true)+
+    wkChart('wk_pl','📋 إنجاز خطة اليوم %','كل مهام السكرتارية',A6,pct,true,'من أول يوم اتحفظ فيه ملخص الخطة')+
+    secTbl+'</div>';
+}
 function sumTog(id){ SUM_OPEN[id]=!SUM_OPEN[id]; sumRender(); }
 /* دوسة على رقم في جدول الدكاترة → يفتح بيانات المؤشر ده بس · دوسة تانية على نفس الرقم تقفل */
 /* شريط تابات المؤشرات جوه تفاصيل الدكتور — دوسة على أي تاب تفتح بياناته */
@@ -12795,6 +12862,7 @@ function sumRender0(){
           NI.map(function(r){ return ptRow(r[1],r[0],'— '+alEsc(alFmtDay(r[3]))+' · '+alEsc(r[5]||'')+' · «'+alEsc(r[4].slice(0,90))+'»'); }).join(''),NI.length?'#f59e0b':''));
     } else h+=sec('📞 متابعة الانقطاع','<div style="font-size:.62rem;color:var(--mute);padding:6px">هتظهر بعد السحب الجاي</div>');
   }catch(e){}
+  try{ h+=sumWeekly(D,inb,today); }catch(e){ console.log('weekly',e); }
   // 🩺 الدكاترة: جلسات الفترة (حضر / ما حضرش / ملغي) + التجديد ووقفوا بدري وكشف ← باقة (آخر 6 شهور)
   try{ var DP=(D.doc_perf||{}).docs||{}, DY=((D.analysis||{}).daily)||{}, drs={};
     var one=act.length===1?act[0]:'';

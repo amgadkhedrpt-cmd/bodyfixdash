@@ -13245,10 +13245,14 @@ function planTasks(useAll){
     AUD_DATA.expect.forEach(function(r){ if(!r.np||act.indexOf(r.b)<0) return; var nx=!!r.nx; if(!nx&&r.d!==today) return;
       var k=(nx?'nopkgnext|':'nopkg|')+r.d+'|'+r.pid+'|'+r.s; if(npSeen[k]) return; npSeen[k]=1;
       var ok=!!r.ok, how=r.pkg?'اتفتحتله باقة':r.ev?'اتحجزله إعادة تقييم':'اتحل على Medicolize';
+      // عنده باقة مفتوحة لخدمة تانية (مثلاً تصريف ليمفاوي) والموعد متسجل «جلسة علاج طبيعي» → غالباً اسم الموعد غلط
+      var oth={}; (AUD_DATA.steps||[]).forEach(function(z){ if(z.pid===r.pid&&/planned/i.test(z.st||'')){ var nm=String(z.s||'').replace(/[\s\d.]+$/,'').trim(), fam=function(x){ return /تغذ|مونجار|حقن|تخسيس|اوزمب|أوزمب/.test(x)?'n':'p'; }; if(nm&&fam(nm)==='p'&&fam(r.s||'')==='p') oth[nm]=(oth[nm]||0)+1; } });   // علاج طبيعي بس (التغذية والحقن خدمات مختلفة فعلاً)
+      var othK=Object.keys(oth), othTxt=othK.length&&!ok?'<b style="color:#38bdf8">💡 عنده باقة مفتوحة لـ «'+othK.map(function(k){ return alEsc(k)+'» (فاضل '+oth[k]+')'; }).join(' · «')+' — لو الجلسة دي منها: <u>غيّري اسم الموعد على Medicolize</u> للخدمة دي بدل «'+alEsc(r.s)+'»، والمهمة هتتقفل لوحدها</b>':'';
       add(nx?'office':'morning',{grp:[nx?'nopkgnext':'nopkg'], key:k, icon:'💳', name:r.p, phone:r.ph, br:r.b, time:r.t, doctor:r.dr,
         kind:r.kashf?'🩺 الكشف اتعمل النهارده'+(r.t?' '+alEsc(planT(r.t)):'')+' ('+alEsc(r.s)+') — مالوش باقة، افتحيله باقة':(nx?'جاي '+alEsc(alFmtDay(r.d))+' ':'جاي النهارده ')+(r.t?alEsc(planT(r.t))+' ':'')+'— مالوش باقة لـ '+alEsc(r.s),
         sys:ok?how:'', what:ok?(r.pkg?'💳 باقة جديدة':'🩺 إعادة تقييم'):'',
         lines:[(nx?'ميعاده '+alEsc(alFmtDay(r.d))+' ومالوش باقة لـ <b>'+alEsc(r.s)+'</b> — ':'مالوش باقة لـ <b>'+alEsc(r.s)+'</b> — ')+'كلّميه و<b>افتحيله باقة جديدة</b>، ولو محتاج <b>إعادة تقييم</b> احجزيله تقييم',
+          othTxt,
           r.one&&!ok?'<span style="color:#f59e0b">⚠️ اتعملت جلسة لوحدها النهارده — لسه محتاج باقة أو إعادة تقييم</span>':'',
           r.unp?'<span style="color:var(--r)">⚠️ الجلسة اتقفلت ولسه متدفعتش — في «حصّلي قبل ما يمشي»</span>':'',
           ok?'':'<span style="color:var(--mute);font-size:.58rem">بتتقفل 🤖 لما الباقة تتفتح أو إعادة التقييم تتحجز على Medicolize (السحب كل نص ساعة) · لو رافض: «🚫 رفض» واكتبي السبب</span>']});

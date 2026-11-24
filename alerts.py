@@ -830,6 +830,7 @@ def build_alerts(appointments, now=None, packages=None):
     def doc_perf():
         P_FROM = today - timedelta(days=PERF_DAYS)
         out = defaultdict(lambda: {"branch": Counter(), "renew": [0, 0], "drop": [0, 0, 0, 0, 0], "kashf": [0, 0], "rl": [], "dl": [],
+                                   "cp": [0.0, 0.0], "mt": [0, 0], "ex": [0, 0, 0, 0], "ev": [0, 0, 0], "xl": [], "vl": [],
                                    "bb": defaultdict(lambda: {"renew": [0, 0], "drop": [0, 0], "kashf": [0, 0]})})   # bb = لكل فرع (دكتور بيشتغل في الفرعين)
         for appts in patients.values():
             att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() < today and _is_pt(a["type"])],
@@ -870,6 +871,48 @@ def build_alerts(appointments, now=None, packages=None):
                     o["renew"][1] += 1
                 bb_ = o["bb"][byday[sd[0]]["branch"]]["renew"]; bb_[0] += 1; bb_[1] += 1 if rn_ else 0
                 o["rl"].append([pid, byday[sd[0]]["name"], end.isoformat(), size, 1 if rn_ else 0] + pinfo + [byday[sd[0]]["branch"]])   # مين خلّص باقة معاه — وجدد ولا لأ
+            # 1ب) استكمال الباقة: بدأت مع الدكتور ده ووصلت لآخرها؟ (كمّل = 1 · وقف بعد جلسة 3 = ½ · وقف في أول 3 = 0) · باقة 12 وزنها ضعف الـ6
+            for size, sd, approx in segs:
+                if approx or not sd:
+                    continue
+                st0 = sd[0]
+                if not (P_FROM <= st0 <= today - timedelta(days=int(size * 3.5))):
+                    continue
+                done_ = len(sd) >= size
+                live_ = not done_ and (future or (today - sd[-1]).days < 14) and not any(d > sd[-1] and d not in sd for d in days)
+                if live_:
+                    continue                                    # لسه مكمّل — ما يتحسبش
+                sc_ = 1.0 if done_ else (0.0 if len(sd) <= 3 else 0.5)
+                w_ = 2.0 if size >= 12 else 1.0
+                oc = out[byday[st0]["doctor"]]; oc["cp"][0] += sc_ * w_; oc["cp"][1] += w_
+                bc_ = oc["bb"][byday[st0]["branch"]]; bc_.setdefault("cp", [0.0, 0.0]); bc_["cp"][0] += sc_ * w_; bc_["cp"][1] += w_
+            # 1ج) التزام المرضى: مواعيد جلسات الدكتور اللي فاتت — حضر ولا No Show / إلغاء مفاجئ
+            for a in appts:
+                d_ = a["start"].date()
+                if not (P_FROM <= d_ < today) or not _is_pt(a["type"]) and "مفاجئ" not in (a["type"] or ""):
+                    continue
+                om = out[a["doctor"]]["mt"]
+                if a["status"] in ATTENDED:
+                    om[0] += 1
+                elif a["status"] in ("no show", "noshow") or "مفاجئ" in (a["type"] or ""):
+                    om[1] += 1
+            # 1د) بعد الكشف / بعد التقييم (للدكاترة اللي بيكشفوا ويقيّموا): المريض حضر كام جلسة بعدها · بدأ باقة كام · جدد
+            for a in appts:
+                if a["status"] not in ATTENDED:
+                    continue
+                d_ = a["start"].date(); ty = a["type"] or ""
+                if "كشف" in ty and "تغذ" not in ty and P_FROM <= d_ <= today - timedelta(days=30):
+                    aft = [x for x in days if d_ < x <= d_ + timedelta(days=120)]
+                    pk_ = [sz for st, sz in pk_by_pid.get(pid, []) if d_ - timedelta(days=3) <= st <= d_ + timedelta(days=30)]
+                    oe = out[a["doctor"]]["ex"]; oe[0] += 1; oe[1] += len(aft)
+                    if pk_ and max(pk_) >= 12: oe[2] += 1
+                    elif pk_: oe[3] += 1
+                    out[a["doctor"]]["xl"].append([pid, a["name"], d_.isoformat(), len(aft), max(pk_) if pk_ else 0] + pinfo)
+                elif ty.strip() in EVAL_TYPES and P_FROM <= d_ <= today - timedelta(days=30):
+                    aft = [x for x in days if d_ < x <= d_ + timedelta(days=60)]
+                    rn2 = bool(aft) or (future and not any(x > d_ for x in days))
+                    ov = out[a["doctor"]]["ev"]; ov[0] += 1; ov[1] += 1 if rn2 else 0; ov[2] += len(aft)
+                    out[a["doctor"]]["vl"].append([pid, a["name"], d_.isoformat(), len(aft), 1 if rn2 else 0] + pinfo)
             # 2) الوقوف بدري: كورس جديد (أول جلسة أو بعد انقطاع 3 أسابيع) وقف عند جلسة 3 أو أقل
             courses, cur = [], []
             for d in days:
@@ -913,7 +956,9 @@ def build_alerts(appointments, now=None, packages=None):
             res[doc] = {"branch": o["branch"].most_common(1)[0][0] if o["branch"] else "",
                         "renew": o["renew"], "drop": o["drop"], "kashf": o["kashf"],
                         "rl": sorted(o["rl"], key=lambda r: r[2], reverse=True), "dl": sorted(o["dl"], key=lambda r: r[3], reverse=True),
-                        "bb": {b: dict(v) for b, v in o["bb"].items() if b}}
+                        "bb": {b: dict(v) for b, v in o["bb"].items() if b},
+                        "cp": [round(o["cp"][0], 1), o["cp"][1]], "mt": o["mt"], "ex": o["ex"], "ev": o["ev"],
+                        "xl": sorted(o["xl"], key=lambda r: r[2], reverse=True)[:60], "vl": sorted(o["vl"], key=lambda r: r[2], reverse=True)[:60]}
         g = RENEW_GAPS; n = len(g); b = Counter()
         for x in g:
             k = "لم يرجع" if x is None else "≤3" if x <= 3 else "4-7" if x <= 7 else "8-10" if x <= 10 else "11-14" if x <= 14 else "15-21" if x <= 21 else "22-30" if x <= 30 else "31-60" if x <= 60 else ">60"

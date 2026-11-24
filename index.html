@@ -13612,8 +13612,8 @@ function planTasks(useAll){
   return T;
 }
 /* ⏪ المهام اللي فاتت: آخر 7 أيام قبل النهارده */
-var PLAN_SUMS={}, PLAN_PAST_LAST={}, PLAN_PAST_AT=0;
-var PLAN_PAST_G=['renew','eval','evalamg','evalamgd','nopkg','nopkgnext','noinv','kashf','kashf0','call','drop','aud','stale','fix','svc','streak','recur','stop','idle','nonext','nonextrev','drmove','invfix','trcall'];
+var PLAN_SUMS={}, PLAN_PAST_LAST={}, PLAN_PAST_AT=0, PLAN_DAY='', PLAN_DAYBAR='';
+var PLAN_PAST_G=['invrev','debtph','sudden','mgr','renew','eval','evalamg','evalamgd','nopkg','nopkgnext','noinv','kashf','kashf0','call','drop','aud','stale','fix','svc','streak','recur','stop','idle','nonext','nonextrev','drmove','invfix','trcall'];
 var PLAN_PAST_NX={drop:1, fuin:1, nonext:1, nonextrev:1, kashf:1, kashf0:1, idle:1, call:1, drmove:1, trcall:1};   // بتتحل لوحدها لو اتحجزله ميعاد جاي
 function planPastDays(today){ var L=[]; for(var i=7;i>=1;i--){ var x=new Date(today+'T12:00:00'); x.setDate(x.getDate()-i); L.push(x.toISOString().slice(0,10)); } return L; }
 /* بيحفظ اللي ما اتعملش النهارده (كل 10 دقايق لو اتغير) عشان يرجع بكره لنفس السكرتيرة */
@@ -14547,7 +14547,7 @@ function planRenderV2(all,mineT,ALLN){
   var opts=ALLN.map(function(n){ return '<option'+(n===PLAN_ME?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('');
   var viewSel='<select onclick="event.stopPropagation()" onchange="PLAN_VIEW=this.value;PLAN_V2TAB=\'mine\';try{localStorage.setItem(\'planView\',PLAN_VIEW)}catch(e){};planRender()" style="'+sel(';border-color:'+(PLAN_VIEW?'#ec4899':'var(--brd)')+';padding:2px 6px')+'"><option value="">كل السكرتيرات</option>'+ALLN.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select>';
   var h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:10px;position:sticky;top:0;z-index:5">'+
-    '<b style="font-size:.82rem">📋 خطة اليوم</b>'+planDataAge()+
+    '<b style="font-size:.82rem">📋 خطة اليوم</b>'+planDataAge()+PLAN_DAYBAR+(PLAN_DAY?'<b style="font-size:.64rem;color:#f59e0b">⏪ بتعرض اللي فات يوم '+alEsc(alFmtDay(PLAN_DAY))+' ولسه ينفع يتقفل</b>':'')+
     '<span onclick="PLAN_V2TAB=\'mine\';planRender()" style="cursor:pointer;border:1px solid '+(PLAN_V2TAB==='mine'?'#2563eb':'var(--brd)')+';background:'+(PLAN_V2TAB==='mine'?'rgba(37,99,235,.25)':'transparent')+';border-radius:999px;padding:2px 8px;font-size:.64rem;font-weight:700">📋 مهام: '+viewSel+'</span>'+
     tab('mgr','👔 المدير')+(planVisitCard()?tab('visit','📋 زيارة الدقي'):'')+
     '<span style="flex:1"></span><label style="font-size:.6rem;color:var(--mute)">السكرتيرة المسئولة <select id="planMeSel" onchange="planSetMe(this.value)" style="'+sel(';border-color:'+(PLAN_ME?'var(--brd)':'var(--r)'))+'"><option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'</select></label>'+
@@ -14596,11 +14596,19 @@ function planRender(){
   PLAN_CMAP=null;
   var box=document.getElementById('planBox'); if(!box) return;
   if(PLAN_SHIFTS===null||PLAN_SHIFTS_NOCFG){ try{ planShiftsLoad(); }catch(e){} }
-  var T; try{ T=planTasks(); }catch(err){ box.innerHTML='<div style="padding:24px;text-align:center;color:var(--r)">⚠️ حصلت مشكلة في عرض خطة اليوم — اعمل Refresh. لو فضلت، ابعت الرسالة دي: '+alEsc(String(err&&err.message||err))+'</div>'; return; }
+  var T, T0; try{ T=planTasks(); T0={mgr:T.mgr.slice(),morning:T.morning.slice(),rec:T.rec.slice(),office:T.office.slice(),evening:T.evening.slice()}; }catch(err){ box.innerHTML='<div style="padding:24px;text-align:center;color:var(--r)">⚠️ حصلت مشكلة في عرض خطة اليوم — اعمل Refresh. لو فضلت، ابعت الرسالة دي: '+alEsc(String(err&&err.message||err))+'</div>'; return; }
   if(!T){ box.innerHTML='<div style="padding:30px;text-align:center;color:var(--mute)">⏳ بيحمل التنبيهات...</div>'; if(typeof alertsLoad==='function'&&!ALERTS_DATA) alertsLoad(); return; }
   var all=[].concat(T.mgr,T.morning,T.rec,T.office,T.evening), today=(ALERTS_DATA&&ALERTS_DATA.today)||'';
   PLAN_TASKIDX={}; all.forEach(function(t){ PLAN_TASKIDX[t.key]=t; });
   try{ planAutoSave(all); planSummarySave(); planCarrySave(); planPastSave(); }catch(e){}
+  /* 📅 فلتر اليوم: يوم فات → المهام اللي ما اتعملتش في اليوم ده ولسه ينفع تتقفل (⏪ فاتت) بس */
+  var pastDays=planPastDays(today).filter(function(d){ return all.some(function(t){ return t.past===d; }); });
+  if(PLAN_DAY&&pastDays.indexOf(PLAN_DAY)<0) PLAN_DAY='';
+  if(PLAN_DAY){ all=all.filter(function(t){ return t.past===PLAN_DAY; }); ['mgr','morning','rec','office','evening'].forEach(function(k){ T[k]=T[k].filter(function(t){ return t.past===PLAN_DAY; }); }); }
+  var dayBar='<span style="display:inline-flex;gap:4px;flex-wrap:wrap;align-items:center"><span style="font-size:.6rem;color:var(--mute)">📅 اليوم:</span>'+
+    [''].concat(pastDays.slice().reverse()).map(function(d){ var on=PLAN_DAY===d, n=d?[].concat(T0.mgr,T0.morning,T0.rec,T0.office,T0.evening).filter(function(t){ return t.past===d&&planState(t)!=='done'; }).length:0;
+      return '<button onclick="PLAN_DAY=\''+d+'\';planRender()" style="background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border:1px solid '+(on?'#2563eb':'var(--brd)')+';border-radius:7px;padding:3px 8px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">'+(d?'⏪ '+alEsc(alFmtDay(d))+(n?' ('+n+')':''):'النهارده')+'</button>'; }).join('')+'</span>';
+  PLAN_DAYBAR=pastDays.length?dayBar:'';
   var cnt=function(arr,s){ return arr.filter(function(t){ return planState(t)===s; }).length; };
   // فلتر «عرض مهام» على سكرتيرة مش من الفرع ده (مثلاً Mariam وإنت فاتح الدقي) → يرجع «كل السكرتيرات»
   if(PLAN_VIEW&&planNamesAll().indexOf(PLAN_VIEW)<0&&!all.some(function(t){ return (t.grp||[]).some(function(g){ return planOwner(t,g)===PLAN_VIEW; }); })){ PLAN_VIEW=''; try{ localStorage.setItem('planView',''); }catch(e){} }
@@ -14614,7 +14622,7 @@ function planRender(){
   var opts=ALLN.map(function(n){ return '<option'+(n===PLAN_ME?' selected':'')+'>'+alEsc(n)+'</option>'; }).join('');
   var mine=all.filter(function(t){ var s=PLAN_ST[t.key]; return s&&s.by===PLAN_ME&&(s.s==='done'||s.s==='nr'); }).length;
   var h='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:5">'+
-    '<b style="font-size:.85rem">📋 خطة اليوم</b>'+planDataAge()+'<span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){return b.label;}).join(' + ')+'</span>'+
+    '<b style="font-size:.85rem">📋 خطة اليوم</b>'+planDataAge()+PLAN_DAYBAR+(PLAN_DAY?'<b style="font-size:.66rem;color:#f59e0b">⏪ بتعرض اللي فات يوم '+alEsc(alFmtDay(PLAN_DAY))+' ولسه ينفع يتقفل</b>':'')+'<span style="font-size:.62rem;color:var(--mute)">'+alEsc(alFmtDay(today))+' · '+planBR().map(function(b){return b.label;}).join(' + ')+'</span>'+
     '<span style="flex:1"></span><label style="font-size:.62rem;color:var(--mute)">السكرتيرة المسئولة '+
     '<select id="planMeSel" onchange="planSetMe(this.value)" style="background:var(--bg);border:1px solid '+(PLAN_ME?'var(--brd)':'var(--r)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
       '<option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'</select></label>'+

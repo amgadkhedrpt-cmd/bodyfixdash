@@ -13493,7 +13493,13 @@ function planTasks(useAll){
   //    (الحجز نفسه على سكرتيرة العيادة في «عند الاستقبال» — دي مراجعة إن محدش فلت)
   (D.today_no_next||[]).filter(inb).forEach(function(x){
     add('evening',{grp:['nonextrev'], key:today+'|nonextrev|'+x.pid, icon:'📅', kind:'مراجعة: عنده موعد النهارده ومالوش ميعاد جاي'+(x.room?' · 🚪 '+alEsc(x.room):''), name:x.name, phone:x.phone, br:brOf(x), room:x.room||'', doctor:x.doctor,
-      lines:[alEsc(x.type)+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' · <b>'+alEsc(x.status||'')+'</b> — احجزله أو اتصل']});
+      lines:[alEsc(x.type)+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' · <b>'+alEsc(x.status||'')+'</b> — احجزله أو اتصل',
+        '<span style="font-size:.6rem">احجزي خطوة جاية: <b>ميعاد</b> (لو هيكمل) · <b>«متابعه»</b> (لو مش جاهز أو ما ردش — يدخل نظام المتابعة) · <b>«منقطع نهائي»</b> بس لو فيه سبب مكتوب (سافر / مش عايز يكمل / الدكتور قال يوقف)</span>'].concat(x.stale_final?['<b style="color:#f59e0b">⚠️ كان «منقطع نهائي» قبل كده ('+alEsc(x.stale_final.length===10?alFmtDay(x.stale_final):x.stale_final)+') ورجع اتعالج — الكلمة قديمة، مش سبب إننا ما نكلموش</b>']:[])});
+  });
+  // 🧹 رجع للعلاج وكان مكتوب عنده «منقطع» في التفاصيل (قبل آخر جلسة) → تتمسح عشان محدش يتلخبط · بتختفي لوحدها لما الكلمة تتمسح
+  (D.stale_final||[]).filter(inb).forEach(function(x){
+    add('evening',{grp:['stalefin'], key:'stalefin|'+x.pid+'|'+x.last_att, icon:'🧹', kind:'رجع للعلاج — امسحي «منقطع نهائي» من تفاصيل المريض', name:x.name, pid:x.pid, phone:x.phone, br:brOf(x),
+      lines:['آخر جلسة '+alEsc(alFmtDay(x.last_att))+' مع '+alEsc(doc(x.doctor))+(x.fin_date?' · كان متعمله «منقطع نهائي» يوم '+alEsc(alFmtDay(x.fin_date)):''), 'مكتوب في التفاصيل: «'+alEsc(x.note)+'»']});
   });
   (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since===0&&!x.next_pt&&!x.sessions_after&&!planKashfAmg(x)&&/checked|progress|completed/i.test(x.kashf_status||''); }).forEach(function(x){
     add('evening',{grp:['kashf0'], key:today+'|kashf0|'+x.pid, icon:'🩺', kind:'كشف النهارده وما حجزش', name:x.name, phone:x.phone, br:brOf(x),
@@ -13636,6 +13642,7 @@ function planCarrySave(){
     if(!part.length&&!PLAN_ST[key]) continue; var o={d:td, L:part}; PLAN_ST[key]=o; planSaveRaw('PLAN|'+key, part.length?JSON.stringify(o):''); }
 }
 var PLAN_GT={
+  stalefin:['🧹','رجع للعلاج — امسحي «منقطع نهائي» القديمة من تفاصيل المريض'],
   past:['⏪','فاتت ولسه ما اتقفلتش (آخر 7 أيام)'],
   nopkg:['💳','جاي النهارده ومالوش باقة — افتحيله باقة أو احجزيله إعادة تقييم'], nopkgnext:['💳','جاي يوم الشغل الجاي ومالوش باقة — كلّميه وافتحيله باقة أو احجزيله إعادة تقييم'],
   mcall:['📵','مكالمات فايتة — رجّعيلها (من سجل مكالمات الموبايل)'], mcallup:['📂','ارفعي سجل مكالمات الموبايل (كل يوم)'],
@@ -13933,12 +13940,12 @@ var PLAN_ROLES=JSON.parse(JSON.stringify(PLAN_ROLES_DEF));
 try{ var _rl=JSON.parse(localStorage.getItem('planRoles')||'null'); if(_rl) PLAN_ROLES=_rl; }catch(e){}
 /* 📌 الأساس: كل نوع مهمة على أنهي دور (كل يوم بيفتح على كده — التغيير اليومي من الخانة جنب المهمة مؤقت) */
 var PLAN_GROUP_ROLE={
-  'BODYFIX Center':{evout:'L', evoutc:'L', evoutold:'L', nopkg:'F', nopkgnext:'J', mcall:'F', mcallup:'F', mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
+  'BODYFIX Center':{stalefin:'L', evout:'L', evoutc:'L', evoutold:'L', nopkg:'F', nopkgnext:'J', mcall:'F', mcallup:'F', mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
     waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', evalamg:'F', renew:'F', svc:'F', kashf:'F',
     waitnext:'J', streak:'J', recur:'J', stop:'J', idle:'J', conf:'J', stale:'J', fix:'J', kashf0:'J',
     call:'H', drop:'H'},
   'FIX ZONE':{evout:'DE', evoutc:'DM', evoutold:'DM', nopkg:'DM', nopkgnext:'DE', mcall:'DM', mcallup:'DM', mgr:'DM', streak:'DM', recur:'DM', stop:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamgd:'DM', visit:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
-    waitnext:'DE', nonext:'DE', nonextrev:'DM', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', svc:'DE', sudden:'DE', late:'DE'}
+    stalefin:'DM', waitnext:'DE', nonext:'DE', nonextrev:'DM', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', svc:'DE', sudden:'DE', late:'DE'}
 };
 function planBaseOwner(t,g){ var rk=(PLAN_GROUP_ROLE[t.br]||{})[g]; return rk?((PLAN_ROLES[t.br]||{})[rk]||''):''; }
 function planSetRole(br, rk, v){
@@ -14354,7 +14361,7 @@ var PLAN_DONE_RULE={fuin:'🤖 يتحجزله ميعاد Follow up (يدخل ن�
   renew:'🤖 يتحجز «تقييم الجلسة الأخيرة» أو تتعمل باقة جديدة · أو 🚫 رفض بسبب', eval:'🤖 يتحجز تقييم على Medicolize · أو 🚫 رفض بسبب', evalamg:'🤖 يتحجز تقييم', evalamgd:'🤖 يتحجز إعادة تقييم مع د. أمجد',
   debt:'🤖 الدفع يتسجل على Medicolize (المتبقي على المريض يخلص)', debtph:'🤖 المريض يدفع اللي عليه (بتتشال خالص) · أو ✋ ملحوظة باللي حصل: بتتقفل النهارده بس وترجع بكره للمتابعة · «ما ردش» 3 مرات → تروح للمدير',
   invrev:'✋ المشرفة تراجع الفاتورة وتدوس «✅» لو صح (بتتحول للتحصيل بالتليفون) · 🤖 لو اتعدلت على Medicolize بتتقفل لوحدها · 📝 ملحوظة (ما ردش / مقفول / اتكلمنا مع حد) تقفلها النهارده بس وترجع بكره · ⏭ أجّل = تختفي لحد يوم التأجيل', invfix:'🤖 المتبقي على المريض يقل على Medicolize (الفاتورة اتشالت / اتعدلت) · ↩️ «ترجع مطلوبة» لو الفلوس طلعت صح',
-  nonext:'🤖 يتحجزله ميعاد جاي', nonextrev:'🤖 يتحجزله ميعاد جاي (إلا لو اتكتب «منقطع» في تفاصيل المريض النهارده)',
+  nonext:'🤖 يتحجزله ميعاد جاي', nonextrev:'🤖 يتحجزله ميعاد جاي أو «متابعه» أو «منقطع نهائي» (بسبب) على Medicolize', stalefin:'🤖 بتختفي لوحدها لما «منقطع» تتمسح من تفاصيل المريض على Medicolize',
   svc:'🤖 الخدمة الناقصة تتحجز · أو ✋ سبب الرفض في الملحوظة (بتتحسب 🚫)', stale:'🤖 الموعد يتقفل على Medicolize (Completed / Canceled / No Show)',
   aud:'🤖 الغلط يتصلّح على Medicolize (الخطوة تتقفل / الموعد يتصلّح) · ✋ «راجعته — مفيش خطأ» في «اختلاف في الخدمة» بس · أخطاء د. أمجد لوحدها ومش محسوبة',
   sudden:'🤖 اسم الموعد يتغيّر لـ«الغاء مفاجئ» على Medicolize + من تاني مرة: خطوة Completed النهارده (خصم الجلسة) · ولو الخصم مش ممكن: ✋ «لا يوجد باقة للخصم» أو «تم التنبيه — المرة الجاية خصم» (مرة واحدة للمريض) · أو ✋ «🙅 مش مفاجئ» بسبب مكتوب (بيقفلها على طول) · مفيش تأجيل ولا رفض',

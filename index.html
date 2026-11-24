@@ -12402,7 +12402,8 @@ function sumRender0(){
   // باقات جديدة النهارده (من الفواتير)
   var PI=((SUM_PKG||{}).inv)||{}, nameOf={}; (D.pt_index||[]).forEach(function(r){ if(r[15]) nameOf[r[15]]=r[0]; });
   if(typeof AUD_DATA!=='undefined'&&AUD_DATA){ [].concat(AUD_DATA.appts||[],AUD_DATA.steps||[],AUD_DATA.debts||[]).forEach(function(r){ if(r.pid&&r.p&&!nameOf[r.pid]) nameOf[r.pid]=r.p; }); }
-  var pk=Object.keys(PI).map(function(k){ return PI[k]; }).filter(function(v){ return v&&inR(v.d)&&v.big; });
+  var brOfPid={}; (D.pt_index||[]).forEach(function(r){ if(r[15]&&r[6]) brOfPid[r[15]]=(typeof alBranchOf==='function'?alBranchOf(r[6],''):''); });
+  var pk=Object.keys(PI).map(function(k){ return PI[k]; }).filter(function(v){ if(!(v&&inR(v.d)&&v.big)) return false; var b=v.b?(/fix|zone|dokki|دقي/i.test(v.b)?'FIX ZONE':/body|haram|هرم/i.test(v.b)?'BODYFIX Center':v.b):(brOfPid[v.p]||''); return !b||inb(b); });   // فرع الفاتورة (أو فرع دكتور المريض للفواتير القديمة)
   var p6=pk.filter(function(v){ return +v.s===6; }), p12=pk.filter(function(v){ return +v.s===12; }), pO=pk.filter(function(v){ return +v.s!==6&&+v.s!==12; });
   // باقي المصادر
   var renew=grp('renew'), early=((D.plan||{}).early_drop||[]).filter(function(x){ return inb(x.branch||alBranchOf(x.doctor,x.branch)); });

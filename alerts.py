@@ -97,6 +97,10 @@ _UNREACH = _re.compile(r"مغلق|مقفول|قافل|لا ?يرد|لا ?ترد|
 _CALLBACK = _re.compile(r"(?:(?:نكلم|تكلم|نتصل|هيكلم|هتكلم|هيتصل|هتتصل|هيتواصل|هتتواصل|نتواصل|يكلمنا|تكلمنا|يتصل|نرن|هيرن|طلب)[^\n]{0,30}?(?:بعد|فتر[هة]|يوم|الاسبوع|الأسبوع|الشهر|بكر[هة]|السبت|الحد|الأحد|الاحد|الاتنين|الإثنين|الثلاث|التلات|الاربع|الأربع|الخميس|الجمع|\d))|(?:بعد\s*(?:اسبوع|أسبوع|اسبوعين|أسبوعين|شهر|يومين|العيد|\d+\s*(?:يوم|ايام|أيام)))|(?:(?:نستن[ىي]|يستن[ىي]|استن[ىي]|كمان|ممكن)[^\n]{0,20}?(?:شهر|اسبوع|أسبوع|اسبوعين|يومين|ايام|أيام|العيد))|(?:(?:فتر[هة]|اسبوع|أسبوع|شهر|يومين)[^\n]{0,20}?(?:نكلم|تكلم|نتصل|نتواصل|نرن))", _re.I)
 _REACHED = _re.compile(r"\bرد\b|ردت|اتكلم|كلمت|تم ?التواصل|اتواصل|قال|قالت|جاي|جايه|هييجي|هيجي|هتيجي|هيحجز|حجز|محجوز|اتحجز|موعد|ميعاد|موافق|مسافر|تعبان|ظروف|مش ?عايز|مش ?عاوز|اعتذر|لغى|الغى|كنسل|هيجدد|نشوف|لما ?يروح|هيكمل|مكمل", _re.I)
 
+_PERIOD_RE = _re.compile(r"\d+\s*(?:يوم|ايام|أيام|اسبوع|أسبوع|اسابيع|أسابيع|شهر|شهور|اشهر|أشهر)|يومين|اسبوعين|أسبوعين|شهرين|(?:بعد|كمان|لمد[هة])\s*(?:يوم|اسبوع|أسبوع|شهر)|"
+                        r"السبت|الحد|الأحد|الاحد|الاتنين|الإثنين|الاثنين|التلات|الثلاث|الاربع|الأربع|الخميس|الجمع[هة]|بعد العيد|بعد الامتحان|بعد الامتحانات|بداي[هة] الشهر|اول الشهر|أول الشهر|آخر الشهر|اخر الشهر|\d{1,2}\s*/\s*\d{1,2}")
+_FU_EXC_RE = _re.compile(r"مساف|سافر|سفر|بره مصر|برا مصر|منكلم|ما نكلم|منكلموش|ماتكلموش|متكلموش|مش عايز حد يكلم|مش عاوز حد يكلم|مش عايز يكمل|مش عاوز يكمل|مش هيكمل|مش هتكمل|رافض")
+
 def _note_times(note):
     out = []
     for h, m in _TIME_RE.findall(note or ""):
@@ -694,6 +698,9 @@ def build_alerts(appointments, now=None, packages=None):
                     if lim_.weekday() != 4:
                         wd_ += 1
                 fu_ok_date = bool(nf) and nf[0]["start"].date() <= lim_
+                # تأجيل المتابعة الجاية لبعد يومين شغل مقبول بس لو الفترة المطلوبة مكتوبة («بعد أسبوعين» / «الخميس» / «بعد العيد» / تاريخ ...) أو سفر / مش عايز نكلمه
+                period_ok = bool(_PERIOD_RE.search(note)) or bool(_FU_EXC_RE.search(note))
+                need_period = bool(nf) and not fu_ok_date and not nb and not period_ok
                 res = ("حجز: " + nb[0]["type"] + " يوم " + nb[0]["start"].strftime("%d/%m") + " " + nb[0]["start"].strftime("%H:%M")
                        + " مع " + nb[0]["doctor"] + " (" + nb[0]["status"].title() + ")") if nb else ""
                 calls_today.append({"pid": a["pid"], "name": a["name"], "phone": a["phone"], "doctor": a["doctor"], "branch": a["branch"],
@@ -701,10 +708,11 @@ def build_alerts(appointments, now=None, packages=None):
                                     "note": note[:300], "times": times, "verdict": verdict, "reached": reached or cb, "result": res,
                                     "next_fu": (nf[0]["type"] + " يوم " + nf[0]["start"].strftime("%d/%m")) if nf else "",
                                     "next_late": bool(nf) and unreach_ and not fu_ok_date,
+                                    "need_period": need_period,
                                     # تمت: (1) المريض حجز ميعاد بعد المتابعة، أو (2) ملحوظة باللي حصل (أو اتصالين بوقتهم) + الخطوة الجاية محجوزة
                                     #       (متابعة تانية / منقطع نهائي) — «هيتوقف شوية» مش عذر، لازم يتحجز ميعاد نتابعه فيه
                                     #       ما ردش / مش عارفين نوصله → المتابعة الجاية لازم تبقى خلال يومين (بعد بكره، ولو جمعة اليوم اللي بعده)
-                                    "done": bool(nb) or ((a["status"] in ATTENDED and bool(note.strip()) or len(times) >= 2) and bool(nf) and (not unreach_ or fu_ok_date))})
+                                    "done": bool(nb) or ((a["status"] in ATTENDED and bool(note.strip()) or len(times) >= 2) and bool(nf) and (not unreach_ or fu_ok_date) and not need_period)})
             if verdict in ("ok", "callback_ok"):
                 continue
             rec = base(a, {"date": a["start"].isoformat(), "kind": _fu_kind(a["type"]), "step": step(a), "type": a["type"],

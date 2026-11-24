@@ -732,7 +732,8 @@ async def sync_invoices(page, cookie_str, extra_headers):
                             "a": str((r.get("createAppointment") or {}).get("start") or ""),
                             "r": ((r.get("referralSource") or {}).get("name") or "").strip(),
                             "b": b["name"],   # فرع الفاتورة
-                            "big": 1 if float(r.get("total") or 0) >= PKG_MIN_TOTAL else 0})
+                            "big": 1 if float(r.get("total") or 0) >= PKG_MIN_TOTAL else 0,
+                            "pd": 1 if float(r.get("paid") or 0) >= 1 else 0})   # دفع فيها أي مبلغ (علامة بس — من غير المبلغ)
                 inv[iid] = cur
             if len(rows) < 500:
                 break

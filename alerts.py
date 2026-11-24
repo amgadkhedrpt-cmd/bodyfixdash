@@ -358,6 +358,7 @@ def build_alerts(appointments, now=None, packages=None):
     LIVE_TODAY = {"open", "confirmed", "checked in", "checkedin", "in progress", "inprogress", "completed", "delayed"}
     hist_start = min((a["start"].date() for v in patients.values() for a in v), default=today)
     pk_by_pid, ref_by_pid = defaultdict(list), {}
+    paid_pk = defaultdict(list)   # 💳 فواتير باقة (فيها جلسات) ودفع فيها مبلغ → يوم الفاتورة (التجديد بيتحسب بيها حتى لو لسه ما حضرش)
     for iid, v in ((packages or {}).get("inv") or {}).items():
         pid = v.get("p")
         if not pid:
@@ -368,6 +369,11 @@ def build_alerts(appointments, now=None, packages=None):
             except Exception:
                 continue
             pk_by_pid[pid].append((st, int(v["s"])))
+            if v.get("pd") and v.get("d"):
+                try:
+                    paid_pk[pid].append(date.fromisoformat(v["d"]))
+                except Exception:
+                    pass
         if v.get("r") and (pid not in ref_by_pid or v.get("d", "") > ref_by_pid[pid][0]):
             ref_by_pid[pid] = (v.get("d", ""), v["r"])
     for pid in pk_by_pid:
@@ -874,7 +880,9 @@ def build_alerts(appointments, now=None, packages=None):
                     continue
                 nx = [d for d in days if d > end]
                 RENEW_GAPS.append((nx[0] - end).days if nx else None)
-                rn_ = any(end < d <= end + timedelta(days=60) for d in days) or (future and not any(d > end for d in days))
+                g3 = sd[max(0, size - 3)]
+                rn_ = any(end < d <= end + timedelta(days=60) for d in days) or (future and not any(d > end for d in days)) \
+                      or any(g3 <= d <= end + timedelta(days=60) for d in paid_pk.get(pid, []))   # أو اتفتحتله باقة جديدة ودفع فيها
                 for doc, k_, n_ in docs40(sd[:size], byday, last3=sd[max(0, size - 3):size]):
                     o = out[doc]; o["branch"][byday[sd[0]]["branch"]] += 1
                     o["renew"][0] += 1
@@ -893,11 +901,15 @@ def build_alerts(appointments, now=None, packages=None):
                               and a["status"] not in ("canceled", "cancelled")], key=lambda a: a["start"])
                 ev_att = [a for a in evs if a["status"] in ATTENDED]
                 nxd = [d for d in days if d > end]
+                g3_ = sd[max(0, size - 3)]
+                pp_ = sorted(d for d in paid_pk.get(pid, []) if g3_ <= d <= end + timedelta(days=60))   # باقة جديدة مدفوعة (اتفتحت من آخر 3 جلسات أو بعدها)
+                rnd_ = min([x for x in ([nxd[0]] if nxd and (nxd[0] - end).days <= 60 else []) + pp_[:1]], default=None)
                 PKG_END.append([pid, byday[sd[0]]["name"], byday[sd[size - 1]]["branch"], end.isoformat(), size, byday[sd[size - 1]]["doctor"],
                                 evs[0]["start"].date().isoformat() if evs else "", ev_att[0]["start"].date().isoformat() if ev_att else "",
-                                nxd[0].isoformat() if nxd and (nxd[0] - end).days <= 60 else "",
+                                rnd_.isoformat() if rnd_ else "",
                                 nx_a["start"].isoformat()[:16] if nx_a else "",
-                                (sd[size - 2] if size >= 2 else sd[0]).isoformat()])   # [10] يوم الجلسة قبل الأخيرة — التقييم «في وقته» من اليوم ده
+                                (sd[size - 2] if size >= 2 else sd[0]).isoformat(),
+                                1 if (pp_ and rnd_ == pp_[0]) else 0])   # [11] جدد بفاتورة باقة مدفوعة (مش بحضور)   # [10] يوم الجلسة قبل الأخيرة — التقييم «في وقته» من اليوم ده
             # 1ب) استكمال الباقة: بدأت مع الدكتور ده ووصلت لآخرها؟ (كمّل = 1 · وقف بعد جلسة 3 = ½ · وقف في أول 3 = 0) · باقة 12 وزنها ضعف الـ6
             for size, sd, approx in segs:
                 if approx or not sd:
@@ -1742,6 +1754,24 @@ def build_alerts(appointments, now=None, packages=None):
         })
     recur_cancel.sort(key=lambda x: (-x["lost"], x["future"][0]["time"]))
 
+    # 📋 نتيجة تقييم الجلسة الأخيرة: كل مريض حضر «تقييم الجلسة الأخيرة» النهارده → Dalia (الهرم) / Bassant (الدقي) تختار هيجدد / هيفكر / هيوقف
+    #    pkg = اتفتحتله فاتورة باقة ودفع فيها النهارده · fu = اتحجزله «متابعه» خلال أسبوع (للي هيفكر / قال هيجدد وما فتحش)
+    eval_out = []
+    try:
+        for v in patients_all.values():
+            ev = [a for a in v if a["start"].date() == today and "تقييم الجلس" in (a["type"] or "").replace("ة", "ه")
+                  and a["status"] in ATTENDED]
+            if not ev:
+                continue
+            a0 = ev[0]; pid_ = a0.get("pid") or ""
+            fu = [a for a in v if today < a["start"].date() <= today + timedelta(days=8) and _fu_kind(a["type"]) and a["status"] not in NOT_FUTURE]
+            nx = min((a for a in v if a["start"].date() > today and _is_pt(a["type"]) and a["status"] not in NOT_FUTURE), key=lambda a: a["start"], default=None)
+            eval_out.append({"pid": pid_, "name": a0["name"], "phone": a0["phone"], "doctor": a0["doctor"], "branch": a0["branch"],
+                             "time": a0["start"].isoformat(), "pkg": 1 if today in paid_pk.get(pid_, []) else 0,
+                             "fu": fu[0]["start"].date().isoformat() if fu else "", "next": nx["start"].isoformat()[:16] if nx else ""})
+    except Exception as e:
+        print(f"⚠️ eval_out: {e}")
+
     # 🛑 مكتوب في ملحوظة أي ميعاد النهارده إنه هيوقف / مسافر / مش هيكمل → لو لسه محجوزله مواعيد جاية (أو مثبت — الصفحة بتشوف الشيت)
     #    المهمة: الغي مواعيده الجاية + شيله من شيت التثبيت. had_future = كان ليه مواعيد جاية النهارده (عشان لما تتلغى تتحسب 🤖)
     STOP_RE = re.compile(r"وقف(?!ل)|موقف|مش (?:هي|هت|ه)?كمل|مش هيكمل|مش هتكمل|سافر|مسافر|هيسافر|هتسافر|هايسافر")
@@ -2012,6 +2042,7 @@ def build_alerts(appointments, now=None, packages=None):
         "streaks": streaks,
         "recur_cancel": recur_cancel,
         "stop_notes": stop_notes,
+        "eval_out": eval_out,
         "today_no_next": no_next,
         "missing_today": missing_today,
         "svc_gap": svc_gap,

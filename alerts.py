@@ -438,26 +438,37 @@ def build_alerts(appointments, now=None, packages=None):
     # ── عندهم ميعاد النهارده (أي حالة) ومالهمش أي ميعاد بعد النهارده بأي حالة ──
     NOT_FUTURE = {"canceled", "cancelled", "no show", "noshow", "note"}
     no_next = []
-    for appts in patients.values():
+    stale_final = []   # 🧹 رجع للعلاج وكان مكتوب عنده «منقطع» في التفاصيل (كلمة قديمة) → داليا تمسحها
+    for pk_, appts in patients.items():
+        allp = patients_all.get(pk_, appts)
+        att_all = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() <= today], key=lambda a: a["start"])
+        last_att = att_all[-1]["start"] if att_all else None
+        # «منقطع نهائي» بيتحسب بس لو موعده بعد آخر جلسة حضرها (الموعد هو المرجع مش الكلمة اللي في التفاصيل)
+        fin_after = [a for a in allp if _fu_kind(a["type"]) == "final" and a["status"] not in ("canceled", "cancelled")
+                     and (last_att is None or a["start"] > last_att)]
+        fin_before = [a for a in allp if _fu_kind(a["type"]) == "final" and last_att is not None and a["start"] < last_att]
+        pnote_ = next((a.get("pnote") for a in appts if "منقطع" in (a.get("pnote") or "")), "")
+        upd = max((a["pupd"] for a in appts if a.get("pupd")), default=None)
+        stale_ = bool(fin_before) or (bool(pnote_) and last_att is not None and (upd is None or upd < last_att))
+        # 🧹 حضر جلسة النهارده أو آخر 7 أيام وعنده «منقطع» في التفاصيل اتكتب قبل الجلسة دي → الكلمة قديمة
+        if pnote_ and last_att is not None and last_att.date() >= today - timedelta(days=7) and (upd is None or upd < last_att) and not fin_after:
+            stale_final.append({"pid": appts[0]["pid"], "name": att_all[-1]["name"], "phone": att_all[-1]["phone"], "branch": att_all[-1]["branch"],
+                                "doctor": att_all[-1]["doctor"], "last_att": last_att.date().isoformat(), "note": pnote_[:160],
+                                "fin_date": fin_before[-1]["start"].date().isoformat() if fin_before else ""})
         today_att = [a for a in appts if a["start"].date() == today]
         if not today_att:
             continue
-        future = [a for a in appts if a["start"].date() > today]   # أي موعد بعد النهارده بأي حالة (حتى Canceled / No Show) يتحسب
-        if future:
+        # أي خطوة جاية محجوزة (ميعاد / «متابعه» / «منقطع نهائي») — الملغي والـ No Show مش بيتحسبوا
+        future = [a for a in allp if a["start"].date() > today and a["status"] not in ("canceled", "cancelled", "no show", "noshow")]
+        if future or fin_after:
             continue
         last = max(today_att, key=lambda a: a["start"])
-        # مكتوب في تفاصيل المريض "منقطع" / "منقطع نهائي" (أو آخر ميعاد ليه منقطع نهائي) → مش محتاج ميعاد جاي
-        # «منقطع» في تفاصيل المريض تتحسب بس لو آخر تعديل على المريض كان النهارده — غير كده ممكن تكون قديمة والمريض رجع
-        upd = max((a["pupd"] for a in appts if a.get("pupd")), default=None)
-        munq = any("منقطع" in (a.get("pnote") or "") for a in appts) and (upd is None or upd.astimezone(CAIRO).date() == today)
-        if munq or \
-           "منقطع" in max(appts, key=lambda a: a["start"])["type"]:
-            continue
         no_next.append({
             "name": last["name"], "phone": last["phone"], "pid": last["pid"],
             "doctor": last["doctor"], "branch": last["branch"],
             "time": last["start"].isoformat(), "type": last["type"], "status": last["status"].title(),
             "room": next((a["room"] for a in sorted(today_att, key=lambda a: a["start"]) if a.get("room")), ""),
+            "stale_final": (fin_before[-1]["start"].date().isoformat() if fin_before else ("في التفاصيل" if stale_ else "")),
             **info(appts),
         })
     no_next.sort(key=lambda x: x["time"], reverse=True)
@@ -2117,6 +2128,7 @@ def build_alerts(appointments, now=None, packages=None):
         "stop_notes": stop_notes,
         "eval_out": eval_out,
         "today_no_next": no_next,
+        "stale_final": stale_final,
         "missing_today": missing_today,
         "svc_gap": svc_gap,
         "noinv": _noinv(today),

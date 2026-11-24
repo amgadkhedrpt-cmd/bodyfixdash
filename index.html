@@ -12853,15 +12853,19 @@ function planTasks(useAll){
   try{ var FUP={}, FU=D.followups||{}; (FU.pool||[]).forEach(function(z){ FUP[z.pid]=z; });
     var inSys=function(pid){ var X=(D.pt_extra||{})[pid]||{}; return !!FUP[pid]||(X.fu||[]).length>0; };
     var hasNext=function(pid,x){ var X=(D.pt_extra||{})[pid]||{}; return (x&&x.next_appt)||(X.nx||[]).some(function(n){ return !/cancel|no ?show/i.test(n[3]||''); }); };
+    var FQ=[];   // بنجمعهم الأول وبعدين: 20 في اليوم لكل فرع، الأحدث الأول (لحد ما المتراكم يخلص)
     var fuinAdd=function(x,why,since){ if(!x.pid||act.indexOf(x.branch)<0) return; var pz=FUP[x.pid];
       var done=!!pz&&String(pz.first||'').slice(0,10)>=today;   // اتحجزله متابعة (جاية) = دخل النظام
       if(!done&&(inSys(x.pid)||hasNext(x.pid,x))) return;     // داخل المتابعة أو محجوز — مش مطلوب
-      add('morning',{grp:['fuin'], key:'fuin|'+x.pid, icon:'📅', kind:why+' — ومش داخل نظام المتابعة: احجزيله Follow up', name:x.name, pid:x.pid, phone:String(x.phone||'').replace('+2_',''), br:x.branch,
+      FQ.push({d:done, n:+x.days_since||0, br:x.branch, t:{grp:['fuin'], key:'fuin|'+x.pid, icon:'📅', kind:why+' — ومش داخل نظام المتابعة: احجزيله Follow up', name:x.name, pid:x.pid, phone:String(x.phone||'').replace('+2_',''), br:x.branch,
         sys:done?'دخل نظام المتابعة':'', what:done?('اتحجزله متابعة '+alFmtDay(String(pz.first).slice(0,10))):'',
-        lines:[since]}); };
+        lines:[since]}}); };
     var seenF={};
     (D.finished_packages||[]).forEach(function(x){ seenF[x.pid]=1; fuinAdd(x,'📦 خلّص باقته وما جددش','خلّص '+(x.size||'')+' جلسة · آخر جلسة '+alFmtDay(x.last_session)+' مع '+alEsc(doc(x.doctor))+' (من '+x.days_since+' يوم)'+(x.eval==='done'?' · اتعمله '+alEsc(x.eval_type||'تقييم'):'')); });
     (D.dropped||[]).forEach(function(x){ if(seenF[x.pid]) return; fuinAdd(x,'🚶 انقطع','آخر حضور '+alFmtDay(x.last_attended)+' مع '+alEsc(doc(x.doctor))+' (من '+x.days_since+' يوم) · حضر '+(x.pt_total||'')+' جلسة'); });
+    var FCAP=20, cnt={};
+    FQ.filter(function(q){ return q.d; }).forEach(function(q){ cnt[q.br]=(cnt[q.br]||0)+1; add('morning',q.t); });
+    FQ.filter(function(q){ return !q.d; }).sort(function(a,b){ return a.n-b.n; }).forEach(function(q){ if((cnt[q.br]||0)>=FCAP) return; cnt[q.br]=(cnt[q.br]||0)+1; add('morning',q.t); });
   }catch(e){ console.log('fuin',e); }
   // 🧾 خدمة اتعملت من غير فاتورة → داليا تعمل الفاتورة · بتتقفل لوحدها لما الفاتورة تتعمل على Medicolize (أو 🚫 رفض بسبب)
   (D.noinv||[]).forEach(function(x){ if(act.indexOf(x.b)<0) return; if(x.sys&&String(x.fixed||'').slice(0,10)<today) return;   // اتعملت فاتورتها يوم فات — مش مهمة النهارده
@@ -13173,7 +13177,7 @@ function planOwner0(t,g){
     if(R.H||R.J){ var gd=(typeof resolveDocGender==='function')?resolveDocGender(t.doctor):''; return gd==='female'?(R.J||''):(R.H||''); }   // اتأخر: رجالي عيادة 1 · ستات عيادة 2
   }
   if(g==='trcall') return PLAN_INV_OWNER_DEF;
-  if(g==='fuin') return planNormName((PLAN_ROLES['BODYFIX Center']||{}).H||'Mariam');   // 📅 على مريم (المتابعة)
+  if(g==='fuin') return t.br==='FIX ZONE'?planNormName((PLAN_ROLES['FIX ZONE']||{}).DM||'Bassant'):planNormName((PLAN_ROLES['BODYFIX Center']||{}).H||'Mariam');   // 📅 الهرم: مريم · الدقي: بسنت
   if(g==='noinv') return planNormName((PLAN_ROLES['BODYFIX Center']||{}).L||PLAN_INV_OWNER_DEF);   // 🧾 على داليا (الفرعين)
   if(g==='drmove') return planNormName((PLAN_ROLES['BODYFIX Center']||{}).J||'Engy');   // 🔄 على انجي
   if(g==='invfix'){ var tdi=(ALERTS_DATA&&ALERTS_DATA.today)||'', ai=PLAN_ST['asg|'+tdi+'|'+t.sec+'|invfix|'+t.br]; return ai&&ai.by?ai.by:((PLAN_ROLES['BODYFIX Center']||{}).L||PLAN_INV_OWNER_DEF); }

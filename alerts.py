@@ -1011,7 +1011,8 @@ def build_alerts(appointments, now=None, packages=None):
                 before = [x for x in fus if _fu_kind(x["type"]) == "inq" and x["start"] < a["start"] and x["start"] >= a["start"] - timedelta(days=45)]
                 notes = " ".join(filter(None, [a.get("note") or ""] + [x.get("note") or "" for x in before]))
                 ok = len(before) >= 3 or bool(FU_OK_RE.search(notes))
-                fin_l.append([pid, nm, br, a["start"].date().isoformat(), len(before), 1 if ok else 0, (a.get("note") or "")[:160], a.get("by") or ""])
+                fin_l.append([pid, nm, br, a["start"].date().isoformat(), len(before), 1 if ok else 0, (a.get("note") or "")[:160], a.get("by") or "",
+                              [[x["start"].date().isoformat(), (x.get("note") or "")[:160], x.get("by") or ""] for x in before][-6:]])   # [8] مكالمات الانقطاع قبله (للمطابقة مع سجل المكالمات)
             # 4) «ما حسش بتحسن» في أي ملحوظة (مواعيد أو متابعة) آخر 30 يوم → للمدير
             for a in ap:
                 n_ = a.get("note") or ""

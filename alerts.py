@@ -184,6 +184,7 @@ def _norm(a):
         "pnote": str(pnote or "").strip(),
         "pupd": _parse_dt(pupd),
         "cancel_at": _parse_dt(a.get("cancel_at")),
+        "created": _parse_dt(a.get("createdAt") or a.get("created")),
         "by": str(a.get("by") or "").strip(),
         "ub": str(a.get("ub") or "").strip(),
         "upd": _parse_dt(a.get("upd")),
@@ -2066,6 +2067,11 @@ def build_alerts(appointments, now=None, packages=None):
         "sudden": sudden,
         "milestones": milestones,
         "pt_index": pt_index,
+        # 📵 مواعيد اتحجزت آخر 10 أيام بالرقم (آخر 10 أرقام) → مهمة «مكالمة فايتة» تتقفل لو اتحجزله ميعاد بعد المكالمة
+        "booked_ph": sorted({(re.sub(r"\D", "", a["phone"] or "")[-10:], int(a["created"].timestamp() * 1000), a["start"].strftime("%Y-%m-%dT%H:%M"))
+                             for v in patients_all.values() for a in v
+                             if a.get("created") and a["created"].astimezone(CAIRO).date() >= today - timedelta(days=10)
+                             and len(re.sub(r"\D", "", a["phone"] or "")) >= 10 and a["status"] not in ("canceled", "cancelled")}),
         "renew_today": renew_today,
         "finished_packages": finished,
         "eval_renew": eval_renew,

@@ -11911,6 +11911,7 @@ function alFinished(){
 
 /* الفرع اللي ظاهر فوق (Haram / Dokki) — الخطة بتمشي عليه دايماً */
 function planBR(){
+  if(typeof SUM_BRX!=='undefined'&&SUM_BRX) return AL_BRANCHES.filter(function(x){ return SUM_BRX==='all'||x.key===SUM_BRX; });   // 📊 الملخص: اختيار الفرع جوه التاب
   var g=(typeof GF!=='undefined'&&GF.branch)?GF.branch:'all';
   if(g==='all'&&typeof CURRENT_BRANCH!=='undefined'&&CURRENT_BRANCH){ g=CURRENT_BRANCH==='dokki'?'FIX ZONE':CURRENT_BRANCH==='haram'?'BODYFIX Center':'all'; }
   return AL_BRANCHES.filter(function(x){ return g==='all'||x.key===g; });
@@ -12198,7 +12199,9 @@ function planSudAlerts(){
 /* 💸 حصّلي قبل ما يمشي: خدمة اتعملت النهارده ومتدفعتش · أو حضر النهارده وعليه فلوس من قبل — بيتحدث مع كل مزامنة (كل نص ساعة) */
 var PLAN_LATE=[];
 /* ══ 📊 ملخص اليوم: كروت بالأرقام — دوسة على الكارت تفتح أسامي المرضى اللي وراه (المرحلة 1: من غير فلوس) ══ */
-var SUM_OPEN={}, SUM_PKG=null, SUM_TIMER=null, SUM_FROM='', SUM_TO='', SUM_DSORT='rn';
+var SUM_OPEN={}, SUM_PKG=null, SUM_TIMER=null, SUM_FROM='', SUM_TO='', SUM_DSORT='rn', SUM_BR='', SUM_BRX='';
+try{ SUM_BR=localStorage.getItem('sumBr')||''; }catch(e){}
+function sumSetBr(v){ SUM_BR=v; try{ localStorage.setItem('sumBr',v); }catch(e){} PLAN_CMAP=null; sumRender(); }
 function sumSetRange(f,t){ SUM_FROM=f||''; SUM_TO=t||f||''; if(SUM_FROM>SUM_TO){ var x=SUM_FROM; SUM_FROM=SUM_TO; SUM_TO=x; } sumRender(); }
 function sumQuick(k){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||new Date().toISOString().slice(0,10), d=function(n){ var x=new Date(td+'T12:00:00'); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
   if(k==='today') sumSetRange(td,td); else if(k==='y') sumSetRange(d(-1),d(-1)); else if(k==='7') sumSetRange(d(-6),td); else if(k==='m') sumSetRange(td.slice(0,8)+'01',td); }
@@ -12226,7 +12229,8 @@ function sumDocDetail(r){
     blk('🚪 وقفوا بدري معاه','#f59e0b',dl,function(x){ return row(x,'<span style="color:var(--mute)">— بدأ '+alEsc(alFmtDay(x[2]))+' ووقف عند جلسة '+x[4]+' ('+alEsc(alFmtDay(x[3]))+')</span>',5); })+'</div>';
 }
 function sumTog(id){ SUM_OPEN[id]=!SUM_OPEN[id]; sumRender(); }
-function sumRender(){
+function sumRender(){ SUM_BRX=SUM_BR; PLAN_CMAP=null; try{ sumRender0(); }finally{ SUM_BRX=''; PLAN_CMAP=null; } }
+function sumRender0(){
   var box=document.getElementById('sumBox'); if(!box) return;
   var D=ALERTS_DATA; if(!D){ box.innerHTML='<div style="padding:30px;text-align:center;color:var(--mute)">⏳ بيحمّل…</div>'; if(typeof alertsLoad==='function') alertsLoad(); setTimeout(sumRender,2500); return; }
   var today=D.today, act=planBR().map(function(b){ return b.key; }), inb=function(br){ return act.indexOf(br)>=0; };
@@ -12299,7 +12303,8 @@ function sumRender(){
   var dIn=function(v,fn){ return '<input type="date" value="'+v+'" max="'+today+'" onchange="'+fn+'" style="background:var(--bg);border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:3px 6px;font-family:Cairo,sans-serif;font-size:.62rem">'; };
   var h='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:6px;position:sticky;top:0;z-index:5"><b style="font-size:.85rem">📊 ملخص '+alEsc(perLbl)+'</b><span style="font-size:.6rem;color:var(--mute)">'+planBR().map(function(b){ return b.label; }).join(' + ')+'</span>'+planDataAge()+'<span style="flex:1"></span>'+
     '<span style="font-size:.6rem;color:var(--mute)">من</span>'+dIn(F,"sumSetRange(this.value,SUM_TO||this.value)")+'<span style="font-size:.6rem;color:var(--mute)">لحد</span>'+dIn(TO,"sumSetRange(SUM_FROM||ALERTS_DATA.today,this.value)")+
-    qb('today','النهارده')+qb('y','امبارح')+qb('7','آخر 7 أيام')+qb('m','الشهر ده')+'</div>'+
+    qb('today','النهارده')+qb('y','امبارح')+qb('7','آخر 7 أيام')+qb('m','الشهر ده')+
+    '<span style="width:100%;display:flex;gap:6px;align-items:center;justify-content:flex-end"><span style="font-size:.6rem;color:var(--mute)">الفرع:</span>'+[['','حسب اللي فوق'],['BODYFIX Center','الهرم'],['FIX ZONE','الدقي'],['all','الفرعين']].map(function(o){ var on=SUM_BR===o[0]; return '<button onclick="sumSetBr(\''+o[0]+'\')" style="background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border:1px solid '+(on?'#2563eb':'var(--brd)')+';border-radius:7px;padding:3px 9px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">'+o[1]+'</button>'; }).join('')+'</span></div>'+
     '<div style="font-size:.58rem;color:var(--mute);margin-bottom:6px">دوسي على أي كارت تظهر الأسامي'+(isT?'':' · الكروت اللي مكتوب عليها «متاح للنهارده بس» محتاجة تسجيل يومي — بتتملي من بكره')+' · الفلوس قريب (بكلمة سر التحليلات)</div>';
   h+=sec('🧑‍🤝‍🧑 المرضى والاستمرارية',
     (isT?card('came','✅','جه / محجوز',came.length+' / '+booked.length,'غياب '+pct(absent.length,booked.length)+' ('+absent.length+')',

@@ -10541,9 +10541,9 @@ function planMgrPanel(){
     if(!G[g]){ G[g]={g:g, sec:t.sec, L:[], done:0, nr:0, owners:{}}; order.push(g); }
     var o=G[g], ow=planNormName(planOwner(t,g)||'')||'—'; o.L.push(t); o.owners[ow]=1;
     if(st==='done') o.done++; else if(st==='nr') o.nr++;
-    if(ow!=='—'){ var z=own[ow]=own[ow]||{n:0,d:0,late:0}; z.n++; if(st==='done') z.d++; } });
+    var pw=planNormName(planPerfOwner(t,g)||'')||'—'; if(pw!=='—'){ var z=own[pw]=own[pw]||{n:0,d:0,late:0}; z.n++; if(st==='done') z.d++; } });
   var cards=order.map(function(g){ var o=G[g], open=o.L.length-o.done, dl=planMgrDL(g,o.sec); o.open=open; o.dl=dl; o.late=open>0&&dl!=null&&nowH>=dl;
-    if(o.late) Object.keys(o.owners).forEach(function(ow){ if(own[ow]) own[ow].late+=o.L.filter(function(t){ return planState(t)!=='done'&&planNormName(planOwner(t,g)||'')===ow; }).length; });
+    if(o.late){ o.L.forEach(function(t){ if(planState(t)==='done') return; var pw=planNormName(planPerfOwner(t,g)||''); if(own[pw]) own[pw].late++; }); }
     return o; });
   var tot=cards.reduce(function(a,o){ return a+o.L.length; },0), dn=cards.reduce(function(a,o){ return a+o.done; },0);
   var hL=function(h){ return h>12?(h-12)+' م':h===12?'12 الضهر':h+' ص'; };
@@ -12697,7 +12697,7 @@ function sumRender0(){
        '<div onclick="sumTog(\'dleg\')" style="cursor:pointer;font-size:.6rem;color:#38bdf8;padding:4px 0">ℹ️ إزاي الأرقام دي بتتحسب؟ '+(SUM_OPEN.dleg?'▴':'▾')+'</div>'+(SUM_OPEN.dleg?'<div style="font-size:.6rem;line-height:1.9;color:var(--mute);padding:4px 0">⭐ الدرجة من 100 (آخر 6 شهور): 🎯 استكمال الباقة 45% · 🔁 التجديد 25% · 🪑 الإشغال 15% · 📉 التزام مرضاه 10% · 🔍 الدقة 5% — والدكتور اللي بيكشف 🩺: الـ60% دول + بعد الكشف 20% + بعد التقييم 20% · العدد القليل بيتعدّل ناحية متوسط المركز («بيانات قليلة» = أقل من 4 باقات) · 🟢 80+ · 🟡 65–80 · 🔴 أقل من 65<br>👤 المريض بيتحسب على أي دكتور عمل <b>40% أو أكتر</b> من جلساته في الباقة (ممكن يتحسب على دكتورين لو 50/50 · البديل اللي عمل جلسة ولا اتنين مش بيتحسب عليه) · 🔁 التجديد و«وقف قبل ما يكمّل»: لازم كمان يكون عمل جلسة من <b>آخر 3</b> · اللي كمّل: لكل اللي عمل 40%+ · رمادي «عدد قليل» = أقل من 5 مرضى<br>مترتبين من الأعلى للأقل — دوسي على أي عمود يترتبوا بيه · 🔁 جددوا = من الباقات اللي خلصت مع الدكتور (من أسبوعين على الأقل)، كام مريض حضر جلسة تانية خلال 60 يوم أو محجوزله ميعاد جاي · 🚪 وقفوا بدري = كورسات عمل فيها 40%+ ووقفت عند جلسة 3 أو أقل · 🩺 كشف ← باقة = كشوفاته اللي بدأت جلسات خلال 30 يوم · 🎯 استكمال = الباقات اللي عمل فيها 40%+ من الجلسات اتكمّلت لآخرها (باقة 12 بتتحسب مرتين) · 📉 التزام مرضاه = نسبة الجلسات اللي حضروها من اللي اتحجزت · 🪑 الإشغال = حضوره ÷ طاقة شيفتاته · 🔍 الدقة = أخطاء الكومبليت آخر 30 يوم<br>👥 مرضى جايين معاه = محجوزلهم ميعاد جاي معاه · ✅ حضر / ❌ غياب = جلسات الفترة اللي فوق (النهارده لوحده لو مختارة النهارده)</div>':'')+'</div>'; }catch(e){}
   if(!isT){ var sc=window.scrollY; box.innerHTML=h; window.scrollTo(0,sc); return; }
   // 👩‍💼 السكرتاريه
-  var own={}; all.forEach(function(t){ var s0=planState(t); if(s0==='snz') return; (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planNormName(planOwner(t,g)); if(!o||!planIsReg(o)) return; var z=own[o]=own[o]||{n:0,d:0,k:{},left:{}}; if(z.k[t.key]) return; z.k[t.key]=1; z.n++; if(s0==='done') z.d++; else z.left[g]=(z.left[g]||0)+1; }); });
+  var own={}; all.forEach(function(t){ var s0=planState(t); if(s0==='snz') return; (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planNormName(planPerfOwner(t,g)); if(!o||!planIsReg(o)) return; var z=own[o]=own[o]||{n:0,d:0,k:{},left:{}}; if(z.k[t.key]) return; z.k[t.key]=1; z.n++; if(s0==='done') z.d++; else z.left[g]=(z.left[g]||0)+1; }); });
   var rowsS=Object.keys(own).sort(function(a,b){ return own[b].n-own[a].n; }).map(function(n){ var z=own[n], pc=z.n?Math.round(z.d*100/z.n):0, top=Object.keys(z.left).sort(function(a,b){ return z.left[b]-z.left[a]; })[0];
     return '<tr style="border-top:1px solid var(--brd)"><td style="padding:5px 4px;font-weight:800">'+alEsc(n)+'</td><td style="text-align:center;color:'+(pc>=80?'var(--g)':pc>=40?'#f59e0b':'var(--r)')+';font-weight:800">'+pc+'%</td><td style="text-align:center">'+z.d+' / '+z.n+'</td><td>'+(top?alEsc((PLAN_GT[top]||['',top])[1])+' ('+z.left[top]+')':'—')+'</td></tr>'; }).join('');
   h+='<div style="font-weight:800;font-size:.78rem;margin:14px 0 6px">👩‍💼 السكرتاريه</div><div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:6px 10px"><table style="width:100%;border-collapse:collapse;font-size:.64rem"><tr style="color:var(--mute)"><th style="text-align:right">الاسم</th><th>الإنجاز</th><th>اتعمل</th><th style="text-align:right">أكتر حاجة فاضلة</th></tr>'+rowsS+'</table></div>';
@@ -13811,6 +13811,8 @@ function planCoverInfo(t,g){
   return cd.c.length?{owner:cd.c[0], from:o}:{owner:'', from:o, post:true};
 }
 function planOwner(t,g){ return planNormName(planCoverInfo(t,g).owner||''); }
+/* 📊 صاحبة المهمة في نسبة الأداء: ويتنج النهارده في الهرم على ندى (الصباحي) حتى لو اللي فاضل اتنقل لإنجي بعد 7 — إلا لو ندى غايبة النهارده */
+function planPerfOwner(t,g){ if(g==='waittoday'&&t.br!=='FIX ZONE'){ var aw=PLAN_ST['asg|'+((ALERTS_DATA&&ALERTS_DATA.today)||'')+'|'+t.sec+'|'+g+'|'+t.br]; if(!(aw&&aw.by)){ var f=planNormName((PLAN_ROLES[t.br]||{}).F||''); if(f&&(typeof planHere!=='function'||planHere(f,t.br))) return f; } } return planOwner(t,g); }
 function planIsPosted(t){ var g=(t.grp||[])[0]; return !!(g&&planCoverInfo(t,g).post); }
 function planTeamSet(name, st, br, forN){
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||''; var T=planTeam(), ch=[name];
@@ -13991,7 +13993,7 @@ function planSummaryObj(){
   ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){
     var stt=planState(t); if(stt==='snz') return; var b=sum.br[t.br]||(sum.br[t.br]={tot:0,done:0,groups:{}}); b.tot++; if(stt==='done') b.done++;
     var g=(t.grp&&t.grp[0])||'other', gt=(PLAN_GT[g]||['',g])[1], gg=b.groups[gt]||(b.groups[gt]={tot:0,done:0}); gg.tot++; if(stt==='done') gg.done++;
-    var o=planOwner(t,g); if(o){ var x=sum.sec[o]||(sum.sec[o]={tot:0,done:0,hand:0}); x.tot++; if(stt==='done') x.done++; }
+    var o=planPerfOwner(t,g); if(o){ var x=sum.sec[o]||(sum.sec[o]={tot:0,done:0,hand:0}); x.tot++; if(stt==='done') x.done++; }
     var s=PLAN_ST[t.key]||{}; if(s.s==='done'&&s.by){ var y=sum.sec[s.by]||(sum.sec[s.by]={tot:0,done:0,hand:0}); y.hand++; }
     if(stt==='done'||s.s==='nr') items.push({name:t.name||'', kind:gt, br:t.br, s:(s.s==='done'||s.s==='nr')?s.s:'auto', by:s.by||'', at:s.at||'', note:s.note||'',
       what:String(t.what||(s.s==='done'?'':t.sys)||'').replace(/<[^>]+>/g,'')});
@@ -14014,7 +14016,7 @@ function planSummarySave(){
   ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){
     var stt=planState(t); if(stt==='snz') return; var b=sum.br[t.br]||(sum.br[t.br]={tot:0,done:0,groups:{}}); b.tot++; if(stt==='done') b.done++;
     var g=(t.grp&&t.grp[0])||'other', gt=(PLAN_GT[g]||['',g])[1], gg=b.groups[gt]||(b.groups[gt]={tot:0,done:0}); gg.tot++; if(stt==='done') gg.done++;
-    var o=planOwner(t,g); if(o){ var x=sum.sec[o]||(sum.sec[o]={tot:0,done:0,hand:0}); x.tot++; if(stt==='done') x.done++; }
+    var o=planPerfOwner(t,g); if(o){ var x=sum.sec[o]||(sum.sec[o]={tot:0,done:0,hand:0}); x.tot++; if(stt==='done') x.done++; }
     var s=PLAN_ST[t.key]; if(s&&s.s==='done'&&s.by){ var y=sum.sec[s.by]||(sum.sec[s.by]={tot:0,done:0,hand:0}); y.hand++; }
     // 📞 مين مسئولة عن تأكيد كل مريض النهارده — صفحة التحليلات بتقارنه بسجل المكالمات
     if((g==='conf'||g==='conftoday'||g==='confsp')&&o){ var pk=String(t.key).split('|')[2]; if(pk){ sum.cf=sum.cf||{}; sum.cf[pk]=o; } }
@@ -14297,7 +14299,7 @@ function planRenderV2(all,mineT,ALLN){
   if(PLAN_V2TAB==='visit'){ PLAN_VISIT_OPEN=true; return h+planVisitCard(); }
   if(PLAN_V2TAB==='mgr'){ var m=''; try{ m+=planSudAlerts(); }catch(e){} try{ m+=planTeamPanel(); }catch(e){} try{ m+=planSecPanel(); }catch(e){} try{ m+=planFuPanel(); }catch(e){} return h+m; }
   // 👩‍💼 نسبة إنجاز كل سكرتيرة (سطر واحد) + شريط الإنجاز الكبير
-  try{ var own={}; all.forEach(function(t){ var s0=planState(t); if(s0==='snz') return; (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planNormName(planOwner(t,g)); if(!o||!planIsReg(o)) return; var z=own[o]=own[o]||{n:0,d:0,k:{}}; if(z.k[t.key]) return; z.k[t.key]=1; z.n++; if(s0==='done') z.d++; }); });
+  try{ var own={}; all.forEach(function(t){ var s0=planState(t); if(s0==='snz') return; (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planNormName(planPerfOwner(t,g)); if(!o||!planIsReg(o)) return; var z=own[o]=own[o]||{n:0,d:0,k:{}}; if(z.k[t.key]) return; z.k[t.key]=1; z.n++; if(s0==='done') z.d++; }); });
     var nm=Object.keys(own).sort(function(a,b){ return own[b].n-own[a].n; });
     if(nm.length) h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:.62rem"><span style="color:var(--mute)">👩‍💼 الإنجاز:</span>'+nm.map(function(n){ var z=own[n], pc=z.n?Math.round(z.d*100/z.n):0, col=pc>=80?'var(--g)':pc>=40?'#f59e0b':'var(--r)';
       return '<span onclick="PLAN_VIEW=\''+alEsc(n)+'\';PLAN_V2TAB=\'mine\';planRender()" style="cursor:pointer;border:1px solid '+(n===PLAN_VIEW?col:'var(--brd)')+';border-radius:999px;padding:2px 9px'+(n===PLAN_ME?';font-weight:800':'')+'">'+alEsc(n)+' <b style="color:'+col+'">'+pc+'%</b> <span style="color:var(--mute)">'+z.d+'/'+z.n+'</span></span>'; }).join('')+'</div>'; }catch(e){}

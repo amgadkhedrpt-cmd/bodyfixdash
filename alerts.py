@@ -829,7 +829,8 @@ def build_alerts(appointments, now=None, packages=None):
     RENEW_GAPS = []
     def doc_perf():
         P_FROM = today - timedelta(days=PERF_DAYS)
-        out = defaultdict(lambda: {"branch": Counter(), "renew": [0, 0], "drop": [0, 0, 0, 0, 0], "kashf": [0, 0], "rl": [], "dl": []})
+        out = defaultdict(lambda: {"branch": Counter(), "renew": [0, 0], "drop": [0, 0, 0, 0, 0], "kashf": [0, 0], "rl": [], "dl": [],
+                                   "bb": defaultdict(lambda: {"renew": [0, 0], "drop": [0, 0], "kashf": [0, 0]})})   # bb = لكل فرع (دكتور بيشتغل في الفرعين)
         for appts in patients.values():
             att = sorted([a for a in appts if a["status"] in ATTENDED and a["start"].date() < today and _is_pt(a["type"])],
                          key=lambda a: a["start"])
@@ -867,7 +868,8 @@ def build_alerts(appointments, now=None, packages=None):
                 rn_ = any(end < d <= end + timedelta(days=60) for d in days) or (future and not any(d > end for d in days))
                 if rn_:
                     o["renew"][1] += 1
-                o["rl"].append([pid, byday[sd[0]]["name"], end.isoformat(), size, 1 if rn_ else 0] + pinfo)   # مين خلّص باقة معاه — وجدد ولا لأ
+                bb_ = o["bb"][byday[sd[0]]["branch"]]["renew"]; bb_[0] += 1; bb_[1] += 1 if rn_ else 0
+                o["rl"].append([pid, byday[sd[0]]["name"], end.isoformat(), size, 1 if rn_ else 0] + pinfo + [byday[sd[0]]["branch"]])   # مين خلّص باقة معاه — وجدد ولا لأ
             # 2) الوقوف بدري: كورس جديد (أول جلسة أو بعد انقطاع 3 أسابيع) وقف عند جلسة 3 أو أقل
             courses, cur = [], []
             for d in days:
@@ -884,11 +886,13 @@ def build_alerts(appointments, now=None, packages=None):
                 doc = byday[c[0]]["doctor"]
                 o = out[doc]; o["branch"][byday[c[0]]["branch"]] += 1
                 o["drop"][0] += 1
+                bd_ = o["bb"][byday[c[0]]["branch"]]["drop"]; bd_[0] += 1
                 last_course = ci == len(courses) - 1
                 if len(c) <= 3 and last_course and not future and (today - c[-1]).days >= 14:
                     o["drop"][1] += 1
+                    bd_[1] += 1
                     o["drop"][1 + len(c)] += 1                  # وقف عند جلسة 1 / 2 / 3
-                    o["dl"].append([pid, byday[c[0]]["name"], c[0].isoformat(), c[-1].isoformat(), len(c)] + pinfo)   # مين وقف بدري معاه
+                    o["dl"].append([pid, byday[c[0]]["name"], c[0].isoformat(), c[-1].isoformat(), len(c)] + pinfo + [byday[c[0]]["branch"]])   # مين وقف بدري معاه
             # 3) الكشف ← باقة: كشف علاج طبيعي حضره، وبعده جلسة علاج طبيعي في خلال 30 يوم
             for a in appts:
                 if "كشف" not in a["type"] or "تغذ" in a["type"] or a["status"] not in ATTENDED:
@@ -898,16 +902,18 @@ def build_alerts(appointments, now=None, packages=None):
                     continue
                 o = out[a["doctor"]]; o["branch"][a["branch"]] += 1
                 o["kashf"][0] += 1
+                bk_ = o["bb"][a["branch"]]["kashf"]; bk_[0] += 1
                 if any(d <= x <= d + timedelta(days=30) for x in days) or \
                    any(d - timedelta(days=3) <= st <= d + timedelta(days=30) for st, _ in pk_by_pid.get(pid, [])):
-                    o["kashf"][1] += 1
+                    o["kashf"][1] += 1; bk_[1] += 1
         res = {}
         for doc, o in out.items():
             if doc.lower() in SKIP_DOCS or not doc:
                 continue
             res[doc] = {"branch": o["branch"].most_common(1)[0][0] if o["branch"] else "",
                         "renew": o["renew"], "drop": o["drop"], "kashf": o["kashf"],
-                        "rl": sorted(o["rl"], key=lambda r: r[2], reverse=True), "dl": sorted(o["dl"], key=lambda r: r[3], reverse=True)}
+                        "rl": sorted(o["rl"], key=lambda r: r[2], reverse=True), "dl": sorted(o["dl"], key=lambda r: r[3], reverse=True),
+                        "bb": {b: dict(v) for b, v in o["bb"].items() if b}}
         g = RENEW_GAPS; n = len(g); b = Counter()
         for x in g:
             k = "لم يرجع" if x is None else "≤3" if x <= 3 else "4-7" if x <= 7 else "8-10" if x <= 10 else "11-14" if x <= 14 else "15-21" if x <= 21 else "22-30" if x <= 30 else "31-60" if x <= 60 else ">60"

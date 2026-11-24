@@ -12331,7 +12331,12 @@ function sumRender(){
     card('dokki','📋','محجوز معاه',dvB.length+' من '+dvI.length,'فاضل '+(dvI.length-dvB.length),dvI.map(function(x){ return ptRow(x.name,x.pid,(x.amg?'✅ محجوز':'⬜')); }).join('')));
   // 🩺 الدكاترة: جلسات الفترة (حضر / ما حضرش / ملغي) + التجديد ووقفوا بدري وكشف ← باقة (آخر 6 شهور)
   try{ var DP=(D.doc_perf||{}).docs||{}, DY=((D.analysis||{}).daily)||{}, drs={};
-    Object.keys(DP).forEach(function(en){ var x=DP[en]; if(/amgad|khedr/i.test(en)||!inb(x.branch)) return; drs[en]={en:en, br:x.branch, rn:x.renew||[0,0], dr:x.drop||[0,0,0,0,0], kx:x.kashf||[0,0], rl:x.rl, dl:x.dl, a:0, n:0, c:0}; });
+    var one=act.length===1?act[0]:'';
+    Object.keys(DP).forEach(function(en){ var x=DP[en]; if(/amgad|khedr/i.test(en)) return;
+      // دكتور بيشتغل في الفرعين: لو فرع واحد مختار فوق، أرقامه في الفرع ده بس (bb) — مش بس فرعه الأساسي
+      var bb=one&&x.bb?x.bb[one]:null; if(one&&x.bb&&!bb) return; if(!x.bb&&!inb(x.branch)) return;
+      var fl=function(L){ return L?L.filter(function(z){ return !one||!z[11]||z[11]===one; }):L; };
+      drs[en]={en:en, br:one||x.branch, rn:(bb||x).renew||[0,0], dr:(bb||x).drop||[0,0,0,0,0], kx:(bb||x).kashf||[0,0], rl:fl(x.rl), dl:fl(x.dl), a:0, n:0, c:0}; });
     Object.keys(DY).forEach(function(en){ var r=drs[en]; if(!r) return; Object.keys(DY[en]).forEach(function(d){ if(!inR(d)||d===today) return; var v=DY[en][d]; r.a+=v[0]; r.n+=v[1]; r.c+=v[2]; }); });
     if(inR(today)) TA.forEach(function(x){ var r=drs[x.doctor]; if(!r||!/جلس/.test(x.type||'')) return; if(/checked|progress|completed/i.test(x.status||'')) r.a++; else if(/no ?show/i.test(x.status||'')) r.n++; else if(/cancel/i.test(x.status||'')) r.c++; });   // النهارده من مواعيد النهارده
     var rt=function(x){ return x[0]?x[1]/x[0]:-1; }, SK=SUM_DSORT||'rn';
@@ -14620,11 +14625,13 @@ function anPerfHtml(R){
   });
   if(P) Object.keys(P).forEach(function(en){
     if(/amgad|khedr/i.test(en)) return;
-    var x=P[en], m=alMatchDoc(en), br=m?m.branch:x.branch, nm=m?m.doc.name:(alDocAr(en)||en);
-    if(actKeys.indexOf(br)<0) return;
-    var r=rows[key(br,nm)]||(rows[key(br,nm)]={name:nm, br:br, occ:null, cap:0, pcx:[0,0], renew:[0,0], drop:[0,0,0,0,0], kashf:[0,0]});
-    for(var i=0;i<2;i++){ r.renew[i]+=x.renew[i]; r.kashf[i]+=x.kashf[i]; }
-    for(var j=0;j<5;j++) r.drop[j]+=x.drop[j];
+    var x=P[en], m=alMatchDoc(en), nm=m?m.doc.name:(alDocAr(en)||en);
+    // لكل فرع اشتغل فيه (bb) — دكتور بيشتغل في الفرعين بيظهر في الاتنين بأرقام كل فرع
+    var parts=x.bb?Object.keys(x.bb).map(function(b){ return [b,x.bb[b]]; }):[[m?m.branch:x.branch,x]];
+    parts.forEach(function(pt){ var br=pt[0], y=pt[1]; if(actKeys.indexOf(br)<0) return;
+      var r=rows[key(br,nm)]||(rows[key(br,nm)]={name:nm, br:br, occ:null, cap:0, pcx:[0,0], renew:[0,0], drop:[0,0,0,0,0], kashf:[0,0]});
+      for(var i=0;i<2;i++){ r.renew[i]+=(y.renew||[0,0])[i]; r.kashf[i]+=(y.kashf||[0,0])[i]; r.drop[i]+=(y.drop||[0,0])[i]; }
+      if(!x.bb) for(var j=2;j<5;j++) r.drop[j]+=x.drop[j]; });
   });
   var list=Object.keys(rows).map(function(k){ var r=rows[k]; r.abs=anDocAbsMonth(r.name); return r; })
     .filter(function(r){ return !/أمجد خضر/.test(r.name); });

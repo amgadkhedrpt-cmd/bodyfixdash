@@ -12339,6 +12339,19 @@ function sumRenewCards(D,isT,F,TO,today,perLbl,inb,card,ptRow,pct,tD,tN,tRows,TA
     (isT?hd('❌ تقييمه النهارده وما جاش / اتلغى','var(--r)',evX.length)+evX.map(function(r){ return nmE(r,''); }).join(''):'')+
     hd('❌ باقته خلصت ومالوش تقييم محجوز','var(--r)',evN.length)+evN.map(function(r){ return nm(r,r[8]?'(جدد من غير تقييم)':''); }).join('')+
     (isT?hd('🔁 مهام «اعرض التجديد» النهارده','',tN)+tRows:''),bk/(L1||1)>=.7?'var(--g)':bk/(L1||1)>=.4?'#f59e0b':'var(--r)');
+  /* فترة (مش النهارده): الباقات اللي خلصت في الفترة — التقييم «في وقته» = في الجلسة قبل الأخيرة أو الأخيرة (لحد يومين بعدها) */
+  if(!isT){ var PK=B.filter(function(r){ return inW(r[3]); }), g2=function(r){ return r[10]||r[3]; };
+    var onT=PK.filter(function(r){ return r[7]&&r[7]>=g2(r)&&r[7]<=addD(r[3],2); }), erl=PK.filter(function(r){ return r[7]&&r[7]<g2(r); }),
+        lat=PK.filter(function(r){ return r[7]&&r[7]>addD(r[3],2); }), bkn=PK.filter(function(r){ return !r[7]&&r[6]; }), non=PK.filter(function(r){ return !r[7]&&!r[6]; });
+    c1=card('rnev','📋','تقييم الجلسة الأخيرة — '+alEsc(wl),'في وقته '+onT.length+' من '+PK.length+' ('+pct(onT.length,PK.length)+')',
+      'الباقات اللي خلصت في الفترة · متأخر '+lat.length+' · بدري '+erl.length+' · محجوز وما حضرش '+bkn.length+' · ما اتعملش '+non.length,
+      '<div style="font-size:.58rem;color:var(--mute);padding:2px 0">«في وقته» = التقييم في الجلسة قبل الأخيرة أو الأخيرة (مثلاً جلسة 5 أو 6 من باقة 6)</div>'+
+      hd('✅ في وقته','var(--g)',onT.length)+onT.map(function(r){ return nm(r,'التقييم '+alEsc(alFmtDay(r[7]))); }).join('')+
+      hd('🟡 متأخر (بعد آخر جلسة)','#f59e0b',lat.length)+lat.map(function(r){ return nm(r,'التقييم '+alEsc(alFmtDay(r[7]))); }).join('')+
+      hd('🔵 بدري (قبل الجلسة قبل الأخيرة)','#38bdf8',erl.length)+erl.map(function(r){ return nm(r,'التقييم '+alEsc(alFmtDay(r[7]))); }).join('')+
+      hd('📅 اتحجز وما حضرش','#f59e0b',bkn.length)+bkn.map(function(r){ return nm(r,'محجوز '+alEsc(alFmtDay(r[6]))); }).join('')+
+      hd('❌ ما اتعملش تقييم','var(--r)',non.length)+non.map(function(r){ return nm(r,r[8]?'(جدد من غير تقييم)':''); }).join(''),
+      onT.length/(PK.length||1)>=.7?'var(--g)':onT.length/(PK.length||1)>=.4?'#f59e0b':'var(--r)'); }
   var d7=function(r){ return addD(r[3],7); };
   var rn=B.filter(function(r){ return inW(r[8]); }),
       bkN=B.filter(function(r){ var j=d7(r); return j<=today&&inW(j)&&(!r[8]||String(r[8]).slice(0,10)>j)&&r[9]&&String(r[9]).slice(0,10)>=today; }),   // عدّى أسبوع بس حاجز ميعاد جاي

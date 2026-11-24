@@ -894,7 +894,8 @@ def build_alerts(appointments, now=None, packages=None):
                 PKG_END.append([pid, byday[sd[0]]["name"], byday[sd[size - 1]]["branch"], end.isoformat(), size, byday[sd[size - 1]]["doctor"],
                                 evs[0]["start"].date().isoformat() if evs else "", ev_att[0]["start"].date().isoformat() if ev_att else "",
                                 nxd[0].isoformat() if nxd and (nxd[0] - end).days <= 60 else "",
-                                nx_a["start"].isoformat()[:16] if nx_a else ""])
+                                nx_a["start"].isoformat()[:16] if nx_a else "",
+                                (sd[size - 2] if size >= 2 else sd[0]).isoformat()])   # [10] يوم الجلسة قبل الأخيرة — التقييم «في وقته» من اليوم ده
             # 1ب) استكمال الباقة: بدأت مع الدكتور ده ووصلت لآخرها؟ (كمّل = 1 · وقف بعد جلسة 3 = ½ · وقف في أول 3 = 0) · باقة 12 وزنها ضعف الـ6
             for size, sd, approx in segs:
                 if approx or not sd:

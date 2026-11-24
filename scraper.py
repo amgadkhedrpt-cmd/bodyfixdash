@@ -746,7 +746,7 @@ async def sync_invoices(page, cookie_str, extra_headers):
     for p, ids in by_p.items():
         ids.sort(key=lambda i: (inv[i].get("a") or inv[i].get("d", "")), reverse=True)
         for rank, i in enumerate(ids):
-            if "s" not in inv[i] or (not inv[i].get("s") and inv[i].get("v", 1) < PKG_VER):
+            if "s" not in inv[i] or (not inv[i].get("s") and (inv[i].get("v", 1) < PKG_VER or "n" not in inv[i])):   # «أخرى» من غير اسم → نجيب اسمها
                 ranked.append((rank, inv[i].get("d", ""), i))
     ranked.sort(key=lambda t: t[1], reverse=True)                     # الأحدث الأول
     ranked.sort(key=lambda t: t[0])                                   # وآخر فاتورة لكل مريض قبل أي حاجة
@@ -758,14 +758,22 @@ async def sync_invoices(page, cookie_str, extra_headers):
     async def one(iid):
         det = gql_dec(await gql_call(page, cookie_str, extra_headers, INV_DETAILS_Q, {"invoice": iid}), "invoiceDetails") or {}
         size, how = 0, ""
+        top, top_p = "", -1.0
         for o in det.get("operations") or []:
             nm = str(o.get("name") or "").strip()
             names[nm] += 1
+            try:
+                pr_ = float(o.get("price") or 0)
+            except Exception:
+                pr_ = 0.0
+            if nm and pr_ > top_p:
+                top, top_p = nm, pr_
             n, h = pkg_size_of(nm, o.get("price"))
             if n and (n > size or (h == "name" and how == "price")):
                 size, how = n, h
         inv[iid]["s"] = size
         inv[iid]["v"] = PKG_VER
+        inv[iid]["n"] = top[:60]   # اسم الخدمة الأساسية في الفاتورة (أغلى بند) — للباقات «الأخرى»
         if how == "price":
             inv[iid]["sp"] = 1
         else:

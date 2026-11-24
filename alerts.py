@@ -1375,6 +1375,7 @@ def build_alerts(appointments, now=None, packages=None):
             if not item:
                 continue
             ref = ex if item.get("kashf_other") else max((a for a in appts if a["start"].date() <= today), key=lambda a: a["start"])
+            item["last"] = max((a["start"].date() for a in appts if a["status"] in ATTENDED and a["start"].date() <= today), default=today).isoformat()   # آخر حضور — عشان العدد الفعلي (اللي لسه بييجي)
             item.update({"name": ref["name"], "phone": ref["phone"], "pid": ref["pid"],
                          "next": ({"time": nx["start"].isoformat(), "type": nx["type"], "doctor": nx["doctor"]} if nx else None)})
             eval_pending.append(item)

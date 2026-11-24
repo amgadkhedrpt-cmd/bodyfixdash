@@ -10495,6 +10495,7 @@ function alCard(accent, inner, onclick){
          '<div style="position:absolute;top:0;right:0;bottom:0;width:4px;background:'+accent+'"></div>'+inner+'</div>';
 }
 /* ▦ التنبيهات كمربعات صغيرة متقسمة حسب الاستعجال — الدوسة بتفتح نفس القايمة (بكل فلاترها) · الكروت بالتفصيل من الزرار تحت */
+var AL_TASK_RX=/اعتذار مفاجئ|بانتظام ومالوش|ناقصه خدمة|هيوقف ولسه|من غير فاتورة|مالهمش ميعاد جاي|بيلغوا ورا بعض ومحجوزلهم/;
 var AL_TILE_SEC=[['النهارده — اتصرف دلوقتي',/اعتذار مفاجئ|تقييم|ميعاد النهارده|ناقصه خدمة|من غير فاتورة|هيوقف|جلسة رقم|بانتظام/],['متابعة — الأسبوع ده',/المتابعات|كشف|بيلغوا/],['مرضى بنخسرهم',/باقة|انقطعوا|اتشالوا/]];
 function alTiles(cap){
   var tmp=document.createElement('div'), secs=AL_TILE_SEC.map(function(x){ return {t:x[0],rx:x[1],L:[]}; }), other={t:'تانية',L:[]}, zero=[];
@@ -10509,6 +10510,7 @@ function alTiles(cap){
     var subs=[].slice.call(tmp.querySelectorAll('div[style*=".56rem"],div[style*=".54rem"]')), sub=subs.length?subs[subs.length-1].textContent.trim():'';
     var pg=tmp.querySelector('[data-prog]'), o={c:c,title:title,tot:tot,brs:brs,sub:sub,prog:pg?pg.innerHTML:''};
     if(tot==='0'||(tot===''&&!brs.length&&!sub)){ zero.push(title); return; }
+    if(AL_TASK_RX.test(title)) return;   // ليها مهمة في خطة اليوم → بتظهر في «شاشة المدير» فوق بدل الكارت
     var sc=secs.find(function(x){ return x.rx.test(title); }); (sc||other).L.push(o);
   });
   if(other.L.length) secs.push(other);
@@ -10523,6 +10525,53 @@ function alTiles(cap){
     return '<div style="font-weight:900;font-size:.8rem;margin:14px 0 6px">'+alEsc(x.t)+' <span style="color:var(--mute);font-weight:400">('+x.L.length+')</span></div>'+
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'+x.L.map(tile).join('')+'</div>'; }).join('')+
     (zero.length?'<div style="font-size:.58rem;color:var(--g);margin-top:10px">✅ مفيش النهارده: '+alEsc(zero.join(' · '))+'</div>':'');
+}
+
+/* 👔 شاشة المدير: كارت لكل مهمة في خطة اليوم — نفس الأرقام بالظبط · متأخر = عدّى ميعادها ولسه فيها مفتوح
+   المواعيد: أول الشيفت لحد 12 الضهر · عند الاستقبال لحد 4 العصر · تأكيدات/ويتنج يوم الشغل الجاي لحد 7 بالليل */
+var MGR_OPEN={}, MGR_DL_G={conf:19, waitnext:19, waitnut:19, nopkgnext:19, confsp:19}, MGR_DL_S={morning:12, rec:16};
+function planMgrDL(g,sec){ return MGR_DL_G[g]!=null?MGR_DL_G[g]:(MGR_DL_S[sec]!=null?MGR_DL_S[sec]:null); }
+function planMgrGo(sec,g){ PLAN_VIEW=''; try{ localStorage.setItem('planView',''); }catch(e){} PLAN_V2OPEN[sec+'|'+g]=true; swTab('plan'); setTimeout(function(){ try{ planRender(); }catch(e){} },60); }
+function planMgrTog(g){ MGR_OPEN[g]=!MGR_OPEN[g]; alertsRender(); }
+function planMgrPanel(){
+  var T=planTasks(); if(!T) return '<div style="font-size:.62rem;color:var(--mute);margin:8px 0">⏳ بيحمّل المهام…</div>';
+  var all=[].concat(T.mgr,T.morning,T.rec,T.office,T.evening), G={}, order=[], own={};
+  var nowH=+new Date().toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2);
+  all.forEach(function(t){ var st=planState(t); if(st==='snz') return; var g=(t.grp&&t.grp[0])||'other';
+    if(!G[g]){ G[g]={g:g, sec:t.sec, L:[], done:0, nr:0, owners:{}}; order.push(g); }
+    var o=G[g], ow=planNormName(planOwner(t,g)||'')||'—'; o.L.push(t); o.owners[ow]=1;
+    if(st==='done') o.done++; else if(st==='nr') o.nr++;
+    if(ow!=='—'){ var z=own[ow]=own[ow]||{n:0,d:0,late:0}; z.n++; if(st==='done') z.d++; } });
+  var cards=order.map(function(g){ var o=G[g], open=o.L.length-o.done, dl=planMgrDL(g,o.sec); o.open=open; o.dl=dl; o.late=open>0&&dl!=null&&nowH>=dl;
+    if(o.late) Object.keys(o.owners).forEach(function(ow){ if(own[ow]) own[ow].late+=o.L.filter(function(t){ return planState(t)!=='done'&&planNormName(planOwner(t,g)||'')===ow; }).length; });
+    return o; });
+  var tot=cards.reduce(function(a,o){ return a+o.L.length; },0), dn=cards.reduce(function(a,o){ return a+o.done; },0);
+  var hL=function(h){ return h>12?(h-12)+' م':h===12?'12 الضهر':h+' ص'; };
+  var head='<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:10px">'+
+    '<div style="display:flex;justify-content:space-between;font-size:.62rem;color:var(--mute)"><span>👔 المهام النهارده — '+planBR().map(function(b){ return b.label; }).join(' + ')+'</span><span>دوس على أي كارت للتفاصيل</span></div>'+
+    '<div style="font-size:1.05rem;font-weight:900;margin:2px 0 6px">'+dn+' من '+tot+' اتعملوا · '+(tot?Math.round(dn*100/tot):0)+'%</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">'+Object.keys(own).filter(function(n){ return planIsReg(n); }).sort().map(function(n){ var z=own[n], pc=z.n?Math.round(z.d*100/z.n):100, col=z.late?'var(--r)':pc>=70?'var(--g)':'#f59e0b';
+      return '<span style="font-size:.62rem;font-weight:800;color:'+col+';border:1px solid '+col+';border-radius:8px;padding:2px 9px">'+alEsc(n)+' '+pc+'%'+(z.late?' · ⏰ '+z.late+' متأخر':'')+'</span>'; }).join('')+'</div></div>';
+  var card=function(o){ var gt=PLAN_GT[o.g]||['•',o.g], op=!!MGR_OPEN[o.g], pc=o.L.length?Math.round(o.done*100/o.L.length):100, ow=Object.keys(o.owners).filter(function(x){ return x!=='—'; });
+    var col=o.late?'var(--r)':o.open?'#f59e0b':'var(--g)';
+    var h='<div onclick="planMgrTog(\''+o.g+'\')" style="cursor:pointer;background:var(--card);border:1px solid '+(o.late?'var(--r)':op?'#2563eb':'var(--brd)')+';border-radius:12px;padding:9px 11px;'+(op?'grid-column:1/-1;':'')+'">'+
+      '<div style="display:flex;gap:6px;align-items:baseline"><span>'+gt[0]+'</span><b style="font-size:.68rem;flex:1;line-height:1.45">'+alEsc(String(gt[1]).split(' — ')[0])+'</b>'+(o.late?'<span style="font-size:.56rem;color:var(--r);white-space:nowrap">⏰ كان لحد '+hL(o.dl)+'</span>':o.dl!=null&&o.open?'<span style="font-size:.56rem;color:var(--mute);white-space:nowrap">لحد '+hL(o.dl)+'</span>':'')+'</div>'+
+      '<div style="font-size:.64rem;margin-top:3px"><b style="color:var(--g)">✅ '+o.done+'</b> اتعمل'+(o.nr?' · <b style="color:var(--am)">📞 '+o.nr+'</b> ما ردش':'')+(o.open-o.nr>0?' · <b style="color:var(--r)">⬜ '+(o.open-o.nr)+'</b> لسه':'')+' <span style="color:var(--mute)">من '+o.L.length+' · 👤 '+alEsc(ow.join(' / ')||'—')+'</span></div>'+
+      '<div style="height:5px;background:var(--bg);border-radius:3px;margin-top:5px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:'+col+'"></div></div>';
+    if(op){ var hw={}; o.L.forEach(function(t){ if(planState(t)==='done'){ var k=planHow(t); hw[k]=(hw[k]||0)+1; } });
+      var byOw={}; o.L.forEach(function(t){ var st=planState(t); if(st==='done') return; var w=planNormName(planOwner(t,o.g)||'')||'—'; (byOw[w]=byOw[w]||[]).push(t); });
+      h+='<div onclick="event.stopPropagation()" style="border-top:1px solid var(--brd);margin-top:8px;padding-top:6px;font-size:.62rem">'+
+        (o.done?'<div style="color:var(--mute);margin-bottom:4px">اتقفلت إزاي: '+['sys','man','ref','nr'].filter(function(k){ return hw[k]; }).map(function(k){ var L=PLAN_HOW_L[k]; return '<span style="color:'+L[2]+'">'+L[0]+' '+L[1]+' '+hw[k]+'</span>'; }).join(' · ')+'</div>':'')+
+        Object.keys(byOw).map(function(w){ var A=byOw[w]; return '<div style="padding:3px 0;border-top:1px solid var(--brd)"><b>لسه — '+alEsc(w)+' ('+A.length+'):</b> '+A.slice(0,12).map(function(t){ return alEsc(t.name||'')+(planState(t)==='nr'?' 📞':''); }).join('، ')+(A.length>12?' … و'+(A.length-12)+' كمان':'')+'</div>'; }).join('')+
+        '<div style="margin-top:6px"><button onclick="event.stopPropagation();planMgrGo(\''+o.sec+'\',\''+o.g+'\')" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:7px;padding:4px 12px;font-family:Cairo,sans-serif;font-size:.6rem;font-weight:700;cursor:pointer">📋 افتح المهمة في خطة اليوم</button></div></div>'; }
+    return h+'</div>'; };
+  var grid=function(L){ return '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'+L.map(card).join('')+'</div>'; };
+  var late=cards.filter(function(o){ return o.late; }).sort(function(a,b){ return b.open-a.open; }),
+      onT=cards.filter(function(o){ return !o.late&&o.open; }).sort(function(a,b){ return b.open-a.open; }),
+      fin=cards.filter(function(o){ return !o.open; });
+  return head+(late.length?'<div style="font-weight:900;font-size:.76rem;margin:10px 0 6px;color:var(--r)">⏰ متأخر عن ميعاده ('+late.length+')</div>'+grid(late):'')+
+    (onT.length?'<div style="font-weight:900;font-size:.76rem;margin:12px 0 6px">⏳ ماشي في ميعاده ('+onT.length+')</div>'+grid(onT):'')+
+    (fin.length?'<div onclick="MGR_OPEN.__fin=!MGR_OPEN.__fin;alertsRender()" style="cursor:pointer;font-weight:900;font-size:.72rem;margin:12px 0 6px;color:var(--g)">✅ خلصت ('+fin.length+') '+(MGR_OPEN.__fin?'▾':'◂')+'</div>'+(MGR_OPEN.__fin?grid(fin):''):'');
 }
 function alertsRender(){
   setTimeout(function(){ try{ alFixTrack(); }catch(e){} },0);
@@ -10759,18 +10808,18 @@ function alertsRender(){
 
   /* 0.75) 6 جلسات من غير تقييم */
   var ed=alEvalDue();
-  if(ed&&ed.rows.length){
+  if(ed&&(ed.rows.length||ed.stale)){
     var edT=ed.rows.filter(function(x){return x.day==='today';}).length;
     html+=alCard('#ec4899',
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
         '<span style="font-size:.95rem">🩺</span><span style="font-weight:700;font-size:.76rem;flex:1">محتاجين تقييم (6 جلسات · أو إعادة تقييم مع د. أمجد)</span>'+
-        '<span style="background:#ec4899;color:#fff;border-radius:10px;padding:1px 10px;font-size:.72rem;font-weight:900">'+(ALERTS_DATA.eval_pending?edT+' النهارده · '+ed.rows.length+' كلهم':ed.rows.length)+'</span>'+
+        '<span style="background:#ec4899;color:#fff;border-radius:10px;padding:1px 10px;font-size:.72rem;font-weight:900">'+(ALERTS_DATA.eval_pending?edT+' النهارده · '+ed.rows.length+' فعلي':ed.rows.length)+'</span>'+
         '<span style="font-size:.6rem;color:var(--mute)">اضغط للقايمة ←</span></div>'+
       '<div style="display:flex;gap:8px;margin-bottom:6px">'+alActiveBranches().map(function(b){
         return '<div onclick="event.stopPropagation();alOpenPick(\'evaldue\',\''+b.key+'\')" title="اضغط لأسامي الرقم ده بس" style="flex:1;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:9px;padding:8px;text-align:center;cursor:pointer">'+
           '<div style="font-size:1.35rem;font-weight:900;color:'+b.color+'">'+(ed.by[b.key]||0)+'</div><div style="font-size:.58rem;color:var(--mute)">'+b.label+'</div></div>';
       }).join('')+'</div>'+
-      '<div style="font-size:.56rem;color:var(--mute)">'+(ALERTS_DATA.eval_pending?ed.withA+' ليهم ميعاد (منهم '+edT+' النهارده) · <b style="color:var(--r)">'+ed.noA+' مالهمش ميعاد</b> — بيفضلوا هنا لحد ما التقييم يتحجز أو يتعمل':edT+' جلستهم النهارده · '+(ed.rows.length-edT)+' في يوم الشغل الجاي — احجزلهم تقييم')+'</div>',
+      '<div style="font-size:.56rem;color:var(--mute)">'+(ALERTS_DATA.eval_pending?ed.withA+' ليهم ميعاد (منهم '+edT+' النهارده) · <b style="color:var(--r)">'+ed.noA+' مالهمش ميعاد بس جم آخر أسبوع</b> — بيفضلوا هنا لحد ما التقييم يتحجز أو يتعمل'+(ed.stale?' · مش محسوب: '+ed.stale+' متوقفين (مالهمش ميعاد وآخر زيارة من أكتر من أسبوع)':''):edT+' جلستهم النهارده · '+(ed.rows.length-edT)+' في يوم الشغل الجاي — احجزلهم تقييم')+'</div>',
       'alertsOpenEvalDue()');
   }
 
@@ -10865,7 +10914,8 @@ function alertsRender(){
     // «ملخص اليوم» (المواعيد والإشغال) بيفضل زي ما هو تحت — المربعات للتنبيهات بس
     var si=html.indexOf('ملخص اليوم</span>'), ts=si>0?html.lastIndexOf('<div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px">',si):-1;
     var tail=ts>0?html.slice(ts):'', nCap=(ts>0?html.slice(0,ts):html).split('class="ov-card-link"').length-1;
-    html=head+alTiles(cap.slice(0,nCap))+'<div style="text-align:center;margin:10px 0">'+tg('full','📋 عرض الكروت بالتفصيل')+'</div>'+tail;
+    var mp=''; try{ mp=planMgrPanel(); }catch(e){ mp='<div style="font-size:.6rem;color:var(--r)">⚠️ شاشة المهام: '+alEsc(String(e&&e.message||e))+'</div>'; }
+    html=head+mp+'<div style="font-weight:900;font-size:.8rem;margin:16px 0 0">🔔 تنبيهات ومعلومات</div>'+alTiles(cap.slice(0,nCap))+'<div style="text-align:center;margin:10px 0">'+tg('full','📋 عرض الكروت بالتفصيل')+'</div>'+tail;
   } else if(cap.length) html+='<div style="text-align:center;margin:10px 0">'+tg('tiles','▦ عرض مختصر (مربعات)')+'</div>';
   el.innerHTML=html;
 }
@@ -12743,6 +12793,7 @@ function planLoad(){
     PLAN_ST=st; PLAN_LOADED=true; PLAN_LOAD_AT=Date.now(); try{ localStorage.setItem('planSt',JSON.stringify(st)); localStorage.setItem('planNamesBr',JSON.stringify(PLAN_NAMES_BR)); }catch(e){}
     fin(); var typing=document.activeElement&&document.getElementById('planBox')&&document.getElementById('planBox').contains(document.activeElement)&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if(!typing) planRender();
+    try{ var ap=document.getElementById('alerts-panel'); if(ap&&ap.offsetParent!==null&&typeof alertsRender==='function') alertsRender(); }catch(e){}   // شاشة المدير تتحدث بحالة المهام
   };
   sc.src=REQ_SCRIPT_URL+'?action=getAll&callback='+cb;
   document.head.appendChild(sc);
@@ -14485,8 +14536,12 @@ function alEvalDue(){
   var act=alActiveBranches(), out={rows:[], by:{}, withA:0, noA:0};
   act.forEach(function(b){ out.by[b.key]=0; });
   if(ALERTS_DATA.eval_pending){ var td=ALERTS_DATA.today||'';
+    out.stale=0; var d7=(function(){ var z=new Date(td+'T12:00:00Z'); z.setUTCDate(z.getUTCDate()-7); return z.toISOString().slice(0,10); })();
     ALERTS_DATA.eval_pending.forEach(function(x){ var b=x.branch; if(!out.by.hasOwnProperty(b)) return;
-      var nd=x.next?String(x.next.time).slice(0,10):''; var r=Object.assign({_br:b, day:!nd?'none':nd===td?'today':'later'},x);
+      var nd=x.next?String(x.next.time).slice(0,10):'';
+      // العدد الفعلي: ليه ميعاد جاي، أو جه آخر أسبوع — اللي مالوش ميعاد وآخر حضور أقدم (أو كشف وما بدأش) = متوقف، مش محسوب هنا (بيظهر في التجديد / الانقطاع)
+      if(!nd&&(!x.last||x.last<d7||(x.kashf_other&&!x.kashf_other.after&&!x.n6))){ out.stale++; return; }
+      var r=Object.assign({_br:b, day:!nd?'none':nd===td?'today':'later'},x);
       out.by[b]++; out.rows.push(r); if(nd) out.withA++; else out.noA++; });
     return out;
   }

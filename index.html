@@ -3813,6 +3813,14 @@ function audMapUnkRender(){
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div><div style="color:#00C9A7;font-size:12px;font-weight:700;margin-bottom:6px">أنواع المواعيد <span style="color:#475569;font-weight:400">(العدد = Completed)</span></div>'+list(ca,'a')+
     '</div><div><div style="color:#00C9A7;font-size:12px;font-weight:700;margin-bottom:6px">خطوات العمليات <span style="color:#475569;font-weight:400">(العدد = آخر سنة)</span></div>'+list(cs,'s')+'</div></div>';
 }
+/* ⚡ تحميل أخف: الملفات الكبيرة بتتحمّل بنسخة السحب (last_updated من summary.json الصغير) + cache:'no-cache'
+   → المتصفح بيسأل السيرفر «اتغير؟» — لو نفس السحب بيرد 304 من غير ما يحمّل تاني · لو سحب جديد → لينك جديد = نسخة جديدة على طول */
+var BF_VER={};
+function bfVer(base){ var o=BF_VER[base]; if(o&&Date.now()-o.at<60000) return o.p;
+  var p=fetch(base+'summary.json?t='+Date.now(),{cache:'no-store'}).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){ return (j&&j.last_updated)||''; }).catch(function(){ return ''; });
+  BF_VER[base]={at:Date.now(), p:p}; return p; }
+function bfFetch(url){ var base=url.replace(/(data\/)?[^\/]+\.json$/,'');
+  return bfVer(base).then(function(v){ return v?fetch(url+'?v='+encodeURIComponent(v),{cache:'no-cache'}):fetch(url+'?t='+Date.now()); }); }
 /* ══ المطابقة الأوتوماتيك: data/audit.json من scraper.py ══ */
 var AUD_DATA=null, AUD_LOADING=false, AUD_UNPAID=[];
 var AUD_UP_COLS='95px 1.2fr 1fr 0.8fr 60px 80px 80px 1.4fr';
@@ -3853,7 +3861,7 @@ function audAutoLoad(force){
   var bases=(typeof MED_URLS!=='undefined'?MED_URLS:[]).map(function(u){ return u.summary.replace(/summary\.json$/,'data/audit.json'); });
   (function tryAt(i){
     if(i>=bases.length){ AUD_LOADING=false; document.getElementById('audAutoInfo').textContent='⚠️ لسه مفيش بيانات مطابقة — هتظهر بعد أول مزامنة.'; return; }
-    fetch(bases[i]+'?t='+Date.now()).then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    bfFetch(bases[i]).then(function(r){ if(!r.ok) throw 0; return r.json(); })
       .then(function(d){ AUD_LOADING=false; AUD_DATA=d; alCachePut('audit',d); audAutoInit(); try{ if(document.getElementById('planBox')) planRender(); }catch(e){} try{ if(document.getElementById('sumBox')) sumRender(); }catch(e){} })
       .catch(function(){ tryAt(i+1); });
   })(0);
@@ -5793,7 +5801,7 @@ function medLoad(force, onDone) {
         medRenderSummary(summary);
         if (dot) dot.style.background = 'var(--g)';
         if (statusEl) statusEl.innerHTML = '';
-        return fetch(urls.data + cacheBuster);
+        return summary.last_updated?fetch(urls.data+'?v='+encodeURIComponent(summary.last_updated),{cache:'no-cache'}):fetch(urls.data + cacheBuster);
       })
       .then(function(r){ return r.json(); })
       .then(function(data){
@@ -10406,7 +10414,7 @@ function alertsLoad(){
   var bases=(typeof MED_URLS!=='undefined'?MED_URLS:[]).map(function(u){ return u.summary.replace(/summary\.json$/,'alerts.json'); });
   (function tryAt(i){
     if(i>=bases.length){ alertsRender(); return; }
-    fetch(bases[i]+'?t='+Date.now())
+    bfFetch(bases[i])
       .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
       .then(function(d){ ALERTS_DATA=d; AL_FROM_CACHE=false; alCachePut('alerts',d); alertsRender(); try{ planRender(); }catch(e){} })
       .catch(function(){ tryAt(i+1); });
@@ -12270,7 +12278,7 @@ function sumQuick(k){ var td=(ALERTS_DATA&&ALERTS_DATA.today)||new Date().toISOS
 function sumOpen(){
   if(typeof planOpen==='function'){ try{ planShiftsLoad(); if(!PLAN_LOADED) planLoad(); if(typeof AUD_DATA!=='undefined'&&!AUD_DATA&&typeof audAutoLoad==='function') audAutoLoad(); }catch(e){} }
   if(!SUM_PKG){ var bases=(typeof MED_URLS!=='undefined'?MED_URLS:[]).map(function(u){ return u.summary.replace(/summary\.json$/,'packages.json'); });
-    (function tryAt(i){ if(i>=bases.length) return; fetch(bases[i]+'?t='+Date.now(),{cache:'no-store'}).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){ SUM_PKG=j||{}; sumRender(); }).catch(function(){ tryAt(i+1); }); })(0); }
+    (function tryAt(i){ if(i>=bases.length) return; bfFetch(bases[i]).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){ SUM_PKG=j||{}; sumRender(); }).catch(function(){ tryAt(i+1); }); })(0); }
   try{ if(typeof CS!=='undefined'&&CS.cfg()&&typeof mcLoad==='function') mcLoad().then(function(){ sumRender(); }); }catch(e){}
   var h=(location.hash.match(/sum=([\w-]+)/)||[])[1]; if(h) SUM_OPEN[h]=true;
   sumRender(); [3000,8000,15000].forEach(function(ms){ setTimeout(sumRender,ms); });

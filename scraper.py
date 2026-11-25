@@ -1805,8 +1805,12 @@ async def fetch_speed_test(cookie_str, page, extra_headers=None, pages=20):
         try: d = json.loads(r["text"])
         except Exception: return None, "parse HTTP %s" % r.get("status")
         if isinstance(d, dict) and d.get("errors"): return None, "gql HTTP %s %s" % (r.get("status"), json.dumps(d["errors"], ensure_ascii=False)[:150])
-        raw = (d.get("data") or {}).get("createdAppointments") if isinstance(d, dict) else None
-        raw = raw or []
+        raw = []
+        if isinstance(d, dict) and "data" in d:
+            inner = d["data"]
+            raw = inner if isinstance(inner, list) else ((inner or {}).get("createdAppointments") or [])
+        elif isinstance(d, list):
+            raw = d
         b = parse_flat_array(raw) or [x for x in raw if isinstance(x, dict) and "id" in x]
         return [x.get("id") for x in b], ""
     N = pages * 100

@@ -13580,7 +13580,20 @@ function planTasks(useAll){
         if(!ups.length||nowHc>=13) add('mgr',{grp:['mgr'], key:'mgr|callup|'+today+'|'+ln, icon:'📂', kind:'سجل مكالمات خط '+alEsc(ln)+' ما اترفعش النهارده لحد 1 الضهر', name:'خط '+ln+(who?' — مع '+who:''), br:br,
           sys:ups.length?'اترفع':'', what:ups.length?('اترفع الساعة '+new Date(ups[0].at).toLocaleTimeString('ar-EG',{timeZone:'Africa/Cairo',hour:'numeric',minute:'2-digit'})):'',
           lines:['آخر رفع: '+(last?alEsc(new Date(last.at).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'long',hour:'numeric',minute:'2-digit'})):'ولا مرة')+' — المكالمات الفايتة من ساعتها مش باينة لحد ما يترفع']});
-      }); }
+      });
+      // 🌙 سجل آخر الشيفت امبارح (يوم الشغل اللي فات): لازم يبقى فيه ملف آخر مكالمة فيه بعد 7 بالليل — غير كده المكالمات اللي بعد آخر رفع مش باينة
+      var yd=planPastDays(today,1)[0]; if(new Date(yd+'T12:00:00').getDay()===5) yd=planPastDays(today,2)[0];
+      Object.keys(MC.lines).forEach(function(ln){ var cf=MC.lines[ln]||{}, br=cf.br||'BODYFIX Center'; if(act.indexOf(br)<0) return;
+        var mine=(MC.upl||[]).filter(function(x){ return x.ln===ln; });
+        var maxT=mine.reduce(function(m,x){ var t=x.mx||x.at||0; return t>m?t:m; },0), cut=Date.parse(yd+'T19:00:00+02:00');
+        if(!mine.length||maxT>=cut) return;
+        var sw=cf.sw||(br==='FIX ZONE'?17:15), rkE=CS.roleAt(cf,br,sw+1,false), whoE=planNormName((PLAN_ROLES[br]||{})[rkE]||'');
+        var lastTxt=maxT?new Date(maxT).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'long',hour:'numeric',minute:'2-digit'}):'ولا مرة';
+        add('mgr',{grp:['mgr'], mgrOnly:1, pown:PLAN_MGR_NAME, key:'mgr|callupy|'+yd+'|'+ln, icon:'📂', kind:'سجل آخر الشيفت امبارح (خط '+alEsc(ln)+') ما اترفعش'+(whoE?' — مع '+alEsc(whoE):''), name:'خط '+ln, br:br,
+          lines:['آخر مكالمة مترفعة: '+alEsc(lastTxt)+' — المكالمات الفايتة اللي اترجعلها بعد كده مش هتتقفل لحد ما يترفع']});
+        add('morning',{grp:['mcallup'], _h:sw+1, key:'mcallupy|'+yd+'|'+ln, icon:'📂', kind:'ارفعي سجل مكالمات خط '+alEsc(ln)+' — امبارح بالليل ما اترفعش', name:'خط '+ln, br:br, line:ln,
+          lines:['آخر مكالمة مترفعة: '+alEsc(lastTxt)+' — ارفعي الملف دلوقتي من نفس الموبايل (هيكون فيه مكالمات امبارح بالليل) والمكالمات الفايتة اللي رجعتيلها هتتقفل لوحدها', mcUpHTML(ln,br)]}); });
+ }
   }
   // 👔 متابعة الانقطاع للمدير: (1) منقطع نهائي من غير 3 مكالمات ومن غير سبب مكتوب  (2) مريض مكتوب عنده «ما حسش بتحسن» — آخر 14 يوم
   try{ var FS=(D.fu_stats)||{}, d14=''; if(!d14){ var _d=new Date(today+'T12:00:00'); _d.setDate(_d.getDate()-14); d14=_d.toISOString().slice(0,10); }

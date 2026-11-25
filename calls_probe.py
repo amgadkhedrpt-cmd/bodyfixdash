@@ -31,9 +31,10 @@ print("\nLAST UPLOADS (Cairo time):")
 seen = defaultdict(int)
 for u in ups:
     ln = u.get("ln"); seen[ln] += 1
-    if seen[ln] > 3: continue
+    if seen[ln] > 8: continue
     at = dt.datetime.fromtimestamp((u.get("at") or 0) / 1000, CAI).strftime("%Y-%m-%d %H:%M")
-    print(f"  line {ln}: uploaded {at} · keys {sorted(k for k in u if k not in ('r',))[:8]}")
+    wl = lambda t: dt.datetime.fromtimestamp((t or 0) / 1000, dt.timezone.utc).strftime("%m-%d %H:%M") if t else "-"   # أوقات المكالمات متخزنة ساعة القاهرة كأنها UTC
+    print(f"  line {ln}: uploaded {at} · file calls from {wl(u.get('mn'))} to {wl(u.get('mx'))} · n {u.get('n')} add {u.get('add')} · by {u.get('by','')}")
 calls = []
 for m in months:
     for x in (call({"action": "list", "prefix": f"calls/{m}/days"}).get("docs") or []):
@@ -41,6 +42,12 @@ for m in months:
         for r in d.get("r") or []:
             calls.append({"ph": r[0], "t": base + r[1] * 1000, "ty": {"i": "in", "o": "out", "m": "miss"}.get(r[2], "?"), "dur": r[3] or 0, "ln": d.get("ln")})
 day = lambda t: dt.datetime.fromtimestamp(t / 1000, CAI).strftime("%Y-%m-%d")
+print("\nCALLS PER LINE PER HOUR (last 3 days, Cairo wall time) — hours with at least one call:")
+hh = defaultdict(set)
+for c in calls:
+    w = dt.datetime.fromtimestamp(c["t"] / 1000, dt.timezone.utc)
+    if w.strftime("%Y-%m-%d") >= (now - dt.timedelta(days=3)).strftime("%Y-%m-%d"): hh[(c["ln"], w.strftime("%Y-%m-%d"))].add(w.hour)
+for k in sorted(hh): print(f"  {k[0]} {k[1]}: {sorted(hh[k])}")
 print("\nCALLS PER LINE PER DAY (last 5 days) in/out/miss:")
 cnt = defaultdict(lambda: defaultdict(int))
 for c in calls: cnt[(c["ln"], day(c["t"]))][c["ty"]] += 1

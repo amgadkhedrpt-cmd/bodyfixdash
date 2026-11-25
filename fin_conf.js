@@ -46,7 +46,12 @@ async function cfSheet(){if(CF.sheetTry)return;CF.sheetTry=true;try{const d=awai
   for(const k in r){if(k.indexOf('PLANSUM|')===0){try{o.sum[k.slice(8)]=JSON.parse(r[k])}catch(e){}}else if(k==='PLANCFG|roles'){try{o.roles=JSON.parse(r[k])}catch(e){}}}
   CF.sheet=o}catch(e){CF.sheet={sum:{},roles:null,err:1}}if(S.tab==='conf'||S.tab==='sum')render()}
 const CF_BR={haram:'BODYFIX Center',dokki:'FIX ZONE'},CF_ROLE={haram:'J',dokki:'DM'};
-function cfWho(c){if(c.ub)return [typeof planNormName==='function'?c.ub:c.ub.split(' ')[0],1];const sh=CF.sheet;if(!sh)return ['…',0];
+// 🩺 اللي أكّد دكتور مش سكرتيرة؟ (اسمه في قايمة دكاترة المواعيد أو بيبدأ بـ Dr) → بيتجمعوا تحت «🩺 دكاترة»
+const cfNmN=x=>String(x||'').toLowerCase().replace(/^dr\.?\s*/,'').replace(/\s+/g,' ').trim();
+function cfIsDoc(ub){if(!ub)return false;if(/^dr\.?\s/i.test(ub))return true;if(!CF.docSet){CF.docSet=new Set();(D&&D.apt||[]).forEach(a=>{if(a.doc)CF.docSet.add(cfNmN(a.doc))});
+  const T=(RAW&&RAW.kinds&&RAW.kinds.conf&&RAW.kinds.conf.all)||{};for(const mk in T){const t=T[mk],i=t.cols.indexOf('doc');if(i>=0)t.rows.forEach(r=>{if(r[i]){CF.docSet.add(cfNmN(r[i]));CF.docSet.add(cfNmN(docName(r[i])))}})}}
+  const n=cfNmN(ub);return CF.docSet.has(n)||[...CF.docSet].some(d=>d&&n&&(d===n||(d.split(' ')[0]===n.split(' ')[0]&&d.split(' ')[1]&&d.split(' ')[1]===n.split(' ')[1])))}
+function cfWho(c){if(c.ub){if(cfIsDoc(c.ub))return ['🩺 دكاترة',1,c.ub];return [String(c.ub).split(' ')[0],1]}const sh=CF.sheet;if(!sh)return ['…',0];
   if(c.b==='dokki'){const R=(sh.roles&&sh.roles[CF_BR[c.b]])||{},h=new Date(c.cT).getUTCHours(),m=R.DM||'Bassant',e=R.DE||'Georgina';return [h>=17||h<3?e+' ؟':h<15?m+' ؟':'مش معروف (3–5) ؟',0]}   // الدقي: مين عدّلت فعلاً مش مين المسئولة
   for(const d of [cfDay(c.cT),cfDay(c.aT),cfDay(c.cT-864e5)]){const s=sh.sum[d];if(s&&s.cf&&c.puid&&s.cf[c.puid])return [s.cf[c.puid],1]}
   // قبل ما السحب يسجل مين عدّلت (updatedBy): نخمّن من وقت التأكيد حسب الشيفتات — الدقي: بسنت 10–5 · جورجينا 3–11 (3–5 الاتنين موجودين = مش معروف)
@@ -66,7 +71,7 @@ function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(!CF.dr.doc||c.doc===CF.d
   // نتيجة الموعد من بيانات المواعيد
   const ap={};D.apt.forEach(a=>{if(!a.pid)return;const k=a.pid+'|'+a.d;(ap[k]=ap[k]||[]).push(a.st)});
   const res=c=>{const l=ap[c.pid+'|'+cfDay(c.aT)];if(!l)return c.aT>Date.now()+2*3600e3?'لسه':'—';if(l.some(s=>/complet|check|progress|delay/i.test(s)))return 'حضر';if(l.some(s=>/no ?show/i.test(s)))return 'ما جاش';if(l.some(s=>/cancel/i.test(s)))return 'اعتذر';return 'لسه'};
-  C0.forEach(c=>{c.atBook=c.crT!=null&&Math.abs(c.cT-c.crT)<3*60e3;c.res=res(c);[c.who,c.whoOk]=cfWho(c)});
+  C0.forEach(c=>{c.atBook=c.crT!=null&&Math.abs(c.cT-c.crT)<3*60e3;c.res=res(c);[c.who,c.whoOk,c.whoDoc]=cfWho(c)});
   // ⚡ بالجملة: 5 تأكيدات أو أكتر في 3 دقايق (نفس الفرع)
   const bursts=[];for(const b of ['haram','dokki']){const L=C0.filter(c=>c.b===b&&!c.atBook).sort((x,y)=>x.cT-y.cT);let j=0;
     for(let i=0;i<L.length;i++){while(L[i].cT-L[j].cT>3*60e3)j++;if(i-j+1>=5)for(let k=j;k<=i;k++)L[k].bulk=true}
@@ -171,7 +176,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   const dg={};chk.forEach(c=>{const d=cfDay(c.cT),z=dg[d]=dg[d]||{n:0,j:0,ok:0,bu:0};z.n++;if(c.bulk)z.bu++;if(['ok','tried','missonly','none'].includes(c.cat)){z.j++;if(c.cat==='ok')z.ok++}});
   const dRows=Object.keys(dg).sort().reverse().slice(0,31).map(d=>{const z=dg[d];return [d.slice(8,10)+'/'+d.slice(5,7)+' '+DAYS[new Date(d+'T12:00:00Z').getUTCDay()],z.n,z.bu,z.j?pc(z.ok/z.j):'—']});
   const bRows=[];X.bursts.slice().sort((a,b)=>b.s-a.s).slice(0,40).forEach((b,bi)=>b.L.forEach((c,ci)=>bRows.push([ci?'':'⚡ '+cfFmt(b.s)+(b.e>b.s?'–'+cfFmt(b.e).slice(6):'')+' · '+b.n+' مواعيد',ptL(c.pn,c.pid),esc(c.type||''),cfFmt(c.aT),esc(c.who||''),c.res||''])));
-  const sus=chk.filter(c=>['none','tried','missonly'].includes(c.cat)||c.bulk).sort((a,b)=>b.cT-a.cT).slice(0,300).map(c=>[cfFmt(c.cT),ptL(c.pn,c.pid),cfFmt(c.aT)+' · '+esc(c.type),esc(c.who),
+  const sus=chk.filter(c=>['none','tried','missonly'].includes(c.cat)||c.bulk).sort((a,b)=>b.cT-a.cT).slice(0,300).map(c=>[cfFmt(c.cT),ptL(c.pn,c.pid),cfFmt(c.aT)+' · '+esc(c.type),esc(c.who)+(c.whoDoc?' <span class="sub">('+esc(c.whoDoc)+')</span>':''),
     c.bulk?'⚡ بالجملة':'',CF_CAT[c.cat]?`<span style="color:${CF_CAT[c.cat][1]}">${CF_CAT[c.cat][0]}</span>`:'',(c.calls||[]).length?(c.calls.map(x=>(x.ty==='out'?'📤':x.ty==='in'?'📥':'📵')+cfFmt(x.t).slice(6)+(x.dur?' '+x.dur+'ث':'')).join(' ')):'',c.res]);
   CF.rep.conf={kpi:[['تأكيدات (من غير اللي اتحجزوا مؤكد)',chk.length],['اتأكدوا بالجملة',pc_(chk,c=>c.bulk)],['اتقارنوا بالمكالمات',J.length],['بمكالمة اترد عليها',J.length?pc_(J,c=>c.cat==='ok'):'—'],['من غير مكالمة اترد عليها',J.length?pc_(J,c=>c.cat!=='ok'):'—']],
     L,wRows,dRows,bRows,sus,g,J,chk,bursts:X.bursts,ogRows,susLost,gOk,gS};
@@ -537,7 +542,7 @@ function cfBar(kind){cfPre(kind);const conf=kind==='conf',p=conf?CF.cp:CF.kp,key
     ${p==='custom'?`<label class="sub">من <input type="date" id="${conf?'cfA1':'cfD1'}" value="${a||''}"></label><label class="sub">لحد <input type="date" id="${conf?'cfA2':'cfD2'}" value="${b||''}"></label>`:''}</div>`;
   if(conf){const docs=[...new Set(cfConfs().filter(inB).map(c=>c.doc).concat(cfCx().filter(inB).map(x=>x.doc)))].filter(Boolean).sort();
     h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">🩺 الدكتور:</b><select id="cfDoc"><option value="">كل الدكاترة</option>${docs.map(d=>`<option${d===CF.dr.doc?' selected':''}>${esc(d)}</option>`).join('')}</select></div>`;
-    const whos=[...new Set(cfConfs().filter(inB).map(c=>cfWhoN(cfWho(c)[0])))].filter(w=>w&&w!=='…'&&w!=='—').sort(),ub0=cfConfs().filter(c=>inB(c)&&c.ub).map(c=>c.cT).sort((a,b)=>a-b)[0];
+    const whos=[...new Set(cfConfs().filter(inB).map(c=>cfWhoN(cfWho(c)[0])))].filter(w=>w&&w!=='…'&&w!=='—').sort((x,y)=>(x.startsWith('🩺')?1:0)-(y.startsWith('🩺')?1:0)||x.localeCompare(y)),ub0=cfConfs().filter(c=>inB(c)&&c.ub).map(c=>c.cT).sort((a,b)=>a-b)[0];
     h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">👤 اللي أكّدت:</b>${chip('data-fwho','','الكل',!CF.who)}${whos.map(w=>chip('data-fwho',esc(w),esc(w),CF.who===w)).join('')}</div><div class="sub" style="margin-top:4px">${(()=>{const A=cfConfs().filter(inB);if(!A.length)return 'مفيش تأكيدات متسجلة للفرع ده. ';const ts=A.map(c=>c.cT).sort((a,b)=>a-b);return `📦 التأكيدات المتسجلة للفرع: <b>${A.length}</b> (اتأكدوا من ${cfDD2(cfDay(ts[0]))} لحد ${cfDD2(cfDay(ts[ts.length-1]))}) · منها <b>${A.filter(c=>c.ub).length}</b> عليها اسم من Medicolize. `})()}الاسم من Medicolize نفسه (مين اللي عدّلت لـ«مؤكد»)${ub0?' — متسجل من '+cfDD2(cfDay(ub0)):''}. قبل كده الاسم متخمّن من وقت التأكيد وجنبه <b>؟</b>${S.b==='dokki'?' (بعد 5 = جورجينا · قبل 3 = بسنت · من 3 لـ 5 = مش معروف)':''}.</div>`}
   else{const lns=[...new Set(CF.calls.map(c=>c.ln))].sort(),sw=S.b==='dokki'?17:15;
     h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">📱 الخط:</b>${chip('data-fln','','الكل',!CF.ln)}${lns.map(l=>chip('data-fln',esc(l),esc(l),CF.ln===l)).join('')}</div>

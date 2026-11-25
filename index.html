@@ -13610,7 +13610,7 @@ function planTasks(useAll){
                (back||fixed)?'':'<span style="font-size:.58rem;color:var(--mute)">لو الكلام صح: شيلي الفاتورة على Medicolize وهتتقفل لوحدها · لو غلط:</span> <button onclick="event.stopPropagation();planWrongBack(\''+pa+'\')" style="background:#7c2d12;color:#fff;border:0;border-radius:7px;padding:3px 10px;font-size:.6rem;font-weight:800;cursor:pointer;font-family:Cairo,sans-serif">↩️ ترجع مطلوبة</button>']});
     });
   }
-  var HV=null; try{ if(act.indexOf('BODYFIX Center')>=0) HV=planHVisit(D); }catch(e){ HV=null; }
+  var HV=null;   // 📋 مهمة «زيارة د. أمجد للهرم بكره» اتشالت بطلب المدير (25/11) — planHVisit متسابة بس مش بتتنده
   // 📞 آخر جلسة في الباقة يوم الشغل الجاي → «تقييم الجلسة الأخيرة» يتحجز النهارده (قبلها بيوم) — نفس مسئولة «اعرض التجديد»
   (D.renew_next||[]).filter(inb).forEach(function(x){ var eb=x.eval_booked;
     add('rec',{grp:['renewnx'], key:today+'|renewnext|'+x.pid, sys:eb?'اتحجز تقييم الجلسة الأخيرة':'', what:eb?('تقييم الجلسة الأخيرة '+alFmtDay(String(eb).slice(0,10))+' '+planT(eb)):'', icon:'📞',

@@ -15988,7 +15988,8 @@ function bfRender(){
   var el=bfClock(Date.now()-bfStartMs);
   bfBtn('⏳ '+el,false);   // مش disabled — الدوسة وقت التحديث بتطلع رسالة بدل ما ما يحصلش حاجة
   bfSyncMsg(bfPhase==='queued' ? '⏳ السحب مستني دوره (فيه سحب تاني شغال) — '+el
-                               : '⏳ بيسحب من Medicolize: الداشبورد والتنبيهات والتحصيل — '+el+' (عادةً من 6 لـ 8 دقايق)');
+          : bfPhase==='starting' ? '⏳ GitHub بيجهّز السحب — '+el
+                               : '⏳ بيسحب من Medicolize: الداشبورد والتنبيهات والتحصيل — '+el+' (عادةً من 5 لـ 7 دقايق)');
 }
 function bfStartTimer(startMs, phase){
   bfSyncBusy=true; bfStartMs=startMs; bfPhase=phase||'';
@@ -16024,7 +16025,9 @@ function bfWatch(H, sinceMs, known){   // known = أرقام السحبات ال
           else { bfLastFail=Date.now(); bfStaleCheck(); } if(run.conclusion!=='success') bfSyncMsg('⚠ السحب خلص بعد '+took+' بس فيه جزء فشل — أرقام التحصيل ممكن تكون قديمة. ابعت لقطة من Actions في GitHub.','bad');
           return;
         }
-        bfPhase=(run.status==='queued'||run.status==='waiting'||run.status==='pending')?'queued':'running';
+        var q_=(run.status==='queued'||run.status==='waiting'||run.status==='pending');
+        var other_=(j.workflow_runs||[]).some(function(x){ return x.id!==run.id&&x.status==='in_progress'; });   // فيه سحب تاني شغال فعلاً؟ ولا ده بس GitHub بيجهّز (أول ثواني كل سحب بيبقى queued)
+        bfPhase=q_?(other_?'queued':'starting'):'running';
         if(Math.abs(bfStartMs-st)>5000 && bfPhase==='running') bfStartMs=Math.min(bfStartMs,st);
       }
     }catch(e){}

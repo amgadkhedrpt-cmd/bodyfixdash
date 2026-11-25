@@ -2001,6 +2001,10 @@ async def main():
                 await detect_note_field(pg, cookie_str, auth_headers)
             except Exception as e:
                 print(f"   ⚠️ note field: {e}")
+            if os.environ.get("CONF_PROBE") == "1":   # 🔎 فحص تأكيد المواعيد من سجل المكالمات — قراية بس، مفيش ملفات
+                import conf_probe
+                conf_probe.run(await fetch_all_appointments(cookie_str, pg, auth_headers))
+                raise SystemExit(0)
             if os.environ.get("FETCH_TEST") == "1":   # 🧪 تجربة سرعة بس — مفيش ملفات
                 await fetch_speed_test(cookie_str, pg, auth_headers, int(os.environ.get("FETCH_TEST_PAGES", "20")))
                 raise SystemExit(0)

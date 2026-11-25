@@ -12002,14 +12002,18 @@ function planMyCard(){ var c=PLAN_CARDS[PLAN_ME]; if(!c) return null; if(c.o) re
 /* 📂 آخر رفع لسجل المكالمات لكل خط — بالتاريخ والساعة (وآخر مكالمة جوه الملف) */
 /* 🕳️ فراغات في سجل المكالمات: فترة شغل (10 الصبح لـ 12 بالليل، غير الجمعة) مش موجودة في أي ملف اترفع للخط ده
    كل ملف بيغطي من أول مكالمة فيه (mn) لآخر مكالمة (mx) — الفترة اللي بين ملفين ومحدش غطاها = مكالمات ممكن تكون ضايعة */
+/* أوقات المكالمات في الملفات (mn / mx / t) متخزنة «ساعة الحيطة» في القاهرة كأنها UTC — قبل ما نقارنها بوقت حقيقي أو نعرضها بتوقيت القاهرة لازم نرجّعها لوقت حقيقي */
+function mcReal(w){ if(!w) return w; var off=cfWall(new Date(w).toISOString())-w; return w-off; }
+/* آخر مكالمة في ملف ما ينفعش تبقى بعد وقت رفعه — لو كده يبقى الملف بساعة 12 من غير ص/م (12:39 = 12:39 بعد نص الليل) → نرجّعها 12 ساعة */
+function mcUpT(x,k){ var t=mcReal(x[k]); if(t&&x.at){ while(t>x.at+5*60000) t-=12*3600000; } return t; }
 function mcGaps(ln, days){
-  var U=(MC.upl||[]).filter(function(x){ return x.ln===ln&&x.mn&&x.mx; }).map(function(x){ return [x.mn,x.mx]; }).sort(function(a,b){ return a[0]-b[0]; });
+  var U=(MC.upl||[]).filter(function(x){ return x.ln===ln&&x.mn&&x.mx; }).map(function(x){ return [mcUpT(x,'mn'),mcUpT(x,'mx')]; }).sort(function(a,b){ return a[0]-b[0]; });
   if(!U.length) return [];
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||mcCairoDay(Date.now()), d0=new Date(td+'T12:00:00'); d0.setDate(d0.getDate()-(days||2));
   var from=Date.parse(d0.toISOString().slice(0,10)+'T10:00:00+02:00'), end=U.reduce(function(m,x){ return Math.max(m,x[1]); },0);   // لحد آخر مكالمة مترفعة بس (اللي بعدها = «لسه ما اترفعش» وليها تنبيه تاني)
   var hrs=function(ms){ var p=new Date(ms).toLocaleString('en-GB',{timeZone:'Africa/Cairo',weekday:'short',hour:'2-digit',hour12:false}); return {h:+p.slice(-2), fri:/Fri/.test(p)}; };
   var work=function(a,b){ var m=0; for(var t=a;t<b;t+=15*60000){ var z=hrs(t); if(!z.fri&&z.h>=10) m+=Math.min(15,(b-t)/60000); } return m; };
-  var out=[], cur=from;
+  var out=[], cur=Math.max(from,U[0][0]);   // قبل أول ملف خالص للخط ده = الخط لسه ما كانش متسجل — مش فراغ
   U.forEach(function(x){ if(x[1]<=cur) return; if(x[0]>cur){ var w=work(cur,Math.min(x[0],end)); if(w>=120) out.push({a:cur,b:x[0],w:w}); } cur=Math.max(cur,x[1]); });
   return out; }
 function mcGapTxt(g){ var f=function(t){ return new Date(t).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'long',hour:'numeric',minute:'2-digit'}); };
@@ -12020,7 +12024,7 @@ function mcLastUpTxt(act){ if(typeof MC==='undefined'||!MC.lines||!MC.upl) retur
   var parts=Object.keys(MC.lines).filter(function(ln){ var br=(MC.lines[ln]||{}).br||'BODYFIX Center'; return !act||act.indexOf(br)>=0; }).map(function(ln){
     var L=(MC.upl||[]).filter(function(x){ return x.ln===ln; }).sort(function(a,b){ return (b.at||0)-(a.at||0); }), u=L[0];
     if(!u) return '<b>'+alEsc(ln)+'</b>: <span style="color:var(--r)">ولا مرة</span>';
-    var old=mcCairoDay(u.at)<td, mx=L.reduce(function(m,x){ return Math.max(m,x.mx||0); },0);
+    var old=mcCairoDay(u.at)<td, mx=L.reduce(function(m,x){ return x.mx?Math.max(m,mcUpT(x,'mx')):m; },0);
     var gp=[]; try{ gp=mcGaps(ln,2); }catch(e){}
     return '<b>'+alEsc(ln)+'</b>: <span style="color:'+(old?'var(--r)':'var(--g)')+'">'+alEsc(f(u.at))+'</span>'+(mx?' <span style="color:var(--mute)">(آخر مكالمة فيه '+alEsc(f(mx))+')</span>':'')+
       gp.map(function(g){ return '<div style="color:var(--r);font-weight:800">⚠️ خط '+alEsc(ln)+': مكالمات ناقصة في النص '+alEsc(mcGapTxt(g))+' — الفترة دي مش موجودة في أي ملف اترفع، ارفعي ملف من نفس الموبايل يغطيها</div>'; }).join(''); });
@@ -13613,7 +13617,7 @@ function planTasks(useAll){
       var yd=planPastDays(today,1)[0]; if(new Date(yd+'T12:00:00').getDay()===5) yd=planPastDays(today,2)[0];
       Object.keys(MC.lines).forEach(function(ln){ var cf=MC.lines[ln]||{}, br=cf.br||'BODYFIX Center'; if(act.indexOf(br)<0) return;
         var mine=(MC.upl||[]).filter(function(x){ return x.ln===ln; });
-        var maxT=mine.reduce(function(m,x){ var t=x.mx||x.at||0; return t>m?t:m; },0), cut=Date.parse(yd+'T19:00:00+02:00');
+        var maxT=mine.reduce(function(m,x){ var t=x.mx?mcUpT(x,'mx'):(x.at||0); return t>m?t:m; },0), cut=Date.parse(yd+'T19:00:00+02:00');
         var gp_=[]; try{ gp_=mcGaps(ln,2); }catch(e){}
         if(!mine.length||(maxT>=cut&&!gp_.length)) return;
         var sw=cf.sw||(br==='FIX ZONE'?17:15), rkE=CS.roleAt(cf,br,sw+1,false), whoE=planNormName((PLAN_ROLES[br]||{})[rkE]||'');

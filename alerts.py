@@ -1194,6 +1194,27 @@ def build_alerts(appointments, now=None, packages=None):
 
     # ── تجديد الباقة: (1) جلسته النهارده آخر جلستين في باقته  (2) خلص باقته ومالوش ميعاد جاي ──
     renew_today = [m for m in milestones_all if m["session_no"] >= m["size"] - 1]
+    # ── 📞 آخر جلسة في الباقة يوم الشغل الجاي → «تقييم الجلسة الأخيرة» يتحجز من النهارده (قبلها بيوم) ──
+    nwd = today + timedelta(days=1)
+    if nwd.weekday() == 4:
+        nwd += timedelta(days=1)                         # الجمعة إجازة
+    renew_next = []
+    for appts in patients.values():
+        nxt_ = sorted([a for a in appts if a["start"].date() == nwd and _is_pt(a["type"]) and a["status"] in LIVE_TODAY], key=lambda a: a["start"])
+        if not nxt_:
+            continue
+        ps = pkg_state(appts, upto_incl=True)
+        pend_ = any(a["start"].date() == today and _is_pt(a["type"]) and a["status"] in LIVE_TODAY and a["status"] not in ATTENDED for a in appts)
+        sn_ = ps["done"] + (1 if pend_ else 0) + 1
+        size_ = ps["size"] or CYCLE
+        if sn_ < size_:
+            continue
+        ev_ = sorted([a for a in appts if today <= a["start"].date() <= nwd + timedelta(days=7) and (a["type"] or "").strip() in EVAL_TYPES
+                      and a["status"] not in ("canceled", "cancelled", "no show", "noshow", "note")], key=lambda a: a["start"])
+        t_ = nxt_[0]
+        renew_next.append({"name": t_["name"], "phone": t_["phone"], "pid": t_["pid"], "doctor": t_["doctor"], "branch": t_["branch"],
+                           "time": t_["start"].isoformat(), "session_no": sn_, "size": size_, "pkg_src": ps["src"],
+                           "eval_booked": ev_[0]["start"].isoformat() if ev_ else ""})
     finished = []
     for appts in patients.values():
         ps = pkg_state(appts, upto_incl=True)
@@ -2148,6 +2169,7 @@ def build_alerts(appointments, now=None, packages=None):
                              if a.get("created") and a["created"].astimezone(CAIRO).date() >= today - timedelta(days=10)
                              and len(re.sub(r"\D", "", a["phone"] or "")) >= 10 and a["status"] not in ("canceled", "cancelled")}),
         "renew_today": renew_today,
+        "renew_next": renew_next,
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,

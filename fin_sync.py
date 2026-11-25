@@ -30,7 +30,7 @@ CONF_Q = ("query A($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]
           "{createdAppointments(branchId:$branchId,orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate,filters:$filters)"
           "{id start status type createdAt updatedAt createdBy{name} updatedBy{name} lastUpdatedBy{name} modifiedBy{name} cancellationReason cancelReason cancelationReason doctor{name} patient{id referenceId firstName lastName phoneNumber secondaryPhoneNumber phoneNumber2 secondPhoneNumber secondaryPhone otherPhoneNumber alternativePhone phone2 mobile2}}}")
 PH2_F = ['secondaryPhoneNumber', 'phoneNumber2', 'secondPhoneNumber', 'secondaryPhone', 'otherPhoneNumber', 'alternativePhone', 'phone2', 'mobile2']   # الرقم التاني (secondary) — الأسامي اللي مش موجودة بتتشال لوحدها
-CONF_COLS = ["aid", "start", "up", "cr", "type", "pid", "pn", "ph", "doc", "b", "by", "seen", "puid", "ph2", "ub"]
+CONF_COLS = ["aid", "start", "up", "cr", "type", "pid", "pn", "ph", "doc", "b", "by", "seen", "puid", "ph2", "ub", "nx", "nxm"]   # nx/nxm = الحالة اللي بعد «مؤكد» وبعدها بكام دقيقة (من سجل النشاط)
 UB_F = ["updatedBy", "lastUpdatedBy", "modifiedBy"]
 RSN_F = ["cancellationReason", "cancelReason", "cancelationReason"]   # سبب الإلغاء — اللي مش موجود بيتشال لوحده
 # 🔍 مراجعة يوم: كل ميعاد اتلغى / No Show — مين غيّر الحالة وإمتى وسبب الإلغاء (أول مرة السحب يشوفه بالحالة دي)
@@ -689,8 +689,8 @@ def main():
             try:
                 UA_Q = ("query U($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!){userActions(orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate)"
                         "{action createdAt fields appointmentId createdBy{name}}}")
-                d0 = dt.datetime(2026, 10, 25, tzinfo=TZ) if not data.get("conf_bf") else a0 - dt.timedelta(days=1)
-                ev = {}
+                d0 = dt.datetime(2026, 10, 25, tzinfo=TZ) if not data.get("conf_bf2") else a0 - dt.timedelta(days=1)
+                ev = {}; seqs = {}
                 dd_ = d0
                 while dd_ <= a0 + dt.timedelta(days=1):
                     r1 = [C.iso(dd_.astimezone(dt.timezone.utc)), C.iso((dd_ + dt.timedelta(days=1) - dt.timedelta(milliseconds=1)).astimezone(dt.timezone.utc))]
@@ -701,6 +701,9 @@ def main():
                         if isinstance(f, str):
                             try: f = json.loads(f)
                             except Exception: f = []
+                        for it in (f or []):
+                            if isinstance(it, dict) and it.get("status"):
+                                seqs.setdefault(u["appointmentId"], []).append((str(u.get("createdAt")), str(it["status"]).upper()))
                         if any(isinstance(it, dict) and str(it.get("status") or "").upper() == "CONFIRMED" for it in (f or [])):
                             ev.setdefault(u["appointmentId"], []).append((u.get("createdAt"), (u.get("createdBy") or {}).get("name") if isinstance(u.get("createdBy"), dict) else None))
                     dd_ += dt.timedelta(days=1)
@@ -714,6 +717,13 @@ def main():
                             aid = r["id"]; E = sorted(ev[aid], key=lambda x: str(x[0]))
                             pick = [x for x in E if str(x[0]) <= str(r.get("start"))] or E
                             t_, by_ = pick[-1]
+                            nx_ = nxm_ = None
+                            for (tt, stt) in sorted(seqs.get(aid, [])):
+                                if tt > str(t_) and stt != "CONFIRMED":
+                                    nx_ = stt
+                                    try: nxm_ = round((dt.datetime.fromisoformat(tt.replace("Z", "+00:00")) - dt.datetime.fromisoformat(str(t_).replace("Z", "+00:00"))).total_seconds() / 60)
+                                    except Exception: nxm_ = None
+                                    break
                             if aid in have:
                                 tb0, r00 = byaid.get(aid, (None, None))
                                 if r00 is not None:
@@ -721,6 +731,8 @@ def main():
                                     while len(r00) < len(CONF_COLS): r00.append(None)
                                     if not r00[CONF_COLS.index("ub")] and by_:
                                         r00[CONF_COLS.index("ub")] = by_; r00[CONF_COLS.index("up")] = t_; n_ub += 1
+                                    if nx_ and not r00[CONF_COLS.index("nx")]:
+                                        r00[CONF_COLS.index("nx")] = nx_; r00[CONF_COLS.index("nxm")] = nxm_
                                 continue
                             pt = r.get("patient") or {}
                             try:
@@ -731,9 +743,9 @@ def main():
                             t["rows"].append([aid, r.get("start"), t_, r.get("createdAt"), r.get("type"), pt.get("referenceId"),
                                               " ".join(x for x in (pt.get("firstName"), pt.get("lastName")) if x), pt.get("phoneNumber"),
                                               (r.get("doctor") or {}).get("name"), key, (r.get("createdBy") or {}).get("name"), C.NOW, pt.get("id"),
-                                              next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None), by_])
+                                              next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None), by_, nx_, nxm_])
                             have.add(aid); byaid[aid] = (t, t["rows"][-1]); n_bf += 1
-                data["conf_bf"] = C.NOW
+                data["conf_bf"] = data["conf_bf2"] = C.NOW
                 META_D["conf_hist"] = {"from": d0.strftime("%Y-%m-%d"), "events": len(ev), "added": n_bf, "named": n_ub}
             except Exception as e:
                 META_D["errors"].append("conf_hist: %s" % str(e)[:160])

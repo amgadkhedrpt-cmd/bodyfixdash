@@ -42,6 +42,42 @@ for m in months:
         for r in d.get("r") or []:
             calls.append({"ph": r[0], "t": base + r[1] * 1000, "ty": {"i": "in", "o": "out", "m": "miss"}.get(r[2], "?"), "dur": r[3] or 0, "ln": d.get("ln")})
 day = lambda t: dt.datetime.fromtimestamp(t / 1000, CAI).strftime("%Y-%m-%d")
+# 🕳️ من أول الشهر: فترات شغل (10ص-12م، غير الجمعة) مش متغطية بأي ملف اترفع — نفس منطق الداشبورد (أوقات الملفات ساعة القاهرة)
+print("\nUPLOAD COVERAGE GAPS since month start (work hours, >=2h):")
+M0 = dt.datetime(now.year, now.month, 1, 10, 0)
+def workmin(a, b):
+    m, t = 0, a
+    while t < b:
+        if t.weekday() != 4 and t.hour >= 10: m += min(15, (b - t).total_seconds() / 60)
+        t += dt.timedelta(minutes=15)
+    return m
+W = lambda ms: dt.datetime.utcfromtimestamp(ms / 1000)
+byln = defaultdict(list)
+for u in ups:
+    if u.get("mn") and u.get("mx"):
+        mx = W(u["mx"]); at = dt.datetime.fromtimestamp(u["at"] / 1000, CAI).replace(tzinfo=None)
+        while mx > at + dt.timedelta(minutes=5): mx -= dt.timedelta(hours=12)
+        byln[u.get("ln")].append((W(u["mn"]), mx))
+nowW = now.replace(tzinfo=None)
+for ln, U in byln.items():
+    U.sort(); cur = max(M0, U[0][0]); end = max(x[1] for x in U); found = 0
+    for a_, b_ in U:
+        if b_ <= cur: continue
+        if a_ > cur:
+            w = workmin(cur, min(a_, end))
+            if w >= 120: found += 1; print(f"  {ln}: {cur:%a %m-%d %H:%M} -> {a_:%a %m-%d %H:%M}  ({w/60:.1f} work h)")
+        cur = max(cur, b_)
+    w = workmin(max(end, M0), nowW)
+    print(f"  {ln}: middle gaps {found} · last uploaded call {end:%a %m-%d %H:%M} · not uploaded since: {w/60:.1f} work h")
+print("\nDAYS SINCE MONTH START WITH NO CALLS AT ALL (per line, not Friday):")
+dset = defaultdict(set)
+for c in calls: dset[c["ln"]].add(dt.datetime.fromtimestamp(c["t"] / 1000, dt.timezone.utc).strftime("%Y-%m-%d"))
+for ln in sorted(dset):
+    miss = []; d = M0.date()
+    while d <= nowW.date():
+        if d.weekday() != 4 and d.isoformat() not in dset[ln]: miss.append(d.strftime("%m-%d"))
+        d += dt.timedelta(days=1)
+    print(f"  {ln}: {miss}")
 print("\nCALLS PER LINE PER HOUR (last 3 days, Cairo wall time) — hours with at least one call:")
 hh = defaultdict(set)
 for c in calls:

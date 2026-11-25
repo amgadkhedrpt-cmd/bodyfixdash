@@ -1489,7 +1489,7 @@ def build_alerts(appointments, now=None, packages=None):
         sp_days = {"nut": tomorrow_, "slim": tomorrow_}   # نفس يوم الشغل الجاي للعيادة (لو مفيش مواعيد تغذية فيه الصفحة بتكتب كده)
         plan["confirm_special_day"] = tomorrow_.isoformat()
         R_FROM = today - timedelta(days=90)
-        for appts in patients.values():
+        for pk2_, appts in patients.items():
             risk = sum(1 for a in appts if R_FROM <= a["start"].date() < today and
                        (a["status"] in ("no show", "noshow") or
                         (a["status"] in ("canceled", "cancelled") and a.get("cancel_at") and
@@ -1557,7 +1557,10 @@ def build_alerts(appointments, now=None, packages=None):
                 course = pdays[cs:]
                 gap = (today - course[-1]).days
                 fut = any(a["start"].date() >= today and a["status"] not in NOT_FUTURE for a in appts)
-                if len(course) <= 2 and 3 <= gap <= 10 and not fut:
+                # «منقطع نهائي» اتحجز بعد آخر جلسة (بالسبب) = المهمة اتقفلت — السبب بيتكتب فيه على Medicolize
+                fin_ = any(_fu_kind(a["type"]) == "final" and a["status"] not in ("canceled", "cancelled") and a["start"].date() >= course[-1]
+                           for a in patients_all.get(pk2_, appts))
+                if len(course) <= 2 and 3 <= gap <= 10 and not fut and not fin_:
                     ref = max((a for a in appts if a["start"].date() == course[-1] and _is_pt(a["type"])), key=lambda a: a["start"])
                     plan["early_drop"].append({"pid": ref["pid"], "name": ref["name"], "phone": ref["phone"], "doctor": ref["doctor"],
                                                "branch": ref["branch"], "sessions": len(course), "last": course[-1].isoformat(), "days": gap})
@@ -1780,6 +1783,10 @@ def build_alerts(appointments, now=None, packages=None):
                     r["what"] = "اتدفع الباقي على Medicolize"; continue
                 if k == "svc":
                     r["what"] = "الخدمة الناقصة اتحجزت"; continue
+                if k == "drop":
+                    fa_ = [a for a in ap if _fu_kind(a["type"]) == "final" and a["status"] not in ("canceled", "cancelled")]
+                    if fa_ and not fut:
+                        r["what"] = "اتعمل منقطع نهائي" + (": " + (fa_[-1].get("note") or "").strip()[:120] if (fa_[-1].get("note") or "").strip() else " (من غير سبب مكتوب)"); continue
                 r["what"] = ("اتحجز " + fmt(fut[0])) if fut else "اتحلّت على السيستم"
             plan["resolved"] = resolved
             _os.makedirs(".session", exist_ok=True)

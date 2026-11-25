@@ -13246,7 +13246,8 @@ function planTasks(useAll){
   });
   (P.early_drop||[]).filter(inb).forEach(function(x){
     add('morning',{_src:x, grp:['drop'], sys:hasNote(x,today+'|drop|'+x.pid)?'فيه ملحوظة':'', what:planNoteText(x,today+'|drop|'+x.pid), key:today+'|drop|'+x.pid, icon:'🚶', kind:'مريض جديد حضر '+x.sessions+' جلسة ووقف', name:x.name, phone:x.phone, br:brOf(x),
-      lines:['آخر جلسة '+alEsc(alFmtDay(x.last))+' (من '+x.days+' يوم) مع '+alEsc(doc(x.doctor))+' ومالوش ميعاد — اتصل قبل ما نخسره']});
+      lines:['آخر جلسة '+alEsc(alFmtDay(x.last))+' (من '+x.days+' يوم) مع '+alEsc(doc(x.doctor))+' ومالوش ميعاد — اتصل قبل ما نخسره',
+        '<span style="color:var(--mute)">لو مش هيرجع: احجزيله «منقطع نهائي» على Medicolize واكتبي السبب فيه (سفر / السعر / مش مرتاح / الدكتور وقفه…) — المهمة تتقفل لوحدها · ما ردش: اكتبيها في الملحوظة وترجعلك بكره</span>']});
   });
   var NNX={};   // اللي ليهم «مالوش ميعاد جاي» عند الاستقبال (عشان مراجعة داليا ما تكررهمش)
   var RES={}; (P.resolved||[]).filter(inb).forEach(function(x){ (RES[x.kind]=RES[x.kind]||[]).push(x); });

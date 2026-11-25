@@ -13131,6 +13131,50 @@ function planNote(key){
 function planHash(s){ var h=0; s=String(s); for(var i=0;i<s.length;i++){ h=((h<<5)-h)+s.charCodeAt(i); h|=0; } return 'p'+(h>>>0).toString(36); }
 function planT(iso){ try{ return new Date(iso).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
 function planMoney(v){ return Number(v||0).toLocaleString('en-US',{maximumFractionDigits:0}); }
+/* 🔴 تقييم الجلسة الأخيرة له الأولوية: لكل مريض آخر جلسة في باقته النهارده ومالوش تقييم محجوز → أقرب مكان عند دكتور تقييم بعد جلسته
+   (مكان فاضي، ولو مفيش قريب → مكان «إعادة تقييم» تتأجل — الويتنج/Open الأول) + مواعيد تقييم برا ساعات الدكتور + تقييم متحجز مرتين
+   ساعات دكاترة التقييم: من EV_HRS لو متحددة لليوم ده، وإلا من أول لآخر ميعاد ليه النهارده */
+var EV_HRS={'2026-11-25':{'BODYFIX Center':{'Dr. Adel Ashraf':['14:00','20:00'],'Dr Amgad Khedr':['19:30','22:30']}}};
+function planEvSlots(br, today, renewMap){
+  var out={sug:{}, outside:[], dups:[], need:[]};
+  var S=(typeof MED_SUMMARY!=='undefined'&&MED_SUMMARY&&MED_SUMMARY.today_date===today)?(MED_SUMMARY.today_appointments||[]):[];
+  var A=S.filter(function(a){ return a.branch===br&&!/cancel/i.test(a.status||''); });
+  var cm=function(iso){ var p=new Date(iso).toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',minute:'2-digit',hour12:false}); return (+p.slice(0,2))*60+(+p.slice(3,5)); };
+  var hm=function(m){ var h=Math.floor(m/60), mm=m%60; return ((h%12)||12)+':'+String(mm).padStart(2,'0'); };
+  var pm=function(t){ var z=String(t).split(':'); return (+z[0])*60+(+z[1]||0); };
+  var isEv=function(t){ return /تقييم/.test(t||''); };
+  var H=(EV_HRS[today]||{})[br]||{}, W={}, occ={};
+  A.forEach(function(a){ if(!isEv(a.type)&&!H[a.doctor]) return; (occ[a.doctor]=occ[a.doctor]||[]).push({s:cm(a.start), e:Math.max(cm(a.end),cm(a.start)+15), a:a}); });
+  Object.keys(H).forEach(function(d){ occ[d]=occ[d]||[]; });
+  Object.keys(occ).forEach(function(d){ if(H[d]) W[d]=[pm(H[d][0]),pm(H[d][1])]; else { var L=occ[d]; W[d]=[Math.min.apply(null,L.map(function(x){return x.s;})), Math.max.apply(null,L.map(function(x){return x.e;}))]; } });
+  var DN=function(d){ return typeof alDocAr==='function'?(alDocAr(d)||d):d; };
+  // تقييم متحجز مرتين لنفس المريض
+  var evBy={}; A.forEach(function(a){ if(isEv(a.type)) (evBy[a.patient]=evBy[a.patient]||[]).push(a); });
+  Object.keys(evBy).forEach(function(n){ if(evBy[n].length>1) out.dups.push({name:n, L:evBy[n].map(function(a){ return DN(a.doctor)+' '+hm(cm(a.start)); })}); });
+  // مواعيد تقييم برا ساعات الدكتور (لو ساعاته متحددة)
+  Object.keys(H).forEach(function(d){ (occ[d]||[]).forEach(function(o){ if(isEv(o.a.type)&&(o.s<W[d][0]||o.s>=W[d][1])) out.outside.push({name:o.a.patient, doc:d, t:hm(o.s), type:o.a.type, upto:hm(W[d][1]), from:hm(W[d][0])}); }); });
+  // المحتاجين: آخر جلسة النهارده ومفيش أي تقييم محجوز النهارده
+  var res={}, need=[];
+  Object.keys(renewMap||{}).forEach(function(pid){ var x=renewMap[pid]; if(!x||x.eval_booked||(x.branch&&x.branch!==br)) return; if(evBy[x.name]) return;
+    var ss=A.filter(function(a){ return a.patient===x.name&&!isEv(a.type); }).sort(function(a,b){ return a.start<b.start?-1:1; })[0];
+    need.push({x:x, ss:ss, end:ss?cm(ss.end):(x.time?cm(x.time)+60:0)}); });
+  need.sort(function(a,b){ return a.end-b.end; });
+  need.forEach(function(n){ var x=n.x, ss=n.ss; out.need.push(x);
+    if(ss&&W[ss.doctor]&&cm(ss.start)>=W[ss.doctor][0]&&n.end<=W[ss.doctor][1]+15){ out.sug[x.name]='جلسته مع '+DN(ss.doctor)+' نفسه — يقيّمه في آخر الجلسة'; return; }
+    var best=null, t0=Math.ceil(n.end/15)*15;
+    Object.keys(W).forEach(function(d){ for(var t=Math.max(t0,Math.ceil(W[d][0]/15)*15); t+15<=W[d][1]; t+=15){
+      if(res[d+'|'+t]) continue;
+      var ov=(occ[d]||[]).filter(function(o){ return o.s<t+15&&o.e>t; });
+      var cost=null, bump=null;
+      if(!ov.length) cost=t;
+      else if(ov.length===1&&/اعاد|إعاد/.test(ov[0].a.type)&&ov[0].s===t){ bump=ov[0].a; cost=t+(/wait|open/i.test(bump.status||'')?20:35); }
+      if(cost!=null&&(!best||cost<best.cost)) best={d:d,t:t,cost:cost,bump:bump};
+      if(cost!=null) break; } });
+    if(best){ res[best.d+'|'+best.t]=1;
+      out.sug[x.name]='احجزيله تقييم الجلسة الأخيرة مع <b>'+alEsc(DN(best.d))+' '+hm(best.t)+'</b>'+(best.bump?' — مكان إعادة تقييم <b>'+alEsc(best.bump.patient)+'</b>'+(/wait|open/i.test(best.bump.status||'')?' ('+alEsc(best.bump.status)+')':'')+' → أجّليها (الجلسة الأخيرة ليها الأولوية)':' (فاضي)'); }
+    else out.sug[x.name]='مفيش مكان النهارده عند دكتور تقييم — احجزيله تقييم قبل أول جلسة في الباقة الجاية';
+  });
+  return out; }
 function planTasks(useAll){
   var D=ALERTS_DATA; if(!D) return null;
   var BRS=useAll?AL_BRANCHES:planBR();
@@ -13296,6 +13340,7 @@ function planTasks(useAll){
   // 🧾 عند الاستقبال
   var by=function(arr,f){ var m={}; (arr||[]).forEach(function(x){ if(f(x)) m[x.pid]=x; }); return m; };
   var renew=by(D.renew_today,function(x){ return x.session_no>=(x.size||12)-1; });
+  var EVS={sug:{},outside:[],dups:[],need:[]}; try{ act.forEach(function(b){ var z=planEvSlots(b,today,renew); Object.assign(EVS.sug,z.sug); z.outside.forEach(function(o){ o.br=b; EVS.outside.push(o); }); z.dups.forEach(function(o){ o.br=b; EVS.dups.push(o); }); z.need.forEach(function(o){ EVS.need.push(o); }); }); }catch(e){}
   var evd=by(D.eval_due,function(x){ return x.day==='today'; });
   var nonext=by(D.today_no_next,function(){ return true; });
   var svc=by(D.svc_gap,function(){ return true; });
@@ -13306,7 +13351,7 @@ function planTasks(useAll){
     var R=[], G=[];
     if(debts[x.pid]&&debts[x.pid].sum>=1&&INVF[x.pid]) R.push('💸 عليه '+planMoney(debts[x.pid].sum)+' ج — <span style="color:var(--am)">🧾 '+alEsc(INVF[x.pid].by||'الخزنة')+' كتبت إن الفاتورة محتاجة تتعدل → على '+alEsc(PLAN_INV_OWNER_DEF)+'</span>');
     if(debts[x.pid]&&debts[x.pid].sum>=1&&!INVF[x.pid]) G.push('debt'); if(renew[x.pid]) G.push('renew'); if(evd[x.pid]) G.push('eval'); if(nonext[x.pid]&&!renew[x.pid]) G.push('nonext');   /* اعرض التجديد بيغطي «مالوش ميعاد جاي» (حجز التقييم = ميعاد جاي) */ if(nonext[x.pid]) NNX[x.pid]=1; if(svc[x.pid]) G.push('svc');
-    if(renew[x.pid]){ var rn=renew[x.pid], sz=rn.size||12; R.push('🔁 '+(rn.session_no<=sz?'جلسة '+rn.session_no+' من '+sz:'الباقة ('+sz+') خلصت — دي جلسة '+rn.session_no)+' — <b>اعرض التجديد</b>'); }
+    if(renew[x.pid]){ var rn=renew[x.pid], sz=rn.size||12; R.push('🔁 '+(rn.session_no<=sz?'جلسة '+rn.session_no+' من '+sz:'الباقة ('+sz+') خلصت — دي جلسة '+rn.session_no)+' — <b>اعرض التجديد</b>'); if(!rn.eval_booked&&EVS.sug[x.name]) R.push('📍 '+EVS.sug[x.name]); }
     if(evd[x.pid]) R.push(evd[x.pid].kashf_other?'🩺 كشف مع '+alEsc(alDocAr(evd[x.pid].kashf_other.doctor)||evd[x.pid].kashf_other.doctor)+' — <b>احجز إعادة تقييم مع د. أمجد'+(x.br==='FIX ZONE'?' '+planAmgDay():'')+'</b>'+(evd[x.pid].kashf_other.after?' (فاتت '+evd[x.pid].kashf_other.after+' مرة)':''):'🩺 جلسة '+evd[x.pid].n+' من غير تقييم — <b>احجز تقييم</b>');
     if(debts[x.pid]&&debts[x.pid].sum>=1) R.push(planPayNotes(x.pid));
     if(debts[x.pid]&&debts[x.pid].sum>=1&&!INVF[x.pid]) R.push('💸 عليه <b style="color:var(--r)">'+planMoney(debts[x.pid].sum)+' ج</b> ('+debts[x.pid].n+' خدمة، أقدمها '+alEsc(alFmtDay(debts[x.pid].old))+') — <b>حصّل</b>');
@@ -13541,6 +13586,20 @@ function planTasks(useAll){
     add('rec',{grp:['renew'], key:today+'|renewnext|'+x.pid, sys:eb?'اتحجز تقييم الجلسة الأخيرة':'', what:eb?('تقييم الجلسة الأخيرة '+alFmtDay(String(eb).slice(0,10))+' '+planT(eb)):'', icon:'📞',
       kind:'آخر جلسة في الباقة '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' — احجزيله «تقييم الجلسة الأخيرة» معاها من النهارده', name:x.name, phone:x.phone, br:brOf(x), time:x.time, doctor:x.doctor,
       lines:['🔁 جلسة '+x.session_no+' من '+x.size+' — كلّميه واحجزي التقييم في نفس يوم آخر جلسة (قبلها أو بعدها على طول)']}); });
+  // 🗓️ ظبطي جدول التقييمات النهارده: تقييم برا ساعات الدكتور · تقييم متحجز مرتين
+  EVS.outside.forEach(function(o){ add('morning',{grp:['evfix'], key:today+'|evfix|out|'+o.name+'|'+o.t, icon:'🗓️', kind:'موعد تقييم برا ساعات '+alEsc(doc(o.doc))+' (موجود من '+o.from+' لـ '+o.upto+')', name:o.name, br:o.br, doctor:o.doc,
+    lines:[alEsc(o.type)+' '+o.t+' — انقليه لوقت '+alEsc(doc(o.doc))+' موجود فيه، أو لدكتور تقييم تاني موجود']}); });
+  EVS.dups.forEach(function(o){ add('morning',{grp:['evfix'], key:today+'|evfix|dup|'+o.name, icon:'🗓️', kind:'تقييم متحجز مرتين النهارده', name:o.name, br:o.br,
+    lines:[alEsc(o.L.join(' · '))+' — الغي واحد (والمكان يفضى لحد آخر جلسته النهارده)']}); });
+  // 🔎 مراجعة ندى الصبح: كل اللي آخر جلسة في باقته النهارده متحجزله تقييم؟ (المسئولة عن الحجز داليا)
+  act.forEach(function(b){ var L=EVS.need.filter(function(x){ return (x.branch||b)===b; }), all=Object.keys(renew).map(function(k){ return renew[k]; }).filter(function(x){ return x.branch===b; });
+    if(!all.length) return;
+    add('morning',{grp:['renewrev'], key:today+'|renewrev|'+b, icon:'🔎', kind:'مراجعة: كل اللي آخر جلسة في باقته النهارده متحجزله تقييم الجلسة الأخيرة؟', name:L.length?(L.length+' لسه من غير تقييم من '+all.length):'كله متحجز ('+all.length+')', br:b,
+      sys:L.length?'':'كله متحجز', what:L.length?'':'اتحجز تقييم الجلسة الأخيرة للكل',
+      lines:L.length?['لسه: '+L.map(function(x){ return '<b>'+alEsc(x.name)+'</b> ('+alEsc(planT(x.time))+')'; }).join(' · ')+' — فكّري المسئولة عن الحجز (داليا) لو لسه']:[]});
+    var hc=planCairoH(new Date().toISOString());
+    if(L.length&&hc>=14) add('mgr',{grp:['mgr'], mgrOnly:1, pown:PLAN_MGR_NAME, key:'mgr|renewnoeval|'+today+'|'+b, icon:'🔴', kind:L.length+' آخر جلسة في الباقة النهارده ومن غير تقييم محجوز', name:b==='FIX ZONE'?'الدقي':'الهرم', br:b,
+      lines:[L.map(function(x){ return alEsc(x.name)+' ('+alEsc(planT(x.time))+')'; }).join(' · ')]}); });
   // 🌙 آخر اليوم
   (RES.nonext||[]).forEach(function(x){ add('rec',{grp:['nonext'], sys:'اتحجزله ميعاد', what:x.what||'', key:today+'|rec|nonext|'+x.pid, icon:'📅', kind:PLAN_GT.nonext?PLAN_GT.nonext[1]:'', name:x.name, phone:x.phone, br:brOf(x), time:x.time||'', room:x.room||'', doctor:x.doctor||'', lines:[alEsc(x.type||'')+' مع '+alEsc(doc(x.doctor))]}); });
   sysAdd('evening','kashf0','kashf0','حجز جلسات','🩺',function(x){return today+'|kashf0|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
@@ -13727,7 +13786,7 @@ var PLAN_GT={
   mgr:['👔','ملحوظات محتاجة المدير (شكوى · فلوس · الدكتور · الألم …)'],
   waittoday:['⏳','مواعيد على الويتنج النهارده'], conftoday:['📞','تأكيد مواعيد النهارده اللي كانت لسه Open'], late:['⏰','اتأخر ربع ساعة من غير Check In — اتكتب متابعة ولا لأ؟'], waitnext:['⏳','مواعيد على الويتنج يوم الشغل الجاي'], waitnut:['💜','ويتنج قسم التغذية يوم الشغل الجاي'],
   evout:['📋','نتيجة تقييم الجلسة الأخيرة — هيجدد / هيفكر / هيوقف'], evoutold:['🗂️','مراجعة تقييمات الأيام اللي فاتت (آخر أسبوع) — سجّلي هيجدد / هيفكر / هيوقف'], evoutc:['📋','تقييم امبارح — لسه ما اتقفلش (مراجعة)'], call:['📞','مكالمات المتابعة'], streak:['⚠️','مثبتين بيلغوا ورا بعض'], recur:['🔁','بيلغوا كتير ومحجوزلهم مواعيد جاية'], stop:['🛑','قال هيوقف ولسه محجوزله / مثبت — الغي المواعيد وشيله من الشيت'], idle:['😶','مثبّتين ومالهمش ميعاد من 3 أيام أو أكتر'], miss:['🙋','بييجي بانتظام ومالوش ميعاد النهارده'], kashf:['🩺','عملوا كشف وما حجزوش'], conf:['✔️','تأكيد مواعيد يوم الشغل الجاي (🔴 الضروري فوق)'], confsp:['💜','تأكيد مواعيد قسم التغذية (د. آلاء حرفوش) وجلسات التخسيس'], drop:['🚶','مرضى جداد وقفوا بدري'],
-  renew:['🔁','اعرض التجديد (آخر الباقة)'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم · أو إعادة تقييم مع د. أمجد بعد كشف مع دكتور تاني)'], evalamg:['📵','محتاج تقييم ومالوش ميعاد — كلّمه واحجزله'], evalamgd:['🩺','احجز إعادة تقييم مع د. أمجد يوم زيارته للدقي'], visit:['📋','زيارة د. أمجد للدقي — احجزهم معاه يوم الزيارة'], dup:['🔍','ملفات مريض مكررة على Medicolize — ادمجيهم'], drmove:['🔄','مرضى د. أحمد أشرف (أجازة) — ثبّتيهم مع دكتور واحد'], noinv:['🧾','خدمة اتعملت من غير فاتورة — اعمليلها فاتورة'], fuin:['📅','⚠️ خلّصوا أو انقطعوا ومش داخلين نظام المتابعة — احجزيلهم Follow up'], trcall:['🎓','دكاترة حضروا ترينينج معانا ومش شغالين — دعوة واتساب لورشة الكتف (الجمعة 20/11) + ملحوظة بالرد'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله (سكرتيرة العيادة)'], nonextrev:['👔','مراجعة المشرفة: حد عنده موعد النهارده ومالوش ميعاد جاي'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
+  renew:['🔁','اعرض التجديد + احجزي تقييم الجلسة الأخيرة (أولوية)'], evfix:['🗓️','ظبطي جدول التقييمات النهارده (برا ساعات الدكتور / متحجز مرتين)'], renewrev:['🔎','مراجعة الصبح: تقييم الجلسة الأخيرة متحجز للكل؟'], eval:['🩺','احجز تقييم (6 جلسات من غير تقييم · أو إعادة تقييم مع د. أمجد بعد كشف مع دكتور تاني)'], evalamg:['📵','محتاج تقييم ومالوش ميعاد — كلّمه واحجزله'], evalamgd:['🩺','احجز إعادة تقييم مع د. أمجد يوم زيارته للدقي'], visit:['📋','زيارة د. أمجد للدقي — احجزهم معاه يوم الزيارة'], dup:['🔍','ملفات مريض مكررة على Medicolize — ادمجيهم'], drmove:['🔄','مرضى د. أحمد أشرف (أجازة) — ثبّتيهم مع دكتور واحد'], noinv:['🧾','خدمة اتعملت من غير فاتورة — اعمليلها فاتورة'], fuin:['📅','⚠️ خلّصوا أو انقطعوا ومش داخلين نظام المتابعة — احجزيلهم Follow up'], trcall:['🎓','دكاترة حضروا ترينينج معانا ومش شغالين — دعوة واتساب لورشة الكتف (الجمعة 20/11) + ملحوظة بالرد'], debt:['💸','عليهم فلوس لجلسات اتعملت — جايين النهارده: حصّل'], nonext:['📅','مالوش ميعاد جاي — احجزله (سكرتيرة العيادة)'], nonextrev:['👔','مراجعة المشرفة: حد عنده موعد النهارده ومالوش ميعاد جاي'], svc:['🧩','محجوز النهارده خدمة وناقصه خدمة بيعملها'], risk:['⚡','بيغيب كتير — أكّد عليه'],
   fix:['📌','كشف وحجز — لسه متثبتش في الشيت'], stale:['🧹','مواعيد عدت وما اتقفلتش'], aud:['🔍','أخطاء كومبليت امبارح'], kashf0:['🩺','كشف النهارده (اتعمل) وما حجزش جلسات'], sudden:['⚡','اعتذار مفاجئ / No Show النهارده — تسجيل + خصم']
 };
 var PLAN_OPEN_G={}, PLAN_VIEW=''; try{ PLAN_VIEW=localStorage.getItem('planView')||''; }catch(e){}
@@ -14021,11 +14080,11 @@ try{ var _rl=JSON.parse(localStorage.getItem('planRoles')||'null'); if(_rl) PLAN
 /* 📌 الأساس: كل نوع مهمة على أنهي دور (كل يوم بيفتح على كده — التغيير اليومي من الخانة جنب المهمة مؤقت) */
 var PLAN_GROUP_ROLE={
   'BODYFIX Center':{stalefin:'L', evout:'L', evoutc:'L', evoutold:'L', nopkg:'F', nopkgnext:'J', mcall:'F', mcallup:'F', mgr:'L', nonext:'J', nonextrev:'L', aud:'L', sudden:'L', invfix:'L', invrev:'L', debtph:'L',
-    waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', evalamg:'F', renew:'F', svc:'F', kashf:'F',
+    waittoday:'F', waitnut:'F', miss:'F', confsp:'F', conftoday:'F', eval:'F', evalamg:'F', renew:'L', evfix:'L', renewrev:'F', svc:'F', kashf:'F',
     waitnext:'J', streak:'J', recur:'J', stop:'J', idle:'J', conf:'J', stale:'J', fix:'J', kashf0:'J',
     call:'H', drop:'H'},
   'FIX ZONE':{evout:'DE', evoutc:'DM', evoutold:'DM', nopkg:'DM', nopkgnext:'DE', mcall:'DM', mcallup:'DM', mgr:'DM', streak:'DM', recur:'DM', stop:'DM', idle:'DM', call:'DM', conf:'DM', drop:'DM', evalamgd:'DM', visit:'DM', fix:'DM', miss:'DM', waittoday:'DM', waitnut:'DM', confsp:'DM', conftoday:'DM', aud:'DM', debtph:'DM', kashf:'DM',
-    stalefin:'DM', waitnext:'DE', nonext:'DE', nonextrev:'DM', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', svc:'DE', sudden:'DE', late:'DE'}
+    stalefin:'DM', waitnext:'DE', nonext:'DE', nonextrev:'DM', stale:'DE', kashf0:'DE', eval:'DE', renew:'DE', evfix:'DE', renewrev:'DM', svc:'DE', sudden:'DE', late:'DE'}
 };
 function planBaseOwner(t,g){ var rk=(PLAN_GROUP_ROLE[t.br]||{})[g]; return rk?((PLAN_ROLES[t.br]||{})[rk]||''):''; }
 function planSetRole(br, rk, v){
@@ -14620,7 +14679,7 @@ function planV2Set(on){ PLAN_V2=!!on; try{ localStorage.setItem('planV2b',on?'1'
 function planV2Toggle(){ return '<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button onclick="planV2Set(1)" style="background:rgba(124,58,237,.15);border:1px solid #7c3aed;color:#c4b5fd;border-radius:8px;padding:4px 12px;font-family:Cairo,sans-serif;font-size:.62rem;font-weight:800;cursor:pointer">🆕 جرّب الشكل الجديد</button></div>'; }
 var PLAN_FAM=[
   ['money','💰','فلوس','#10b981',['debt','debtph','invrev','invfix','nopkg','nopkgnext','noinv']],
-  ['keep','🔁','استمرار المرضى','#f59e0b',['renew','visit','drop','streak','recur','idle','stop','call','fix','kashf','kashf0','eval','evalamg','evalamgd','nonext','nonextrev','miss','svc','mgr']],
+  ['keep','🔁','استمرار المرضى','#f59e0b',['renew','renewrev','evfix','visit','drop','streak','recur','idle','stop','call','fix','kashf','kashf0','eval','evalamg','evalamgd','nonext','nonextrev','miss','svc','mgr']],
   ['come','📅','الحضور','#38bdf8',['conf','confsp','conftoday','late','sudden','waittoday','waitnext','waitnut']],
   ['sys','🧾','السيستم مظبوط','#a78bfa',[]]];
 function planFamOf(g){ for(var i=0;i<PLAN_FAM.length-1;i++) if(PLAN_FAM[i][4].indexOf(g)>=0) return PLAN_FAM[i][0]; return 'sys'; }

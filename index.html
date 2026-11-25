@@ -15986,7 +15986,7 @@ function bfBtn(t,dis){ var b=document.getElementById('bf-sync-btn'); if(b){ b.te
 function bfClock(ms){ var s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 function bfRender(){
   var el=bfClock(Date.now()-bfStartMs);
-  bfBtn('⏳ '+el,true);
+  bfBtn('⏳ '+el,false);   // مش disabled — الدوسة وقت التحديث بتطلع رسالة بدل ما ما يحصلش حاجة
   bfSyncMsg(bfPhase==='queued' ? '⏳ السحب مستني دوره (فيه سحب تاني شغال) — '+el
                                : '⏳ بيسحب من Medicolize: الداشبورد والتنبيهات والتحصيل — '+el+' (عادةً من 6 لـ 8 دقايق)');
 }
@@ -16034,10 +16034,12 @@ function bfWatch(H, sinceMs){
 }
 var bfSyncLock=0;
 async function bfSyncNow(){
-  if(bfSyncBusy||Date.now()-bfSyncLock<20000) return;   // دوسة واحدة بس — الدوسات المتكررة كانت بتبدأ 3 سحبات في نفس الثانية
+  if(bfSyncBusy){ bfSyncMsg('⏳ فيه تحديث شغال دلوقتي — العداد فوق بيوضح من إمتى، والصفحة هتتحدث لوحدها لما يخلص (عادةً 5–6 دقايق).','info'); return; }
+  if(Date.now()-bfSyncLock<20000){ bfSyncMsg('⏳ الدوسة وصلت — بيبدأ التحديث…','info'); return; }   // دوسة واحدة بس — الدوسات المتكررة كانت بتبدأ 3 سحبات في نفس الثانية
   bfSyncLock=Date.now();
+  bfBtn('⏳ بيبدأ…',true); bfSyncMsg('⏳ الدوسة وصلت — بيبدأ التحديث…','info');
   var t=await bfGhToken();
-  if(!t){ bfSyncLock=0;
+  if(!t){ bfSyncLock=0; bfBtn('⚡ تحديث فوري',false); bfSyncMsg('');
     // الجهاز ده مش متوصّل بشيت التحصيل (اللي فيه المفتاح) — ما نطلبش مفتاح من السكرتارية
     alert('⚡ التحديث الفوري مش متوصّل على الجهاز ده.\nالبيانات بتتحدث لوحدها كل نص ساعة.\nعشان الزرار يشتغل: افتحي «لينك ربط الجهاز» اللي د. أمجد بيبعته مرة واحدة على الجهاز ده.');
     return;

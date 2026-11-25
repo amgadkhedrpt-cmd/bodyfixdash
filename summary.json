@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-11-25T13:38:03.606443+00:00",
+  "last_updated": "2026-11-25T13:52:49.943885+00:00",
   "total": 23000,
   "doctors": [
     "Abeer",
@@ -53,11 +53,11 @@
     "FIX ZONE"
   ],
   "by_type": {
-    "جلسة علاج طبيعي": 11459,
+    "جلسة علاج طبيعي": 11458,
     "متابعه": 2117,
     "متابعة تغذيه": 2003,
     "متابعه انقطاع": 1034,
-    "اعادة تقييم": 965,
+    "اعادة تقييم": 966,
     "تقييم الجلسه الأخيره": 824,
     "منقطع نهائي": 709,
     "كشف علاج طبيعي": 705,
@@ -92,16 +92,16 @@
     "جلسة تغذيه": 1
   },
   "by_status": {
-    "Completed": 14926,
+    "Completed": 14927,
     "Canceled": 3832,
     "No Show": 1468,
     "Waiting List": 1088,
-    "Open": 928,
+    "Open": 924,
     "Note": 492,
-    "Confirmed": 233,
-    "Checked In": 17,
-    "In Progress": 15,
-    "Delayed": 1
+    "Confirmed": 234,
+    "Checked In": 19,
+    "In Progress": 14,
+    "Delayed": 2
   },
   "by_date": {
     "2027-08-15": {
@@ -714,10 +714,10 @@
       }
     },
     "2026-11-25": {
-      "total": 233,
+      "total": 234,
       "doctors": {
         "Follow up": 38,
-        "Dr Amgad Khedr": 26,
+        "Dr Amgad Khedr": 27,
         "Dr. Sara Hussein": 8,
         "Sayed Galal": 10,
         "Ahmad Abdelazim": 9,
@@ -1781,7 +1781,7 @@
     "Basmala": 10,
     "Dina Ahmad": 374,
     "Doaa Tarek": 288,
-    "Dr Amgad Khedr": 1836,
+    "Dr Amgad Khedr": 1837,
     "Dr. Adel Ashraf": 460,
     "Dr. Ahmad Ibrahim": 342,
     "Dr. Ahmad Mokhtar": 475,
@@ -1809,7 +1809,7 @@
     "Rana Ali": 78,
     "Rawan Wessam": 360,
     "Rawan Yasser": 142,
-    "Roba": 429,
+    "Roba": 428,
     "Sarah Ahmad": 394,
     "Sarah Nady": 152,
     "Sayed Galal": 402,
@@ -2689,6 +2689,17 @@
       "branch": "FIX ZONE",
       "patient": "بركه عوض سنان سلطان",
       "phone": "+967_733099052"
+    },
+    {
+      "id": "402c67fd-3a73-46f9-9ed1-c31ca673f2b5",
+      "start": "2026-11-25T16:30:00.000Z",
+      "end": "2026-11-25T16:45:00.000Z",
+      "status": "Confirmed",
+      "type": "تقييم الجلسه الأخيره",
+      "doctor": "Dr Amgad Khedr",
+      "branch": "BODYFIX Center",
+      "patient": "احمد عبدالرازق عبد الله خليل",
+      "phone": "+2_01112975991"
     },
     {
       "id": "3c6fbb33-98db-478f-b070-223def9da2e9",
@@ -3624,7 +3635,7 @@
       "id": "9b5fa2c7-5017-4f3c-836d-df61a8911596",
       "start": "2026-11-25T14:00:00.000Z",
       "end": "2026-11-25T15:30:00.000Z",
-      "status": "Confirmed",
+      "status": "Checked In",
       "type": "جلسة علاج طبيعي",
       "doctor": "Gomaa Mohammad",
       "branch": "BODYFIX Center",
@@ -3767,21 +3778,10 @@
       "phone": "+2_01122205614"
     },
     {
-      "id": "402c67fd-3a73-46f9-9ed1-c31ca673f2b5",
-      "start": "2026-11-25T13:45:00.000Z",
-      "end": "2026-11-25T14:00:00.000Z",
-      "status": "Confirmed",
-      "type": "تقييم الجلسه الأخيره",
-      "doctor": "Dr. Adel Ashraf",
-      "branch": "BODYFIX Center",
-      "patient": "احمد عبدالرازق عبد الله خليل",
-      "phone": "+2_01112975991"
-    },
-    {
       "id": "26581c5f-0102-4c62-abaa-5bd86087e486",
       "start": "2026-11-25T13:45:00.000Z",
       "end": "2026-11-25T14:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Delayed",
       "type": "متابعة تغذيه",
       "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",
@@ -3816,7 +3816,7 @@
       "id": "f2441c12-6d2c-40c6-aa2d-4599e584468e",
       "start": "2026-11-25T13:30:00.000Z",
       "end": "2026-11-25T13:45:00.000Z",
-      "status": "Confirmed",
+      "status": "Delayed",
       "type": "متابعة تغذيه",
       "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",
@@ -3860,10 +3860,21 @@
       "reason": "الغاء لعدم الرد"
     },
     {
+      "id": "46f60c56-1b20-4b8f-9c9c-b8bae6744fb6",
+      "start": "2026-11-25T13:30:00.000Z",
+      "end": "2026-11-25T13:45:00.000Z",
+      "status": "Checked In",
+      "type": "اعادة تقييم",
+      "doctor": "Dr. Adel Ashraf",
+      "branch": "BODYFIX Center",
+      "patient": "عادل عياش فتيني غيش",
+      "phone": "+2_01515053342"
+    },
+    {
       "id": "be1d5c49-b2b2-4aa5-a3e3-f7a3e06d18fb",
       "start": "2026-11-25T13:15:00.000Z",
       "end": "2026-11-25T13:30:00.000Z",
-      "status": "Delayed",
+      "status": "Checked In",
       "type": "متابعة تغذيه",
       "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",
@@ -3942,7 +3953,7 @@
       "id": "b29fdba1-bc01-41d8-9fe5-de228ec1f980",
       "start": "2026-11-25T13:00:00.000Z",
       "end": "2026-11-25T13:15:00.000Z",
-      "status": "Checked In",
+      "status": "Completed",
       "type": "متابعة تغذيه",
       "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",
@@ -4062,7 +4073,7 @@
       "id": "473fffb5-68ad-474b-8bec-3ddb628f87ec",
       "start": "2026-11-25T13:00:00.000Z",
       "end": "2026-11-25T13:30:00.000Z",
-      "status": "In Progress",
+      "status": "Completed",
       "type": "كشف علاج طبيعي",
       "doctor": "Dr. Sara Hussein",
       "branch": "BODYFIX Center",

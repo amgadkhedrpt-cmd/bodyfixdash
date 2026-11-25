@@ -2047,6 +2047,47 @@ def build_alerts(appointments, now=None, packages=None):
             dokki_visit = {"date": vd, "items": items}
     except Exception as e:
         print(f"⚠️ dokki_visit: {e}")
+    # ── 📋 زيارة د. أمجد للهرم (يوم الشغل الجاي): ساعاته من مواعيده هناك (ولو عنده دقي نفس اليوم: بعد آخر ميعاد هناك بنص ساعة)
+    #    + المرضى المستنيين تقييم منه (كشف مع دكتور تاني / 6 جلسات) وجايين اليوم ده — المشرفة تحجزلهم قبلها بيوم ──
+    haram_visit = None
+    try:
+        vd = nwd
+        isA = lambda a: "amgad" in (a["doctor"] or "").lower() or "أمجد" in (a["doctor"] or "")
+        DEAD = ("canceled", "cancelled", "note", "no show", "noshow")
+        mm = lambda a: a["start"].hour * 60 + a["start"].minute
+        hs, ds, byp2 = [], [], defaultdict(list)
+        for v in patients_all.values():
+            for a in v:
+                if a["start"].date() != vd or a["status"] in DEAD:
+                    continue
+                if a.get("pid"):
+                    byp2[a["pid"]].append(a)
+                if isA(a):
+                    (hs if a["branch"] == "BODYFIX Center" else ds if a["branch"] == "FIX ZONE" else []).append(a)
+        if hs:
+            w0, w1 = min(mm(a) for a in hs), max(mm(a) + 15 for a in hs)
+            if ds:
+                d0, d1 = min(mm(a) for a in ds), max(mm(a) + 15 for a in ds)
+                if d1 <= w0 + 60:
+                    w0 = d1 + 30                       # جاي من الدقي
+                elif d0 >= w1:
+                    w1 = d0 - 30                       # رايح الدقي بعدها
+            its = []
+            for x in eval_pending:
+                if x.get("branch") != "BODYFIX Center":
+                    continue
+                ap = byp2.get(x["pid"]) or []
+                come = min((a for a in ap if not isA(a) and a["type"] not in EVAL_TYPES and (a["doctor"] or "").strip().lower() != "follow up"), key=lambda a: a["start"], default=None)
+                amg = min((a for a in ap if isA(a)), key=lambda a: a["start"], default=None)
+                its.append({"pid": x["pid"], "name": x["name"], "phone": x["phone"], "why": "kashf" if x.get("kashf_other") else "n6",
+                            "kdr": (x.get("kashf_other") or {}).get("doctor"), "n6": x.get("n6"),
+                            "come": ({"t": come["start"].isoformat(), "dr": come["doctor"]} if come else None),
+                            "amg": (amg["start"].isoformat() if amg else None)})
+            haram_visit = {"date": vd.isoformat(), "win": [w0, w1],
+                           "slots": [[a["start"].isoformat(), a["type"], a["status"], a["name"]] for a in sorted(hs, key=lambda a: a["start"])],
+                           "items": its}
+    except Exception as e:
+        print(f"⚠️ haram_visit: {e}")
 
     # ── 🔍 ملفات مريض مكررة على Medicolize: نفس رقم التليفون (أو نفس الاسم بالظبط) على أكتر من ملف ──
     dup_pts = []
@@ -2184,7 +2225,7 @@ def build_alerts(appointments, now=None, packages=None):
         "finished_packages": finished,
         "eval_renew": eval_renew,
         "eval_due": eval_due,
-        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "dokki_visit": dokki_visit, "dup_pts": dup_pts, "pt_extra": pt_extra, "amgad_dokki_usual": amgad_dokki_usual, "eval_pending": eval_pending,
+        "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "dokki_visit": dokki_visit, "haram_visit": haram_visit, "dup_pts": dup_pts, "pt_extra": pt_extra, "amgad_dokki_usual": amgad_dokki_usual, "eval_pending": eval_pending,
         "plan": dict(plan, calls_today=calls_today, calls_hist=calls_hist, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes, note_today=note_today),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),

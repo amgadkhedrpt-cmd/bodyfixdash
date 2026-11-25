@@ -2,6 +2,8 @@ name: History Probe (field names only)
 
 # 🔎 فحص تأكيد مواعيد الدقي من سجل المكالمات — قراية بس، أعداد في اللوج، مفيش ملفات ولا commit · بتشتغل بإيدك
 on:
+  push:
+    paths: ['hist_probe.py']
   workflow_dispatch:
     inputs:
       branch:

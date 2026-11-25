@@ -82,3 +82,4 @@ async def run(gql_call, page, cookie, headers, appts):
         if k["n"] < 3: continue
         c = k["اتقارن"]; nc = k["اتصلت وما ردش"] + k["مفيش أي مكالمة"]
         print(f"===== {by}: {dict(k)} · من غير اتصال {nc}/{c} = {round(nc*100/c) if c else '-'}%")
+# run 1795621762

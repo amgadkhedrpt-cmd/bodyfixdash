@@ -1733,6 +1733,36 @@ async def fetch_all_appointments(cookie_str, page, extra_headers=None):
     all_appts  = []
     skip, take, page_num = 0, 100, 1
     print(f"[{ts()}] Fetching appointments...")
+    async def _fetch_page(payload, headers):
+        result = await page.evaluate("""
+            async (args) => {
+                try {
+                    const res = await fetch(args.url, {
+                        method: 'POST', credentials: 'include',
+                        headers: args.headers, body: JSON.stringify(args.payload)
+                    });
+                    return { ok: true, text: await res.text(), status: res.status };
+                } catch(e) { return { ok: false, error: e.message }; }
+            }
+        """, {"url": API_URL, "payload": payload, "headers": headers})
+        if not result.get("ok"):
+            print(f"[{ts()}] Error: {result.get('error')}"); return None
+        try: data = json.loads(result["text"])
+        except Exception: print(f"[{ts()}] Parse error"); return None
+        if isinstance(data, dict) and data.get("errors"):
+            print(f"[{ts()}] GQL error (HTTP {result.get('status')}): {json.dumps(data['errors'], ensure_ascii=False)[:400]}"); return None
+        raw = []
+        if isinstance(data, dict) and "data" in data:
+            inner = data["data"]
+            if isinstance(inner, list): raw = inner
+            elif isinstance(inner, dict): raw = inner.get("createdAppointments") or []
+        elif isinstance(data, list): raw = data
+        if not raw:
+            print(f"[{ts()}] No data — HTTP {result.get('status')}: {str(result.get('text'))[:400]}"); return None
+        batch = parse_flat_array(raw)
+        if not batch:
+            batch = [x for x in raw if isinstance(x, dict) and 'id' in x and 'start' in x]
+        return batch
     while True:
         payload = {
             "operationName": "CREATED_APPOINTMENTS",
@@ -1748,40 +1778,16 @@ async def fetch_all_appointments(cookie_str, page, extra_headers=None):
             "Cookie":  cookie_str,
         }
         headers.update(extra_headers or {})
-        result = await page.evaluate("""
-            async (args) => {
-                try {
-                    const res = await fetch(args.url, {
-                        method: 'POST', credentials: 'include',
-                        headers: args.headers, body: JSON.stringify(args.payload)
-                    });
-                    return { ok: true, text: await res.text(), status: res.status };
-                } catch(e) { return { ok: false, error: e.message }; }
-            }
-        """, {"url": API_URL, "payload": payload, "headers": headers})
-        if not result.get("ok"):
-            print(f"[{ts()}] Error: {result.get('error')}"); break
-        try: data = json.loads(result["text"])
-        except: print(f"[{ts()}] Parse error"); break
-        if isinstance(data, dict) and data.get("errors"):
-            print(f"[{ts()}] GQL error (HTTP {result.get('status')}): {json.dumps(data['errors'], ensure_ascii=False)[:400]}"); break
-        raw = []
-        if isinstance(data, dict) and "data" in data:
-            inner = data["data"]
-            if isinstance(inner, list): raw = inner
-            elif isinstance(inner, dict): raw = inner.get("createdAppointments") or []
-        elif isinstance(data, list): raw = data
-        if not raw:
-            print(f"[{ts()}] No data — HTTP {result.get('status')}: {str(result.get('text'))[:400]}"); break
-        batch = parse_flat_array(raw)
-        if not batch:
-            batch = [x for x in raw if isinstance(x, dict) and 'id' in x and 'start' in x]
+        batch = None
+        for _try in range(3):   # 🔁 لو صفحة فشلت: استنى وأعيدها (3 مرات) بدل ما السحب يقف ناقص
+            batch = await _fetch_page(payload, headers)
+            if batch: break
+            if _try < 2: print(f"[{ts()}] 🔁 إعادة الصفحة {page_num}"); await asyncio.sleep(3)
         if not batch: print(f"[{ts()}] Empty batch"); break
         all_appts.extend(batch)
         print(f"[{ts()}] Page {page_num}: {len(batch)} (total: {len(all_appts)})")
         if len(batch) < take: break
-        skip += take; page_num += 1
-        await asyncio.sleep(0.5)
+        skip += take; page_num += 1   # ⚡ من غير استنى بين الصفحات (اتجرب على 23000 ميعاد: نفس النتيجة و1 دقيقة بدل 3)
         if len(all_appts) >= 23000: break
     print(f"[{ts()}] Total: {len(all_appts)}")
     return all_appts

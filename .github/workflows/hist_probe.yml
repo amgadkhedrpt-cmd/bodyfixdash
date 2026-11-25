@@ -1,0 +1,59 @@
+name: History Probe (field names only)
+
+# 🔎 فحص تأكيد مواعيد الدقي من سجل المكالمات — قراية بس، أعداد في اللوج، مفيش ملفات ولا commit · بتشتغل بإيدك
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'FIX ZONE أو BODYFIX Center'
+        required: false
+        default: 'FIX ZONE'
+      lines:
+        description: 'الخطوط (بفاصلة)'
+        required: false
+        default: 'الدقي'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: medicolize-sync          # نفس طابور السحب العادي — دخول واحد على Medicolize في المرة
+  cancel-in-progress: false
+
+jobs:
+  range:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-playwright-${{ runner.os }}
+      - name: Install dependencies
+        run: pip install playwright cryptography
+      - name: Install Chromium
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then google-chrome --version; else python -m playwright install --with-deps chromium; fi
+      - name: Restore Medicolize session
+        uses: actions/cache@v4
+        with:
+          path: .session
+          key: medicolize-session-${{ github.run_id }}
+          restore-keys: medicolize-session-
+      - name: Confirmation probe (read only)
+        env:
+          MEDICOLIZE_URL:  ${{ secrets.MEDICOLIZE_URL }}
+          MEDICOLIZE_USER: ${{ secrets.MEDICOLIZE_USER }}
+          MEDICOLIZE_PASS: ${{ secrets.MEDICOLIZE_PASS }}
+          GMAIL_USER:      ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
+          HIST_PROBE: '1'
+          CONF_BR: ${{ github.event.inputs.branch }}
+          CONF_LN: ${{ github.event.inputs.lines }}
+          SHEET_KEY: ${{ secrets.SHEET_KEY }}
+          SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
+        run: python scraper.py

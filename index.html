@@ -13605,7 +13605,7 @@ function planTasks(useAll){
       var sp=PLAN_ST['past|'+d+'|'+x.k]; if(sp&&(sp.s==='done'||sp.s==='ref')&&String(sp.ts||'').slice(0,10)<today) return;   // اتقفلت من يوم فات
       seenP[id]=1;
       if(PLAN_PAST_NX[x.g]&&x.p&&nxP[x.p]) return;                         // اتحجزله ميعاد جاي → اتحلت لوحدها
-      add(x.s||'rec',{grp:['past'], pg:x.g, pown:x.o, past:d, key:'past|'+d+'|'+x.k, icon:(PLAN_GT[x.g]||['⏪'])[0], name:x.n, pid:x.p||'', phone:x.ph||'', br:x.b,
+      add(x.s||'rec',{grp:[x.g], pg:x.g, pown:x.o, past:d, key:'past|'+d+'|'+x.k, icon:(PLAN_GT[x.g]||['⏪'])[0], name:x.n, pid:x.p||'', phone:x.ph||'', br:x.b,
         kind:alEsc(x.kd||(PLAN_GT[x.g]||['',''])[1])+' <span style="background:rgba(245,158,11,.18);color:#f59e0b;border-radius:6px;padding:0 6px;font-size:.58rem">⏪ من '+alEsc(alFmtDay(d))+'</span>',
         lines:x.l?[alEsc(x.l)]:[]}); }); }); });
   }catch(e){ console.log('past',e); }
@@ -14605,9 +14605,9 @@ function planRender(){
   var pastDays=planPastDays(today).filter(function(d){ return all.some(function(t){ return t.past===d; }); });
   if(PLAN_DAY&&pastDays.indexOf(PLAN_DAY)<0) PLAN_DAY='';
   if(PLAN_DAY){ all=all.filter(function(t){ return t.past===PLAN_DAY; }); ['mgr','morning','rec','office','evening'].forEach(function(k){ T[k]=T[k].filter(function(t){ return t.past===PLAN_DAY; }); }); }
-  var dayBar='<span style="display:inline-flex;gap:4px;flex-wrap:wrap;align-items:center"><span style="font-size:.6rem;color:var(--mute)">📅 اليوم:</span>'+
+  var dayBar='<span style="display:flex;width:100%;gap:5px;flex-wrap:wrap;align-items:center;padding:4px 0;border-top:1px dashed var(--brd);margin-top:2px"><span style="font-size:.66rem;font-weight:800">📅 اليوم:</span>'+
     [''].concat(pastDays.slice().reverse()).map(function(d){ var on=PLAN_DAY===d, n=d?[].concat(T0.mgr,T0.morning,T0.rec,T0.office,T0.evening).filter(function(t){ return t.past===d&&planState(t)!=='done'; }).length:0;
-      return '<button onclick="PLAN_DAY=\''+d+'\';planRender()" style="background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border:1px solid '+(on?'#2563eb':'var(--brd)')+';border-radius:7px;padding:3px 8px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">'+(d?'⏪ '+alEsc(alFmtDay(d))+(n?' ('+n+')':''):'النهارده')+'</button>'; }).join('')+'</span>';
+      return '<button onclick="PLAN_DAY=\''+d+'\';planRender()" style="background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border:1px solid '+(on?'#2563eb':'var(--brd)')+';border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.66rem;font-weight:700;cursor:pointer">'+(d?'⏪ '+alEsc(alFmtDay(d))+(n?' ('+n+')':''):'📋 النهارده')+'</button>'; }).join('')+'</span>';
   PLAN_DAYBAR=pastDays.length?dayBar:'';
   var cnt=function(arr,s){ return arr.filter(function(t){ return planState(t)===s; }).length; };
   // فلتر «عرض مهام» على سكرتيرة مش من الفرع ده (مثلاً Mariam وإنت فاتح الدقي) → يرجع «كل السكرتيرات»

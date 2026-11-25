@@ -14578,8 +14578,10 @@ function planRenderV2(all,mineT,ALLN){
       return '<span onclick="PLAN_VIEW=\''+alEsc(n)+'\';PLAN_V2TAB=\'mine\';planRender()" style="cursor:pointer;border:1px solid '+(n===PLAN_VIEW?col:'var(--brd)')+';border-radius:999px;padding:2px 9px'+(n===PLAN_ME?';font-weight:800':'')+'">'+alEsc(n)+' <b style="color:'+col+'">'+pc+'%</b> <span style="color:var(--mute)">'+z.d+'/'+z.n+'</span></span>'; }).join('')+'</div>'; }catch(e){}
   h+=PLAN_PROG_HTML||'';
   // ⚠️ محتاج تتصرفي دلوقتي: حصّلي قبل ما يمشي + مراجعة الخصم
-  var urg=''; try{ urg=planCashBanner()+planSudAlerts(); }catch(e){}
-  if(urg) h+='<details style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:7px 11px;margin-bottom:10px"><summary style="cursor:pointer;font-weight:800;font-size:.68rem;color:var(--r)">⚠️ محتاج تتصرفي دلوقتي</summary>'+urg+'</details>';
+  var urg='', uT=[]; try{ urg=planCashBanner()+planSudAlerts(); }catch(e){}
+  /* 🔴 المستعجل من المهام نفسها (آخر جلسة النهارده من غير تقييم …) — لحد 5، واللي يتقفل يختفي */
+  try{ uT=(L||[]).filter(function(t){ return t.urgent&&planState(t)!=='done'; }).slice(0,5); if(uT.length) urg=uT.map(planRow).join('')+urg; }catch(e){}
+  if(urg) h+='<details'+(uT.length?' open':'')+' style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:7px 11px;margin-bottom:10px"><summary style="cursor:pointer;font-weight:800;font-size:.68rem;color:var(--r)">⚠️ محتاج تتصرفي دلوقتي'+(uT.length?' ('+uT.length+')':'')+'</summary>'+urg+'</details>';
   if(typeof AUD_DATA!=='undefined'&&!AUD_DATA) h+='<div style="font-size:.62rem;color:#f59e0b;padding:6px 10px;border:1px dashed #f59e0b;border-radius:8px;margin-bottom:8px">⏳ لسه بيحمّل مهام الفلوس والتحصيل والكومبليت — ثواني وهتظهر</div>';
   // 🗂️ كل نوع مهام = كارت · دوسة تفتحه بعرض الصف (فيه المسئولة والفلاتر والمرضى — زي الشكل القديم بالظبط)
   var HOT={conf:1,conftoday:1,debt:1,sudden:1,late:1,mcall:1,nopkg:1,confsp:1,mgr:1};

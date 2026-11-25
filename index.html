@@ -13575,16 +13575,16 @@ function planTasks(useAll){
   // 👔 متابعة الانقطاع للمدير: (1) منقطع نهائي من غير 3 مكالمات ومن غير سبب مكتوب  (2) مريض مكتوب عنده «ما حسش بتحسن» — آخر 14 يوم
   try{ var FS=(D.fu_stats)||{}, d14=''; if(!d14){ var _d=new Date(today+'T12:00:00'); _d.setDate(_d.getDate()-14); d14=_d.toISOString().slice(0,10); }
     (FS.fin||[]).forEach(function(r){ if(r[5]||r[3]<d14||act.indexOf(r[2])<0) return;
-      add('mgr',{grp:['mgr'], key:'mgr|fufin|'+r[0]+'|'+r[3], icon:'📵', kind:'اتقفل «منقطع نهائي» بعد '+r[4]+' مكالمة انقطاع بس (المفروض 3) ومن غير سبب مكتوب', name:r[1], pid:r[0], br:r[2],
+      add('mgr',{grp:['mgr'], mgrOnly:1, pown:PLAN_MGR_NAME, key:'mgr|fufin|'+r[0]+'|'+r[3], icon:'📵', kind:'اتقفل «منقطع نهائي» بعد '+r[4]+' مكالمة انقطاع بس (المفروض 3) ومن غير سبب مكتوب', name:r[1], pid:r[0], br:r[2],
         lines:['يوم '+alEsc(alFmtDay(r[3]))+(r[7]?' · كتبه '+alEsc(r[7]):'')+(r[6]?' · الملحوظة: «'+alEsc(r[6])+'»':' · مفيش ملحوظة')]}); });
     if(fuIsMgr()&&typeof MC!=='undefined'&&MC.calls&&MC.calls.length) (FS.fin||[]).forEach(function(r){ if(r[3]<d14||act.indexOf(r[2])<0) return; var v=fuVerify(r); if(!v||v.st!=='mis') return;
-      add('mgr',{grp:['mgr'], key:'mgr|fuver|'+r[0]+'|'+r[3], icon:'🕵️', kind:'ملحوظة مكالمة مش مطابقة لسجل الموبايل (للمدير بس)', name:r[1], pid:r[0], br:r[2],
+      add('mgr',{grp:['mgr'], mgrOnly:1, pown:PLAN_MGR_NAME, key:'mgr|fuver|'+r[0]+'|'+r[3], icon:'🕵️', kind:'ملحوظة مكالمة مش مطابقة لسجل الموبايل (للمدير بس)', name:r[1], pid:r[0], br:r[2],
         lines:['منقطع نهائي '+alEsc(alFmtDay(r[3]))+' · مكتوب '+v.claim+' اتصال ولقينا '+v.found+' — مش موجود: '+v.miss.map(alEsc).join('، '), 'لو اتكلم من موبايل تاني أو واتساب ✅ · لو فعلاً ما اتصلش 🚫 واكتب السبب']}); });
     if(fuIsMgr()&&typeof MC!=='undefined'&&MC.calls&&MC.calls.length) T.morning.filter(function(t){ return (t.grp||[])[0]==='call'&&t.mnote; }).forEach(function(t){ var who=planOwner(t,'call'), v=fuVerify(fuCallRow(t,who)); if(!v||v.st!=='mis') return;
-      add('mgr',{grp:['mgr'], key:'mgr|fuvcall|'+(t.pid||planPidOfKey(t.key))+'|'+today, icon:'🕵️', kind:'مكالمة متابعة مكتوبة ومش في سجل الموبايل (للمدير بس)', name:t.name, pid:t.pid||planPidOfKey(t.key), br:t.br,
+      add('mgr',{grp:['mgr'], mgrOnly:1, pown:PLAN_MGR_NAME, key:'mgr|fuvcall|'+(t.pid||planPidOfKey(t.key))+'|'+today, icon:'🕵️', kind:'مكالمة متابعة مكتوبة ومش في سجل الموبايل (للمدير بس)', name:t.name, pid:t.pid||planPidOfKey(t.key), br:t.br,
         lines:[(who?alEsc(who)+' · ':'')+'«'+alEsc(String(t.mnote).slice(0,90))+'» — مكتوب '+v.claim+' اتصال ولقينا '+v.found+(v.miss.length?' · مش موجود: '+v.miss.map(alEsc).join('، '):''), 'لو اتكلم من موبايل تاني أو واتساب ✅ · لو فعلاً ما اتصلتش 🚫 واكتب السبب']}); });
     (FS.noimp||[]).forEach(function(r){ if(r[3]<d14||act.indexOf(r[2])<0) return;
-      add('mgr',{grp:['mgr'], key:'mgr|noimp|'+r[0]+'|'+r[3], icon:'😟', kind:'مريض مكتوب عنده إنه ما حسش بتحسن', name:r[1], pid:r[0], br:r[2],
+      add('mgr',{grp:['mgr'], mgrOnly:1, pown:PLAN_MGR_NAME, key:'mgr|noimp|'+r[0]+'|'+r[3], icon:'😟', kind:'مريض مكتوب عنده إنه ما حسش بتحسن', name:r[1], pid:r[0], br:r[2],
         lines:[alEsc(alFmtDay(r[3]))+' · '+alEsc(r[6]||'')+(r[5]?' مع '+alEsc(r[5]):'')+' — «'+alEsc(r[4])+'»']}); });
   }catch(e){}
   // ⏸ متأجل من يوم فات (بسبب غياب) ولسه ما ظهرش تاني لوحده → يرجع النهارده
@@ -13612,6 +13612,7 @@ function planTasks(useAll){
   return T;
 }
 /* ⏪ المهام اللي فاتت: آخر 7 أيام قبل النهارده */
+var PLAN_MGR_NAME='د. أمجد';   // 👔 تنبيهات للمدير بس (مش على السكرتارية ومش في نسبتهم)
 var PLAN_SUMS={}, PLAN_PAST_LAST={}, PLAN_PAST_AT=0, PLAN_DAY='', PLAN_DAYBAR='';
 var PLAN_PAST_G=['invrev','debtph','sudden','mgr','renew','eval','evalamg','evalamgd','nopkg','nopkgnext','noinv','kashf','kashf0','call','drop','aud','stale','fix','svc','streak','recur','stop','idle','nonext','nonextrev','drmove','invfix','trcall'];
 var PLAN_PAST_NX={drop:1, fuin:1, nonext:1, nonextrev:1, kashf:1, kashf0:1, idle:1, call:1, drmove:1, trcall:1};   // بتتحل لوحدها لو اتحجزله ميعاد جاي
@@ -14473,6 +14474,10 @@ function planIsAuto(t){ if(t.carry) return false; var g=t.grp||[]; return g.leng
 var PLAN_OPEN={};
 var PLAN_CALLG={visit:1,nonextrev:1,call:1,debtph:1,idle:1,drop:1,streak:1,recur:1,conf:1,confsp:1,miss:1,nonext:1,evalamg:1,evalamgd:1,waitnext:1,waitnut:1,waittoday:1,conftoday:1,late:1};
 function planTog(h){ PLAN_OPEN[h]=!PLAN_OPEN[h]; var e=document.getElementById('px_'+h); if(e) e.style.display=PLAN_OPEN[h]?'block':'none'; }
+function planMgrOnlyPanel(all){ var L=(all||[]).filter(function(t){ return t.mgrOnly; }); if(!L.length) return '';
+  var open=L.filter(function(t){ return planState(t)!=='done'; });
+  return '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px 11px;margin-bottom:10px"><div style="font-weight:800;font-size:.74rem">👔 تنبيهات ليك إنت بس ('+open.length+' مفتوحة من '+L.length+')</div><div style="font-size:.58rem;color:var(--mute);margin-bottom:4px">منقطع نهائي من غير 3 مكالمات · ما حسش بتحسن · مكالمات مش مطابقة لسجل الموبايل — مش محسوبة على السكرتارية</div>'+
+    L.sort(function(a,b){ return (planState(a)==='done'?1:0)-(planState(b)==='done'?1:0); }).map(planRow).join('')+'</div>'; }
 function planRow(t){
   var mn=planMedNote(t); if(mn) t=Object.assign({},t,{lines:(t.lines||[]).concat(['<span style="font-size:.6rem;color:#a78bfa">📝 ملحوظة النهارده على Medicolize'+(mn[1]?' ('+alEsc(mn[1])+')':'')+': '+alEsc(mn[0])+(planMedNoteOk(t)?' — <b>اتحسبت اتعملت</b>':'')+'</span>'])});
   var st=PLAN_ST[t.key]||{}, h=planHash(t.key), state=planState(t), phone=(t.phone||'').replace(/_/g,''), k=t.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -14555,7 +14560,7 @@ function planRenderV2(all,mineT,ALLN){
     '<button onclick="planV2Set(0)" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">↩️ الشكل القديم</button></div>';
   h+=planLinkBanner();
   if(PLAN_V2TAB==='visit'){ PLAN_VISIT_OPEN=true; return h+planVisitCard(); }
-  if(PLAN_V2TAB==='mgr'){ var m=''; try{ m+=planSudAlerts(); }catch(e){} try{ m+=planTeamPanel(); }catch(e){} try{ m+=planSecPanel(); }catch(e){} try{ m+=planFuPanel(); }catch(e){} return h+m; }
+  if(PLAN_V2TAB==='mgr'){ var m=''; try{ m+=planMgrOnlyPanel(all); }catch(e){} try{ m+=planSudAlerts(); }catch(e){} try{ m+=planTeamPanel(); }catch(e){} try{ m+=planSecPanel(); }catch(e){} try{ m+=planFuPanel(); }catch(e){} return h+m; }
   // 👩‍💼 نسبة إنجاز كل سكرتيرة (سطر واحد) + شريط الإنجاز الكبير
   try{ var own={}; all.forEach(function(t){ var s0=planState(t); if(s0==='snz') return; (t.grp&&t.grp.length?t.grp:['other']).forEach(function(g){ var o=planNormName(planPerfOwner(t,g)); if(!o||!planIsReg(o)) return; var z=own[o]=own[o]||{n:0,d:0,k:{}}; if(z.k[t.key]) return; z.k[t.key]=1; z.n++; if(s0==='done') z.d++; }); });
     var nm=Object.keys(own).sort(function(a,b){ return own[b].n-own[a].n; });

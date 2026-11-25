@@ -684,6 +684,59 @@ def main():
                         META_D["ph2_n"] = META_D.get("ph2_n", 0) + 1
                     have.add(aid)
                     n_new += 1
+            # 🕓 تاريخ التأكيد من سجل نشاط Medicolize (userActions): مين خلّى الميعاد CONFIRMED وإمتى — بيكمّل الأيام اللي قبل
+            #    ما السحب ده يبدأ يسجّل (من 25/10)، وبعد كده آخر يومين في كل سحب · فيه برده الاسم الحقيقي للي أكدت (createdBy)
+            try:
+                UA_Q = ("query U($orderBy:String!,$skip:Int!,$take:Int!,$rangeDate:[DateTime!]!){userActions(orderBy:$orderBy,skip:$skip,take:$take,rangeDate:$rangeDate)"
+                        "{action createdAt fields appointmentId createdBy{name}}}")
+                d0 = dt.datetime(2026, 10, 25, tzinfo=TZ) if not data.get("conf_bf") else a0 - dt.timedelta(days=1)
+                ev = {}
+                dd_ = d0
+                while dd_ <= a0 + dt.timedelta(days=1):
+                    r1 = [C.iso(dd_.astimezone(dt.timezone.utc)), C.iso((dd_ + dt.timedelta(days=1) - dt.timedelta(milliseconds=1)).astimezone(dt.timezone.utc))]
+                    for u in run_paged(ctx, [UA_Q], "userActions", {"orderBy": "createdAt-asc"}, r1):
+                        if not isinstance(u, dict) or u.get("action") != "EDIT_APPOINTMENT" or not u.get("appointmentId"):
+                            continue
+                        f = u.get("fields")
+                        if isinstance(f, str):
+                            try: f = json.loads(f)
+                            except Exception: f = []
+                        if any(isinstance(it, dict) and str(it.get("status") or "").upper() == "CONFIRMED" for it in (f or [])):
+                            ev.setdefault(u["appointmentId"], []).append((u.get("createdAt"), (u.get("createdBy") or {}).get("name") if isinstance(u.get("createdBy"), dict) else None))
+                    dd_ += dt.timedelta(days=1)
+                n_bf = n_ub = 0
+                if ev:
+                    rngB = [C.iso(d0.astimezone(dt.timezone.utc)), rng[1]]
+                    for key, b in data["branches"].items():
+                        for r in run_paged(ctx, [CONF_Q], "createdAppointments", {"branchId": b["id"], "orderBy": "start-asc", "filters": {"status": [], "rangeDateKey": "start"}}, rngB):
+                            if not isinstance(r, dict) or r.get("id") not in ev:
+                                continue
+                            aid = r["id"]; E = sorted(ev[aid], key=lambda x: str(x[0]))
+                            pick = [x for x in E if str(x[0]) <= str(r.get("start"))] or E
+                            t_, by_ = pick[-1]
+                            if aid in have:
+                                tb0, r00 = byaid.get(aid, (None, None))
+                                if r00 is not None:
+                                    if tb0.get("cols") != CONF_COLS: tb0["cols"] = CONF_COLS
+                                    while len(r00) < len(CONF_COLS): r00.append(None)
+                                    if not r00[CONF_COLS.index("ub")] and by_:
+                                        r00[CONF_COLS.index("ub")] = by_; r00[CONF_COLS.index("up")] = t_; n_ub += 1
+                                continue
+                            pt = r.get("patient") or {}
+                            try:
+                                mk = dt.datetime.fromisoformat(str(r["start"]).replace("Z", "+00:00")).astimezone(TZ).strftime("%Y-%m")
+                            except Exception:
+                                continue
+                            t = cst.setdefault(mk, {"cols": CONF_COLS, "rows": []})
+                            t["rows"].append([aid, r.get("start"), t_, r.get("createdAt"), r.get("type"), pt.get("referenceId"),
+                                              " ".join(x for x in (pt.get("firstName"), pt.get("lastName")) if x), pt.get("phoneNumber"),
+                                              (r.get("doctor") or {}).get("name"), key, (r.get("createdBy") or {}).get("name"), C.NOW, pt.get("id"),
+                                              next((str(pt.get(f)) for f in PH2_F if pt.get(f)), None), by_])
+                            have.add(aid); byaid[aid] = (t, t["rows"][-1]); n_bf += 1
+                data["conf_bf"] = C.NOW
+                META_D["conf_hist"] = {"from": d0.strftime("%Y-%m-%d"), "events": len(ev), "added": n_bf, "named": n_ub}
+            except Exception as e:
+                META_D["errors"].append("conf_hist: %s" % str(e)[:160])
             for mk in [k for k in cst if k < months(START, CUR)[-4]]:
                 cst.pop(mk, None)                       # keep ~4 months
             for mk in [k for k in cxs if k < months(START, CUR)[-4]]:

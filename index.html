@@ -13596,7 +13596,7 @@ function planTasks(useAll){
         lines:['<span style="color:#f59e0b;font-size:.6rem">اتأجلت يوم '+alEsc(alFmtDay(dd))+' بسبب غياب '+alEsc(x.from||'')+' — اعمليها النهارده ودوسي ✅</span>'].concat(x.lines||[])}); });
   }
   // ⏪ فاتت ولسه ما اتقفلتش (آخر 7 أيام) — ترجع لنفس السكرتيرة · بس اللي لسه ينفع يتعمل
-  try{ var PD=planPastDays(today), haveP={}, seenP={}, nxP={};
+  try{ var PD=planPastDays(today,14), haveP={}, seenP={}, nxP={};   // بنحمّل آخر 14 يوم (فلتر التاريخ) — النهارده بيعرض آخر 7 بس
     ['mgr','morning','rec','office','evening'].forEach(function(s2){ T[s2].forEach(function(t){ (t.grp||[]).forEach(function(g){ haveP[g+'|'+(t.pid||t.name||'')]=1; }); }); });
     (D.pt_index||[]).forEach(function(z){ if(z[15]&&z[5]&&String(z[5]).slice(0,10)>=today) nxP[z[15]]=1; });
     PD.forEach(function(d){ Object.keys(PLAN_ST).forEach(function(k){ if(k.indexOf('past|'+d+'|')!==0) return; ((PLAN_ST[k]||{}).L||[]).forEach(function(x){
@@ -13615,7 +13615,7 @@ function planTasks(useAll){
 var PLAN_SUMS={}, PLAN_PAST_LAST={}, PLAN_PAST_AT=0, PLAN_DAY='', PLAN_DAYBAR='';
 var PLAN_PAST_G=['invrev','debtph','sudden','mgr','renew','eval','evalamg','evalamgd','nopkg','nopkgnext','noinv','kashf','kashf0','call','drop','aud','stale','fix','svc','streak','recur','stop','idle','nonext','nonextrev','drmove','invfix','trcall'];
 var PLAN_PAST_NX={drop:1, fuin:1, nonext:1, nonextrev:1, kashf:1, kashf0:1, idle:1, call:1, drmove:1, trcall:1};   // بتتحل لوحدها لو اتحجزله ميعاد جاي
-function planPastDays(today){ var L=[]; for(var i=7;i>=1;i--){ var x=new Date(today+'T12:00:00'); x.setDate(x.getDate()-i); L.push(x.toISOString().slice(0,10)); } return L; }
+function planPastDays(today,n){ var L=[]; for(var i=(n||7);i>=1;i--){ var x=new Date(today+'T12:00:00'); x.setDate(x.getDate()-i); L.push(x.toISOString().slice(0,10)); } return L; }
 /* بيحفظ اللي ما اتعملش النهارده (كل 10 دقايق لو اتغير) عشان يرجع بكره لنفس السكرتيرة */
 function planPastSave(){
   if(!PLAN_LOADED||!ALERTS_DATA||Date.now()-PLAN_PAST_AT<10*60000) return; PLAN_PAST_AT=Date.now();
@@ -13628,7 +13628,7 @@ function planPastSave(){
     if(!part.length&&!PLAN_ST[key]) continue; if(PLAN_PAST_LAST[key]===j) continue; PLAN_PAST_LAST[key]=j;
     if(part.length){ PLAN_ST[key]={d:td, L:part}; planSaveRaw('PLAN|'+key, JSON.stringify(PLAN_ST[key])); } else { delete PLAN_ST[key]; planSaveRaw('PLAN|'+key, ''); } }
   // تنضيف: أقدم من 8 أيام
-  var old=planPastDays(td)[0]; Object.keys(PLAN_ST).forEach(function(k){ if(k.indexOf('past|')===0&&k.split('|')[1]<old){ delete PLAN_ST[k]; planSaveRaw('PLAN|'+k,''); } });
+  var old=planPastDays(td,14)[0]; Object.keys(PLAN_ST).forEach(function(k){ if(k.indexOf('past|')===0&&k.split('|')[1]<old){ delete PLAN_ST[k]; planSaveRaw('PLAN|'+k,''); } });
 }
 /* بيحفظ المهام اللي اتأجلت النهارده بسبب غياب عشان ترجع يوم الشغل الجاي */
 var PLAN_CARRY_LAST='';
@@ -14602,13 +14602,17 @@ function planRender(){
   PLAN_TASKIDX={}; all.forEach(function(t){ PLAN_TASKIDX[t.key]=t; });
   try{ planAutoSave(all); planSummarySave(); planCarrySave(); planPastSave(); }catch(e){}
   /* 📅 فلتر اليوم: يوم فات → المهام اللي ما اتعملتش في اليوم ده ولسه ينفع تتقفل (⏪ فاتت) بس */
+  var d7=planPastDays(today)[0], d14=planPastDays(today,14)[0], yd=planPastDays(today,1)[0];
   var pastDays=planPastDays(today).filter(function(d){ return all.some(function(t){ return t.past===d; }); });
-  if(PLAN_DAY&&pastDays.indexOf(PLAN_DAY)<0) PLAN_DAY='';
+  if(PLAN_DAY&&(PLAN_DAY<d14||PLAN_DAY>=today)) PLAN_DAY='';
   if(PLAN_DAY){ all=all.filter(function(t){ return t.past===PLAN_DAY; }); ['mgr','morning','rec','office','evening'].forEach(function(k){ T[k]=T[k].filter(function(t){ return t.past===PLAN_DAY; }); }); }
+  else { all=all.filter(function(t){ return !t.past||t.past>=d7; }); ['mgr','morning','rec','office','evening'].forEach(function(k){ T[k]=T[k].filter(function(t){ return !t.past||t.past>=d7; }); }); }   // النهارده: اللي فات من آخر 7 أيام بس
   var dayBar='<span style="display:flex;width:100%;gap:5px;flex-wrap:wrap;align-items:center;padding:4px 0;border-top:1px dashed var(--brd);margin-top:2px"><span style="font-size:.66rem;font-weight:800">📅 اليوم:</span>'+
-    [''].concat(pastDays.slice().reverse()).map(function(d){ var on=PLAN_DAY===d, n=d?[].concat(T0.mgr,T0.morning,T0.rec,T0.office,T0.evening).filter(function(t){ return t.past===d&&planState(t)!=='done'; }).length:0;
-      return '<button onclick="PLAN_DAY=\''+d+'\';planRender()" style="background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border:1px solid '+(on?'#2563eb':'var(--brd)')+';border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.66rem;font-weight:700;cursor:pointer">'+(d?'⏪ '+alEsc(alFmtDay(d))+(n?' ('+n+')':''):'📋 النهارده')+'</button>'; }).join('')+'</span>';
-  PLAN_DAYBAR=pastDays.length?dayBar:'';
+    [''].concat(pastDays.slice().reverse().slice(0,4)).map(function(d){ var on=PLAN_DAY===d, n=d?[].concat(T0.mgr,T0.morning,T0.rec,T0.office,T0.evening).filter(function(t){ return t.past===d&&planState(t)!=='done'; }).length:0;
+      return '<button onclick="PLAN_DAY=\''+d+'\';planRender()" style="background:'+(on?'#2563eb':'transparent')+';color:'+(on?'#fff':'var(--txt)')+';border:1px solid '+(on?'#2563eb':'var(--brd)')+';border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.66rem;font-weight:700;cursor:pointer">'+(d?'⏪ '+alEsc(alFmtDay(d))+(n?' ('+n+')':''):'📋 النهارده')+'</button>'; }).join('')+
+    '<label style="font-size:.62rem;color:var(--mute);display:inline-flex;align-items:center;gap:4px">أو اختار يوم <input type="date" min="'+d14+'" max="'+yd+'" value="'+(PLAN_DAY||'')+'" onchange="PLAN_DAY=this.value||\'\';planRender()" style="background:var(--bg);border:1px solid '+(PLAN_DAY?'#2563eb':'var(--brd)')+';color:var(--txt);border-radius:7px;padding:3px 6px;font-family:Cairo,sans-serif;font-size:.64rem"></label>'+
+    (PLAN_DAY&&!all.length?'<span style="font-size:.62rem;color:var(--mute)">مفيش مهام فاضلة من اليوم ده (يا اتعملت يا اتحلت يا ما اتحفظتش — الحفظ بدأ من 24/11)</span>':'')+'</span>';
+  PLAN_DAYBAR=dayBar;
   var cnt=function(arr,s){ return arr.filter(function(t){ return planState(t)===s; }).length; };
   // فلتر «عرض مهام» على سكرتيرة مش من الفرع ده (مثلاً Mariam وإنت فاتح الدقي) → يرجع «كل السكرتيرات»
   if(PLAN_VIEW&&planNamesAll().indexOf(PLAN_VIEW)<0&&!all.some(function(t){ return (t.grp||[]).some(function(g){ return planOwner(t,g)===PLAN_VIEW; }); })){ PLAN_VIEW=''; try{ localStorage.setItem('planView',''); }catch(e){} }

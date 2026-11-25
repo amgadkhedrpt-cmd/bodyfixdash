@@ -13,38 +13,39 @@ def dec(a, key):
     for i, v in enumerate(a):
         if isinstance(v, dict) and key in v: return r(i)[key]
 async def run(gql_call, page, cookie, headers):
-    print("🔎 HIST PROBE 5 — userActions with args")
-    F = "id action createdAt fields appointmentId patientId createdBy{name}"
-    tries = [
-        ('query Q{userActions(orderBy:"createdAt-desc"){%s}}', {}),
-        ('query Q($s:Int!,$t:Int!){userActions(orderBy:"createdAt-desc",skip:$s,take:$t){%s}}', {"s": 0, "t": 300}),
-        ('query Q($s:Int!,$t:Int!,$r:[DateTime!]!){userActions(orderBy:"createdAt-desc",skip:$s,take:$t,rangeDate:$r){%s}}', {"s": 0, "t": 500, "r": ["2026-11-09T00:00:00.000Z", "2026-11-11T23:59:59.000Z"]}),
-    ]
-    L = None
-    for q, v in tries:
-        for f in (F, F.replace(" createdBy{name}", "")):
-            try:
-                d = await gql_call(page, cookie, headers, q % f, v); L = dec(d, "userActions"); print("OK with", q[:70], "| fields:", f); break
-            except Exception as e:
-                print("✗", q[:60], "·", str(e)[:230])
-        if isinstance(L, list): break
-    if not isinstance(L, list): return
-    print("rows:", len(L))
-    c = Counter(str(x.get("action")) for x in L if isinstance(x, dict)); print("action:", c.most_common(30))
-    ts = sorted(str(x.get("createdAt")) for x in L if isinstance(x, dict) and x.get("createdAt"))
-    if ts: print("span:", ts[0][:19], "→", ts[-1][:19])
-    print("with appointmentId:", sum(1 for x in L if isinstance(x, dict) and x.get("appointmentId")))
-    fk = Counter(); stv = Counter()
-    for x in L:
-        f = x.get("fields") if isinstance(x, dict) else None
+    import json
+    print("🔎 HIST PROBE 6 — fields structure")
+    q = 'query Q($s:Int!,$t:Int!,$r:[DateTime!]!){userActions(orderBy:"createdAt-desc",skip:$s,take:$t,rangeDate:$r){id action createdAt fields appointmentId createdBy{name}}}'
+    d = await gql_call(page, cookie, headers, q, {"s": 0, "t": 300, "r": ["2026-11-11T15:00:00.000Z", "2026-11-11T21:59:59.000Z"]})
+    L = dec(d, "userActions") or []
+    E = [x for x in L if isinstance(x, dict) and x.get("action") == "EDIT_APPOINTMENT"]
+    print("edits:", len(E))
+    keys = Counter(); stat = Counter(); shapes = Counter()
+    for x in E:
+        f = x.get("fields")
         if isinstance(f, str):
-            try:
-                import json; f = json.loads(f)
-            except Exception: fk.update(["<str>"]); continue
-        if isinstance(f, dict):
-            fk.update(f.keys())
-            for k in f:
-                if "status" in k.lower(): stv[str(x.get("action")) + " → " + str(f[k])[:25]] += 1
-        elif isinstance(f, list): fk.update(["<list>"])
-    print("fields keys:", fk.most_common(30)); print("status values:", stv.most_common(20))
-    who = Counter(((x.get("createdBy") or {}).get("name") if isinstance(x, dict) and isinstance(x.get("createdBy"), dict) else "?") for x in L); print("by:", who.most_common(15))
+            try: f = json.loads(f)
+            except Exception: pass
+        shapes[type(f).__name__] += 1
+        for it in (f or []) if isinstance(f, list) else []:
+            if isinstance(it, dict):
+                keys.update(it.keys())
+                nm = str(it.get("field") or it.get("name") or it.get("key") or "")
+                if "status" in nm.lower() or "status" in json.dumps(it).lower()[:200]:
+                    stat[json.dumps({k: (str(v)[:30] if not isinstance(v, (dict, list)) else "…") for k, v in it.items()}, ensure_ascii=False)[:200]] += 1
+            else:
+                keys.update(["<" + type(it).__name__ + ">"])
+                if isinstance(it, str) and "status" in it.lower(): stat[it[:80]] += 1
+    print("shapes:", shapes); print("item keys:", keys.most_common(20))
+    for k, n in stat.most_common(15): print(n, k)
+    # sample non-status item names (field names only)
+    nm = Counter()
+    for x in E:
+        f = x.get("fields")
+        if isinstance(f, str):
+            try: f = json.loads(f)
+            except Exception: f = None
+        for it in (f or []) if isinstance(f, list) else []:
+            if isinstance(it, dict): nm[str(it.get("field") or it.get("name") or it.get("key") or "?")] += 1
+            elif isinstance(it, str): nm[it[:30]] += 1
+    print("field names:", nm.most_common(25))

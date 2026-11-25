@@ -13234,6 +13234,7 @@ function planTasks(useAll){
     add('morning',{_src:x, grp:['drop'], sys:hasNote(x,today+'|drop|'+x.pid)?'فيه ملحوظة':'', what:planNoteText(x,today+'|drop|'+x.pid), key:today+'|drop|'+x.pid, icon:'🚶', kind:'مريض جديد حضر '+x.sessions+' جلسة ووقف', name:x.name, phone:x.phone, br:brOf(x),
       lines:['آخر جلسة '+alEsc(alFmtDay(x.last))+' (من '+x.days+' يوم) مع '+alEsc(doc(x.doctor))+' ومالوش ميعاد — اتصل قبل ما نخسره']});
   });
+  var NNX={};   // اللي ليهم «مالوش ميعاد جاي» عند الاستقبال (عشان مراجعة داليا ما تكررهمش)
   var RES={}; (P.resolved||[]).filter(inb).forEach(function(x){ (RES[x.kind]=RES[x.kind]||[]).push(x); });
   var sysAdd=function(sec,kind,grp,label,icon,keyf,line){ (RES[kind]||[]).forEach(function(x){
     add(sec,{grp:[grp], sys:label, what:x.what||'', key:keyf(x), icon:icon, kind:PLAN_GT[grp]?PLAN_GT[grp][1]:'', name:x.name, phone:x.phone, br:brOf(x), lines:[line(x)]}); }); };
@@ -13257,7 +13258,7 @@ function planTasks(useAll){
     todayPids[x.pid]=1;
     var R=[], G=[];
     if(debts[x.pid]&&debts[x.pid].sum>=1&&INVF[x.pid]) R.push('💸 عليه '+planMoney(debts[x.pid].sum)+' ج — <span style="color:var(--am)">🧾 '+alEsc(INVF[x.pid].by||'الخزنة')+' كتبت إن الفاتورة محتاجة تتعدل → على '+alEsc(PLAN_INV_OWNER_DEF)+'</span>');
-    if(debts[x.pid]&&debts[x.pid].sum>=1&&!INVF[x.pid]) G.push('debt'); if(renew[x.pid]) G.push('renew'); if(evd[x.pid]) G.push('eval'); if(nonext[x.pid]) G.push('nonext'); if(svc[x.pid]) G.push('svc');
+    if(debts[x.pid]&&debts[x.pid].sum>=1&&!INVF[x.pid]) G.push('debt'); if(renew[x.pid]) G.push('renew'); if(evd[x.pid]) G.push('eval'); if(nonext[x.pid]&&!renew[x.pid]) G.push('nonext');   /* اعرض التجديد بيغطي «مالوش ميعاد جاي» (حجز التقييم = ميعاد جاي) */ if(nonext[x.pid]) NNX[x.pid]=1; if(svc[x.pid]) G.push('svc');
     if(renew[x.pid]){ var rn=renew[x.pid], sz=rn.size||12; R.push('🔁 '+(rn.session_no<=sz?'جلسة '+rn.session_no+' من '+sz:'الباقة ('+sz+') خلصت — دي جلسة '+rn.session_no)+' — <b>اعرض التجديد</b>'); }
     if(evd[x.pid]) R.push(evd[x.pid].kashf_other?'🩺 كشف مع '+alEsc(alDocAr(evd[x.pid].kashf_other.doctor)||evd[x.pid].kashf_other.doctor)+' — <b>احجز إعادة تقييم مع د. أمجد'+(x.br==='FIX ZONE'?' '+planAmgDay():'')+'</b>'+(evd[x.pid].kashf_other.after?' (فاتت '+evd[x.pid].kashf_other.after+' مرة)':''):'🩺 جلسة '+evd[x.pid].n+' من غير تقييم — <b>احجز تقييم</b>');
     if(debts[x.pid]&&debts[x.pid].sum>=1) R.push(planPayNotes(x.pid));
@@ -13400,7 +13401,8 @@ function planTasks(useAll){
     var inSys=function(pid){ var X=(D.pt_extra||{})[pid]||{}; return !!FUP[pid]||(X.fu||[]).length>0; };
     var hasNext=function(pid,x){ var X=(D.pt_extra||{})[pid]||{}; return (x&&x.next_appt)||(X.nx||[]).some(function(n){ return !/cancel|no ?show/i.test(n[3]||''); }); };
     var FQ=[];   // بنجمعهم الأول وبعدين: 20 في اليوم لكل فرع، الأحدث الأول (لحد ما المتراكم يخلص)
-    var fuinAdd=function(x,why,since){ if(!x.pid||act.indexOf(x.branch)<0) return; var pz=FUP[x.pid];
+    var VISP={}; (((D.dokki_visit||{}).items)||[]).forEach(function(v){ if(v&&v.pid) VISP[v.pid]=1; });
+    var fuinAdd=function(x,why,since){ if(!x.pid||act.indexOf(x.branch)<0||VISP[x.pid]) return;   /* في قايمة زيارة د. أمجد للدقي → الحجز هناك بيغطي */ var pz=FUP[x.pid];
       var done=!!pz&&String(pz.first||'').slice(0,10)>=today;   // اتحجزله متابعة (جاية) = دخل النظام
       if(!done&&(inSys(x.pid)||hasNext(x.pid,x))) return;     // داخل المتابعة أو محجوز — مش مطلوب
       FQ.push({d:done, n:+x.days_since||0, br:x.branch, t:{grp:['fuin'], key:'fuin|'+x.pid, icon:'📅', kind:why+' — ومش داخل نظام المتابعة: احجزيله Follow up', name:x.name, pid:x.pid, phone:String(x.phone||'').replace('+2_',''), br:x.branch,
@@ -13493,11 +13495,11 @@ function planTasks(useAll){
       kind:'آخر جلسة في الباقة '+alEsc(alFmtDay(String(x.time).slice(0,10)))+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' — احجزيله «تقييم الجلسة الأخيرة» معاها من النهارده', name:x.name, phone:x.phone, br:brOf(x), time:x.time, doctor:x.doctor,
       lines:['🔁 جلسة '+x.session_no+' من '+x.size+' — كلّميه واحجزي التقييم في نفس يوم آخر جلسة (قبلها أو بعدها على طول)']}); });
   // 🌙 آخر اليوم
-  sysAdd('evening','nonext','nonextrev','اتحجزله ميعاد','📅',function(x){return today+'|nonextrev|'+x.pid;},function(x){ return alEsc(x.type||'')+' مع '+alEsc(doc(x.doctor)); });
+  (RES.nonext||[]).forEach(function(x){ add('rec',{grp:['nonext'], sys:'اتحجزله ميعاد', what:x.what||'', key:today+'|rec|nonext|'+x.pid, icon:'📅', kind:PLAN_GT.nonext?PLAN_GT.nonext[1]:'', name:x.name, phone:x.phone, br:brOf(x), time:x.time||'', room:x.room||'', doctor:x.doctor||'', lines:[alEsc(x.type||'')+' مع '+alEsc(doc(x.doctor))]}); });
   sysAdd('evening','kashf0','kashf0','حجز جلسات','🩺',function(x){return today+'|kashf0|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
   // 👔 مراجعة المشرفة: كل اللي عنده موعد النهارده (أي نوع / أي حالة) ومالوش ميعاد بعده — إلا «منقطع» في تفاصيل المريض النهارده
   //    (الحجز نفسه على سكرتيرة العيادة في «عند الاستقبال» — دي مراجعة إن محدش فلت)
-  (D.today_no_next||[]).filter(inb).forEach(function(x){
+  (D.today_no_next||[]).filter(inb).filter(function(x){ return !NNX[x.pid]; }).forEach(function(x){   // بس اللي مش عند الاستقبال (لغى / ما جاش / مش في قايمة النهارده)
     add('evening',{grp:['nonextrev'], key:today+'|nonextrev|'+x.pid, icon:'📅', kind:'مراجعة: عنده موعد النهارده ومالوش ميعاد جاي'+(x.room?' · 🚪 '+alEsc(x.room):''), name:x.name, phone:x.phone, br:brOf(x), room:x.room||'', doctor:x.doctor,
       lines:[alEsc(x.type)+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))+' · <b>'+alEsc(x.status||'')+'</b> — احجزله أو اتصل',
         '<span style="font-size:.6rem">احجزي خطوة جاية: <b>ميعاد</b> (لو هيكمل) · <b>«متابعه»</b> (لو مش جاهز أو ما ردش — يدخل نظام المتابعة) · <b>«منقطع نهائي»</b> بس لو فيه سبب مكتوب (سافر / مش عايز يكمل / الدكتور قال يوقف)</span>'].concat(x.stale_final?['<b style="color:#f59e0b">⚠️ كان «منقطع نهائي» قبل كده ('+alEsc(x.stale_final.length===10?alFmtDay(x.stale_final):x.stale_final)+') ورجع اتعالج — الكلمة قديمة، مش سبب إننا ما نكلموش</b>']:[])});
@@ -13796,6 +13798,9 @@ function planOwner0(t,g){
   if(planNutTask(t,g)){ var Rn0=PLAN_ROLES['BODYFIX Center']||{}; if(Rn0.F) return Rn0.F; }
   if(g==='mcall'||g==='mcallup'){ var tdm=(ALERTS_DATA&&ALERTS_DATA.today)||'', am=PLAN_ST['asg|'+tdm+'|'+t.sec+'|'+g+'|'+t.br]; if(am&&am.by) return am.by;
     var mrk=CS.roleAt((MC.lines||{})[t.line],t.br,t._h==null?0:t._h,t._old), mnm=(PLAN_ROLES[t.br]||{})[mrk]; if(mnm) return mnm; }
+  // 📅 «مالوش ميعاد جاي» اللي لسه مفتوح بعد 8 بالليل → يتنقل للمشرفة (داليا · الدقي: الصباحي) — اللي اتقفل قبل 8 يفضل محسوب على الاستقبال
+  if(g==='nonext'&&String(t.key||'').indexOf('|rec|nonext|')>0){ var stn=PLAN_ST[t.key]||{}, dnH=stn.s==='done'&&stn.ts?planCairoH(stn.ts):(t.sys?0:null);
+    if((dnH!=null?dnH>=20:planCairoH(new Date().toISOString())>=20)&&!t.sys){ var Rr=PLAN_ROLES[t.br]||{}, rv=t.br==='FIX ZONE'?Rr.DM:Rr.L; if(rv) return rv; } }
   if(g==='nonext'&&t.br==='FIX ZONE'){ var tdz=(ALERTS_DATA&&ALERTS_DATA.today)||'', az=PLAN_ST['asg|'+tdz+'|'+t.sec+'|nonext|'+t.br]; if(az&&az.by) return az.by;
     var Rz=PLAN_ROLES[t.br]||{}, hz=t.time?new Date(t.time).getHours():12;   // الدقي: موعده قبل 5 → الصباحي · من 5 وبعد → المسائي
     return hz<17?(Rz.DM||Rz.DE||''):(Rz.DE||Rz.DM||''); }

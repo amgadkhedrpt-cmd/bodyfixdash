@@ -15988,7 +15988,8 @@ function bfRender(){
   var el=bfClock(Date.now()-bfStartMs);
   bfBtn('⏳ '+el,false);   // مش disabled — الدوسة وقت التحديث بتطلع رسالة بدل ما ما يحصلش حاجة
   bfSyncMsg(bfPhase==='queued' ? '⏳ السحب مستني دوره (فيه سحب تاني شغال) — '+el
-                               : '⏳ بيسحب من Medicolize: الداشبورد والتنبيهات والتحصيل — '+el+' (عادةً من 6 لـ 8 دقايق)');
+          : bfPhase==='starting' ? '⏳ GitHub بيجهّز السحب — '+el
+                               : '⏳ بيسحب من Medicolize: الداشبورد والتنبيهات والتحصيل — '+el+' (عادةً من 5 لـ 7 دقايق)');
 }
 function bfStartTimer(startMs, phase){
   bfSyncBusy=true; bfStartMs=startMs; bfPhase=phase||'';
@@ -16006,17 +16007,17 @@ function bfRefreshAll(){
   try{ var f=document.getElementById('collect-frame'); if(f&&f.dataset.loaded&&typeof collectLoad==='function') collectLoad(true); }catch(e){}
 }
 /* بيتابع آخر سحب اتعمل بعد sinceMs لحد ما يخلص */
-function bfWatch(H, sinceMs){
+function bfWatch(H, sinceMs, known){   // known = أرقام السحبات اللي كانت موجودة قبل الدوسة → السحب بتاعك = أول واحد جديد (من غير ما نعتمد على ساعة الموبايل)
   var tries=0;
   (async function poll(){
     tries++;
     try{
       var j=await (await fetch(BF_REPO_API+'/runs?per_page=5',{headers:H,cache:'no-store'})).json();
       // أقدم سحب اتعمل بعد الدوسة = السحب بتاعك (لو حد شغّل سحب تاني بعدك ما نستناهوش)
-      var run=(j.workflow_runs||[]).filter(function(x){ return new Date(x.created_at).getTime()>=sinceMs; }).pop();
+      var run=(j.workflow_runs||[]).filter(function(x){ return known ? known.indexOf(x.id)<0 : new Date(x.created_at).getTime()>=sinceMs; }).pop();
       if(run){
         var st=new Date(run.run_started_at||run.created_at).getTime();
-        if(run.status==='completed'&&run.conclusion==='cancelled'){ sinceMs=new Date(run.created_at).getTime()+1; if(tries<80) bfPollT=setTimeout(poll,3000); return; }   // اتلغى عشان فيه سحب تاني بعده → نستنى اللي بعده
+        if(run.status==='completed'&&run.conclusion==='cancelled'){ sinceMs=new Date(run.created_at).getTime()+1; if(known) known.push(run.id); if(tries<80) bfPollT=setTimeout(poll,3000); return; }   // اتلغى عشان فيه سحب تاني بعده → نستنى اللي بعده
         if(run.status==='completed'){
           var took=bfClock(new Date(run.updated_at).getTime()-st);
           bfStop();
@@ -16024,7 +16025,9 @@ function bfWatch(H, sinceMs){
           else { bfLastFail=Date.now(); bfStaleCheck(); } if(run.conclusion!=='success') bfSyncMsg('⚠ السحب خلص بعد '+took+' بس فيه جزء فشل — أرقام التحصيل ممكن تكون قديمة. ابعت لقطة من Actions في GitHub.','bad');
           return;
         }
-        bfPhase=(run.status==='queued'||run.status==='waiting'||run.status==='pending')?'queued':'running';
+        var q_=(run.status==='queued'||run.status==='waiting'||run.status==='pending');
+        var other_=(j.workflow_runs||[]).some(function(x){ return x.id!==run.id&&x.status==='in_progress'; });   // فيه سحب تاني شغال فعلاً؟ ولا ده بس GitHub بيجهّز (أول ثواني كل سحب بيبقى queued)
+        bfPhase=q_?(other_?'queued':'starting'):'running';
         if(Math.abs(bfStartMs-st)>5000 && bfPhase==='running') bfStartMs=Math.min(bfStartMs,st);
       }
     }catch(e){}
@@ -16045,9 +16048,10 @@ async function bfSyncNow(){
     return;
   }
   var H={'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json'};
-  var clicked=Date.now();
+  var clicked=Date.now(), known=null;
   // فيه سحب شغال أو مستني أصلاً (حد داس من جهاز تاني / السحب الأوتوماتيك)؟ → نستناه هو بدل ما نطابق سحب جديد وراه
   try{ var jr=await (await fetch(BF_REPO_API+'/runs?per_page=5',{headers:H,cache:'no-store'})).json();
+    if(jr&&jr.workflow_runs) known=jr.workflow_runs.map(function(x){ return x.id; });
     var live=(jr.workflow_runs||[]).filter(function(x){ return x.status!=='completed'&&Date.now()-new Date(x.created_at).getTime()<20*60000; }).pop();
     if(live){ var ls=new Date(live.created_at).getTime(); bfStartTimer(ls,''); bfSyncMsg('⏳ فيه تحديث شغال أصلاً — بستناه يخلص (مش هبدأ واحد جديد)','info'); bfWatch(H, ls-1000); return; } }catch(e){}
   bfStartTimer(clicked,'');
@@ -16060,7 +16064,7 @@ async function bfSyncNow(){
     }
     if(r.status!==204) throw new Error('HTTP '+r.status);
   }catch(e){ bfStop(); bfSyncMsg('ما قدرتش أبدأ التحديث دلوقتي — جرّب كمان شوية.','bad'); return; }
-  bfWatch(H, clicked-15000);
+  bfWatch(H, clicked-15000, known);   // ساعة الموبايل لو متأخرة كانت بتمسك سحب قديم خلصان → العداد يختفي في ثانية
 }
 /* بعد Refresh (أو من جهاز تاني): لو فيه سحب شغال دلوقتي، كمّل العدّاد من وقت ما بدأ */
 /* ⏳ أي تحديث شغال أو مستني دلوقتي (من الجهاز ده أو من جهاز تاني أو الأوتوماتيك) → العداد يظهر فوق ويتابعه لحد ما يخلص */

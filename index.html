@@ -11999,6 +11999,16 @@ function planMyCard(){ var c=PLAN_CARDS[PLAN_ME]; if(!c) return null; if(c.o) re
   try{ var ks=Object.keys(c.p).map(Number).sort(function(a,b){return a-b;}); c.o=JSON.parse(ks.map(function(i){return c.p[i];}).join('')); }catch(e){ return null; }
   var age=(new Date((ALERTS_DATA&&ALERTS_DATA.today||'')+'T12:00:00')-new Date(c.d+'T12:00:00'))/864e5; if(!(age<=4)) { c.o=null; return null; } return c.o; }
 /* 📡 البيانات دي من آخر سحب من Medicolize — مش لحظية: الوقت والمدة باينين دايمًا جنب «خطة اليوم» */
+/* 📂 آخر رفع لسجل المكالمات لكل خط — بالتاريخ والساعة (وآخر مكالمة جوه الملف) */
+function mcLastUpTxt(act){ if(typeof MC==='undefined'||!MC.lines||!MC.upl) return '';
+  var f=function(t){ return new Date(t).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'short',day:'numeric',month:'numeric',hour:'numeric',minute:'2-digit'}); };
+  var td=(ALERTS_DATA&&ALERTS_DATA.today)||'';
+  var parts=Object.keys(MC.lines).filter(function(ln){ var br=(MC.lines[ln]||{}).br||'BODYFIX Center'; return !act||act.indexOf(br)>=0; }).map(function(ln){
+    var L=(MC.upl||[]).filter(function(x){ return x.ln===ln; }).sort(function(a,b){ return (b.at||0)-(a.at||0); }), u=L[0];
+    if(!u) return '<b>'+alEsc(ln)+'</b>: <span style="color:var(--r)">ولا مرة</span>';
+    var old=mcCairoDay(u.at)<td, mx=L.reduce(function(m,x){ return Math.max(m,x.mx||0); },0);
+    return '<b>'+alEsc(ln)+'</b>: <span style="color:'+(old?'var(--r)':'var(--g)')+'">'+alEsc(f(u.at))+'</span>'+(mx?' <span style="color:var(--mute)">(آخر مكالمة فيه '+alEsc(f(mx))+')</span>':''); });
+  return parts.length?'<div style="font-size:.6rem;color:var(--mute);margin:-4px 0 8px;line-height:1.8">📂 آخر رفع لسجل المكالمات — '+parts.join(' · ')+'</div>':''; }
 function planLinkBanner(){ if(typeof bfSheetCfg==='function'&&bfSheetCfg()) return '';
   return '<div style="background:rgba(239,68,68,.12);border:1px solid var(--r);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:.66rem;color:var(--r);font-weight:700">⚠️ الجهاز ده مش مربوط بشيت التحصيل — ناقصه مهام: 📵 المكالمات الفايتة · 📂 سجل المكالمات · 💸 الفلوس المتسجلة بالخطأ · 🧾 مين على الخزنة · ⚡ التحديث الفوري<br><span style="font-weight:400;color:var(--txt)">افتحي «لينك ربط الجهاز» مرة واحدة على الجهاز ده (بيتبعت من د. أمجد) وكل ده هيظهر.</span></div>'; }
 function planDataAge(){
@@ -12816,7 +12826,8 @@ function sumRender0(){
   h+=sec('📦 الباقات الجديدة — '+alEsc(perLbl),
     card('pkg','📦','باقات جديدة',SUM_PKG?pk.length:'…','باقة 6: '+p6.length+' · باقة 12: '+p12.length+' · <span style="text-decoration:underline">أخرى: '+pO.length+'</span>'+(function(){ var c={}; pO.forEach(function(v){ var k=v.n||'?'; c[k]=(c[k]||0)+1; }); var ks=Object.keys(c).filter(function(k){ return k!=='?'; }); return ks.length?' ('+ks.map(function(k){ return alEsc(k)+(c[k]>1?' ×'+c[k]:''); }).join('، ')+')':''; })(),
       pk.sort(function(a,b){ return (+a.s===6?0:+a.s===12?1:2)-(+b.s===6?0:+b.s===12?1:2); }).map(function(v){ return ptRow(nameOf[v.p]||'(اسم مش متاح)',v.p,'— <b>'+(+v.s===6?'باقة 6':+v.s===12?'باقة 12':(v.n?alEsc(v.n):'أخرى (الاسم هيظهر بعد السحب الجاي)')+(v.s?' ('+v.s+' جلسات)':''))+'</b>'+(isT?'':' · '+alEsc(alFmtDay(v.d)))+(v.r?' · المصدر: '+alEsc(v.r):'')); }).join('')||'<div style="font-size:.6rem;color:var(--mute)">مفيش باقات جديدة متسجلة</div>'));
-  h+=sec('📞 التليفون والحضور',
+  try{ var mlu=mcLastUpTxt(act); }catch(e){ mlu=''; }
+  h+=sec('📞 التليفون والحضور'+(mlu?'</div>'+mlu.replace('margin:-4px 0 8px','margin:2px 0 4px')+'<div>':''),
     card('mcall','📵','مكالمات فايتة — '+alEsc(perLbl),MCok?mE.length:'—',MCok?((upMiss.length?'<b style="color:var(--r)">📂 ما اترفعش: '+(F===TO?upMiss.map(function(u){ return alEsc(u.ln); }).join('، '):upMiss.length+' مرة')+'</b><br>':'')+'اتكلمنا '+mT.length+' · جه العيادة '+mC.length+' · <b style="color:'+(mO.length?'var(--r)':'var(--g)')+'">لسه '+mO.length+'</b>'):(typeof CS!=='undefined'&&CS.cfg()?'⏳ بيحمّل سجل المكالمات…':'الجهاز مش مربوط'),
       MCok?((upMiss.length?'<div style="font-size:.62rem;font-weight:800;margin-top:4px;color:var(--r);background:rgba(239,68,68,.08);border-radius:7px;padding:4px 8px">📂 ما اترفعش سجل: '+upMiss.map(function(u){ return 'خط '+alEsc(u.ln)+(F===TO?'':' ('+alEsc(alFmtDay(u.d))+')'); }).join('، ')+' — المكالمات الفايتة بتاعته مش محسوبة هنا</div>':'')+'<div style="font-size:.6rem;font-weight:800;margin-top:4px;color:var(--r)">⬜ لسه ('+mO.length+')</div>'+mRows(mO)+'<div style="font-size:.6rem;font-weight:800;margin-top:6px;color:var(--g)">✅ اتكلمنا ('+mT.length+')</div>'+mRows(mT)+(mC.length?'<div style="font-size:.6rem;font-weight:800;margin-top:6px">🏥 جه العيادة ('+mC.length+')</div>'+mRows(mC):'')):'',mO.length?'var(--r)':'')+
     (isT?card('conf','✔️','تأكيد يوم الشغل الجاي',pct(dn(conf).length,conf.length),dn(conf).length+' من '+conf.length,taskRows(conf.filter(function(t){ return planState(t)!=='done'; })))+
@@ -14584,7 +14595,7 @@ function planRenderV2(all,mineT,ALLN){
     '<span style="flex:1"></span><label style="font-size:.6rem;color:var(--mute)">السكرتيرة المسئولة <select id="planMeSel" onchange="planSetMe(this.value)" style="'+sel(';border-color:'+(PLAN_ME?'var(--brd)':'var(--r)'))+'"><option value=""'+(PLAN_ME?'':' selected')+'>— اختاري اسمك —</option>'+opts+'</select></label>'+
     (planMyCard()?'<button onclick="planCardShow(1)" style="background:#0f766e;color:#fff;border:0;border-radius:7px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:.62rem;font-weight:800;cursor:pointer">📌 كارتي</button>':'')+
     '<button onclick="planV2Set(0)" style="background:transparent;border:1px solid var(--brd);color:var(--mute);border-radius:7px;padding:4px 10px;font-family:Cairo,sans-serif;font-size:.6rem;cursor:pointer">↩️ الشكل القديم</button></div>';
-  h+=planLinkBanner();
+  h+=planLinkBanner(); try{ h+=mcLastUpTxt(planBR().map(function(b){ return b.key; })); }catch(e){}
   if(PLAN_V2TAB==='visit'){ PLAN_VISIT_OPEN=true; return h+planVisitCard(); }
   if(PLAN_V2TAB==='mgr'){ var m=''; try{ m+=planMgrOnlyPanel(all); }catch(e){} try{ m+=planSudAlerts(); }catch(e){} try{ m+=planTeamPanel(); }catch(e){} try{ m+=planSecPanel(); }catch(e){} try{ m+=planFuPanel(); }catch(e){} return h+m; }
   // 👩‍💼 نسبة إنجاز كل سكرتيرة (سطر واحد) + شريط الإنجاز الكبير
@@ -14666,7 +14677,7 @@ function planRender(){
     '<label style="font-size:.62rem;color:var(--mute)">عرض مهام '+
     '<select onchange="PLAN_VIEW=this.value;try{localStorage.setItem(\'planView\',PLAN_VIEW)}catch(e){};planRender()" style="background:var(--bg);border:1px solid '+(PLAN_VIEW?'#ec4899':'var(--brd)')+';color:var(--txt);border-radius:7px;padding:4px 8px;font-family:Cairo,sans-serif;font-size:.66rem">'+
       '<option value="">كل السكرتيرات</option>'+ALLN.map(function(n){ return '<option value="'+alEsc(n)+'"'+(n===PLAN_VIEW?' selected':'')+'>'+alEsc(n)+(n===PLAN_ME?' (مهامي)':'')+'</option>'; }).join('')+'</select></label>'+
-    (planMyCard()?'<button onclick="planCardShow(1)" style="background:#0f766e;color:#fff;border:0;border-radius:7px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:.64rem;font-weight:800;cursor:pointer">📌 كارتي</button>':'')+'</div>'+planLinkBanner()+planVisitCard()+planSudAlerts()+planCashBanner()+planLateInfo()+(PLAN_PROG_HTML=
+    (planMyCard()?'<button onclick="planCardShow(1)" style="background:#0f766e;color:#fff;border:0;border-radius:7px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:.64rem;font-weight:800;cursor:pointer">📌 كارتي</button>':'')+'</div>'+planLinkBanner()+(function(){ try{ return mcLastUpTxt(planBR().map(function(b){ return b.key; })); }catch(e){ return ''; } })()+planVisitCard()+planSudAlerts()+planCashBanner()+planLateInfo()+(PLAN_PROG_HTML=
     '<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:12px">'+
       '<div style="display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:6px"><span>اتعمل <b style="color:var(--g)">'+dn+'</b> من <b>'+vis.length+'</b> مهمة'+(PLAN_VIEW?' (مهام '+alEsc(PLAN_VIEW)+')':'')+' · منهم <b>'+vis.filter(function(t){ var x=PLAN_ST[t.key]||{}; return planState(t)==='done'&&x.s!=='done'; }).length+'</b> اتعملوا على Medicolize و<b>'+vis.filter(function(t){ return (PLAN_ST[t.key]||{}).s==='done'; }).length+'</b> اتقفلوا بزرار ✅</span><b>'+pc+'%</b></div>'+
       '<div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pc+'%;background:linear-gradient(90deg,#10b981,#00c6ff)"></div></div>'+

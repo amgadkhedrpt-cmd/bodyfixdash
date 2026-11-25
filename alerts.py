@@ -637,6 +637,7 @@ def build_alerts(appointments, now=None, packages=None):
     fu_from = today - timedelta(days=FU_WINDOW)
     fu_return, fu_calls, fu_order, fu_pool = [], [], [], []
     calls_today = []   # كل متابعات النهارده (للخطة): الحالة + الملحوظة + أوقات الاتصال
+    calls_hist = []    # متابعات آخر 7 أيام قبل النهارده (للمطابقة مع سجل المكالمات لما تختار يوم قديم في الملخص)
     fu_patients = 0
     for appts in patients_all.values():
         srt = sorted(appts, key=lambda a: a["start"])
@@ -695,6 +696,9 @@ def build_alerts(appointments, now=None, packages=None):
                 verdict = "unclear"
             else:
                 verdict = "ok"
+            if today - timedelta(days=7) <= a["start"].date() < today and a["status"] not in ("canceled", "cancelled"):
+                calls_hist.append({"d": a["start"].date().isoformat(), "pid": a["pid"], "name": a["name"], "phone": a["phone"], "branch": a["branch"],
+                                   "time": a["start"].isoformat(), "type": a["type"], "note": note[:300], "by": a.get("by") or ""})
             if a["start"].date() == today:
                 # اللي اتعمل مع المريض على السيستم: رجع / حجز ميعاد بعد المتابعة؟
                 nb = sorted([x for x in srt if x["start"] > a["start"] and x["doctor"].lower() not in SKIP_DOCS
@@ -2174,7 +2178,7 @@ def build_alerts(appointments, now=None, packages=None):
         "eval_renew": eval_renew,
         "eval_due": eval_due,
         "amgad_eval": amgad_eval, "amgad_dokki_next": amgad_dokki_next, "dokki_visit": dokki_visit, "dup_pts": dup_pts, "pt_extra": pt_extra, "amgad_dokki_usual": amgad_dokki_usual, "eval_pending": eval_pending,
-        "plan": dict(plan, calls_today=calls_today, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes, note_today=note_today),
+        "plan": dict(plan, calls_today=calls_today, calls_hist=calls_hist, pay_notes=pay_notes, soon=soon, fu_notes=fu_notes, appt_notes=appt_notes, note_today=note_today),
         "cycle": CYCLE,
         "analysis": build_analysis(patients, today),
         "doc_perf": perf,

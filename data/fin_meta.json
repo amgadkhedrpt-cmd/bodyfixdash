@@ -1,5 +1,5 @@
 {
- "at": "2026-11-25T18:28:06.856Z",
+ "at": "2026-11-25T19:07:32.944Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -93,17 +93,17 @@
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 30,
+ "ph2_n": 35,
  "conf_hist": {
   "from": "2026-10-25",
-  "events": 4245,
-  "added": 0,
+  "events": 4254,
+  "added": 3,
   "named": 1
  },
  "conf": {
-  "confirmed_now": 84,
-  "new": 6,
-  "cx_changed": 1
+  "confirmed_now": 91,
+  "new": 14,
+  "cx_changed": 5
  },
  "kinds": {
   "pay": {
@@ -241,7 +241,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 271,
+    "rows": 272,
     "cols": [
      "type",
      "amount",
@@ -264,7 +264,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17772,
+    "rows": 17773,
     "cols": [
      "id",
      "referenceId",
@@ -321,7 +321,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 133464,
+    "rows": 133477,
     "cols": [
      "start",
      "status",
@@ -340,11 +340,9 @@
     "values": {
      "status": [
       "CANCELED",
-      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
       "DELAYED",
-      "INPROGRESS",
       "NOSHOW",
       "NOTE",
       "OPEN",
@@ -444,7 +442,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 265,
+    "rows": 266,
     "cols": [
      "name",
      "type",
@@ -546,7 +544,7 @@
     "months": 2,
     "first": "2026-10",
     "last": "2026-11",
-    "rows": 4320,
+    "rows": 4337,
     "cols": [
      "aid",
      "start",
@@ -604,7 +602,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 190,
+    "rows": 195,
     "cols": [
      "aid",
      "start",
@@ -921,23 +919,10 @@
  },
  "hash": {
   "data/fin.enc": "b948b93bd4df2a90",
-  "data/fin_c.enc": "286aeef7c6aecb5a"
+  "data/fin_c.enc": "ff28d3c370c89b3e"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 99,
- "skipped_at": "2026-11-25T19:01:14.576Z",
- "today_hash": "f2c4608fb4fe1c5a",
- "today_at": "2026-11-25T19:01:14.576Z",
- "today_n": {
-  "pay": {
-   "haram": 24,
-   "dokki": 2
-  },
-  "apt": {
-   "haram": 201,
-   "dokki": 36
-  }
- }
+ "secs": 126
 }

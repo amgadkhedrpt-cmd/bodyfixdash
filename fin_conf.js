@@ -14,7 +14,7 @@ const cfRead=f=>cfReadFile(f,CF.map,()=>loadLib('XLSX'));
 // ---------- الحفظ على الجهاز (IndexedDB) — مش بيتبعت لأي حتة ----------
 const cfDB=(mode,fn)=>new Promise((res,rej)=>{let q;try{q=indexedDB.open('bodyfix_calls',1)}catch(e){return rej(e)}q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onerror=()=>rej(q.error);
   q.onsuccess=()=>{const db=q.result,tx=db.transaction('kv',mode),r=fn(tx.objectStore('kv'));tx.oncomplete=()=>{db.close();res(r&&r.result)};tx.onerror=()=>{db.close();rej(tx.error)}}});
-const cfMM=()=>{let a=null,b=null;for(const c of CF.calls){if(a==null||c.t<a)a=c.t;if(b==null||c.t>b)b=c.t}CF.minT=a;CF.maxT=b;CF.idx=null;CF.st=null;CF.rch=null};
+const cfMM=()=>{let a=null,b=null;for(const c of CF.calls){if(a==null||c.t<a)a=c.t;if(b==null||c.t>b)b=c.t}CF.minT=a;CF.maxT=b;CF.idx=null;CF.spMap=null;CF.st=null;CF.rch=null};
 async function cfSave(){try{await cfDB('readwrite',s=>CF.calls.length||CF.files.length?s.put({v:1,calls:CF.calls,files:CF.files,map:CF.map,at:Date.now()},'log'):s.delete('log'));CF.saved=true}catch(e){console.warn(e);CF.saved=false}}
 CF.lines={};
 async function cfCloudLoad(){CF.calls=await CS.load(CS.months(4));CF.upl=await CS.logs(CS.months(2)).catch(()=>[]);CF.lines=await CS.lines();CF.cloud=true;CF.saved=false;cfMM()}
@@ -79,6 +79,7 @@ function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(!CF.dr.doc||c.doc===CF.d
   // 📞 سجل المكالمات: مكالمة اترد عليها للرقم ده في الـ 36 ساعة قبل التأكيد (لحد ربع ساعة بعده)
   const has=CF.calls.length;C0.forEach(c=>{if(!has||c.atBook){c.cat=c.atBook?'book':'nofile';return}
     if(CF.minT==null||c.cT<CF.minT||c.cT>CF.maxT+15*60e3){c.cat='nocov';return}
+    {const d0=cfDay(c.cT),d1=cfDay(c.cT-864e5);if(cfSparse(d0)||(new Date(c.cT).getUTCHours()<12&&cfSparse(d1))){c.cat='nocov';c.sparse=1;return}}
     const L=(CF.idx[c.ph]||[]).concat(c.ph2&&c.ph2!==c.ph?CF.idx[c.ph2]||[]:[]).filter(x=>x.t>=c.cT-36*3600e3&&x.t<=c.cT+15*60e3);c.calls=L;   // الرقم الأساسي أو التاني
     c.cat=!c.ph&&!c.ph2?'noph':L.some(x=>x.dur>0&&x.ty!=='miss')?'ok':L.some(x=>x.ty==='out')?'tried':L.length?'missonly':'none'});
   // 🏥 استثناء: المريض كان في العيادة (حضر) يوم الشغل اللي قبل الموعد → غالباً اتأكد وهو هنا، مش محتاج مكالمة
@@ -107,8 +108,14 @@ function cfCmpHTML(){const A=cfCmpStats(CF.p1a,CF.p1b),B=cfCmpStats(CF.p2a,CF.p2
    <div style="margin:10px 0 4px" class="sub">الفترة 1 (${lb(CF.p1a,CF.p1b)})</div>${bar(A)}<div style="margin:8px 0 4px" class="sub">الفترة 2 (${lb(CF.p2a,CF.p2b)})</div>${bar(B)}
    <div class="sub" style="margin:6px 0">🟩 بمكالمة اترد عليها · 🟦 كان في العيادة · 🟧 اتصلوا وما ردش · 🟥 من غير أي مكالمة</div>
    ${tableHTML(['',lb(CF.p1a,CF.p1b),lb(CF.p2a,CF.p2b)],R,{})}</div>`}
+
+// 📉 يوم سجله ناقص: خط عادةً شغال، بس اليوم ده مكالماته أقل من خُمس المعتاد (أو صفر) — غالباً الموبايل مسح القديم (بيحتفظ بآخر ~1000 مكالمة) → ما نحكمش
+function cfSparse(d){if(!CF.spMap){CF.spMap={};const per={};CF.calls.forEach(c=>{const k=cfDay(c.t);(per[c.ln]=per[c.ln]||{})[k]=(per[c.ln][k]||0)+1});
+   for(const ln in per){const D=per[ln],ks=Object.keys(D).sort();if(ks.length<5)continue;const v=ks.map(k=>D[k]).sort((a,b)=>a-b),med=v[Math.floor(v.length/2)],th=Math.max(5,med*0.2);
+     const x=new Date(ks[0]+'T12:00:00Z'),e=ks[ks.length-1];while(x.toISOString().slice(0,10)<=e){const k=x.toISOString().slice(0,10);if(x.getUTCDay()!==5&&(D[k]||0)<th)(CF.spMap[k]=CF.spMap[k]||[]).push(ln);x.setUTCDate(x.getUTCDate()+1)}}}
+  return !!CF.spMap[d]}
 const CF_CAT={ok:['✅ مكالمة اترد عليها','var(--good)'],tried:['📵 اتصلوا وما ردش — واتأكد','var(--warn)'],missonly:['📵 هو اللي اتصل وما اتردش عليه','var(--warn)'],none:['❌ مفيش أي مكالمة للرقم','var(--bad)'],
-  nocov:['خارج فترة ملفات المكالمات','var(--t3)'],noph:['مفيش رقم على السيستم','var(--t3)'],book:['اتحجز «مؤكد» وقت الحجز (مش محتاج مكالمة)','var(--t3)'],clinic:['🏥 كان في العيادة يوم الشغل اللي قبل الموعد — مستثنى','var(--good)'],arrive:['🚶 اتعلّم وهو واصل (خد Check-in بعدها بربع ساعة) — مستثنى','var(--good)'],delay:['⏰ اتعلّم «مؤكد» وبعدها على طول «متأخر» — ما كانش موجود ولا متكلّم معاه','var(--bad)'],nofile:['—','var(--t3)']};
+  nocov:['مش متقارن: خارج فترة الملفات أو يوم سجله ناقص','var(--t3)'],noph:['مفيش رقم على السيستم','var(--t3)'],book:['اتحجز «مؤكد» وقت الحجز (مش محتاج مكالمة)','var(--t3)'],clinic:['🏥 كان في العيادة يوم الشغل اللي قبل الموعد — مستثنى','var(--good)'],arrive:['🚶 اتعلّم وهو واصل (خد Check-in بعدها بربع ساعة) — مستثنى','var(--good)'],delay:['⏰ اتعلّم «مؤكد» وبعدها على طول «متأخر» — ما كانش موجود ولا متكلّم معاه','var(--bad)'],nofile:['—','var(--t3)']};
 function cfPendHTML(){const ex=[...new Set(CF.calls.map(c=>c.ln).concat(CF.files.map(f=>f.ln).filter(Boolean)))].sort();
   const guess=n=>{const b=n.toLowerCase().replace(/\.[^.]+$/,'');const hit=ex.filter(l=>b.includes(l.toLowerCase())||l.replace(/\D/g,'').length>=3&&b.replace(/\D/g,'').includes(l.replace(/\D/g,'')));return hit.sort((a,c)=>c.length-a.length)[0]||''};
   return `<div class="card" style="margin-top:8px;border:2px solid var(--acc)"><h3>📞 الملفات دي لأنهي خط؟</h3>
@@ -144,6 +151,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
     ${kpi('✅ مكالمة اترد عليها',J.length?pc_(J,c=>c.cat==='ok'):'ارفع الملفات',J.length?J.length+' اتقارنوا بالمكالمات':'')}
     ${kpi('❌ من غير مكالمة اترد عليها',J.length?pc_(J,c=>c.cat!=='ok'):'—','',J.length&&J.filter(c=>c.cat!=='ok').length/J.length>0.2?'down':'')}</div>`;
   {const n2=C.filter(c=>c.ph2).length;h+=`<div class="sub" style="margin-top:6px">📱 الرقم التاني (Secondary) من Medicolize: ${n2?`متسجل لـ ${n2} من ${C.length} ميعاد — المكالمات بتتطابق على الرقمين`:'لسه مش واصل (بيتسحب من أول مزامنة بعد 15/11) — المطابقة على الرقم الأساسي بس'}</div>`}
+  {cfSparse('');const sp=Object.keys(CF.spMap||{}).sort();if(sp.length)h+=`<div class="note" style="margin-top:6px">📉 أيام سجل المكالمات فيها ناقص (مكالماتها أقل بكتير من المعتاد — غالباً الموبايل مسح القديم): <b>${sp.map(cfDD2).join('، ')}</b> — التأكيدات اللي فيها «مش متقارنة» ومش محسوبة «من غير اتصال». ارفعوا السجل كل يوم عشان ده ما يتكررش.</div>`}
   {const ncl=chk.filter(c=>c.cat==='clinic');if(ncl.length)h+=`<div class="note" style="margin-top:6px">🏥 <b>${ncl.length}</b> تأكيد مستثنى: المريض كان في العيادة (حضر) يوم الشغل اللي قبل الموعد، فغالباً اتأكد وهو هنا — مش محسوبين في «المشكوك فيها» ولا في النسب. الأسامي تحت في «🏥 اتأكدوا وهما في العيادة».</div>`}
   h+=cfCmpHTML();
   h+='<!--CFCMP--><!--CFCH-->';

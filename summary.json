@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-11-25T10:47:09.138616+00:00",
+  "last_updated": "2026-11-25T11:09:52.963290+00:00",
   "total": 23000,
   "doctors": [
     "Abeer",
@@ -92,15 +92,16 @@
     "جلسة تغذيه": 1
   },
   "by_status": {
-    "Completed": 14922,
+    "Completed": 14924,
     "Canceled": 3822,
     "No Show": 1470,
-    "Waiting List": 1088,
-    "Open": 927,
+    "Waiting List": 1087,
+    "Open": 928,
     "Note": 493,
-    "Confirmed": 258,
-    "Checked In": 13,
-    "In Progress": 7
+    "Confirmed": 256,
+    "Checked In": 10,
+    "In Progress": 8,
+    "Delayed": 2
   },
   "by_date": {
     "2027-08-15": {
@@ -1958,7 +1959,7 @@
       "id": "ab918a73-10a6-42ad-9c4a-afb176ca9649",
       "start": "2026-11-25T20:00:00.000Z",
       "end": "2026-11-25T20:15:00.000Z",
-      "status": "Waiting List",
+      "status": "Open",
       "type": "تقييم الجلسه الأخيره",
       "doctor": "Dr Amgad Khedr",
       "branch": "BODYFIX Center",
@@ -4351,7 +4352,7 @@
       "id": "2c010371-faf3-4fcc-8f10-ffc670556afd",
       "start": "2026-11-25T11:00:00.000Z",
       "end": "2026-11-25T12:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Delayed",
       "type": "جلسة علاج طبيعي",
       "doctor": "Abeer",
       "branch": "BODYFIX Center",
@@ -4362,12 +4363,13 @@
       "id": "2f3535ff-707e-4dbc-8070-5b80ccd0e514",
       "start": "2026-11-25T10:45:00.000Z",
       "end": "2026-11-25T11:15:00.000Z",
-      "status": "Confirmed",
+      "status": "Delayed",
       "type": "كشف تغذيه",
       "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",
       "patient": "اية محمد احمد الخولي",
-      "phone": "+20_1010772327"
+      "phone": "+20_1010772327",
+      "note": "مش بترد مرتين1:05"
     },
     {
       "id": "e6b0d2fb-a2de-4784-9260-e80ef46b492d",
@@ -4385,7 +4387,7 @@
       "id": "ce699cf4-8e4d-4478-8bf4-1aad43e62bdd",
       "start": "2026-11-25T10:30:00.000Z",
       "end": "2026-11-25T10:45:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "متابعة تغذيه",
       "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",
@@ -4408,7 +4410,7 @@
       "id": "30a4b5e1-38ae-4a59-ba15-872ded108898",
       "start": "2026-11-25T10:15:00.000Z",
       "end": "2026-11-25T10:30:00.000Z",
-      "status": "Checked In",
+      "status": "Completed",
       "type": "متابعة تغذيه",
       "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",
@@ -4431,7 +4433,7 @@
       "id": "5bc86476-fec7-455e-9fda-fd1fcb126efa",
       "start": "2026-11-25T10:00:00.000Z",
       "end": "2026-11-25T10:15:00.000Z",
-      "status": "Checked In",
+      "status": "Completed",
       "type": "حقن مونجارو",
       "doctor": "Dr. Alaa Harfoush",
       "branch": "BODYFIX Center",

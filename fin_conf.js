@@ -82,7 +82,7 @@ function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(!CF.dr.doc||c.doc===CF.d
     const L=(CF.idx[c.ph]||[]).concat(c.ph2&&c.ph2!==c.ph?CF.idx[c.ph2]||[]:[]).filter(x=>x.t>=c.cT-36*3600e3&&x.t<=c.cT+15*60e3);c.calls=L;   // الرقم الأساسي أو التاني
     c.cat=!c.ph&&!c.ph2?'noph':L.some(x=>x.dur>0&&x.ty!=='miss')?'ok':L.some(x=>x.ty==='out')?'tried':L.length?'missonly':'none'});
   // 🏥 استثناء: المريض كان في العيادة (حضر) يوم الشغل اللي قبل الموعد → غالباً اتأكد وهو هنا، مش محتاج مكالمة
-  {const att={};D.apt.forEach(a=>{if(!a.pid||!/complet|check|progress|delay/i.test(a.st||''))return;const k=a.pid+'|'+a.d;if(!(k in att)||(a.h||0)<att[k])att[k]=a.h||0});
+  {const att={};D.apt.forEach(a=>{if(!a.pid||!/complet|check|progress/i.test(a.st||''))return;   /* حضر فعلاً — Delayed = متأخر، مش حضور */const k=a.pid+'|'+a.d;if(!(k in att)||(a.h||0)<att[k])att[k]=a.h||0});
    const prevW=d=>{const x=new Date(d+'T12:00:00Z');do{x.setUTCDate(x.getUTCDate()-1)}while(x.getUTCDay()===5);return x.toISOString().slice(0,10)};
    C0.forEach(c=>{if(c.atBook||c.cat==='ok')return;
      const pd=prevW(cfDay(c.aT)),k=c.pid+'|'+pd;if(k in att){c.clinPrev=c.cat;c.cat='clinic';c.clin=pd;c.clinH=att[k]}})}

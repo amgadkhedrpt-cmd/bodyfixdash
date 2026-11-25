@@ -6,7 +6,7 @@ const CF={a1:'',a2:'',calls:[],files:[],map:null,sheet:null,sheetTry:false,minT:
 const cfT1=()=>CF.d1?Date.parse(CF.d1+'T00:00:00Z'):-Infinity,cfT2=()=>CF.d2?Date.parse(CF.d2+'T00:00:00Z')+864e5:Infinity;
 const cfInR=t=>t>=cfT1()&&t<cfT2();
 // فلاتر المكالمات: الخط (كل ملف = خط/سكرتيرة) + الساعة من/لحد (لو «من» أكبر من «لحد» = بتلف بعد نص الليل)
-CF.ln='';CF.h1='';CF.h2='';
+CF.ln='';CF.h1='';CF.h2='';CF.who='';CF.p1a='2026-11-01';CF.p1b='2026-11-15';CF.p2a='2026-11-16';CF.p2b='2026-11-24';
 const cfHOk=t=>{if(CF.h1===''&&CF.h2==='')return true;const h=new Date(t).getUTCHours(),a=CF.h1===''?0:+CF.h1,b=CF.h2===''?24:+CF.h2;return a<=b?h>=a&&h<b:h>=a||h<b};
 const cfCOk=(t,ln,allLines)=>cfInR(t)&&cfHOk(t)&&(allLines||!CF.ln||ln===CF.ln);
 // قراية الملفات + الوقت + الرقم: في calls_core.js (مشترك مع خطة اليوم)
@@ -71,9 +71,33 @@ function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(!CF.dr.doc||c.doc===CF.d
     if(CF.minT==null||c.cT<CF.minT||c.cT>CF.maxT+15*60e3){c.cat='nocov';return}
     const L=(CF.idx[c.ph]||[]).concat(c.ph2&&c.ph2!==c.ph?CF.idx[c.ph2]||[]:[]).filter(x=>x.t>=c.cT-36*3600e3&&x.t<=c.cT+15*60e3);c.calls=L;   // الرقم الأساسي أو التاني
     c.cat=!c.ph&&!c.ph2?'noph':L.some(x=>x.dur>0&&x.ty!=='miss')?'ok':L.some(x=>x.ty==='out')?'tried':L.length?'missonly':'none'});
-  return {C:C0,bursts}}
+  // 🏥 استثناء: المريض كان في العيادة (حضر) يوم الشغل اللي قبل الموعد → غالباً اتأكد وهو هنا، مش محتاج مكالمة
+  {const att={};D.apt.forEach(a=>{if(!a.pid||!/complet|check|progress|delay/i.test(a.st||''))return;const k=a.pid+'|'+a.d;if(!(k in att)||(a.h||0)<att[k])att[k]=a.h||0});
+   const prevW=d=>{const x=new Date(d+'T12:00:00Z');do{x.setUTCDate(x.getUTCDate()-1)}while(x.getUTCDay()===5);return x.toISOString().slice(0,10)};
+   C0.forEach(c=>{if(c.atBook||c.cat==='ok')return;const pd=prevW(cfDay(c.aT)),k=c.pid+'|'+pd;if(k in att){c.clinPrev=c.cat;c.cat='clinic';c.clin=pd;c.clinH=att[k]}})}
+  if(CF.who)C0.splice(0,C0.length,...C0.filter(c=>String(c.who).replace(/ \*$/,'')===CF.who));
+  return {C:C0,bursts:CF.who?bursts.filter(b=>b.L.some(c=>String(c.who).replace(/ \*$/,'')===CF.who)):bursts}}
+
+// 📅 مقارنة فترتين (مثلاً وجود المسئولة وغيابها) — حسب يوم الموعد · نفس الفرع والدكتور واللي أكّدت لو متحددين
+function cfCmpStats(a,b){const s1=CF.a1,s2=CF.a2;CF.a1=a;CF.a2=b;let X;try{X=cfCalc()}finally{CF.a1=s1;CF.a2=s2}
+  const chk=X.C.filter(c=>!c.atBook),J=chk.filter(c=>['ok','tried','missonly','none','clinic'].includes(c.cat)),f=c=>c.res==='حضر'||c.res==='اعتذر'||c.res==='ما جاش',fin=chk.filter(f);
+  const n=k=>J.filter(c=>k.includes(c.cat)).length,days=new Set(chk.map(c=>cfDay(c.aT))).size||1,who={};chk.forEach(c=>{const w=String(c.who).replace(/ \*$/,'');who[w]=(who[w]||0)+1});
+  return {n:chk.length,j:J.length,ok:n(['ok']),cl:n(['clinic']),tr:n(['tried','missonly']),no:n(['none']),bu:chk.filter(c=>c.bulk).length,un:chk.length-J.length,fin:fin.length,lost:fin.filter(c=>c.res!=='حضر').length,days,who}}
+function cfCmpHTML(){const A=cfCmpStats(CF.p1a,CF.p1b),B=cfCmpStats(CF.p2a,CF.p2b);
+  const P=(x,t)=>t?Math.round(x*100/t)+'%':'—',bar=z=>{const t=z.j||1;const seg=(v,c,l)=>v?`<div title="${l} ${v}" style="width:${v*100/t}%;background:${c}"></div>`:'';
+    return `<div style="display:flex;height:16px;border-radius:6px;overflow:hidden;background:var(--bg)">${seg(z.ok,'#22c55e','✅ بمكالمة')}${seg(z.cl,'#38bdf8','🏥 في العيادة')}${seg(z.tr,'#f59e0b','📵 ما ردش')}${seg(z.no,'#ef4444','❌ مفيش مكالمة')}</div>`};
+  const lb=(a,b)=>cfDD2(a)+' – '+cfDD2(b),row=(l,f)=>[l,f(A),f(B)];
+  const R=[row('تأكيدات (من غير اللي اتحجزوا مؤكد)',z=>z.n),row('في اليوم',z=>(z.n/z.days).toFixed(1)),row('اتقارنوا بالمكالمات',z=>z.j),
+    row('✅ مكالمة اترد عليها',z=>P(z.ok,z.j)),row('🏥 كان في العيادة (مستثنى)',z=>P(z.cl,z.j)),row('📵 اتصلوا وما ردش واتعلّم مؤكد',z=>P(z.tr,z.j)),row('❌ من غير أي مكالمة',z=>'<b class="down">'+P(z.no,z.j)+'</b>'),
+    row('⚡ بالجملة',z=>P(z.bu,z.n)),row('مش متقارن (مفيش سجل/رقم)',z=>z.un),row('اعتذر أو ما جاش (من اللي خلصوا)',z=>P(z.lost,z.fin)),
+    row('مين أكّدت',z=>Object.entries(z.who).sort((a,b)=>b[1]-a[1]).map(([w,k])=>esc(w)+' '+k).join(' · ')||'—')];
+  return `<div class="card" style="margin-top:12px"><h3>📅 مقارنة فترتين<small>حسب يوم الموعد</small></h3>
+   <div class="bar"><b class="sub">الفترة 1:</b><input type="date" id="cfP1a" value="${CF.p1a}"><input type="date" id="cfP1b" value="${CF.p1b}"><b class="sub" style="margin-right:12px">الفترة 2:</b><input type="date" id="cfP2a" value="${CF.p2a}"><input type="date" id="cfP2b" value="${CF.p2b}"></div>
+   <div style="margin:10px 0 4px" class="sub">الفترة 1 (${lb(CF.p1a,CF.p1b)})</div>${bar(A)}<div style="margin:8px 0 4px" class="sub">الفترة 2 (${lb(CF.p2a,CF.p2b)})</div>${bar(B)}
+   <div class="sub" style="margin:6px 0">🟩 بمكالمة اترد عليها · 🟦 كان في العيادة · 🟧 اتصلوا وما ردش · 🟥 من غير أي مكالمة</div>
+   ${tableHTML(['',lb(CF.p1a,CF.p1b),lb(CF.p2a,CF.p2b)],R,{})}</div>`}
 const CF_CAT={ok:['✅ مكالمة اترد عليها','var(--good)'],tried:['📵 اتصلوا وما ردش — واتأكد','var(--warn)'],missonly:['📵 هو اللي اتصل وما اتردش عليه','var(--warn)'],none:['❌ مفيش أي مكالمة للرقم','var(--bad)'],
-  nocov:['خارج فترة ملفات المكالمات','var(--t3)'],noph:['مفيش رقم على السيستم','var(--t3)'],book:['اتحجز «مؤكد» وقت الحجز (مش محتاج مكالمة)','var(--t3)'],nofile:['—','var(--t3)']};
+  nocov:['خارج فترة ملفات المكالمات','var(--t3)'],noph:['مفيش رقم على السيستم','var(--t3)'],book:['اتحجز «مؤكد» وقت الحجز (مش محتاج مكالمة)','var(--t3)'],clinic:['🏥 كان في العيادة يوم الشغل اللي قبل الموعد — مستثنى','var(--good)'],nofile:['—','var(--t3)']};
 function cfPendHTML(){const ex=[...new Set(CF.calls.map(c=>c.ln).concat(CF.files.map(f=>f.ln).filter(Boolean)))].sort();
   const guess=n=>{const b=n.toLowerCase().replace(/\.[^.]+$/,'');const hit=ex.filter(l=>b.includes(l.toLowerCase())||l.replace(/\D/g,'').length>=3&&b.replace(/\D/g,'').includes(l.replace(/\D/g,'')));return hit.sort((a,c)=>c.length-a.length)[0]||''};
   return `<div class="card" style="margin-top:8px;border:2px solid var(--acc)"><h3>📞 الملفات دي لأنهي خط؟</h3>
@@ -109,6 +133,8 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
     ${kpi('✅ مكالمة اترد عليها',J.length?pc_(J,c=>c.cat==='ok'):'ارفع الملفات',J.length?J.length+' اتقارنوا بالمكالمات':'')}
     ${kpi('❌ من غير مكالمة اترد عليها',J.length?pc_(J,c=>c.cat!=='ok'):'—','',J.length&&J.filter(c=>c.cat!=='ok').length/J.length>0.2?'down':'')}</div>`;
   {const n2=C.filter(c=>c.ph2).length;h+=`<div class="sub" style="margin-top:6px">📱 الرقم التاني (Secondary) من Medicolize: ${n2?`متسجل لـ ${n2} من ${C.length} ميعاد — المكالمات بتتطابق على الرقمين`:'لسه مش واصل (بيتسحب من أول مزامنة بعد 15/11) — المطابقة على الرقم الأساسي بس'}</div>`}
+  {const ncl=chk.filter(c=>c.cat==='clinic');if(ncl.length)h+=`<div class="note" style="margin-top:6px">🏥 <b>${ncl.length}</b> تأكيد مستثنى: المريض كان في العيادة (حضر) يوم الشغل اللي قبل الموعد، فغالباً اتأكد وهو هنا — مش محسوبين في «المشكوك فيها» ولا في النسب. الأسامي تحت في «🏥 اتأكدوا وهما في العيادة».</div>`}
+  h+=cfCmpHTML();
   h+='<!--CFCMP--><!--CFCH-->';
   // قراية
   const L=[];if(J.length){const bad=J.filter(c=>c.cat!=='ok');L.push(`من ${J.length} تأكيد في فترة الملفات: <b>${J.filter(c=>c.cat==='ok').length}</b> قبلهم مكالمة اترد عليها، و<b class="down">${bad.length}</b> لأ (${J.filter(c=>c.cat==='none').length} مفيش أي مكالمة للرقم خالص، ${J.filter(c=>c.cat==='tried').length} اتصلوا وما ردش ومع ذلك اتعلّم مؤكد).`);
@@ -116,7 +142,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   // 🔎 الاعتذار والغياب حسب نوع التأكيد (المواعيد اللي خلصت بس)
   const fin_=c=>c.res==='حضر'||c.res==='اعتذر'||c.res==='ما جاش';
   const grp=[['✅ اتأكد بمكالمة اترد عليها',c=>!c.atBook&&c.cat==='ok'],['📵 اتصلوا وما ردش — واتعلّم مؤكد',c=>!c.atBook&&(c.cat==='tried'||c.cat==='missonly')],['❌ اتأكد من غير أي مكالمة',c=>!c.atBook&&c.cat==='none'],
-    ['⚡ اتأكد بالجملة',c=>c.bulk],['اتأكد (مش متقارن بمكالمات)',c=>!c.atBook&&(c.cat==='nocov'||c.cat==='nofile'||c.cat==='noph')],['اتحجز «مؤكد» وقت الحجز',c=>c.atBook]];
+    ['🏥 كان في العيادة اليوم اللي قبله (مستثنى)',c=>!c.atBook&&c.cat==='clinic'],['⚡ اتأكد بالجملة',c=>c.bulk],['اتأكد (مش متقارن بمكالمات)',c=>!c.atBook&&(c.cat==='nocov'||c.cat==='nofile'||c.cat==='noph')],['اتحجز «مؤكد» وقت الحجز',c=>c.atBook]];
   const oRow=(t,a)=>{const n=a.length,ca=a.filter(c=>c.res==='اعتذر').length,ns=a.filter(c=>c.res==='ما جاش').length;return {t,n,at:n-ca-ns,ca,ns,r:n?(ca+ns)/n:null}};
   const OG=grp.map(([t,f])=>oRow(t,C.filter(c=>fin_(c)&&f(c)))).filter(o=>o.n);
   // مواعيد ما اتأكدتش خالص (من أول يوم التسجيل لحد امبارح، ومش في التأكيدات)
@@ -134,8 +160,8 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   if(chk.some(c=>!c.whoOk))L.push(`<span class="sub">* = المسئولة حسب التوزيع الأساسي (خطة اليوم بقت بتسجل مسئولة كل مريض من النهارده — الأيام الجاية هتبقى بالاسم الصح حتى لو حد غايب).</span>`);
   if(L.length)h+=`<div class="card" style="margin-top:12px"><h3>📖 القراية</h3><ul class="ins">${L.map(x=>`<li>${x}</li>`).join('')}</ul></div>`;
   // حسب المسئولة
-  const g={};chk.forEach(c=>{const z=g[c.who]=g[c.who]||{n:0,j:0,ok:0,tr:0,no:0,bu:0,done:0,lost:0};z.n++;if(c.bulk)z.bu++;if(['ok','tried','missonly','none'].includes(c.cat)){z.j++;if(c.cat==='ok')z.ok++;else if(c.cat==='none')z.no++;else z.tr++}if(c.res==='حضر'||c.res==='ما جاش'||c.res==='اعتذر'){z.done++;if(c.res!=='حضر')z.lost++}});
-  const wRows=Object.entries(g).sort((a,b)=>b[1].n-a[1].n).map(([k,z])=>[esc(k),z.n,z.j?pc(z.ok/z.j):'—',z.j?pc(z.tr/z.j):'—',z.j?pc(z.no/z.j):'—',pc(z.bu/z.n),z.done?pc(z.lost/z.done):'—']);
+  const g={};chk.forEach(c=>{const z=g[c.who]=g[c.who]||{n:0,j:0,ok:0,tr:0,no:0,bu:0,done:0,lost:0,cl:0};z.n++;if(c.bulk)z.bu++;if(c.cat==='clinic')z.cl++;if(['ok','tried','missonly','none'].includes(c.cat)){z.j++;if(c.cat==='ok')z.ok++;else if(c.cat==='none')z.no++;else z.tr++}if(c.res==='حضر'||c.res==='ما جاش'||c.res==='اعتذر'){z.done++;if(c.res!=='حضر')z.lost++}});
+  const wRows=Object.entries(g).sort((a,b)=>b[1].n-a[1].n).map(([k,z])=>[esc(k),z.n,z.cl,z.j?pc(z.ok/z.j):'—',z.j?pc(z.tr/z.j):'—',z.j?pc(z.no/z.j):'—',pc(z.bu/z.n),z.done?pc(z.lost/z.done):'—']);
   // حسب اليوم
   const dg={};chk.forEach(c=>{const d=cfDay(c.cT),z=dg[d]=dg[d]||{n:0,j:0,ok:0,bu:0};z.n++;if(c.bulk)z.bu++;if(['ok','tried','missonly','none'].includes(c.cat)){z.j++;if(c.cat==='ok')z.ok++}});
   const dRows=Object.keys(dg).sort().reverse().slice(0,31).map(d=>{const z=dg[d];return [d.slice(8,10)+'/'+d.slice(5,7)+' '+DAYS[new Date(d+'T12:00:00Z').getUTCDay()],z.n,z.bu,z.j?pc(z.ok/z.j):'—']});
@@ -147,9 +173,10 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
   h+=`<div class="grid g2" style="margin-top:12px">
    ${susLost.length?`<div class="card" style="grid-column:1/-1"><h3>🔴 اعتذروا أو ما جوش — وكانوا متأكدين من غير مكالمة<small>${susLost.length}</small></h3>${tableHTML(['الموعد','المريض','الخدمة','النتيجة','اتأكد','المسئولة','ليه مشكوك فيه'],susLost,{h:360})}</div>`:''}
    ${bRows.length?`<div class="card" style="grid-column:1/-1"><h3>⚡ تأكيد بالجملة<small>5 مواعيد أو أكتر اتعلّم عليهم مؤكد في 3 دقايق — كل مريض في سطر</small></h3>${tableHTML(['المرة','المريض','الخدمة','الموعد','المسئولة','النتيجة'],bRows,{h:360})}</div>`:''}
-   <div class="card"><h3>حسب المسئولة عن التأكيد<small>من خطة اليوم</small></h3>${tableHTML(['',{t:'تأكيدات',n:1},{t:'✅ بمكالمة',n:1},{t:'📵 ما ردش',n:1},{t:'❌ مفيش مكالمة',n:1},{t:'⚡ بالجملة',n:1},{t:'ما جاش/اعتذر',n:1}],wRows,{h:340})}</div>
+   <div class="card"><h3>حسب المسئولة عن التأكيد<small>من خطة اليوم</small></h3>${tableHTML(['',{t:'تأكيدات',n:1},{t:'🏥 في العيادة (مستثنى)',n:1},{t:'✅ بمكالمة',n:1},{t:'📵 ما ردش',n:1},{t:'❌ مفيش مكالمة',n:1},{t:'⚡ بالجملة',n:1},{t:'ما جاش/اعتذر',n:1}],wRows,{h:340})}</div>
    ${ogRows.length?`<div class="card" style="grid-column:1/-1"><h3>🔎 الاعتذار والغياب حسب نوع التأكيد<small>المواعيد اللي خلصت بس · «ما اتأكدش خالص» = مواعيد من أول يوم التسجيل ما ظهرتش مؤكدة</small></h3>${tableHTML(['',{t:'مواعيد',n:1},{t:'حضر',n:1},{t:'اعتذر',n:1},{t:'ما جاش',n:1},{t:'اعتذر + ما جاش',n:1}],ogRows,{h:300})}<div class="note">لو «اتأكد من غير مكالمة» نسبته قريبة من «ما اتأكدش خالص» وبعيدة عن «اتأكد بمكالمة» = التأكيد ده على الورق بس.</div></div>`:''}
    <div class="card"><h3>كل يوم</h3>${tableHTML(['يوم التأكيد',{t:'تأكيدات',n:1},{t:'⚡ بالجملة',n:1},{t:'✅ بمكالمة',n:1}],dRows,{h:340})}</div>
+   ${(()=>{const L=chk.filter(c=>c.cat==='clinic').sort((a,b)=>b.aT-a.aT);return L.length?`<div class="card" style="grid-column:1/-1"><h3>🏥 اتأكدوا وهما في العيادة (مستثنيين)<small>${L.length}</small></h3><div class="sub" style="margin-bottom:6px">المريض حضر يوم الشغل اللي قبل الموعد — التأكيد غالباً حصل وهو موجود، فمش محتاج مكالمة.</div>${tableHTML(['الموعد','المريض','اتأكد','المسئولة','كان في العيادة','لو مش مستثنى كان هيبقى'],L.map(c=>[cfFmt(c.aT)+' · '+esc(c.type),ptL(c.pn,c.pid),cfFmt(c.cT),esc(c.who),cfDD2(c.clin)+(c.clinH?' الساعة '+c.clinH:''),CF_CAT[c.clinPrev]?CF_CAT[c.clinPrev][0]:'']),{h:360})}</div>`:''})()}
    ${sus.length?`<div class="card" style="grid-column:1/-1"><h3>المواعيد المشكوك فيها<small>${sus.length}</small></h3>${tableHTML(['اتأكد','المريض','الموعد','المسئولة','','المكالمات','مكالمات الرقم قبلها','النتيجة'],sus,{h:420})}</div>`:''}
   </div>`;
   // 📊 الصورة في رسومات — من Medicolize لوحده (من غير ملفات المكالمات)
@@ -207,6 +234,7 @@ function vConf(){if(!CF.sheet)cfSheet();const X=cfCalc(),C=X.C,chk=C.filter(c=>!
    h=h.replace('<!--CFCH-->',noDone+(CH_.length?`<div class="card" style="margin-top:12px"><h3>📊 الصورة في رسومات<small>من Medicolize لوحده — من غير ملفات المكالمات</small></h3>${few}<div class="grid g2" style="margin-top:8px">${CH_.map(c=>`<div><div style="font-weight:700;font-size:.78rem;margin-bottom:4px">${c[1]}</div>${c[4]?`<div class="sub" style="margin-bottom:6px;line-height:1.7">${c[4]}</div>`:''}<div style="position:relative;height:${c[3]||220}px"><canvas id="${c[0]}"></canvas></div></div>`).join('')}</div></div>`:'')+(CF.listsHTML||''))}
   return h}
 function cConf(){(CF.charts||[]).forEach(c=>chart(c[0],c[2]));const d1=$('#cfD1'),d2=$('#cfD2'),da=$('#cfDAll'),x=$('#cfX');const rr=()=>{CF.st=null;CF.rep={};render()};
+  ['p1a','p1b','p2a','p2b'].forEach(k=>{const e=$('#cfP'+k.slice(1));if(e)e.onchange=()=>{CF[k]=e.value;rr()}});
   if(d1)d1.onchange=()=>{CF.d1=d1.value;rr()};if(d2)d2.onchange=()=>{CF.d2=d2.value;rr()};
   const a1=$('#cfA1'),a2=$('#cfA2'),dc=$('#cfDClr');if(a1)a1.onchange=()=>{CF.a1=a1.value;rr()};if(a2)a2.onchange=()=>{CF.a2=a2.value;rr()};if(dc)dc.onclick=()=>{CF.a1=CF.a2=CF.d1=CF.d2='';rr()};
   document.querySelectorAll('[data-cfq]').forEach(b=>b.onclick=()=>{const [a,c]=b.dataset.cfq.split('|');CF.a1=a;CF.a2=c;rr()});
@@ -503,7 +531,9 @@ function cfBar(kind){cfPre(kind);const conf=kind==='conf',p=conf?CF.cp:CF.kp,key
    <div class="bar"><b style="min-width:110px">📅 ${conf?'مواعيد يوم':'مكالمات يوم'}:</b>${keys.map(k=>chip('data-fp',k,CF_PRE[k][0],p===k)).join('')}${chip('data-fp','custom','📆 من … لحد …',p==='custom')}
     ${p==='custom'?`<label class="sub">من <input type="date" id="${conf?'cfA1':'cfD1'}" value="${a||''}"></label><label class="sub">لحد <input type="date" id="${conf?'cfA2':'cfD2'}" value="${b||''}"></label>`:''}</div>`;
   if(conf){const docs=[...new Set(cfConfs().filter(inB).map(c=>c.doc).concat(cfCx().filter(inB).map(x=>x.doc)))].filter(Boolean).sort();
-    h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">🩺 الدكتور:</b><select id="cfDoc"><option value="">كل الدكاترة</option>${docs.map(d=>`<option${d===CF.dr.doc?' selected':''}>${esc(d)}</option>`).join('')}</select></div>`}
+    h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">🩺 الدكتور:</b><select id="cfDoc"><option value="">كل الدكاترة</option>${docs.map(d=>`<option${d===CF.dr.doc?' selected':''}>${esc(d)}</option>`).join('')}</select></div>`;
+    const whos=[...new Set(cfConfs().filter(inB).map(c=>String(cfWho(c)[0]).replace(/ \*$/,'')))].filter(w=>w&&w!=='…'&&w!=='—').sort();
+    h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">👤 اللي أكّدت:</b>${chip('data-fwho','','الكل',!CF.who)}${whos.map(w=>chip('data-fwho',esc(w),esc(w),CF.who===w)).join('')}</div>`}
   else{const lns=[...new Set(CF.calls.map(c=>c.ln))].sort(),sw=S.b==='dokki'?17:15;
     h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">📱 الخط:</b>${chip('data-fln','','الكل',!CF.ln)}${lns.map(l=>chip('data-fln',esc(l),esc(l),CF.ln===l)).join('')}</div>
      <div class="bar" style="margin-top:6px"><b style="min-width:110px">🕐 الشيفت:</b>${chip('data-fsh','all','اليوم كله',CF.sh==='all')}${chip('data-fsh','am','☀️ الصباحي (11–'+(sw-12)+')',CF.sh==='am')}${chip('data-fsh','pm','🌙 المسائي ('+(sw-12)+'–11)',CF.sh==='pm')}</div>`}
@@ -513,7 +543,8 @@ function cBar(){const rr=()=>{CF.st=null;CF.rep={};CF.rch=null;CF.lists=null;ren
   document.querySelectorAll('[data-fp]').forEach(b=>b.onclick=()=>{const k=b.dataset.fp;if(S.tab==='conf')CF.cp=k;else CF.kp=k;rr()});
   document.querySelectorAll('[data-fln]').forEach(b=>b.onclick=()=>{CF.ln=b.dataset.fln;rr()});
   document.querySelectorAll('[data-fsh]').forEach(b=>b.onclick=()=>{CF.sh=b.dataset.fsh;const sw=S.b==='dokki'?'17':'15';[CF.h1,CF.h2]=CF.sh==='am'?['11',sw]:CF.sh==='pm'?[sw,'23']:['',''];rr()});
-  const dc=$('#cfDoc');if(dc)dc.onchange=()=>{CF.dr.doc=dc.value;rr()}}
+  const dc=$('#cfDoc');if(dc)dc.onchange=()=>{CF.dr.doc=dc.value;rr()};
+  document.querySelectorAll('[data-fwho]').forEach(b=>b.onclick=()=>{CF.who=b.getAttribute('data-fwho');rr()})}
 // ================= 🔍 مراجعة يوم: No Show / ملغي — اتأكد إمتى ومين · اتغيّر إمتى ومين · سبب الإلغاء · المكالمات قبلها =================
 CF.dr={d:'',doc:'',st:'all'};
 const CF_STL={NOSHOW:'No Show',NO_SHOW:'No Show',CANCELED:'اتلغى',CANCELLED:'اتلغى'};
@@ -659,7 +690,7 @@ async function cfExcel(){if(!CF.rep.calls&&!CF.rep.conf){alert('ارفع ملف�
     sh('باليوم',['اليوم','داخلة','فاتت','نسبة','نرجع بعد'],c.wRows,[12,10,10,10,20]);
     sh('تقييم كل خط',['الخط','داخلة','فاتت %','فاتت وقت الشغل','رجعنا خلال ساعة','نرجع بعد (النص)','ما رجعناش','طالعة','ردوا علينا','لسه محدش رجعلهم'],c.lRows,[22,10,10,14,14,16,12,10,12,16])}
   if(R.conf){const f=R.conf;
-    sh('التأكيد — حسب المسئولة',['المسئولة','تأكيدات','بمكالمة','ما ردش','مفيش مكالمة','بالجملة','ما جاش/اعتذر'],f.wRows,[22,10,10,10,12,10,14]);
+    sh('التأكيد — حسب المسئولة',['المسئولة','تأكيدات','في العيادة (مستثنى)','بمكالمة','ما ردش','مفيش مكالمة','بالجملة','ما جاش/اعتذر'],f.wRows,[22,10,12,10,10,12,10,14]);
     sh('التأكيد — كل يوم',['اليوم','تأكيدات','بالجملة','بمكالمة'],f.dRows,[18,10,10,10]);
     if(f.ogRows.length)sh('الاعتذار حسب نوع التأكيد',['نوع التأكيد','مواعيد','حضر','اعتذر','ما جاش','اعتذر + ما جاش'],f.ogRows,[36,10,10,10,10,16]);
     if(f.susLost.length)sh('اعتذروا وتأكيدهم مشكوك فيه',['الموعد','المريض','الخدمة','النتيجة','اتأكد','المسئولة','ليه مشكوك فيه'],f.susLost,[14,30,24,10,14,18,34]);

@@ -3974,6 +3974,11 @@ function _aud_renderTable() {
     return;
   }
   const isAmg=r=>/amgad|أمجد/i.test(String(r.doc||''));   // 👨‍⚕️ اللي باسم د. أمجد في جدول لوحده تحت
+  // ⚡ كومبليت بدون موعد + المريض عنده إلغاء مفاجئ / No Show نفس اليوم → الجلسة غالبًا اتخصمت عليه عن قصد (آخر 14 يوم بس — قبلها مش متاح)
+  const nN=x=>String(x||'').replace(/\s+/g,' ').trim(), SD={};
+  try{ ((typeof ALERTS_DATA!=='undefined'&&ALERTS_DATA&&ALERTS_DATA.sudden)||[]).forEach(x=>{ const d=String(x.date||'').slice(0,10); if(d) (SD[nN(x.name)+'|'+d]=SD[nN(x.name)+'|'+d]||[]).push(x); }); }catch(e){}
+  const sdOf=r=>{ if(r.note!=='كومبليت بدون موعد') return null; const m=String(r.date).match(/(\d+)\/(\d+)\/(\d+)/); if(!m) return null;
+    return SD[nN(r.patient)+'|'+m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')]||null; };
   const rest=filtered.filter(r=>!isAmg(r)), amg=filtered.filter(isAmg);
   const rowsH=L=>L.map((r,i)=>{
     const c=_aud_NOTE_COLORS[r.note]||{dot:'#888'};
@@ -3985,7 +3990,8 @@ function _aud_renderTable() {
       <div class="col-svc">${_aud_esc(r.svc)}</div>
       <div class="col-num" style="color:${r.appt?'#00C9A7':'#475569'}">${r.appt}</div>
       <div class="col-num" style="color:${r.oper?'#00C9A7':'#475569'}">${r.oper}</div>
-      <div class="col-badge"><span class="badge" style="background:${c.dot}22;border:1px solid ${c.dot}55;color:${c.dot}">${r.note}</span></div>
+      <div class="col-badge"><span class="badge" style="background:${c.dot}22;border:1px solid ${c.dot}55;color:${c.dot}">${r.note}</span>${(()=>{ const z=sdOf(r); if(!z) return '';
+        const ns=z.every(x=>x.kind==='noshow'); return `<div style="margin-top:5px;font-size:11px;font-weight:700;color:#F59E0B">⚡ عنده ${ns?'No Show':'إلغاء مفاجئ'} اليوم ده — الجلسة غالبًا اتخصمت عن قصد</div>`; })()}</div>
     </div>`;
   }).join('');
   const sep=(t,n)=>`<div style="padding:12px 14px;font-weight:800;font-size:.85rem;background:rgba(6,182,212,.10);border-top:2px solid rgba(6,182,212,.45);border-bottom:1px solid var(--brd)">${t} (${n})</div>`;

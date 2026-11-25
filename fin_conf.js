@@ -47,8 +47,13 @@ async function cfSheet(){if(CF.sheetTry)return;CF.sheetTry=true;try{const d=awai
   CF.sheet=o}catch(e){CF.sheet={sum:{},roles:null,err:1}}if(S.tab==='conf'||S.tab==='sum')render()}
 const CF_BR={haram:'BODYFIX Center',dokki:'FIX ZONE'},CF_ROLE={haram:'J',dokki:'DM'};
 function cfWho(c){if(c.ub)return [typeof planNormName==='function'?c.ub:c.ub.split(' ')[0],1];const sh=CF.sheet;if(!sh)return ['…',0];
+  if(c.b==='dokki'){const R=(sh.roles&&sh.roles[CF_BR[c.b]])||{},h=new Date(c.cT).getUTCHours(),m=R.DM||'Bassant',e=R.DE||'Georgina';return [h>=17||h<3?e+' ؟':h<15?m+' ؟':'مش معروف (3–5) ؟',0]}   // الدقي: مين عدّلت فعلاً مش مين المسئولة
   for(const d of [cfDay(c.cT),cfDay(c.aT),cfDay(c.cT-864e5)]){const s=sh.sum[d];if(s&&s.cf&&c.puid&&s.cf[c.puid])return [s.cf[c.puid],1]}
-  const n=sh.roles&&(sh.roles[CF_BR[c.b]]||{})[CF_ROLE[c.b]];return [n?n+' *':'—',0]}
+  // قبل ما السحب يسجل مين عدّلت (updatedBy): نخمّن من وقت التأكيد حسب الشيفتات — الدقي: بسنت 10–5 · جورجينا 3–11 (3–5 الاتنين موجودين = مش معروف)
+  const R=(sh.roles&&sh.roles[CF_BR[c.b]])||{},h=new Date(c.cT).getUTCHours();
+  if(c.b==='dokki'){const m=R.DM||'Bassant',e=R.DE||'Georgina';return [h>=17||h<3?e+' ؟':h<15?m+' ؟':'مش معروف (3–5) ؟',0]}
+  const n=R[CF_ROLE[c.b]];return [n?n+' *':'—',0]}
+const cfWhoN=w=>String(w||'').replace(/ [*؟]$/,'');
 // ---------- البيانات ----------
 function cfConfs(){const T=(RAW&&RAW.kinds&&RAW.kinds.conf&&RAW.kinds.conf.all)||{};const out=[];
   for(const mk in T){const t=T[mk],ci=n=>t.cols.indexOf(n);const I={aid:ci('aid'),s:ci('start'),u:ci('up'),cr:ci('cr'),ty:ci('type'),pid:ci('pid'),pn:ci('pn'),ph:ci('ph'),doc:ci('doc'),b:ci('b'),puid:ci('puid'),ph2:ci('ph2'),ub:ci('ub')};
@@ -75,13 +80,13 @@ function cfCalc(){const C0=cfConfs().filter(c=>inB(c)&&(!CF.dr.doc||c.doc===CF.d
   {const att={};D.apt.forEach(a=>{if(!a.pid||!/complet|check|progress|delay/i.test(a.st||''))return;const k=a.pid+'|'+a.d;if(!(k in att)||(a.h||0)<att[k])att[k]=a.h||0});
    const prevW=d=>{const x=new Date(d+'T12:00:00Z');do{x.setUTCDate(x.getUTCDate()-1)}while(x.getUTCDay()===5);return x.toISOString().slice(0,10)};
    C0.forEach(c=>{if(c.atBook||c.cat==='ok')return;const pd=prevW(cfDay(c.aT)),k=c.pid+'|'+pd;if(k in att){c.clinPrev=c.cat;c.cat='clinic';c.clin=pd;c.clinH=att[k]}})}
-  if(CF.who)C0.splice(0,C0.length,...C0.filter(c=>String(c.who).replace(/ \*$/,'')===CF.who));
-  return {C:C0,bursts:CF.who?bursts.filter(b=>b.L.some(c=>String(c.who).replace(/ \*$/,'')===CF.who)):bursts}}
+  if(CF.who)C0.splice(0,C0.length,...C0.filter(c=>cfWhoN(c.who)===CF.who));
+  return {C:C0,bursts:CF.who?bursts.filter(b=>b.L.some(c=>cfWhoN(c.who)===CF.who)):bursts}}
 
 // 📅 مقارنة فترتين (مثلاً وجود المسئولة وغيابها) — حسب يوم الموعد · نفس الفرع والدكتور واللي أكّدت لو متحددين
 function cfCmpStats(a,b){const s1=CF.a1,s2=CF.a2;CF.a1=a;CF.a2=b;let X;try{X=cfCalc()}finally{CF.a1=s1;CF.a2=s2}
   const chk=X.C.filter(c=>!c.atBook),J=chk.filter(c=>['ok','tried','missonly','none','clinic'].includes(c.cat)),f=c=>c.res==='حضر'||c.res==='اعتذر'||c.res==='ما جاش',fin=chk.filter(f);
-  const n=k=>J.filter(c=>k.includes(c.cat)).length,days=new Set(chk.map(c=>cfDay(c.aT))).size||1,who={};chk.forEach(c=>{const w=String(c.who).replace(/ \*$/,'');who[w]=(who[w]||0)+1});
+  const n=k=>J.filter(c=>k.includes(c.cat)).length,days=new Set(chk.map(c=>cfDay(c.aT))).size||1,who={};chk.forEach(c=>{const w=String(c.who);who[w]=(who[w]||0)+1});
   return {n:chk.length,j:J.length,ok:n(['ok']),cl:n(['clinic']),tr:n(['tried','missonly']),no:n(['none']),bu:chk.filter(c=>c.bulk).length,un:chk.length-J.length,fin:fin.length,lost:fin.filter(c=>c.res!=='حضر').length,days,who}}
 function cfCmpHTML(){const A=cfCmpStats(CF.p1a,CF.p1b),B=cfCmpStats(CF.p2a,CF.p2b);
   const P=(x,t)=>t?Math.round(x*100/t)+'%':'—',bar=z=>{const t=z.j||1;const seg=(v,c,l)=>v?`<div title="${l} ${v}" style="width:${v*100/t}%;background:${c}"></div>`:'';
@@ -532,8 +537,8 @@ function cfBar(kind){cfPre(kind);const conf=kind==='conf',p=conf?CF.cp:CF.kp,key
     ${p==='custom'?`<label class="sub">من <input type="date" id="${conf?'cfA1':'cfD1'}" value="${a||''}"></label><label class="sub">لحد <input type="date" id="${conf?'cfA2':'cfD2'}" value="${b||''}"></label>`:''}</div>`;
   if(conf){const docs=[...new Set(cfConfs().filter(inB).map(c=>c.doc).concat(cfCx().filter(inB).map(x=>x.doc)))].filter(Boolean).sort();
     h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">🩺 الدكتور:</b><select id="cfDoc"><option value="">كل الدكاترة</option>${docs.map(d=>`<option${d===CF.dr.doc?' selected':''}>${esc(d)}</option>`).join('')}</select></div>`;
-    const whos=[...new Set(cfConfs().filter(inB).map(c=>String(cfWho(c)[0]).replace(/ \*$/,'')))].filter(w=>w&&w!=='…'&&w!=='—').sort();
-    h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">👤 اللي أكّدت:</b>${chip('data-fwho','','الكل',!CF.who)}${whos.map(w=>chip('data-fwho',esc(w),esc(w),CF.who===w)).join('')}</div>`}
+    const whos=[...new Set(cfConfs().filter(inB).map(c=>cfWhoN(cfWho(c)[0])))].filter(w=>w&&w!=='…'&&w!=='—').sort(),ub0=cfConfs().filter(c=>inB(c)&&c.ub).map(c=>c.cT).sort((a,b)=>a-b)[0];
+    h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">👤 اللي أكّدت:</b>${chip('data-fwho','','الكل',!CF.who)}${whos.map(w=>chip('data-fwho',esc(w),esc(w),CF.who===w)).join('')}</div><div class="sub" style="margin-top:4px">الاسم من Medicolize نفسه (مين اللي عدّلت لـ«مؤكد»)${ub0?' — متسجل من '+cfDD2(cfDay(ub0)):''}. قبل كده الاسم متخمّن من وقت التأكيد وجنبه <b>؟</b>${S.b==='dokki'?' (بعد 5 = جورجينا · قبل 3 = بسنت · من 3 لـ 5 = مش معروف)':''}.</div>`}
   else{const lns=[...new Set(CF.calls.map(c=>c.ln))].sort(),sw=S.b==='dokki'?17:15;
     h+=`<div class="bar" style="margin-top:6px"><b style="min-width:110px">📱 الخط:</b>${chip('data-fln','','الكل',!CF.ln)}${lns.map(l=>chip('data-fln',esc(l),esc(l),CF.ln===l)).join('')}</div>
      <div class="bar" style="margin-top:6px"><b style="min-width:110px">🕐 الشيفت:</b>${chip('data-fsh','all','اليوم كله',CF.sh==='all')}${chip('data-fsh','am','☀️ الصباحي (11–'+(sw-12)+')',CF.sh==='am')}${chip('data-fsh','pm','🌙 المسائي ('+(sw-12)+'–11)',CF.sh==='pm')}</div>`}

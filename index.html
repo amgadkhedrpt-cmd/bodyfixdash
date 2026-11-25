@@ -13941,6 +13941,9 @@ var PLAN_PAID_RE=/(^|[\s،,.\-\/])(دفع|دفعت|اتدفع|اتدفعت|سد�
 function planPaidNote(t){ var st=PLAN_ST[t.key]||{}, n=String(st.note||'').trim(); return !!n&&PLAN_PAID_RE.test(n)&&!PLAN_UNPAID_RE.test(n)&&!t.sys; }
 function planOwner0(t,g){
   if(g==='dup') return '';
+  // 📞 تأكيد مواعيد بكره في الدقي: مسئولة الصبح (بسنت) — واللي لسه ما اتأكدش بعد تغيير الشيفت يكمّله المسائي (جورجينا) · اللي اتعمل يفضل محسوب على اللي عملته
+  if(g==='conf'&&t.br==='FIX ZONE'&&planCairoH(new Date().toISOString())>=17){ var st0=''; try{ st0=planState(t); }catch(e){}
+    if(st0!=='done') return planNormName((PLAN_ROLES['FIX ZONE']||{}).DE||''); }
   if((g==='debt'||g==='debtph')&&planPaidNote(t)) return planNormName((PLAN_ROLES['BODYFIX Center']||{}).L||PLAN_INV_OWNER_DEF);
   var ov=planAMOv(t.br);
   if(ov){ var tdo=(ALERTS_DATA&&ALERTS_DATA.today)||'', ao=PLAN_ST['asg|'+tdo+'|'+t.sec+'|'+g+'|'+t.br];

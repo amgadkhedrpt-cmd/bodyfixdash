@@ -2007,7 +2007,7 @@ async def main():
                 raise SystemExit(0)
             if os.environ.get("HIST_PROBE") == "1":   # 🔎 فحص تاريخ تغيير حالة الميعاد — أسامي حقول بس
                 import hist_probe
-                await hist_probe.run(gql_call, pg, cookie_str, auth_headers)
+                await hist_probe.run(gql_call, pg, cookie_str, auth_headers, await fetch_all_appointments(cookie_str, pg, auth_headers))
                 raise SystemExit(0)
             if os.environ.get("FETCH_TEST") == "1":   # 🧪 تجربة سرعة بس — مفيش ملفات
                 await fetch_speed_test(cookie_str, pg, auth_headers, int(os.environ.get("FETCH_TEST_PAGES", "20")))

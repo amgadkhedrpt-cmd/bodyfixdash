@@ -12000,6 +12000,20 @@ function planMyCard(){ var c=PLAN_CARDS[PLAN_ME]; if(!c) return null; if(c.o) re
   var age=(new Date((ALERTS_DATA&&ALERTS_DATA.today||'')+'T12:00:00')-new Date(c.d+'T12:00:00'))/864e5; if(!(age<=4)) { c.o=null; return null; } return c.o; }
 /* 📡 البيانات دي من آخر سحب من Medicolize — مش لحظية: الوقت والمدة باينين دايمًا جنب «خطة اليوم» */
 /* 📂 آخر رفع لسجل المكالمات لكل خط — بالتاريخ والساعة (وآخر مكالمة جوه الملف) */
+/* 🕳️ فراغات في سجل المكالمات: فترة شغل (10 الصبح لـ 12 بالليل، غير الجمعة) مش موجودة في أي ملف اترفع للخط ده
+   كل ملف بيغطي من أول مكالمة فيه (mn) لآخر مكالمة (mx) — الفترة اللي بين ملفين ومحدش غطاها = مكالمات ممكن تكون ضايعة */
+function mcGaps(ln, days){
+  var U=(MC.upl||[]).filter(function(x){ return x.ln===ln&&x.mn&&x.mx; }).map(function(x){ return [x.mn,x.mx]; }).sort(function(a,b){ return a[0]-b[0]; });
+  if(!U.length) return [];
+  var td=(ALERTS_DATA&&ALERTS_DATA.today)||mcCairoDay(Date.now()), d0=new Date(td+'T12:00:00'); d0.setDate(d0.getDate()-(days||2));
+  var from=Date.parse(d0.toISOString().slice(0,10)+'T10:00:00+02:00'), end=U.reduce(function(m,x){ return Math.max(m,x[1]); },0);   // لحد آخر مكالمة مترفعة بس (اللي بعدها = «لسه ما اترفعش» وليها تنبيه تاني)
+  var hrs=function(ms){ var p=new Date(ms).toLocaleString('en-GB',{timeZone:'Africa/Cairo',weekday:'short',hour:'2-digit',hour12:false}); return {h:+p.slice(-2), fri:/Fri/.test(p)}; };
+  var work=function(a,b){ var m=0; for(var t=a;t<b;t+=15*60000){ var z=hrs(t); if(!z.fri&&z.h>=10) m+=Math.min(15,(b-t)/60000); } return m; };
+  var out=[], cur=from;
+  U.forEach(function(x){ if(x[1]<=cur) return; if(x[0]>cur){ var w=work(cur,Math.min(x[0],end)); if(w>=120) out.push({a:cur,b:x[0],w:w}); } cur=Math.max(cur,x[1]); });
+  return out; }
+function mcGapTxt(g){ var f=function(t){ return new Date(t).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'long',hour:'numeric',minute:'2-digit'}); };
+  return 'من '+f(g.a)+' لـ '+f(g.b); }
 function mcLastUpTxt(act){ if(typeof MC==='undefined'||!MC.lines||!MC.upl) return '';
   var f=function(t){ return new Date(t).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'short',day:'numeric',month:'numeric',hour:'numeric',minute:'2-digit'}); };
   var td=(ALERTS_DATA&&ALERTS_DATA.today)||'';
@@ -12007,7 +12021,9 @@ function mcLastUpTxt(act){ if(typeof MC==='undefined'||!MC.lines||!MC.upl) retur
     var L=(MC.upl||[]).filter(function(x){ return x.ln===ln; }).sort(function(a,b){ return (b.at||0)-(a.at||0); }), u=L[0];
     if(!u) return '<b>'+alEsc(ln)+'</b>: <span style="color:var(--r)">ولا مرة</span>';
     var old=mcCairoDay(u.at)<td, mx=L.reduce(function(m,x){ return Math.max(m,x.mx||0); },0);
-    return '<b>'+alEsc(ln)+'</b>: <span style="color:'+(old?'var(--r)':'var(--g)')+'">'+alEsc(f(u.at))+'</span>'+(mx?' <span style="color:var(--mute)">(آخر مكالمة فيه '+alEsc(f(mx))+')</span>':''); });
+    var gp=[]; try{ gp=mcGaps(ln,2); }catch(e){}
+    return '<b>'+alEsc(ln)+'</b>: <span style="color:'+(old?'var(--r)':'var(--g)')+'">'+alEsc(f(u.at))+'</span>'+(mx?' <span style="color:var(--mute)">(آخر مكالمة فيه '+alEsc(f(mx))+')</span>':'')+
+      gp.map(function(g){ return '<div style="color:var(--r);font-weight:800">⚠️ خط '+alEsc(ln)+': مكالمات ناقصة في النص '+alEsc(mcGapTxt(g))+' — الفترة دي مش موجودة في أي ملف اترفع، ارفعي ملف من نفس الموبايل يغطيها</div>'; }).join(''); });
   return parts.length?'<div style="font-size:.6rem;color:var(--mute);margin:-4px 0 8px;line-height:1.8">📂 آخر رفع لسجل المكالمات — '+parts.join(' · ')+'</div>':''; }
 function planLinkBanner(){ if(typeof bfSheetCfg==='function'&&bfSheetCfg()) return '';
   return '<div style="background:rgba(239,68,68,.12);border:1px solid var(--r);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:.66rem;color:var(--r);font-weight:700">⚠️ الجهاز ده مش مربوط بشيت التحصيل — ناقصه مهام: 📵 المكالمات الفايتة · 📂 سجل المكالمات · 💸 الفلوس المتسجلة بالخطأ · 🧾 مين على الخزنة · ⚡ التحديث الفوري<br><span style="font-weight:400;color:var(--txt)">افتحي «لينك ربط الجهاز» مرة واحدة على الجهاز ده (بيتبعت من د. أمجد) وكل ده هيظهر.</span></div>'; }
@@ -13598,9 +13614,17 @@ function planTasks(useAll){
       Object.keys(MC.lines).forEach(function(ln){ var cf=MC.lines[ln]||{}, br=cf.br||'BODYFIX Center'; if(act.indexOf(br)<0) return;
         var mine=(MC.upl||[]).filter(function(x){ return x.ln===ln; });
         var maxT=mine.reduce(function(m,x){ var t=x.mx||x.at||0; return t>m?t:m; },0), cut=Date.parse(yd+'T19:00:00+02:00');
-        if(!mine.length||maxT>=cut) return;
+        var gp_=[]; try{ gp_=mcGaps(ln,2); }catch(e){}
+        if(!mine.length||(maxT>=cut&&!gp_.length)) return;
         var sw=cf.sw||(br==='FIX ZONE'?17:15), rkE=CS.roleAt(cf,br,sw+1,false), whoE=planNormName((PLAN_ROLES[br]||{})[rkE]||'');
         var lastTxt=maxT?new Date(maxT).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'long',hour:'numeric',minute:'2-digit'}):'ولا مرة';
+        if(maxT>=cut&&gp_.length){   // 🕳️ اترفع بعد كده بس فيه فترة في النص مش مترفعة
+          var gt_=gp_.map(mcGapTxt).join(' · ');
+          add('mgr',{grp:['mgr'], mgrOnly:1, pown:PLAN_MGR_NAME, key:'mgr|callgap|'+today+'|'+ln, icon:'🕳️', kind:'سجل مكالمات خط '+alEsc(ln)+' ناقص فترة في النص', name:'خط '+ln, br:br,
+            lines:['مش مترفع: '+alEsc(gt_)+' — المكالمات الفايتة في الفترة دي مش باينة']});
+          add('morning',{grp:['mcallup'], _h:9, key:'mcallgap|'+today+'|'+ln, icon:'🕳️', kind:'ارفعي سجل مكالمات خط '+alEsc(ln)+' — فيه فترة ناقصة', name:'خط '+ln, br:br, line:ln,
+            lines:['مش مترفع: '+alEsc(gt_)+' — ارفعي ملف من نفس الموبايل يغطي الفترة دي', mcUpHTML(ln,br)]});
+          return; }
         add('mgr',{grp:['mgr'], mgrOnly:1, pown:PLAN_MGR_NAME, key:'mgr|callupy|'+yd+'|'+ln, icon:'📂', kind:'سجل آخر الشيفت امبارح (خط '+alEsc(ln)+') ما اترفعش'+(whoE?' — مع '+alEsc(whoE):''), name:'خط '+ln, br:br,
           lines:['آخر مكالمة مترفعة: '+alEsc(lastTxt)+' — المكالمات الفايتة اللي اترجعلها بعد كده مش هتتقفل لحد ما يترفع']});
         add('morning',{grp:['mcallup'], _h:sw+1, key:'mcallupy|'+yd+'|'+ln, icon:'📂', kind:'ارفعي سجل مكالمات خط '+alEsc(ln)+' — امبارح بالليل ما اترفعش', name:'خط '+ln, br:br, line:ln,

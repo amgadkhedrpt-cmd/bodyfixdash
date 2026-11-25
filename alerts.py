@@ -1580,7 +1580,9 @@ def build_alerts(appointments, now=None, packages=None):
                 n = (a.get("note") or "").strip()
                 if not n or not (today - timedelta(days=3) <= a["start"].date() <= today):
                     continue
-                m = MGR.search(n)
+                # «الشبكة وحشه / النت وحش / الصوت وحش» = مشكلة اتصال مش شكوى → ما تتحسبش ملحوظة للمدير
+                n_ = _re.sub(r"(?:ال)?(?:شبك[هة]|نت|انترنت|إنترنت|صوت|خط|ارسال|إرسال)\s*(?:كان[ت]?\s*)?(?:وحش[هة]?|سيئ[هة]?|ضعيف[هة]?)", " ", n)
+                m = MGR.search(n_)
                 if not m:
                     continue
                 nx = min((x for x in appts if x["start"] > now and x["status"] not in NOT_FUTURE and x["doctor"].lower() not in SKIP_DOCS),

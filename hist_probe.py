@@ -29,24 +29,20 @@ async def run(gql_call, page, cookie, headers):
                     except Exception: f = []
                 for it in f or []:
                     if isinstance(it, dict) and it.get("status"):
-                        seq[u["appointmentId"]].append((ts(u["createdAt"]), str(it["status"]).upper(), ((u.get("createdBy") or {}).get("name") or "?").split(" ")[0]))
+                        seq[u["appointmentId"]].append((ts(u["createdAt"]), str(it["status"]).upper(), ((u.get("createdBy") or {}).get("name") or "?").split(" ")[0], tuple(sorted(k for x in (f or []) if isinstance(x, dict) for k in x))))
             if len(L) < 500: break
             sk += 500
         day += dt.timedelta(days=1)
     print("appointments with status changes:", len(seq))
-    for who in ("Georgina", "Bassant", "Mariam", "Dalia", "Engy"):
-        nxt = Counter(); gap = Counter(); hr = Counter(); n = 0
+    for who in ("Georgina", "Bassant"):
+        prev = Counter(); other = Counter(); n = 0
         for aid, S in seq.items():
             S.sort()
-            for i, (t, st, by) in enumerate(S):
-                if st != "CONFIRMED" or by != who: continue
-                n += 1; hr[(t + dt.timedelta(hours=2)).hour] += 1
-                later = [x for x in S[i + 1:] if x[1] != "CONFIRMED"]
-                if not later: nxt["(مفيش حالة بعدها)"] += 1; continue
-                t2, st2, by2 = later[0]; m = (t2 - t).total_seconds() / 60
-                nxt[st2 + (" نفس الشخص" if by2 == who else "")] += 1
-                gap[st2 + " · " + ("<5د" if m < 5 else "5-30د" if m < 30 else "30د-3س" if m < 180 else "3-24س" if m < 1440 else ">يوم")] += 1
-        print("=====", who, "confirmed:", n)
-        print("  next status:", nxt.most_common(10))
-        print("  gap:", gap.most_common(14))
-        print("  hour:", sorted(hr.items()))
+            for i, x in enumerate(S):
+                if x[1] != "CONFIRMED" or x[2] != who: continue
+                n += 1
+                prev[S[i - 1][1] if i else "(أول حالة متسجلة)"] += 1
+                other["+".join(k for k in x[3] if k != "status") or "status بس"] += 1
+        print("=====", who, "CONFIRMED events:", n)
+        print("  الحالة اللي قبلها:", prev.most_common(10))
+        print("  اتغير معاها في نفس التعديل:", other.most_common(10))

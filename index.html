@@ -12351,7 +12351,8 @@ function sumPastPlan(F,TO,act,inR,card,ptRow){
   return card('plan','✅','إنجاز خطة اليوم',tot?Math.round(dn*100/tot)+'%':'—',dn+' من '+tot+' · فضل مفتوح '+open.length,rows,tot&&dn/tot>=.8?'var(--g)':'');
 }
 /* 📞 مطابقة مكالمات الانقطاع المكتوبة على Medicolize مع سجل مكالمات الموبايل — للمدير بس (أول أسبوعين) */
-function fuIsMgr(){ var m=String(PLAN_ME||''); return !m||/amgad|أمجد/i.test(m); }
+function fuIsMgr(){ try{ if(/[?&]mgr=1/.test(location.search)) localStorage.setItem('bfMgr','1'); if(/[?&]mgr=0/.test(location.search)) localStorage.removeItem('bfMgr'); if(localStorage.getItem('bfMgr')==='1') return true; }catch(e){}
+  var m=String(PLAN_ME||''); return !m||/amgad|أمجد/i.test(m); }   // 👔 جهاز المدير: اسمه فاضي / أمجد — أو اتفتح مرة بـ ?mgr=1
 function fuVerify(r){
   if(typeof MC==='undefined'||!MC.calls||!MC.calls.length||typeof cfPh!=='function') return null;
   var D=ALERTS_DATA||{}; if(!MC.fuPh||MC.fuPhAt!==MC.calls.length){ var P={}, B={}; (D.pt_index||[]).forEach(function(z){ if(z[15]&&z[1]) P[z[15]]=cfPh(z[1]); });

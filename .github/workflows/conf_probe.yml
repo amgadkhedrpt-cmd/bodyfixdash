@@ -3,6 +3,15 @@ name: Confirmation Probe (Dokki)
 # 🔎 فحص تأكيد مواعيد الدقي من سجل المكالمات — قراية بس، أعداد في اللوج، مفيش ملفات ولا commit · بتشتغل بإيدك
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'FIX ZONE أو BODYFIX Center'
+        required: false
+        default: 'FIX ZONE'
+      lines:
+        description: 'الخطوط (بفاصلة)'
+        required: false
+        default: 'الدقي'
 
 permissions:
   contents: read
@@ -43,6 +52,8 @@ jobs:
           GMAIL_USER:      ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
           CONF_PROBE: '1'
+          CONF_BR: ${{ github.event.inputs.branch }}
+          CONF_LN: ${{ github.event.inputs.lines }}
           SHEET_KEY: ${{ secrets.SHEET_KEY }}
           SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
         run: python scraper.py

@@ -3,7 +3,9 @@
 import os, json, re, urllib.request, datetime as dt
 from collections import defaultdict
 URL, KEY = os.environ.get("SHEET_URL", ""), os.environ.get("SHEET_KEY", "")
-BR, LN, SW = "FIX ZONE", "الدقي", 17          # الشيفت المسائي في الدقي من 5
+BR = os.environ.get("CONF_BR", "FIX ZONE")
+LNS = set((os.environ.get("CONF_LN") or "الدقي").split(","))
+SW = int(os.environ.get("CONF_SW") or (15 if BR == "BODYFIX Center" else 17))   # تغيير الشيفت
 SKIP_T = re.compile(r"متابع|منقطع|تغذ|موعد محجوز")
 def call(body):
     body = dict(body, key=KEY)
@@ -28,13 +30,13 @@ def run(appts):
     for m in months:
         for x in (call({"action": "list", "prefix": f"calls/{m}/days"}).get("docs") or []):
             d = dd(x)
-            if d.get("ln") != LN: continue
+            if d.get("ln") not in LNS: continue
             base = dt.datetime.fromisoformat(d["d"] + "T00:00:00")
             for r in d.get("r") or []:
                 t = base + dt.timedelta(seconds=r[1])          # ساعة الحيطة في القاهرة
                 ty = {"i": "in", "o": "out", "m": "miss"}.get(r[2], "?")
                 calls[str(r[0])[-10:]].append((t, ty, r[3] or 0)); days_with_calls.add(t.date())
-    print("📞 أيام فيها مكالمات على خط الدقي:", len(days_with_calls))
+    print("📞", BR, "· الخطوط", sorted(LNS), "· أيام فيها مكالمات:", len(days_with_calls))
     def prev_work(d):
         p = d - dt.timedelta(days=1)
         if p.weekday() == 4: p -= dt.timedelta(days=1)
@@ -62,16 +64,16 @@ def run(appts):
         talk = any(c[2] > 0 and c[1] in ("in", "out") for c in L)
         s = (a.get("status") or "").lower()
         res = "came" if s in ("completed", "checked in", "in progress", "checkedin", "inprogress") else "noshow" if "no" in s and "show" in s else "cancel" if "cancel" in s else "open"
-        per = "G" if P <= dt.date(2026, 11, 15) else "X"        # G = جورجينا كانت موجودة (يوم التأكيد قبل 16/11) · X = غايبة
+        per = ("G" if P <= dt.date(2026, 11, 15) else "X") if BR == "FIX ZONE" else ("G" if P < dt.date(2026, 11, 12) else "X")   # الهرم: G = قبل خطة اليوم (12/11) · X = بعدها
         for key in (per, per + ("_called" if (out_am or out_pm) else "_nocall")):
             R = rows[key]; R["n"] += 1; R[res] += 1
             R["am"] += out_am; R["pm"] += out_pm; R["talk"] += talk; R["any"] += (out_am or out_pm)
         rows["day|" + P.isoformat()]["n"] += 1; rows["day|" + P.isoformat()]["any"] += (out_am or out_pm); rows["day|" + P.isoformat()]["pm"] += out_pm
     pc = lambda a, b: f"{(a * 100 / b):.0f}%" if b else "-"
-    print("\n🔎 تأكيد مواعيد الدقي (G = يوم التأكيد قبل 16/11 · X = من 16/11 — غياب جورجينا):")
+    print("\n🔎 تأكيد المواعيد — G/X:", "قبل 16/11 / من 16/11" if BR == "FIX ZONE" else "قبل خطة اليوم 12/11 / من 12/11")
     for k in ("G", "X"):
         R = rows[k]
-        print(f"  {k}: مواعيد {R['n']} · اتصلنا بيهم يوم قبلها {pc(R['any'], R['n'])} (الصبح {pc(R['am'], R['n'])} · بعد 5 {pc(R['pm'], R['n'])}) · اتكلمنا فعلاً {pc(R['talk'], R['n'])}"
+        print(f"  {k}: مواعيد {R['n']} · اتصلنا بيهم يوم قبلها {pc(R['any'], R['n'])} (الصبح {pc(R['am'], R['n'])} · بعد تغيير الشيفت {pc(R['pm'], R['n'])}) · اتكلمنا فعلاً {pc(R['talk'], R['n'])}"
               f" → حضر {pc(R['came'], R['n'])} · لغى {pc(R['cancel'], R['n'])} · ما جاش {pc(R['noshow'], R['n'])}")
         for z in ("_called", "_nocall"):
             Q = rows[k + z]

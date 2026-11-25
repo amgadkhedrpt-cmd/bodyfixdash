@@ -12017,7 +12017,7 @@ function mcGaps(ln, days){
   U.forEach(function(x){ if(x[1]<=cur) return; if(x[0]>cur){ var w=work(cur,Math.min(x[0],end)); if(w>=120) out.push({a:cur,b:x[0],w:w}); } cur=Math.max(cur,x[1]); });
   var wt=work(Math.max(end,from),Date.now()); if(wt>=180) out.push({a:end,b:0,w:wt,tail:1});   // من آخر مكالمة مترفعة لحد دلوقتي: 3 ساعات شغل أو أكتر
   return out; }
-function mcGapTxt(g){ var f=function(t){ return new Date(t).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'long',hour:'numeric',minute:'2-digit'}); };
+function mcGapTxt(g){ var f=function(t){ return new Date(t).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'long',day:'numeric',month:'numeric',hour:'numeric',minute:'2-digit'}); };
   return g.tail?('من '+f(g.a)+' لحد دلوقتي'):('من '+f(g.a)+' لـ '+f(g.b)); }
 function mcLastUpTxt(act){ if(typeof MC==='undefined'||!MC.lines||!MC.upl) return '';
   var f=function(t){ return new Date(t).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'short',day:'numeric',month:'numeric',hour:'numeric',minute:'2-digit'}); };
@@ -12026,7 +12026,7 @@ function mcLastUpTxt(act){ if(typeof MC==='undefined'||!MC.lines||!MC.upl) retur
     var L=(MC.upl||[]).filter(function(x){ return x.ln===ln; }).sort(function(a,b){ return (b.at||0)-(a.at||0); }), u=L[0];
     if(!u) return '<b>'+alEsc(ln)+'</b>: <span style="color:var(--r)">ولا مرة</span>';
     var old=mcCairoDay(u.at)<td, mx=L.reduce(function(m,x){ return x.mx?Math.max(m,mcUpT(x,'mx')):m; },0);
-    var gp=[]; try{ gp=mcGaps(ln,2); }catch(e){}
+    var gp=[]; try{ gp=mcGaps(ln,14); }catch(e){}
     return '<b>'+alEsc(ln)+'</b>: <span style="color:'+(old?'var(--r)':'var(--g)')+'">'+alEsc(f(u.at))+'</span>'+(mx?' <span style="color:var(--mute)">(آخر مكالمة فيه '+alEsc(f(mx))+')</span>':'')+
       gp.map(function(g){ return '<div style="color:var(--r);font-weight:800">⚠️ خط '+alEsc(ln)+': '+(g.tail?'المكالمات مش مترفعة ':'مكالمات ناقصة في النص ')+alEsc(mcGapTxt(g))+' — الفترة دي مش موجودة في أي ملف اترفع، ارفعي ملف من نفس الموبايل يغطيها</div>'; }).join(''); });
   return parts.length?'<div style="font-size:.6rem;color:var(--mute);margin:-4px 0 8px;line-height:1.8">📂 آخر رفع لسجل المكالمات — '+parts.join(' · ')+'</div>':''; }
@@ -13619,7 +13619,7 @@ function planTasks(useAll){
       Object.keys(MC.lines).forEach(function(ln){ var cf=MC.lines[ln]||{}, br=cf.br||'BODYFIX Center'; if(act.indexOf(br)<0) return;
         var mine=(MC.upl||[]).filter(function(x){ return x.ln===ln; });
         var maxT=mine.reduce(function(m,x){ var t=x.mx?mcUpT(x,'mx'):(x.at||0); return t>m?t:m; },0), cut=Date.parse(yd+'T19:00:00+02:00');
-        var gp_=[]; try{ gp_=mcGaps(ln,2).filter(function(g){ return !g.tail; }); }catch(e){}
+        var gp_=[]; try{ gp_=mcGaps(ln,14).filter(function(g){ return !g.tail; }); }catch(e){}
         if(!mine.length||(maxT>=cut&&!gp_.length)) return;
         var sw=cf.sw||(br==='FIX ZONE'?17:15), rkE=CS.roleAt(cf,br,sw+1,false), whoE=planNormName((PLAN_ROLES[br]||{})[rkE]||'');
         var lastTxt=maxT?new Date(maxT).toLocaleString('ar-EG',{timeZone:'Africa/Cairo',weekday:'long',hour:'numeric',minute:'2-digit'}):'ولا مرة';

@@ -2195,6 +2195,28 @@ def build_alerts(appointments, now=None, packages=None):
         print(f"⚠️ pt_extra: {e}")
 
     starts = [a["start"].date() for v in patients.values() for a in v]
+    # 📊 لقطة آخر اليوم لكل فرع (بتتحدث مع كل سحب — آخر سحب في اليوم = اللي فضل): تأكيد مواعيد بكره + تقييم الجلسة الأخيرة لبكره
+    #    عشان كارت المدير «المسائي أسبوع بأسبوع» (مين كان على الشيفت بيتقري من خطة اليوم)
+    staff_kpi = {}
+    try:
+        import json as _jsk
+        try:
+            staff_kpi = (_jsk.load(open("alerts.json", encoding="utf-8")).get("staff_kpi") or {})
+        except Exception:
+            staff_kpi = {}
+        snap = {}
+        for b in ("BODYFIX Center", "FIX ZONE"):
+            tc = [x for x in plan.get("tomorrow_confirm", []) if x.get("branch") == b]
+            rn = [x for x in renew_next if x.get("branch") == b]
+            snap[b] = {"cn": len(tc), "cok": sum(1 for x in tc if str(x.get("status", "")).lower() == "confirmed"),
+                       "cx": sum(1 for x in tc if str(x.get("status", "")).lower().startswith("cancel")),
+                       "rn": len(rn), "rok": sum(1 for x in rn if x.get("eval_booked")),
+                       "at": now.strftime("%H:%M")}
+        staff_kpi[today.isoformat()] = snap
+        for k in sorted(staff_kpi)[:-60]:
+            staff_kpi.pop(k, None)
+    except Exception as e:
+        print(f"⚠️ staff_kpi: {e}")
     return {
         "generated_at": now.isoformat(),
         "history_from": min(starts).isoformat() if starts else "",
@@ -2238,4 +2260,5 @@ def build_alerts(appointments, now=None, packages=None):
         "pkg_end": sorted(PKG_END, key=lambda r: r[3], reverse=True),
         "pt_sched": pt_sched_,
         "day_counts": {k: {doc: dict(br) for doc, br in v.items()} for k, v in day_counts.items()},
+        "staff_kpi": staff_kpi,
     }

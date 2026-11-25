@@ -1786,6 +1786,62 @@ async def fetch_all_appointments(cookie_str, page, extra_headers=None):
     print(f"[{ts()}] Total: {len(all_appts)}")
     return all_appts
 
+async def fetch_speed_test(cookie_str, page, extra_headers=None, pages=20):
+    """🧪 تجربة سرعة السحب بس (FETCH_TEST=1): مفيش ملفات بتتكتب. بنقارن:
+    (1) زي دلوقتي: صفحة 100 + استنى نص ثانية · (2) صفحة 100 من غير استنى · (3) صفحة 500 · (4) 4 صفحات مع بعض
+    وبنتأكد إن نفس المواعيد رجعت في كل طريقة."""
+    import time as _t
+    range_date = build_date_range()
+    headers = {"Content-Type": "application/json", "Origin": "https://my.medicolize.com", "Referer": "https://my.medicolize.com/", "Cookie": cookie_str}
+    headers.update(extra_headers or {})
+    async def one(skip, take):
+        payload = {"operationName": "CREATED_APPOINTMENTS",
+                   "variables": {"skip": skip, "take": take, "orderBy": "start-desc", "searchTerm": "", "rangeDate": range_date, "filters": {"rangeDateKey": "start"}},
+                   "query": gql_query_with_note()}
+        r = await page.evaluate("""async (a) => { try { const res = await fetch(a.url, {method:'POST', credentials:'include', headers:a.headers, body: JSON.stringify(a.payload)});
+                                   return {ok:true, status:res.status, text: await res.text()}; } catch(e) { return {ok:false, error:e.message}; } }""",
+                                {"url": API_URL, "payload": payload, "headers": headers})
+        if not r.get("ok"): return None, "net " + str(r.get("error"))[:80]
+        try: d = json.loads(r["text"])
+        except Exception: return None, "parse HTTP %s" % r.get("status")
+        if isinstance(d, dict) and d.get("errors"): return None, "gql HTTP %s %s" % (r.get("status"), json.dumps(d["errors"], ensure_ascii=False)[:150])
+        raw = (d.get("data") or {}).get("createdAppointments") if isinstance(d, dict) else None
+        raw = raw or []
+        b = parse_flat_array(raw) or [x for x in raw if isinstance(x, dict) and "id" in x]
+        return [x.get("id") for x in b], ""
+    N = pages * 100
+    res = {}
+    t0 = _t.time(); ids = []
+    for i in range(pages):
+        b, e = await one(i * 100, 100)
+        if e: print("   (1) error:", e); break
+        ids += b; await asyncio.sleep(0.5)
+    res["1_now"] = (_t.time() - t0, ids)
+    t0 = _t.time(); ids = []
+    for i in range(pages):
+        b, e = await one(i * 100, 100)
+        if e: print("   (2) error:", e); break
+        ids += b
+    res["2_nosleep"] = (_t.time() - t0, ids)
+    t0 = _t.time(); ids = []
+    for i in range(0, N, 500):
+        b, e = await one(i, 500)
+        if e: print("   (3) error:", e); break
+        ids += b
+    res["3_take500"] = (_t.time() - t0, ids)
+    t0 = _t.time(); ids = []; errs = 0
+    for k in range(0, pages, 4):
+        rs = await asyncio.gather(*(one(i * 100, 100) for i in range(k, min(k + 4, pages))))
+        for b, e in rs:
+            if e: errs += 1; print("   (4) error:", e)
+            else: ids += b
+    res["4_parallel4"] = (_t.time() - t0, ids)
+    base = res["1_now"][1]
+    print(f"\n🧪 FETCH SPEED TEST — {pages} صفحة ({N} ميعاد):")
+    for k, (sec, ids_) in res.items():
+        same = sorted(ids_) == sorted(base)
+        print(f"   {k}: {sec:.1f} ث · {len(ids_)} ميعاد · نفس المواعيد: {'✅' if same else '❌'} · متوقع للـ 23000: {sec * 230 / pages:.0f} ث")
+
 def analyze(appointments):
     by_doctor  = defaultdict(list)
     by_branch  = defaultdict(list)
@@ -1935,6 +1991,9 @@ async def main():
                 await detect_note_field(pg, cookie_str, auth_headers)
             except Exception as e:
                 print(f"   ⚠️ note field: {e}")
+            if os.environ.get("FETCH_TEST") == "1":   # 🧪 تجربة سرعة بس — مفيش ملفات
+                await fetch_speed_test(cookie_str, pg, auth_headers, int(os.environ.get("FETCH_TEST_PAGES", "20")))
+                raise SystemExit(0)
             appts = await fetch_all_appointments(cookie_str, pg, auth_headers)
             AUTH_CTX.update(cookie=cookie_str, headers=auth_headers)
             return ctx, pg, appts

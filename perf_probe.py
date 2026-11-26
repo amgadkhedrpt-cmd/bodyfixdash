@@ -19,6 +19,6 @@ with sync_playwright() as p:
     print(pg.evaluate("""()=>{ var T=planTasks(true), out={}, hand=0;
       ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){ var st=planState(t); if(st==='snz') return; var g=(t.grp&&t.grp[0])||'other';
         var ci=planCoverInfo(t,g), o=planPerfOwner(t,g); if(planNormName(o||'')!=='Dalia') return; var base=''; try{ PLAN_DAY_SKIP=true; base=planNormName(planOwner0(t,g)||''); }finally{ PLAN_DAY_SKIP=false; }
-        var k=g+(t.past?'(past)':'')+' ← '+(base||'?')+(ci.from?' cover:'+ci.from:''); var x=out[k]||(out[k]={tot:0,done:0}); x.tot++; if(st==='done') x.done++; }); });
+        var dm=planDoneMin(t); var k=g+(t.past?'(past)':'')+' ← '+(base||'?')+(base&&base!=='Dalia'?(dm!=null&&dm<16*60+20?' [قبل 4:20]':' [بعد/مفتوح]'):'') + (t.sys&&!(PLAN_ST[t.key]||{}).by?' sys':''); var x=out[k]||(out[k]={tot:0,done:0}); x.tot++; if(st==='done') x.done++; }); });
       return JSON.stringify({today:ALERTS_DATA.today, n:Object.keys(PLAN_ST).length, groups:out}); }"""))
     b.close()

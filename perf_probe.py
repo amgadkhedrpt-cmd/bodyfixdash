@@ -24,10 +24,10 @@ with sync_playwright() as p:
       M.nonext=function(t,g){ var b=planDayBase(t,g); if(b===R.J) return planDayCut(t,C,b,R.L); if(b===R.F) return planDayCut(t,C,b,R.H); return ''; };
       M.stale=function(t,g){ var d=planDoneMin(t); if(d!=null&&d<16*60+20) return planDayBase(t,g); return st0(t,g); };
       M.conf=function(t,g){ var b=planDayBase(t,g); return planDayCut(t,C,b,R.H); };
-      var T=planTasks(true), sec={}, dal={};
+      PLAN_CMAP=null; var T=planTasks(true), sec={}, dal={};
       ['mgr','morning','rec','office','evening'].forEach(function(s2){ T[s2].forEach(function(t){ var st=planState(t); if(st==='snz') return; var g=(t.grp&&t.grp[0])||'other';
         var o=planNormName(planPerfOwner(t,g)||''); if(!o) return;
-        if(g==='nonextrev'&&!t.past&&t.sys&&!((PLAN_ST[t.key]||{}).by)) return;   // اتحجزله من غير ما داليا تعمل حاجة → مش عليها
+        if(g==='nonextrev'&&!t.past&&t.sys&&['Dalia'].indexOf(planNormName((PLAN_ST[t.key]||{}).by||''))<0) return;   // اتحجزله من غير ما داليا تعمل حاجة → مش عليها
         var x=sec[o]||(sec[o]={tot:0,done:0}); x.tot++; if(st==='done') x.done++;
         if(o==='Dalia'){ var b=''; try{ PLAN_DAY_SKIP=true; b=planNormName(planOwner0(t,g)||''); }finally{ PLAN_DAY_SKIP=false; } var k=g+(t.past?'(past)':'')+(b&&b!=='Dalia'?' ← '+b:''); var y=dal[k]||(dal[k]={tot:0,done:0}); y.tot++; if(st==='done') y.done++; }
       }); });

@@ -1,0 +1,11 @@
+name: plan probe (temporary)
+on:
+  workflow_dispatch:
+  push:
+    paths: ['plan_probe.py']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 plan_probe.py

@@ -11,9 +11,11 @@ with sync_playwright() as p:
         if "raw.githubusercontent.com" in u and "alerts.json" in u: return r.fulfill(path=os.path.join(root,"alerts.json"),content_type="application/json")
         return r.continue_()
     pg.route("**/*",route); pg.goto("file://"+os.path.join(root,"index.html"),wait_until="domcontentloaded",timeout=60000); pg.wait_for_timeout(6000)
+    pg.evaluate("()=>{ try{ sw('plan', document.querySelector('.tab[onclick*=plan]')); }catch(e){ try{ planOpen(); }catch(_){} } }")
     for _ in range(30):
-        if pg.evaluate("()=>typeof PLAN_LOADED!=='undefined'&&PLAN_LOADED"): break
-        pg.wait_for_timeout(1000)
+        if pg.evaluate("()=> !!(window.PLAN_LOADED && window.ALERTS_DATA && (typeof AUD_DATA==='undefined' || AUD_DATA))"): break
+        pg.wait_for_timeout(2000)
+    pg.wait_for_timeout(8000)
     print(pg.evaluate("""()=>{ var T=planTasks(true), out={}, hand=0;
       ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){ var st=planState(t); if(st==='snz') return; var g=(t.grp&&t.grp[0])||'other';
         var ci=planCoverInfo(t,g), o=planPerfOwner(t,g); if(planNormName(o||'')!=='Dalia') return; var base=''; try{ PLAN_DAY_SKIP=true; base=planNormName(planOwner0(t,g)||''); }finally{ PLAN_DAY_SKIP=false; }

@@ -1,5 +1,5 @@
 {
- "at": "2026-11-26T12:17:28.245Z",
+ "at": "2026-11-26T12:38:15.967Z",
  "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
@@ -93,17 +93,17 @@
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 62,
+ "ph2_n": 60,
  "conf_hist": {
   "from": "2026-10-25",
-  "events": 4274,
+  "events": 4278,
   "added": 0,
   "named": 0
  },
  "conf": {
-  "confirmed_now": 133,
-  "new": 1,
-  "cx_changed": 1
+  "confirmed_now": 129,
+  "new": 0,
+  "cx_changed": 2
  },
  "kinds": {
   "pay": {
@@ -321,7 +321,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 133586,
+    "rows": 133608,
     "cols": [
      "start",
      "status",
@@ -340,6 +340,7 @@
     "values": {
      "status": [
       "CANCELED",
+      "CHECKEDIN",
       "COMPLETED",
       "CONFIRMED",
       "INPROGRESS",
@@ -466,7 +467,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 8074,
+    "rows": 8076,
     "cols": [
      "duration",
      "createdAt",
@@ -602,7 +603,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 219,
+    "rows": 221,
     "cols": [
      "aid",
      "start",
@@ -919,10 +920,10 @@
  },
  "hash": {
   "data/fin.enc": "b948b93bd4df2a90",
-  "data/fin_c.enc": "68f9c12ac7405e77"
+  "data/fin_c.enc": "d4eb3db3bae58f9c"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 120
+ "secs": 95
 }

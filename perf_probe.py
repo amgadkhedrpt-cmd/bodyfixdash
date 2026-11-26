@@ -22,14 +22,25 @@ with sync_playwright() as p:
     keys=A.evaluate("""()=>{ var cut='2026-11-26T20:00:00Z'; Object.keys(PLAN_ST).forEach(function(k){ var o=PLAN_ST[k]||{}, ts=o.ts||o.nts||''; if(ts&&ts>cut) delete PLAN_ST[k]; });
       PLAN_CMAP=null; var T=planTasks(true), L=[];
       ['mgr','morning','rec','office','evening'].forEach(function(s2){ T[s2].forEach(function(t){ var st=planState(t); if(st==='snz') return; var g=(t.grp&&t.grp[0])||'other';
-        if(planNormName(planOwner(t,g)||'')!=='Dalia') return; L.push({k:t.key,g:g+(t.past?'(past)':''),s10:st}); }); }); return L; }""")
+        if(planNormName(planOwner(t,g)||'')!=='Dalia') return; L.push({k:t.key,g:g,sec:s2,s10:st,t:JSON.parse(JSON.stringify(t))}); }); }); return L; }""")
     A.close()
     B=open_page(b,"index.html","alerts.json")
     res=B.evaluate("""(L)=>{ PLAN_CMAP=null; var T=planTasks(true), F={};
-      ['mgr','morning','rec','office','evening'].forEach(function(s2){ T[s2].forEach(function(t){ F[t.key]=planState(t); }); });
-      var G={}; L.forEach(function(x){ var y=G[x.g]||(G[x.g]={tot:0,d10:0,done:0,gone:0,gone_mark:0,open:0}); y.tot++; if(x.s10==='done') y.d10++;
-        var f=F[x.k], s=PLAN_ST[x.k]||{};
-        if(f===undefined){ y.gone++; if(s.s==='done'||s.s==='ref') y.gone_mark++; } else if(f==='done') y.done++; else y.open++; });
-      return JSON.stringify(G); }""", keys)
-    print("RES", res)
+      ['mgr','morning','rec','office','evening'].forEach(function(s2){ T[s2].forEach(function(t){ F[t.key]=t; }); });
+      var toMin=function(hm){ var m=/^(\\d{1,2}):(\\d{2})/.exec(hm||''); return m?(+m[1])*60+(+m[2]):null; };
+      var P={br:{}, g:{}}, tot=0, done=0, mg={tot:0,done:0};
+      L.forEach(function(x){ var t=F[x.k], gone=!t; if(gone){ t=x.t; t.sys=t.sys||'اتحلّت على السيستم'; }
+        var stt=gone?'done':planState(t); if(stt==='snz') return;
+        if(x.sec==='mgr'){ mg.tot++; if(stt==='done') mg.done++; return; }
+        var g=x.g; if(g==='risk') return; P.br[t.br]=1; tot++; if(stt==='done') done++;
+        var b=''; try{ PLAN_DAY_SKIP=true; b=planNormName(planOwner0(t,g)||''); }finally{ PLAN_DAY_SKIP=false; }
+        var y=P.g[g]||(P.g[g]={n:0,sys:0,btn:0,nr:0,open:0,timed:0,fast:0,moved:0}); y.n++; if(b&&b!=='Dalia') y.moved++;
+        var st=PLAN_ST[x.k]||{};
+        if(stt==='done'){ if(st.s==='done') y.btn++; else y.sys++; } else if(stt==='nr') y.nr++; else y.open++;
+        var tm=gone?{}:planTaskTimes(t,g), dm=toMin(tm.done);
+        if(stt==='done'&&dm!==null){ y.timed++; var dl=(x.sec==='rec'&&t.time)?toMin(planHM(t.time))+60:15*60; if(dl!==null&&dm<=Math.max(dl, toMin(tm.seen)!==null?toMin(tm.seen)+120:0)) y.fast++; } });
+      return JSON.stringify({perf:P, tot:tot, done:done, mgr:mg}); }""", keys)
+    r=json.loads(res); print("SAVE tot",r["tot"],"done",r["done"],"mgr",r["mgr"])
+    import digest
+    digest.perf_save("2026-11-26", {"Dalia": r["perf"]})
     b.close()

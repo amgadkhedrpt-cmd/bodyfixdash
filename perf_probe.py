@@ -3,7 +3,7 @@ import json, digest, os
 from playwright.sync_api import sync_playwright
 root=os.path.abspath(".")
 with sync_playwright() as p:
-    b=p.chromium.launch(); pg=b.new_page()
+    b=p.chromium.launch(channel="chrome"); pg=b.new_page()
     if os.environ.get("SHEET_URL") and os.environ.get("SHEET_KEY"):
         cfg=json.dumps({"url":os.environ["SHEET_URL"],"key":os.environ["SHEET_KEY"]}); pg.add_init_script("try{localStorage.setItem('bf_sheet_cfg', %s)}catch(e){}" % json.dumps(cfg))
     def route(r):

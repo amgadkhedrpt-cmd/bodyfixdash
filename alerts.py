@@ -704,7 +704,9 @@ def build_alerts(appointments, now=None, packages=None):
                 nb = sorted([x for x in srt if x["start"] > a["start"] and x["doctor"].lower() not in SKIP_DOCS
                              and x["status"] not in ("canceled", "cancelled", "no show", "noshow", "note", "waiting list", "waiting")
                              and not _fu_kind(x["type"])], key=lambda x: x["start"])
-                nf = sorted([x for x in srt if x["start"] > a["start"] and x["status"] not in ("canceled", "cancelled", "no show", "noshow")],
+                # «منقطع نهائي» في نفس اليوم بيتحسب حتى لو ساعته قبل ساعة المتابعة (بيتحجز في أي خانة فاضية)
+                nf = sorted([x for x in srt if x is not a and (x["start"] > a["start"] or (_fu_kind(x["type"]) == "final" and x["start"].date() >= a["start"].date()))
+                             and x["status"] not in ("canceled", "cancelled", "no show", "noshow")],
                             key=lambda x: x["start"])   # أي خطوة جاية محجوزة (متابعة تانية / منقطع نهائي / ميعاد)
                 # مكتوب إنه طلب نكلمه بعد فترة («نكلمه بعد فترة / بعد شهر ...») → مقبول يتحجز بعد كده · غير كده ما ردش = خلال يومين شغل
                 # مكتوب إنه مأجّل لفترة («مشغولين فترة» / «موقف شوية» / «بعد أسبوعين» ...) = طلب تأجيل مقبول

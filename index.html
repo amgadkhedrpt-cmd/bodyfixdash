@@ -13941,15 +13941,30 @@ var PLAN_PAID_RE=/(^|[\s،,.\-\/])(دفع|دفعت|اتدفع|اتدفعت|سد�
 function planPaidNote(t){ var st=PLAN_ST[t.key]||{}, n=String(st.note||'').trim(); return !!n&&PLAN_PAID_RE.test(n)&&!PLAN_UNPAID_RE.test(n)&&!t.sys; }
 /* 📌 توزيع خاص ليوم واحد بس — بيتطبق لو محدش غيّر المسئولة من الخانة جنب المهمة، وبيخلص لوحده تاني يوم
    26/11: جورجينا غايبة وإنجي في الدقي → تأكيد السبت لمريم (هي اللي بتأكد) · مالوش ميعاد (عيادة 2) + ويتنج السبت لداليا ·
-          مواعيد عدّت وما اتقفلتش لبسنت لحد 5 وبعدها داليا · احجزيلهم Follow up لإنجي */
-var PLAN_DAY_OV={'2026-11-26':{'BODYFIX Center':{
-  conf:function(){ return (PLAN_ROLES['BODYFIX Center']||{}).H||'Mariam'; },
-  waitnext:function(){ return (PLAN_ROLES['BODYFIX Center']||{}).L||'Dalia'; },
-  nonext:function(t,g){ var R=PLAN_ROLES['BODYFIX Center']||{}; PLAN_DAY_SKIP=true; var o=''; try{ o=planOwner0(t,g); }finally{ PLAN_DAY_SKIP=false; } return o&&o===R.J?(R.L||'Dalia'):''; },
-  stale:function(t){ var st=PLAN_ST[t.key]||{}, h=null; if(st.s==='done'&&st.ts) h=planCairoH(st.ts); else if(t.sys){ var tm=(((ALERTS_DATA||{}).plan||{}).times||{})[t.key]; h=tm&&tm[1]?+String(tm[1]).slice(0,2):0; }
-    if(h==null) h=planCairoH(new Date().toISOString()); return h<17?((PLAN_ROLES['FIX ZONE']||{}).DM||'Bassant'):((PLAN_ROLES['BODYFIX Center']||{}).L||'Dalia'); },
-  fuin:function(){ return (PLAN_ROLES['BODYFIX Center']||{}).J||'Engy'; }
-}}}, PLAN_DAY_SKIP=false;
+          مواعيد عدّت وما اتقفلتش لبسنت لحد 5 وبعدها داليا · Follow up + مكالمات المتابعة لإنجي ·
+          ندى مشيت بدري (4:20 م): اللي قفلته قبلها يفضل ليها — المفتوح: شغل العيادة لداليا · التليفون لمريم */
+var PLAN_DAY_SKIP=false;
+function planDoneMin(t){ var st=PLAN_ST[t.key]||{}, d=null;
+  if(st.s==='done'&&st.ts){ d=new Date(st.ts); var p=d.toLocaleTimeString('en-GB',{timeZone:'Africa/Cairo',hour12:false}).split(':'); return +p[0]*60+(+p[1]); }
+  if(t.sys){ var tm=(((ALERTS_DATA||{}).plan||{}).times||{})[t.key], x=tm&&tm[1]?String(tm[1]).match(/(\d{1,2}):(\d{2})/):null; return x?+x[1]*60+(+x[2]):0; }
+  return null; }   // null = لسه مفتوحة
+function planDayCut(t, hm, before, after){ var d=planDoneMin(t), c=+hm.split(':')[0]*60+(+hm.split(':')[1]); return d!=null&&d<c?before:after; }
+function planDayBase(t,g){ PLAN_DAY_SKIP=true; var o=''; try{ o=planNormName(planOwner0(t,g)||''); }finally{ PLAN_DAY_SKIP=false; } return o; }
+var PLAN_DAY_OV={'2026-11-26':{'BODYFIX Center':(function(){
+  var R=function(){ return PLAN_ROLES['BODYFIX Center']||{}; }, NADA_OUT='16:20',
+      nd=function(to){ return function(t,g){ var b=planDayBase(t,g); if(b&&b===R().F) return planDayCut(t,NADA_OUT,b,to()); return ''; }; },
+      DAL=function(){ return R().L||'Dalia'; }, MAR=function(){ return R().H||'Mariam'; }, ENG=function(){ return R().J||'Engy'; };
+  return {
+    conf:function(){ return MAR(); },
+    waitnext:function(){ return DAL(); },
+    nonext:function(t,g){ var b=planDayBase(t,g); if(b&&b===R().J) return DAL(); if(b&&b===R().F) return planDayCut(t,NADA_OUT,b,MAR()); return ''; },
+    stale:function(t){ var d=planDoneMin(t); if(d==null) d=+new Date().toLocaleString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',hour12:false}).slice(0,2)*60;
+      return d<17*60?((PLAN_ROLES['FIX ZONE']||{}).DM||'Bassant'):DAL(); },
+    fuin:function(){ return ENG(); },
+    call:function(t){ return planDayCut(t,NADA_OUT,MAR(),ENG()); },   // مكالمات المتابعة: اللي مريم عملته قبل 4:20 يفضل ليها
+    waittoday:nd(DAL), renew:nd(DAL), eval:nd(DAL), debt:nd(DAL), waitnut:nd(DAL), kashf:nd(DAL), miss:nd(DAL),
+    conftoday:nd(MAR), svc:nd(MAR)
+  }; })()}};
 function planDayOv(t,g){ if(PLAN_DAY_SKIP) return ''; var td=(ALERTS_DATA&&ALERTS_DATA.today)||'', M=(PLAN_DAY_OV[td]||{})[t.br], f=M&&M[g]; if(!f) return '';
   var a=PLAN_ST['asg|'+td+'|'+t.sec+'|'+g+'|'+t.br]; if(a&&a.by) return '';   // اللي اتغير من الخانة يكسب
   return planNormName(f(t,g)||''); }

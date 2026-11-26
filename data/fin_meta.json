@@ -1,8 +1,6 @@
 {
- "at": "2026-11-26T17:35:39.569Z",
- "errors": [
-  "conf: APIRequestContext.post: Timeout 120000ms exceeded.\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKi"
- ],
+ "at": "2026-11-26T17:55:52.263Z",
+ "errors": [],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
  "pay_pages": {
@@ -95,10 +93,18 @@
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 46,
- "fallbacks": [
-  "createdAppointments: APIRequestContext.post: Timeout 120000ms exceeded.\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari"
- ],
+ "ph2_n": 48,
+ "conf_hist": {
+  "from": "2026-10-25",
+  "events": 4372,
+  "added": 0,
+  "named": 0
+ },
+ "conf": {
+  "confirmed_now": 136,
+  "new": 0,
+  "cx_changed": 2
+ },
  "kinds": {
   "pay": {
    "haram": {
@@ -120,7 +126,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20995,
+    "rows": 20997,
     "cols": [
      "type",
      "amount",
@@ -258,7 +264,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17807,
+    "rows": 17809,
     "cols": [
      "id",
      "referenceId",
@@ -315,7 +321,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 133717,
+    "rows": 133725,
     "cols": [
      "start",
      "status",
@@ -512,7 +518,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16879,
+    "rows": 16883,
     "cols": [
      "name",
      "end",
@@ -596,7 +602,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 251,
+    "rows": 253,
     "cols": [
      "aid",
      "start",
@@ -881,7 +887,7 @@
     "prod": 5
    },
    "2026-11": {
-    "fu": 226,
+    "fu": 228,
     "physio": 55,
     "dev": 38,
     "mezo": 11,
@@ -913,10 +919,10 @@
  },
  "hash": {
   "data/fin.enc": "b948b93bd4df2a90",
-  "data/fin_c.enc": "c41f3d3aea8318b9"
+  "data/fin_c.enc": "d6ad6cdb3d1e2b05"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 193
+ "secs": 124
 }

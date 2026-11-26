@@ -16,9 +16,20 @@ with sync_playwright() as p:
         if pg.evaluate("()=> !!(window.PLAN_LOADED && window.ALERTS_DATA && (typeof AUD_DATA==='undefined' || AUD_DATA))"): break
         pg.wait_for_timeout(2000)
     pg.wait_for_timeout(8000)
-    print(pg.evaluate("""()=>{ var T=planTasks(true), out={}, hand=0;
-      ['mgr','morning','rec','office','evening'].forEach(function(sec){ T[sec].forEach(function(t){ var st=planState(t); if(st==='snz') return; var g=(t.grp&&t.grp[0])||'other';
-        var ci=planCoverInfo(t,g), o=planPerfOwner(t,g); if(planNormName(o||'')!=='Dalia') return; var base=''; try{ PLAN_DAY_SKIP=true; base=planNormName(planOwner0(t,g)||''); }finally{ PLAN_DAY_SKIP=false; }
-        var dm=planDoneMin(t); var k=g+(t.past?'(past)':'')+' ← '+(base||'?')+(base&&base!=='Dalia'?(dm!=null&&dm<16*60+20?' [قبل 4:20]':' [بعد/مفتوح]'):'') + (t.sys&&!(PLAN_ST[t.key]||{}).by?' sys':''); var x=out[k]||(out[k]={tot:0,done:0}); x.tot++; if(st==='done') x.done++; }); });
-      return JSON.stringify({today:ALERTS_DATA.today, n:Object.keys(PLAN_ST).length, groups:out}); }"""))
+    print(pg.evaluate("""()=>{
+      planDoneMin=function(t){ var st=PLAN_ST[t.key]||{}; if(st.s==='done'&&st.ts){ var p=new Date(st.ts).toLocaleTimeString('en-GB',{timeZone:'Africa/Cairo',hour12:false}).split(':'); return +p[0]*60+(+p[1]); }
+        if(t.sys){ var d=(planTaskTimes(t,(t.grp||[])[0])||{}).done||''; var x=String(d).match(/(\\d{1,2}):(\\d{2})/); return x?+x[1]*60+(+x[2]):0; } return null; };
+      var M=PLAN_DAY_OV['2026-11-26']['BODYFIX Center'], R=PLAN_ROLES['BODYFIX Center'], C='16:20', st0=M.stale;
+      M.waitnext=function(t,g){ var b=planDayBase(t,g); return planDayCut(t,C,b,R.L); };
+      M.nonext=function(t,g){ var b=planDayBase(t,g); if(b===R.J) return planDayCut(t,C,b,R.L); if(b===R.F) return planDayCut(t,C,b,R.H); return ''; };
+      M.stale=function(t,g){ var d=planDoneMin(t); if(d!=null&&d<16*60+20) return planDayBase(t,g); return st0(t,g); };
+      M.conf=function(t,g){ var b=planDayBase(t,g); return planDayCut(t,C,b,R.H); };
+      var T=planTasks(true), sec={}, dal={};
+      ['mgr','morning','rec','office','evening'].forEach(function(s2){ T[s2].forEach(function(t){ var st=planState(t); if(st==='snz') return; var g=(t.grp&&t.grp[0])||'other';
+        var o=planNormName(planPerfOwner(t,g)||''); if(!o) return;
+        if(g==='nonextrev'&&!t.past&&t.sys&&!((PLAN_ST[t.key]||{}).by)) return;   // اتحجزله من غير ما داليا تعمل حاجة → مش عليها
+        var x=sec[o]||(sec[o]={tot:0,done:0}); x.tot++; if(st==='done') x.done++;
+        if(o==='Dalia'){ var b=''; try{ PLAN_DAY_SKIP=true; b=planNormName(planOwner0(t,g)||''); }finally{ PLAN_DAY_SKIP=false; } var k=g+(t.past?'(past)':'')+(b&&b!=='Dalia'?' ← '+b:''); var y=dal[k]||(dal[k]={tot:0,done:0}); y.tot++; if(st==='done') y.done++; }
+      }); });
+      return JSON.stringify({today:ALERTS_DATA.today, n:Object.keys(PLAN_ST).length, sec:sec, groups:dal}); }"""))
     b.close()

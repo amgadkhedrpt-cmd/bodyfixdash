@@ -1,6 +1,8 @@
 {
- "at": "2026-11-26T16:49:46.424Z",
- "errors": [],
+ "at": "2026-11-26T17:35:39.569Z",
+ "errors": [
+  "conf: APIRequestContext.post: Timeout 120000ms exceeded.\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKi"
+ ],
  "exp_types_from": "{me{company{expenseTypes}}}",
  "finance_links": [],
  "pay_pages": {
@@ -93,18 +95,10 @@
  "rsn_field": "cancelReason",
  "ub_field": "updatedBy",
  "ph2_field": "phoneNumber2",
- "ph2_n": 51,
- "conf_hist": {
-  "from": "2026-10-25",
-  "events": 4355,
-  "added": 3,
-  "named": 1
- },
- "conf": {
-  "confirmed_now": 152,
-  "new": 29,
-  "cx_changed": 10
- },
+ "ph2_n": 46,
+ "fallbacks": [
+  "createdAppointments: APIRequestContext.post: Timeout 120000ms exceeded.\nCall log:\n  - → POST https://api.medicolize.com/\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari"
+ ],
  "kinds": {
   "pay": {
    "haram": {
@@ -126,7 +120,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 20990,
+    "rows": 20995,
     "cols": [
      "type",
      "amount",
@@ -264,7 +258,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 17803,
+    "rows": 17807,
     "cols": [
      "id",
      "referenceId",
@@ -321,7 +315,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 133708,
+    "rows": 133717,
     "cols": [
      "start",
      "status",
@@ -342,7 +336,6 @@
       "CANCELED",
       "COMPLETED",
       "CONFIRMED",
-      "DELAYED",
       "INPROGRESS",
       "NOSHOW",
       "NOTE",
@@ -519,7 +512,7 @@
     "months": 30,
     "first": "2024-06",
     "last": "2026-11",
-    "rows": 16875,
+    "rows": 16879,
     "cols": [
      "name",
      "end",
@@ -545,7 +538,7 @@
     "months": 2,
     "first": "2026-10",
     "last": "2026-11",
-    "rows": 4516,
+    "rows": 4523,
     "cols": [
      "aid",
      "start",
@@ -603,7 +596,7 @@
     "months": 1,
     "first": "2026-11",
     "last": "2026-11",
-    "rows": 248,
+    "rows": 251,
     "cols": [
      "aid",
      "start",
@@ -920,10 +913,10 @@
  },
  "hash": {
   "data/fin.enc": "b948b93bd4df2a90",
-  "data/fin_c.enc": "a609f7c9879d9c1f"
+  "data/fin_c.enc": "c41f3d3aea8318b9"
  },
  "written": [
   "data/fin_c.enc"
  ],
- "secs": 114
+ "secs": 193
 }

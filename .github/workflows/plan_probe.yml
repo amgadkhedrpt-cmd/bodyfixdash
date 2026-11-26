@@ -2,10 +2,18 @@ name: plan probe (temporary)
 on:
   workflow_dispatch:
   push:
-    paths: ['plan_probe.py']
+    paths: ['perf_fix.py']
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 plan_probe.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install playwright cryptography
+      - run: if command -v google-chrome >/dev/null 2>&1; then echo chrome; else python -m playwright install --with-deps chromium; fi
+      - env:
+          SHEET_KEY: ${{ secrets.SHEET_KEY }}
+          SHEET_URL: https://script.google.com/macros/s/AKfycbzZGsDjI5dBNQi5YrD2nFQtlayUmhNmj0PO68nJeqPNL4qhYTqNk-YZJg5obR-gEAA/exec
+        run: python perf_fix.py

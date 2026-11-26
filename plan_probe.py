@@ -34,5 +34,6 @@ for k,v in R.items():
     if not ts.startswith("2026-11-26"): continue
     who=o.get("by") or o.get("nby") or "?"
     if who!="Dalia": continue
-    kk=k[5:]; print("DK", hashlib.sha1(kk.encode()).hexdigest()[:12], o.get("s") or "note", ts[11:16], kk.split("|")[0][:5], len(o.get("L") or []))
+    kk=k[5:]; import re as _r
+    print("DK", hashlib.sha1(kk.encode()).hexdigest()[:12], _r.sub(r"[0-9a-f]{8}-[0-9a-f-]{27}","<id>",_r.sub(r"\d{7,}","<n>",kk))[:60], o.get("s") or "note", ts[11:16], kk.split("|")[0][:5], len(o.get("L") or []))
 print("DALIA_KEYS_END")

@@ -1638,6 +1638,7 @@ def build_alerts(appointments, now=None, packages=None):
                 "stale":  {x["pid"] + "|" + x["time"]: x for x in plan["stale_open"]},
                 "waittoday": {x["pid"] + "|" + x["time"]: x for x in plan.get("waiting", []) if x["day"] == "today" and not x["note_today"]},
                 "waitnext":  {x["pid"] + "|" + x["time"]: x for x in plan.get("waiting", []) if x["day"] == "next" and not x["note_today"]},
+                "stalefin":  {x["pid"]: x for x in stale_final},   # 🧹 «منقطع» اتمسحت من التفاصيل → تفضل ظاهرة «اتعملت» بدل ما تختفي
             }
             fn = _os.path.join(".session", "plan_seen.json")
             seen = {}
@@ -1656,7 +1657,7 @@ def build_alerts(appointments, now=None, packages=None):
             for typ, cur in act.items():
                 old_ = items.setdefault(typ, {})
                 for k, x in cur.items():
-                    old_[k] = {f: x.get(f) for f in ("pid", "name", "phone", "doctor", "branch", "time", "type", "status") if x.get(f) is not None}
+                    old_[k] = {f: x.get(f) for f in ("pid", "name", "phone", "doctor", "branch", "time", "type", "status", "last_att") if x.get(f) is not None}
                     t_ = times.setdefault(typ + "|" + k, [hm, ""])
                     t_[1] = ""                       # رجعت تاني → لسه مفتوحة
                 for k, x in old_.items():
@@ -1787,6 +1788,8 @@ def build_alerts(appointments, now=None, packages=None):
                     fut = [a for a in fut if _is_pt(a["type"]) or (a["type"] in EVAL_TYPES and "amgad" in (a["doctor"] or "").lower())] or fut
                 if k == "debt":
                     r["what"] = "اتدفع الباقي على Medicolize"; continue
+                if k == "stalefin":
+                    r["what"] = "كلمة «منقطع» اتمسحت من التفاصيل"; continue
                 if k == "svc":
                     r["what"] = "الخدمة الناقصة اتحجزت"; continue
                 if k == "drop":

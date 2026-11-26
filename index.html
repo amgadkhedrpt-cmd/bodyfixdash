@@ -13637,7 +13637,9 @@ function planTasks(useAll){
     if(L.length&&hc>=14) add('mgr',{grp:['mgr'], mgrOnly:1, pown:PLAN_MGR_NAME, key:'mgr|renewnoeval|'+today+'|'+b, icon:'🔴', kind:L.length+' آخر جلسة في الباقة النهارده ومن غير تقييم محجوز', name:b==='FIX ZONE'?'الدقي':'الهرم', br:b,
       lines:[L.map(function(x){ return alEsc(x.name)+' ('+alEsc(planT(x.time))+')'; }).join(' · ')]}); });
   // 🌙 آخر اليوم
-  (RES.nonext||[]).forEach(function(x){ add('rec',{grp:['nonext'], sys:'اتحجزله ميعاد', what:x.what||'', key:today+'|rec|nonext|'+x.pid, icon:'📅', kind:PLAN_GT.nonext?PLAN_GT.nonext[1]:'', name:x.name, phone:x.phone, br:brOf(x), time:x.time||'', room:x.room||'', doctor:x.doctor||'', lines:[alEsc(x.type||'')+' مع '+alEsc(doc(x.doctor))]}); });
+  (RES.nonext||[]).forEach(function(x){ if(!todayPids[x.pid]){   // ما كانش عند الاستقبال → كان في «مراجعة: مالوش ميعاد جاي» (داليا) — يفضل ظاهر «اتعمل» عندها
+      add('evening',{grp:['nonextrev'], sys:'اتحجزله ميعاد', what:x.what||'', key:today+'|nonextrev|'+x.pid, icon:'📅', kind:'مراجعة: عنده موعد النهارده ومالوش ميعاد جاي', name:x.name, phone:x.phone, br:brOf(x), lines:[alEsc(x.type||'')+' '+alEsc(planT(x.time))+' مع '+alEsc(doc(x.doctor))]}); return; }
+    add('rec',{grp:['nonext'], sys:'اتحجزله ميعاد', what:x.what||'', key:today+'|rec|nonext|'+x.pid, icon:'📅', kind:PLAN_GT.nonext?PLAN_GT.nonext[1]:'', name:x.name, phone:x.phone, br:brOf(x), time:x.time||'', room:x.room||'', doctor:x.doctor||'', lines:[alEsc(x.type||'')+' مع '+alEsc(doc(x.doctor))]}); });
   sysAdd('evening','kashf0','kashf0','حجز جلسات','🩺',function(x){return today+'|kashf0|'+x.pid;},function(x){ return 'مع '+alEsc(doc(x.doctor)); });
   // 👔 مراجعة المشرفة: كل اللي عنده موعد النهارده (أي نوع / أي حالة) ومالوش ميعاد بعده — إلا «منقطع» في تفاصيل المريض النهارده
   //    (الحجز نفسه على سكرتيرة العيادة في «عند الاستقبال» — دي مراجعة إن محدش فلت)
@@ -13647,8 +13649,17 @@ function planTasks(useAll){
         '<span style="font-size:.6rem">احجزي خطوة جاية: <b>ميعاد</b> (لو هيكمل) · <b>«متابعه»</b> (لو مش جاهز أو ما ردش — يدخل نظام المتابعة) · <b>«منقطع نهائي»</b> بس لو فيه سبب مكتوب (سافر / مش عايز يكمل / الدكتور قال يوقف)</span>'].concat(x.stale_final?['<b style="color:#f59e0b">⚠️ كان «منقطع نهائي» قبل كده ('+alEsc(x.stale_final.length===10?alFmtDay(x.stale_final):x.stale_final)+') ورجع اتعالج — الكلمة قديمة، مش سبب إننا ما نكلموش</b>']:[])});
   });
   // 🧹 رجع للعلاج وكان مكتوب عنده «منقطع» في التفاصيل (قبل آخر جلسة) → تتمسح عشان محدش يتلخبط · بتختفي لوحدها لما الكلمة تتمسح
-  var SFC={}; (today>='2026-11-25'?(D.stale_final||[]):[]).filter(inb).sort(function(a,b){ return String(b.last_att).localeCompare(String(a.last_att)); }).filter(function(x){ var b=x.branch||''; SFC[b]=(SFC[b]||0)+1; return SFC[b]<=10; }).forEach(function(x){   // من 25/11 · 10 في اليوم لكل فرع (المتراكم بيتوزع) — اللي حضر أحدث الأول
-    add('evening',{grp:['stalefin'], key:'stalefin|'+x.pid+'|'+x.last_att, icon:'🧹', kind:'رجع للعلاج — امسحي «منقطع نهائي» من تفاصيل المريض', name:x.name, pid:x.pid, phone:x.phone, br:brOf(x),
+  var SFL=(today>='2026-11-25'?(D.stale_final||[]):[]).filter(inb), SFN={}, SFK={}; SFL.forEach(function(x){ var b=x.branch||''; SFN[b]=(SFN[b]||0)+1; });
+  var sfKind=function(b){ var n=SFN[b]||0; return 'رجع للعلاج — امسحي «منقطع نهائي» من تفاصيل المريض'+(n>10?' <span style="color:#f59e0b;font-size:.6rem">· بيظهر أحدث 10 · فاضل '+(n-10)+' كمان بعدهم</span>':''); };
+  // ✅ اللي اتمسحت عنده الكلمة النهارده بيفضل ظاهر «اتعملت» (السحب بيشيله من القايمة) — من السيستم أو من علامة السكرتيرة
+  (RES.stalefin||[]).forEach(function(x){ var k='stalefin|'+x.pid+'|'+(x.last_att||''); SFK[x.pid]=1;
+    add('evening',{grp:['stalefin'], sys:'كلمة «منقطع» اتمسحت', what:x.what||'', key:k, icon:'🧹', kind:'رجع للعلاج — امسحي «منقطع نهائي» من تفاصيل المريض', name:x.name, pid:x.pid, phone:x.phone, br:brOf(x), lines:['آخر جلسة '+alEsc(alFmtDay(x.last_att||''))+' مع '+alEsc(doc(x.doctor))]}); });
+  var SFcur={}; SFL.forEach(function(x){ SFcur[x.pid]=1; });
+  Object.keys(PLAN_ST).forEach(function(k){ var m=k.match(/^stalefin\|([^|]+)\|(\d{4}-\d{2}-\d{2})$/), o=PLAN_ST[k]; if(!m||!o||SFcur[m[1]]||SFK[m[1]]) return;
+    if(!(o.s==='done'||o.s==='ref')||(o.d||String(o.ts||'').slice(0,10))!==today||act.indexOf(o.br)<0) return; SFK[m[1]]=1;
+    add('evening',{grp:['stalefin'], key:k, icon:'🧹', kind:'رجع للعلاج — امسحي «منقطع نهائي» من تفاصيل المريض', name:o.name||'', pid:m[1], br:o.br, lines:['آخر جلسة '+alEsc(alFmtDay(m[2]))+' · اتمسحت واتشالت من القايمة']}); });
+  var SFC={}; SFL.sort(function(a,b){ return String(b.last_att).localeCompare(String(a.last_att)); }).filter(function(x){ var b=x.branch||''; SFC[b]=(SFC[b]||0)+1; return SFC[b]<=10; }).forEach(function(x){   // من 25/11 · 10 في اليوم لكل فرع (المتراكم بيتوزع) — اللي حضر أحدث الأول
+    add('evening',{grp:['stalefin'], key:'stalefin|'+x.pid+'|'+x.last_att, icon:'🧹', kind:sfKind(x.branch||''), name:x.name, pid:x.pid, phone:x.phone, br:brOf(x),
       lines:['آخر جلسة '+alEsc(alFmtDay(x.last_att))+' مع '+alEsc(doc(x.doctor))+(x.fin_date?' · كان متعمله «منقطع نهائي» يوم '+alEsc(alFmtDay(x.fin_date)):''), 'مكتوب في التفاصيل: «'+alEsc(x.note)+'»']});
   });
   (D.kashf_pending||[]).filter(function(x){ return inb(x)&&x.days_since===0&&!x.next_pt&&!x.sessions_after&&!planKashfAmg(x)&&/checked|progress|completed/i.test(x.kashf_status||''); }).forEach(function(x){
@@ -13769,8 +13780,12 @@ function planTasks(useAll){
   try{ var PD=planPastDays(today,14), haveP={}, seenP={}, nxP={};   // بنحمّل آخر 14 يوم (فلتر التاريخ) — النهارده بيعرض آخر 7 بس
     ['mgr','morning','rec','office','evening'].forEach(function(s2){ T[s2].forEach(function(t){ (t.grp||[]).forEach(function(g){ haveP[g+'|'+(t.pid||t.name||'')]=1; }); }); });
     var nxN={}; (D.pt_index||[]).forEach(function(z){ if(z[5]&&String(z[5]).slice(0,10)>=today){ if(z[15]) nxP[z[15]]=1; if(z[0]) nxN[alPatNorm(z[0])]=1; } });   // بالاسم كمان: مهام زي «مثبّت ومالوش ميعاد» ما بيتحفظش فيها رقم المريض
+    var clsP={};   // اتقفلت قبل النهارده في أي يوم → نفس المريض في نفس المهمة ما يرجعش من يوم تاني
     PD.forEach(function(d){ Object.keys(PLAN_ST).forEach(function(k){ if(k.indexOf('past|'+d+'|')!==0) return; ((PLAN_ST[k]||{}).L||[]).forEach(function(x){
-      var id=x.g+'|'+(x.p||x.n||''); if(seenP[id]||haveP[id]||act.indexOf(x.b)<0) return;
+      var st0=PLAN_ST[x.k], sp=PLAN_ST['past|'+d+'|'+x.k];
+      if((st0&&(st0.s==='done'||st0.s==='ref')&&String(st0.ts||'').slice(0,10)<today)||(sp&&(sp.s==='done'||sp.s==='ref')&&String(sp.ts||'').slice(0,10)<today)) clsP[x.g+'|'+(x.p||x.n||'')]=1; }); }); });
+    PD.forEach(function(d){ Object.keys(PLAN_ST).forEach(function(k){ if(k.indexOf('past|'+d+'|')!==0) return; ((PLAN_ST[k]||{}).L||[]).forEach(function(x){
+      var id=x.g+'|'+(x.p||x.n||''); if(seenP[id]||haveP[id]||clsP[id]||act.indexOf(x.b)<0) return;
       var st0=PLAN_ST[x.k]; if(st0&&(st0.s==='done'||st0.s==='ref')) return;  // اتقفلت بعد ما اتحفظت
       var sp=PLAN_ST['past|'+d+'|'+x.k]; if(sp&&(sp.s==='done'||sp.s==='ref')&&String(sp.ts||'').slice(0,10)<today) return;   // اتقفلت من يوم فات
       seenP[id]=1;

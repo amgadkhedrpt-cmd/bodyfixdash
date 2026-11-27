@@ -17,3 +17,4 @@ print("by type:", TY.most_common())
 A = collections.Counter(a["doc"] for a in x.apt if lo <= a["d"] <= hi and a["st"] in F.DONE)
 print("all done appts by doctor:", A.most_common(6))
 # r
+# r2

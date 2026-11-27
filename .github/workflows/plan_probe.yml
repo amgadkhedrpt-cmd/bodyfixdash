@@ -10,7 +10,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install cryptography requests
+      - run: pip install cryptography requests playwright
       - env:
           FIN_PASS: ${{ secrets.FIN_PASS }}
         run: python dk_probe.py

@@ -2,7 +2,7 @@
 import collections
 from datetime import date, timedelta
 import digest_fin as F
-data = F.load(); x = F.Br(data, "FIX ZONE")
+data = F.load(); x = F.Br(data, "dokki"); print("types n:", len(data.get("types") or {}))
 t = date(2026, 11, 26); lo, hi, td = (t - timedelta(days=90)).isoformat(), (t - timedelta(days=30)).isoformat(), t.isoformat()
 print("exam types:", sorted(x.exam_t))
 C = collections.Counter(); W = collections.Counter(); TY = collections.Counter()

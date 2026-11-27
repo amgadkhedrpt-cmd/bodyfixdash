@@ -1,0 +1,16 @@
+name: dokki probe (temporary)
+on:
+  push:
+    paths: ['dk_probe.py']
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install cryptography requests
+      - env:
+          FIN_PASS: ${{ secrets.FIN_PASS }}
+        run: python dk_probe.py

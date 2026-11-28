@@ -1,0 +1,10 @@
+name: fix sheet probe (temporary)
+on:
+  push:
+    paths: ['fx_probe.py']
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 fx_probe.py

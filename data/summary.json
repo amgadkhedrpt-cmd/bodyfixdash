@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-11-28T15:26:54.094478+00:00",
+  "last_updated": "2026-11-28T15:43:38.520156+00:00",
   "total": 23000,
   "doctors": [
     "Abeer",
@@ -63,9 +63,9 @@
     "كشف علاج طبيعي": 705,
     "موعد محجوز": 463,
     "حقن مونجارو": 417,
-    "الغاء مفاجئ": 370,
+    "الغاء مفاجئ": 371,
     "جلسه منزليه": 241,
-    "كشف تغذيه": 233,
+    "كشف تغذيه": 232,
     "ج ريكفري": 141,
     "شوك ويف منطقه واحده": 141,
     "ماجنتك": 129,
@@ -93,15 +93,15 @@
   },
   "by_status": {
     "Completed": 14932,
-    "Canceled": 3829,
-    "No Show": 1503,
-    "Waiting List": 1099,
-    "Open": 929,
+    "Canceled": 3832,
+    "No Show": 1504,
+    "Waiting List": 1098,
+    "Open": 924,
     "Note": 487,
-    "Confirmed": 189,
-    "Checked In": 15,
-    "In Progress": 13,
-    "Delayed": 4
+    "Confirmed": 192,
+    "Checked In": 14,
+    "In Progress": 14,
+    "Delayed": 3
   },
   "by_date": {
     "2027-08-15": {
@@ -681,7 +681,7 @@
       }
     },
     "2026-11-29": {
-      "total": 188,
+      "total": 189,
       "doctors": {
         "Follow up": 39,
         "Dr. Alaa Harfoush": 32,
@@ -705,7 +705,7 @@
         "Mohammad Osama": 5,
         "Abeer": 4,
         "Mahmoud El Kashef": 5,
-        "Dr. Ahmed Ashraf": 1,
+        "Dr. Ahmed Ashraf": 2,
         "Fares": 1
       }
     },
@@ -1809,8 +1809,8 @@
     "Dr. Adel Ashraf": 484,
     "Dr. Ahmad Ibrahim": 343,
     "Dr. Ahmad Mokhtar": 485,
-    "Dr. Ahmed Ashraf": 670,
-    "Dr. Alaa Harfoush": 2912,
+    "Dr. Ahmed Ashraf": 671,
+    "Dr. Alaa Harfoush": 2911,
     "Dr. Mohammad Reda": 367,
     "Dr. Sara Hussein": 818,
     "Dr. Yasmin Ayman": 287,
@@ -2781,12 +2781,13 @@
       "id": "ae5b6d6e-0783-4e41-977d-56e3b5a61844",
       "start": "2026-11-28T17:00:00.000Z",
       "end": "2026-11-28T18:30:00.000Z",
-      "status": "Confirmed",
-      "type": "جلسة علاج طبيعي",
+      "status": "Canceled",
+      "type": "الغاء مفاجئ",
       "doctor": "Sayed Galal",
       "branch": "BODYFIX Center",
       "patient": "هشام احمد محمد باوزير",
-      "phone": "+967_773479034"
+      "phone": "+967_773479034",
+      "reason": "عنده ظرف"
     },
     {
       "id": "8f22b949-2849-416d-b558-c22dbfb4afbc",
@@ -2815,13 +2816,14 @@
       "id": "863be1d6-f550-4833-af9c-94ffcb561921",
       "start": "2026-11-28T17:00:00.000Z",
       "end": "2026-11-28T18:00:00.000Z",
-      "status": "Waiting List",
+      "status": "Canceled",
       "type": "جلسة علاج طبيعي",
       "doctor": "Sayed Galal",
       "branch": "BODYFIX Center",
       "patient": "محمد احمد حسب الله احمد",
       "phone": "+2_01025717004",
-      "note": "مش عايز يتثبت علشان مواعيد شغله هيتحط ع الويت وهيأكد علينا المعاد قبلها بيوم"
+      "note": "مش عايز يتثبت علشان مواعيد شغله هيتحط ع الويت وهيأكد علينا المعاد قبلها بيوم",
+      "reason": "سافر اسوان"
     },
     {
       "id": "7eefd9bd-77d1-47fc-8f1e-67ded17d07e0",
@@ -3280,7 +3282,7 @@
       "id": "01b5f8c5-057a-4fc6-9904-1cc8c692a06f",
       "start": "2026-11-28T16:00:00.000Z",
       "end": "2026-11-28T17:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Checked In",
       "type": "جلسة علاج طبيعي",
       "doctor": "Rawan Yasser",
       "branch": "BODYFIX Center",
@@ -3291,12 +3293,13 @@
       "id": "a1223ae4-cb72-4dd5-a2c0-1d2944c5a0fc",
       "start": "2026-11-28T15:45:00.000Z",
       "end": "2026-11-28T16:00:00.000Z",
-      "status": "Confirmed",
+      "status": "Canceled",
       "type": "تقييم الجلسه الأخيره",
       "doctor": "Dr. Adel Ashraf",
       "branch": "BODYFIX Center",
       "patient": "احمد حسين علي هادي  سنهوب",
-      "phone": "+2_01037306032"
+      "phone": "+2_01037306032",
+      "reason": "اجل علشان عنده ضيوف"
     },
     {
       "id": "63308356-d3f1-4fc0-b888-cb05703ca030",
@@ -3325,7 +3328,7 @@
       "id": "50b44554-be36-494b-9937-3c835970baa1",
       "start": "2026-11-28T15:15:00.000Z",
       "end": "2026-11-28T15:30:00.000Z",
-      "status": "Checked In",
+      "status": "Completed",
       "type": "اعادة تقييم",
       "doctor": "Dr. Adel Ashraf",
       "branch": "BODYFIX Center",
@@ -3369,7 +3372,7 @@
       "id": "eb8311b4-1e84-4896-b1b4-c4f41e6be025",
       "start": "2026-11-28T15:00:00.000Z",
       "end": "2026-11-28T16:00:00.000Z",
-      "status": "Checked In",
+      "status": "In Progress",
       "type": "جلسة علاج طبيعي",
       "doctor": "Dr. Yasmin Sakr",
       "branch": "BODYFIX Center",
@@ -3601,7 +3604,7 @@
       "id": "bd9de58e-7d68-494d-a888-ee02889cddb4",
       "start": "2026-11-28T14:45:00.000Z",
       "end": "2026-11-28T15:15:00.000Z",
-      "status": "Delayed",
+      "status": "In Progress",
       "type": "كشف علاج طبيعي",
       "doctor": "Dr. Adel Ashraf",
       "branch": "BODYFIX Center",
@@ -3948,7 +3951,7 @@
       "id": "25b3a3d5-17ea-4f53-a1ed-500a500efb6c",
       "start": "2026-11-28T13:45:00.000Z",
       "end": "2026-11-28T14:00:00.000Z",
-      "status": "In Progress",
+      "status": "No Show",
       "type": "اعادة تقييم",
       "doctor": "Dr. Adel Ashraf",
       "branch": "BODYFIX Center",
